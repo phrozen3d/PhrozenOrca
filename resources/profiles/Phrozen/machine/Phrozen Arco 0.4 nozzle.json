@@ -38,7 +38,7 @@
     "before_layer_change_gcode": "; BEFORE_LAYER_CHANGE [layer_num] @ [layer_z]mm",
     "best_object_pos": "0.5,0.5",
     "change_extrusion_role_gcode": "",
-    "change_filament_gcode": "G1 E-1 F3600",
+    "change_filament_gcode": "{if manual_filament_change == false}\nG1 E-1 F3600\n{if flush_length <= 110}\nP10 S1\n{elsif flush_length  <= 220}\nP10 S2\n{elsif flush_length  <= 330}\nP10 S3\n{elsif flush_length  <= 440}\nP10 S4\n{elsif flush_length  <= 550}\nP10 S5\n{else}\nP10 S6\n{endif}\n{endif}",
     "cooling_tube_length": "0",
     "cooling_tube_retraction": "0",
     "deretraction_speed": [
@@ -68,7 +68,7 @@
     "long_retractions_when_cut": [
         "0"
     ],
-    "machine_end_gcode": "PRINT_END",
+    "machine_end_gcode": "; ====================================\n; machine end g-code\nP0 M0\nPRINT_END\nM107\nM104 S0; turn off temperature\nM140 S0; set bed temperature\nM84; disable motors\n; ====================================",
     "machine_load_filament_time": "126.423",
     "machine_max_acceleration_e": [
         "5000",
@@ -139,7 +139,7 @@
         "0"
     ],
     "machine_pause_gcode": "M601",
-    "machine_start_gcode": "M107\nG90\nM140 S65 ; set bed temperature\nM104 S140 ; set temperature\nM190 S65 ; set bed temperature\nM109 S140 ; set temperature\nPG28\nM106 S255 \nG30\n;AUTO_LEVELING_2\nM106 S0\nG21\nM83\nM109 S220\nP0 M1\nP28\nP2 A1",
+    "machine_start_gcode": "; ====================================\n; machine start g-code\nM107\nG90\nM140 S60 ; set bed temperature\nM104 S140 ; set temperature\nM190 S60 ; set bed temperature\nM109 S140 ; set temperature\nPG28\nPRZ_WIPEMOUTH\nM106 S255\nG30\n;AUTO_LEVELING_2\nM106 S0\nG21\nM83\nM109 S200\n{if manual_filament_change};without Chroma Kit \nP0 M3\n{else}; with Chroma Kit\nP0 M1\nP28\nP2 A1\n{endif}\n; ====================================",
     "machine_tool_change_time": "0",
     "machine_unload_filament_time": "0",
     "manual_filament_change": "0",
