@@ -3081,7 +3081,7 @@ int CLI::run(int argc, char **argv)
         else {
             partplate_list.reset_size(old_printable_width, old_printable_depth, old_printable_height, false);
         }
-        partplate_list.set_shapes(current_printable_area, current_exclude_area, bed_texture, height_to_lid, height_to_rod);
+        partplate_list.set_shapes(make_counter_clockwise(current_printable_area), current_exclude_area, bed_texture, height_to_lid, height_to_rod);
         //plate_stride = partplate_list.plate_stride_x();
     }
 
@@ -5986,6 +5986,11 @@ bool CLI::setup(int argc, char **argv)
     // The resources are packed to 'resources'
     // Path from Slic3r binary to resources:
     boost::filesystem::path path_resources = boost::filesystem::canonical(path_to_binary).parent_path().parent_path() / "resources";
+    //Orca: for build systems that support multiple configurations, the binary may be in a subdirectory like "bin/Release" or "bin/Debug".
+    if( !boost::filesystem::exists(path_resources)) {
+        // If the resources directory does not exist, try to use the resources directory
+        path_resources = boost::filesystem::canonical(path_to_binary).parent_path().parent_path().parent_path() / "resources";
+    }
 #endif
 
     set_resources_dir(path_resources.string());
