@@ -540,6 +540,8 @@ wxMenu* MenuFactory::append_submenu_add_handy_model(wxMenu* menu, ModelVolumeTyp
                 std::string                          file_name     = item;
                 if (file_name == L("PhrozenOrca Cube"))
                     file_name = "OrcaCube_v2.3mf";
+                else if (file_name == L("Orca Tolerance Test"))
+                    file_name = "OrcaToleranceTest.stl";
                 else if (file_name == L("3DBenchy"))
                     file_name = "3DBenchy.3mf";
                 else if (file_name == L("Autodesk FDM Test"))
