@@ -172,7 +172,7 @@ inline bool is_auto(SupportType stype)
 };
 
 enum SeamPosition {
-    spNearest, spAligned, spRear, spRandom
+    spNearest, spAligned, spAlignedBack, spRear, spRandom
 };
 
 // Orca
