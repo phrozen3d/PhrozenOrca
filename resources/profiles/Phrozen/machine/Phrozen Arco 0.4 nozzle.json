@@ -38,9 +38,9 @@
     "before_layer_change_gcode": "; BEFORE_LAYER_CHANGE [layer_num] @ [layer_z]mm",
     "best_object_pos": "0.5,0.5",
     "change_extrusion_role_gcode": "",
-    "change_filament_gcode": "{if manual_filament_change == false}\nG1 E-1 F3600\n{if flush_length <= 110}\nP10 S1\n{elsif flush_length  <= 220}\nP10 S2\n{elsif flush_length  <= 330}\nP10 S3\n{elsif flush_length  <= 440}\nP10 S4\n{elsif flush_length  <= 550}\nP10 S5\n{else}\nP10 S6\n{endif}\n{endif}",
-    "cooling_tube_length": "0",
-    "cooling_tube_retraction": "0",
+    "change_filament_gcode": "G1 E-1 F3600\n{if flush_length <= 110}\nP10 S1\n{elsif flush_length  <= 220}\nP10 S2\n{elsif flush_length  <= 330}\nP10 S3\n{elsif flush_length  <= 440}\nP10 S4\n{elsif flush_length  <= 550}\nP10 S5\n{else}\nP10 S6\n{endif}\n{endif}",
+    "cooling_tube_length": "5",
+    "cooling_tube_retraction": "91.5",
     "deretraction_speed": [
         "0"
     ],
@@ -75,7 +75,7 @@
         "5000"
     ],
     "machine_max_acceleration_extruding": [
-        "20000",
+        "10000",
         "20000"
     ],
     "machine_max_acceleration_retracting": [
@@ -87,11 +87,11 @@
         "20000"
     ],
     "machine_max_acceleration_x": [
-        "10000",
+        "20000",
         "10000"
     ],
     "machine_max_acceleration_y": [
-        "10000",
+        "20000",
         "10000"
     ],
     "machine_max_acceleration_z": [
@@ -113,6 +113,10 @@
     "machine_max_jerk_z": [
         "3",
         "3"
+    ],
+    "machine_max_junction_deviation": [
+        "0",
+        "0"
     ],
     "machine_max_speed_e": [
         "80",
@@ -139,21 +143,23 @@
         "0"
     ],
     "machine_pause_gcode": "M601",
-    "machine_start_gcode": "; ====================================\n; machine start g-code\nM107\nG90\nM140 S60 ; set bed temperature\nM104 S140 ; set temperature\nM190 S60 ; set bed temperature\nM109 S140 ; set temperature\nPG28\nPRZ_WIPEMOUTH\nM106 S255\nG30\n;AUTO_LEVELING_2\nM106 S0\nG21\nM83\nM109 S200\n{if manual_filament_change};without Chroma Kit \nP0 M3\n{else}; with Chroma Kit\nP0 M1\nP28\nP2 A1\n{endif}\n; ====================================",
+    "machine_start_gcode": "M107\nG90\nM140 S[bed_temperature_initial_layer_single]\nM104 S140 \nM190 S[bed_temperature_initial_layer_single]\nM109 S140\nM106 S255 \nG30\n;AUTO_LEVELING_2\nM106 S0\nG21\nM83\nM109 S[nozzle_temperature_initial_layer]\nP0 M1\nP28\nP2 A1",
     "machine_tool_change_time": "0",
     "machine_unload_filament_time": "0",
     "manual_filament_change": "0",
     "max_layer_height": [
         "0.28"
     ],
+    "max_resonance_avoidance_speed": "120",
     "min_layer_height": [
         "0.08"
     ],
+    "min_resonance_avoidance_speed": "70",
     "nozzle_height": "4",
     "nozzle_hrc": "0",
     "nozzle_type": "brass",
     "nozzle_volume": "71.6",
-    "parking_pos_retraction": "0",
+    "parking_pos_retraction": "92",
     "pellet_modded_printer": "0",
     "preferred_orientation": "0",
     "printer_notes": "",
@@ -162,11 +168,12 @@
     "printhost_ssl_ignore_revoke": "0",
     "printing_by_object_gcode": "",
     "purge_in_prime_tower": "0",
+    "resonance_avoidance": "0",
     "retract_before_wipe": [
         "0%"
     ],
     "retract_length_toolchange": [
-        "0"
+        "3"
     ],
     "retract_lift_above": [
         "0.3"
@@ -176,9 +183,6 @@
     ],
     "retract_lift_enforce": [
         "All Surfaces"
-    ],
-    "retract_on_top_layer": [
-        "1"
     ],
     "retract_restart_extra": [
         "0"
@@ -206,7 +210,7 @@
     "single_extruder_multi_material": "1",
     "support_air_filtration": "1",
     "support_chamber_temp_control": "0",
-    "support_multi_bed_types": "0",
+    "support_multi_bed_types": "1",
     "template_custom_gcode": "",
     "time_cost": "0",
     "time_lapse_gcode": "",
