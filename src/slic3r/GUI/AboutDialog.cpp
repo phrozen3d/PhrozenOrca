@@ -328,26 +328,28 @@ AboutDialog::AboutDialog()
 
     copyright_ver_sizer->Add(html_text, 0, wxALL , 0);
 
-    m_html = new wxHtmlWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_NEVER /*NEVER*/);
-      {
-          wxFont font = get_default_font(this);
-          const int fs = font.GetPointSize()-1;
-          int size[] = {fs,fs,fs,fs,fs,fs,fs};
-          m_html->SetFonts(font.GetFaceName(), font.GetFaceName(), size);
-          m_html->SetMinSize(wxSize(FromDIP(-1), FromDIP(16)));
-          m_html->SetBorders(2);
-          const auto text = from_u8(
-              (boost::format(
-              "<html>"
-              "<body>"
-              "<p style=\"text-align:left\"><a style=\"color:#009789\" href=\"https://github.com/SoftFever/Orcaslicer\">https://github.com/SoftFever/Orcaslicer</ a></p>"
-              "</body>"
-              "</html>")
-            ).str());
-          m_html->SetPage(text);
-          copyright_ver_sizer->Add(m_html, 0, wxEXPAND, 0);
-          m_html->Bind(wxEVT_HTML_LINK_CLICKED, &AboutDialog::onLinkClicked, this);
-      }
+    // Max: Hide GitHub repository HTML path from display
+    // m_html = new wxHtmlWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHW_SCROLLBAR_NEVER /*NEVER*/);
+    //   {
+    //       wxFont font = get_default_font(this);
+    //       const int fs = font.GetPointSize()-1;
+    //       int size[] = {fs,fs,fs,fs,fs,fs,fs};
+    //       m_html->SetFonts(font.GetFaceName(), font.GetFaceName(), size);
+    //       m_html->SetMinSize(wxSize(FromDIP(-1), FromDIP(16)));
+    //       m_html->SetBorders(2);
+    //       const auto text = from_u8(
+    //           (boost::format(
+    //           "<html>"
+    //           "<body>"
+    //           "<p style=\"text-align:left\"><a style=\"color:#009789\" href=\"https://github.com/SoftFever/Orcaslicer\">https://github.com/SoftFever/Orcaslicer</ a></p>"
+    //           "</body>"
+    //           "</html>")
+    //         ).str());
+    //       m_html->SetPage(text);
+    //       copyright_ver_sizer->Add(m_html, 0, wxEXPAND, 0);
+    //       m_html->Bind(wxEVT_HTML_LINK_CLICKED, &AboutDialog::onLinkClicked, this);
+    //   }
+
     //Add "Portions copyright" button
     Button* button_portions = new Button(this,_L("Portions copyright"));
     button_portions->SetStyle(ButtonStyle::Regular, ButtonType::Window);
