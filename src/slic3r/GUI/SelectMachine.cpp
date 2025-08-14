@@ -2948,7 +2948,7 @@ bool SelectMachineDialog::is_show_timelapse()
                 }
                 break;
             }
-            if (line == "OrcaSlicer")
+            if (line == "PhrozenOrca")
                 is_version = true;
         }
     }

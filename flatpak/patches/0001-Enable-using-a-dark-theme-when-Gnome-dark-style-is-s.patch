@@ -109,7 +109,7 @@ index 3047247737..f13ea2ef24 100644
 +
 +    m_proxy = nullptr;
 +
-+    if (getenv("ORCA_SLICER_DARK_THEME") != nullptr) {
++    if (getenv("PHROZEN_ORCA_SLICER_DARK_THEME") != nullptr) {
 +        /* 1 for prefer dark */
 +        GVariant *value = g_variant_new_uint32(1);
 +        UpdatePreferDark(value);

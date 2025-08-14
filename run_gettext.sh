@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#  OrcaSlicer gettext
+#  PhrozenOrca gettext
 #  Created by SoftFever on 27/5/23.
 #
 
@@ -20,18 +20,18 @@ fi
 
 
 echo "$0: working dir = $PWD"
-pot_file="./localization/i18n/OrcaSlicer.pot"
+pot_file="./localization/i18n/PhrozenOrca.pot"
 for dir in ./localization/i18n/*/
 do
     dir=${dir%*/}      # remove the trailing "/"
     lang=${dir##*/}    # extract the language identifier
 
-    if [ -f "$dir/OrcaSlicer_${lang}.po" ]; then
+    if [ -f "$dir/PhrozenOrca_${lang}.po" ]; then
         if $FULL_MODE; then
-            msgmerge -N -o "$dir/OrcaSlicer_${lang}.po" "$dir/OrcaSlicer_${lang}.po" "$pot_file"
+            msgmerge -N -o "$dir/PhrozenOrca_${lang}.po" "$dir/PhrozenOrca_${lang}.po" "$pot_file"
         fi
         mkdir -p "resources/i18n/${lang}"
-        msgfmt --check-format -o "resources/i18n/${lang}/OrcaSlicer.mo" "$dir/OrcaSlicer_${lang}.po"
+        msgfmt --check-format -o "resources/i18n/${lang}/PhrozenOrca.mo" "$dir/PhrozenOrca_${lang}.po"
         # Check the exit status of the msgfmt command
         if [ $? -ne 0 ]; then
             echo "Error encountered with msgfmt command for language ${lang}."

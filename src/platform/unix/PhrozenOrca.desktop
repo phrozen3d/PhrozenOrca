@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=OrcaSlicer
+Name=PhrozenOrca
 GenericName=3D Printing Software
-Icon=OrcaSlicer
+Icon=PhrozenOrca
 Exec=orca-slicer %U
 Terminal=false
 Type=Application
