@@ -2295,7 +2295,7 @@ bool GUI_App::on_init_inner()
     }
 #endif
 
-    BOOST_LOG_TRIVIAL(info) << boost::format("gui mode, Current PhrozenOrca Version %1%")%SoftFever_VERSION;
+    BOOST_LOG_TRIVIAL(info) << boost::format("gui mode, Current PhrozenOrca Version %1%")%Phrozen_VERSION;
 
 #if defined(__WINDOWS__)
     HMODULE hKernel32 = GetModuleHandleW(L"kernel32.dll");
@@ -4400,7 +4400,7 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
             // metadata
             std::regex matcher("[0-9]+\\.[0-9]+(\\.[0-9]+)*(-[A-Za-z0-9]+)?(\\+[A-Za-z0-9]+)?");
 
-            Semver           current_version = get_version(SoftFever_VERSION, matcher);
+            Semver           current_version = get_version(Phrozen_VERSION, matcher);
             Semver best_pre(1, 0, 0);
             Semver best_release(1, 0, 0);
             std::string best_pre_url;
@@ -4625,7 +4625,7 @@ std::string GUI_App::format_display_version()
 {
     if (!version_display.empty()) return version_display;
 
-    version_display = SoftFever_VERSION;
+    version_display = Phrozen_VERSION;
     return version_display;
 }
 
