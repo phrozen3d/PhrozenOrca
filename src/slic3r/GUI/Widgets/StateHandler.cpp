@@ -25,6 +25,11 @@ void StateHandler::attach(std::vector<StateColor const *> const & colors)
     colors_.insert(colors_.end(), colors.begin(), colors.end());
 }
 
+void StateHandler::clear() 
+{
+    colors_.clear();
+}
+
 void StateHandler::attach_child(wxWindow *child)
 {
     auto ch = new StateHandler(this, child);

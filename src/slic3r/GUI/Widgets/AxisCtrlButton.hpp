@@ -7,9 +7,11 @@
 #include "../wxExtensions.hpp"
 #include "StateHandler.hpp"
 
-
+#pragma region AxisCtrlButton
 class AxisCtrlButton : public wxWindow
 {
+
+protected:
     wxSize minSize;
     double stretch;
     double r_outer;
@@ -61,12 +63,12 @@ public:
 
     void Rescale();
 
+protected:
+    virtual void render(wxDC& dc);
 private:
     void updateParams();
 
     void paintEvent(wxPaintEvent& evt);
-
-    void render(wxDC& dc);
 
     void mouseDown(wxMouseEvent& event);
     void mouseReleased(wxMouseEvent& event);
@@ -76,4 +78,19 @@ private:
 
     DECLARE_EVENT_TABLE()
 };
+#pragma endregion
+
+#pragma region PhrozenAxisCtrlButton
+class PhrozenAxisCtrlButton : public AxisCtrlButton
+{
+public:
+    PhrozenAxisCtrlButton(wxWindow *parent, ScalableBitmap &icon, long style = 0);
+protected:
+    virtual void render(wxDC& dc) override;
+
+private:
+};
+#pragma endregion
+
+
 #endif // !slic3r_GUI_Button_hpp_

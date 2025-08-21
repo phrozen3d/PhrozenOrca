@@ -34,6 +34,8 @@ public:
 
     void attach(std::vector<StateColor const *> const & colors);
 
+    void clear();
+
     void attach_child(wxWindow *child);
 
     void remove_child(wxWindow *child);
