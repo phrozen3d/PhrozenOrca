@@ -417,6 +417,8 @@ protected:
     virtual void on_axis_ctrl_z_down_10(wxCommandEvent &event) { event.Skip(); }
     virtual void on_axis_ctrl_e_up_10(wxCommandEvent &event) { event.Skip(); }
     virtual void on_axis_ctrl_e_down_10(wxCommandEvent &event) { event.Skip(); }
+    
+public:   
     void on_camera_source_change(wxCommandEvent& event);
     void handle_camera_source_change();
     void remove_controls();
@@ -436,16 +438,17 @@ public:
     ~StatusBasePanel();
 
     MachineObject* obj{nullptr};
-    void init_bitmaps();
-    wxBoxSizer *create_monitoring_page();
-    wxBoxSizer *create_machine_control_page(wxWindow *parent);
+    virtual void Initizlize();
+    virtual void init_bitmaps();
+    virtual wxBoxSizer *create_monitoring_page();
+    virtual wxBoxSizer *create_machine_control_page(wxWindow *parent);
 
-    wxBoxSizer *create_temp_axis_group(wxWindow *parent);
-    wxBoxSizer *create_temp_control(wxWindow *parent);
-    wxBoxSizer *create_misc_control(wxWindow *parent);
-    wxBoxSizer *create_axis_control(wxWindow *parent);
-    wxBoxSizer *create_bed_control(wxWindow *parent);
-    wxBoxSizer *create_extruder_control(wxWindow *parent);
+    virtual wxBoxSizer *create_temp_axis_group(wxWindow *parent);
+    virtual wxBoxSizer *create_temp_control(wxWindow *parent);
+    virtual wxBoxSizer *create_misc_control(wxWindow *parent);
+    virtual wxBoxSizer *create_axis_control(wxWindow *parent);
+    virtual wxBoxSizer *create_bed_control(wxWindow *parent);
+    virtual wxBoxSizer *create_extruder_control(wxWindow *parent);
 
     void reset_temp_misc_control();
     int before_error_code = 0;

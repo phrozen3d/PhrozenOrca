@@ -39,6 +39,7 @@ namespace GUI {
 
 class PhrozenStatusBasePanel : public StatusBasePanel
 {
+
 public:
     PhrozenStatusBasePanel(wxWindow*       parent,
                          wxWindowID      id    = wxID_ANY,
@@ -49,8 +50,18 @@ public:
 
     ~PhrozenStatusBasePanel();
 
+    virtual void Initizlize() override;
+    virtual wxBoxSizer* create_monitoring_page() override;
+    virtual wxBoxSizer* create_machine_control_page(wxWindow* parent) override;
+    virtual wxBoxSizer* create_temp_axis_group(wxWindow* parent) override;
+    virtual wxBoxSizer* create_temp_control(wxWindow* parent) override;
+    virtual wxBoxSizer* create_misc_control(wxWindow* parent) override;
+    virtual wxBoxSizer* create_axis_control(wxWindow* parent) override;
+    virtual wxBoxSizer* create_bed_control(wxWindow* parent) override;
+    virtual wxBoxSizer* create_extruder_control(wxWindow* parent) override;
+    virtual void init_bitmaps() override;
     //MachineObject* obj{nullptr};
-    //void           init_bitmaps();
+    
     //wxBoxSizer*    create_monitoring_page();
     //wxBoxSizer*    create_machine_control_page(wxWindow* parent);
     //

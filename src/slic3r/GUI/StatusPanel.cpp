@@ -827,6 +827,10 @@ void PrintingTaskPanel::set_star_count(int star_count)
 StatusBasePanel::StatusBasePanel(wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name)
     : wxScrolledWindow(parent, id, pos, size, wxHSCROLL | wxVSCROLL)
 {
+}
+
+void StatusBasePanel::Initizlize() 
+{
     this->SetScrollRate(5, 5);
     Slic3r::DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (!dev) return;
@@ -1712,6 +1716,7 @@ StatusPanel::StatusPanel(wxWindow *parent, wxWindowID id, const wxPoint &pos, co
     : StatusBasePanel(parent, id, pos, size, style)
     , m_fan_control_popup(new FanControlPopup(this))
 {
+    StatusBasePanel::Initizlize(); 
     init_scaled_buttons();
     m_buttons.push_back(m_button_unload);
     m_buttons.push_back(m_bpButton_z_10);
