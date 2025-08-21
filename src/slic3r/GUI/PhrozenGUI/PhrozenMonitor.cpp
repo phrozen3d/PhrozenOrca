@@ -152,6 +152,10 @@ void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 
 void PhrozenMonitorPanel::update_all()
 {
+    //Debug
+    show_status(MONITOR_NORMAL);
+    return;
+
     NetworkAgent* m_agent = wxGetApp().getAgent();
     Slic3r::DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (!dev)
