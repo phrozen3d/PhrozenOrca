@@ -19,6 +19,8 @@
 //BBS: GUI refactor
 #include "ParamsPanel.hpp"
 #include "Monitor.hpp"
+#include "PhrozenGUI/PhrozenMonitor.hpp"
+#include "PhrozenGUI/PhrozenStatusPanel.hpp"
 #include "Auxiliary.hpp"
 #include "Project.hpp"
 #include "CalibrationPanel.hpp"
@@ -364,6 +366,7 @@ public:
     Plater*               m_plater { nullptr };
     //BBS: GUI refactor
     MonitorPanel*         m_monitor{ nullptr };
+    PhrozenMonitorPanel*  m_PhrozenMonitor{nullptr};
 
     //AuxiliaryPanel*       m_auxiliary{ nullptr };
     MultiMachinePage*     m_multi_machine{ nullptr };

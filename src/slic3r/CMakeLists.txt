@@ -589,6 +589,11 @@ set(SLIC3R_GUI_SOURCES
     Utils/ElegooLink.cpp
     Utils/WebSocketClient.hpp
     Utils/bambu_networking.hpp
+    GUI/PhrozenGUI/PhrozenMonitor.hpp
+    GUI/PhrozenGUI/PhrozenMonitor.cpp
+    GUI/PhrozenGUI/PhrozenStatusPanel.hpp
+    GUI/PhrozenGUI/PhrozenStatusPanel.cpp
+
 )
 
 add_subdirectory(GUI/DeviceTab)
