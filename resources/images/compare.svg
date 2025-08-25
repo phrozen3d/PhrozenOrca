@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="M7.5,12.5h-3a2,2,0,0,1-2-2v-1" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><path d="M7.5,2.5h3a2,2,0,0,1,2,2v1" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><polyline points="9.5 4.5 7.5 2.5 9.5 0.5" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><polyline points="5.5 14.5 7.5 12.5 5.5 10.5" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><rect y="1" width="1" height="6" style="fill:#949494"/><rect x="10" y="8" width="1" height="7" style="fill:#949494"/><rect x="14" y="9" width="1" height="2" style="fill:#949494"/><rect x="14" y="12" width="1" height="2" style="fill:#949494"/><rect x="1" y="4" width="3" height="1" style="fill:#949494"/><rect x="11" y="11" width="3" height="1" style="fill:#949494"/><rect x="11" y="14" width="3" height="1" style="fill:#949494"/><rect x="11" y="8" width="3" height="1" style="fill:#949494"/><rect x="1" width="3" height="1" style="fill:#949494"/><rect x="4" y="1" width="1" height="6" style="fill:#949494"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.5 12.5H4.5C3.96957 12.5 3.46086 12.2893 3.08579 11.9142C2.71071 11.5391 2.5 11.0304 2.5 10.5V9.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M7.5 2.5H10.5C11.0304 2.5 11.5391 2.71071 11.9142 3.08579C12.2893 3.46086 12.5 3.96957 12.5 4.5V5.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9.5 4.5L7.5 2.5L9.5 0.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.5 14.5L7.5 12.5L5.5 10.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1 1H0V7H1V1Z" fill="#949494"/>
+<path d="M11 8H10V15H11V8Z" fill="#949494"/>
+<path d="M15 9H14V11H15V9Z" fill="#949494"/>
+<path d="M15 12H14V14H15V12Z" fill="#949494"/>
+<path d="M4 4H1V5H4V4Z" fill="#949494"/>
+<path d="M14 11H11V12H14V11Z" fill="#949494"/>
+<path d="M14 14H11V15H14V14Z" fill="#949494"/>
+<path d="M14 8H11V9H14V8Z" fill="#949494"/>
+<path d="M4 0H1V1H4V0Z" fill="#949494"/>
+<path d="M5 1H4V7H5V1Z" fill="#949494"/>
+</svg>

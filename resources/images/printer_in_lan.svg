@@ -1,1 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><polyline points="2.5 4.5 0.5 4.5 0.5 0.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="5.5" y1="4.5" x2="5.5" y2="1.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="8.5" y1="4.5" x2="8.5" y2="1.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="7.5" y1="0.5" x2="6.5" y2="0.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="11.5" y1="4.5" x2="11.5" y2="0.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="14.5" y1="4.5" x2="11.5" y2="0.5" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><line x1="14.5" y1="0.5" x2="14.5" y2="4.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><line x1="5.5" y1="3.5" x2="8.5" y2="3.5" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><rect x="6.5" y="12.5" width="2" height="2" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><rect x="0.5" y="7.5" width="2" height="2" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><rect x="12.5" y="7.5" width="2" height="2" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><rect x="10" y="8" width="1" height="1" transform="translate(21 17) rotate(180)" style="fill:#009688"/><rect x="8" y="8" width="1" height="1" transform="translate(17 17) rotate(180)" style="fill:#009688"/><rect x="6" y="8" width="1" height="1" transform="translate(13 17) rotate(180)" style="fill:#009688"/><rect x="4" y="8" width="1" height="1" transform="translate(9 17) rotate(180)" style="fill:#009688"/><rect x="7" y="10" width="1" height="1" transform="translate(15 21) rotate(180)" style="fill:#009688"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M2.5 4.5H0.5V0.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M5.5 4.5V1.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M8.5 4.5V1.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M7.5 0.5H6.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M11.5 4.5V0.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M14.5 4.5L11.5 0.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M14.5 0.5V4.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M5.5 3.5H8.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M8.5 12.5H6.5V14.5H8.5V12.5Z" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M2.5 7.5H0.5V9.5H2.5V7.5Z" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M14.5 7.5H12.5V9.5H14.5V7.5Z" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 9H11V8H10V9Z" fill="#FF7C3F"/>
+<path d="M8 9H9V8H8V9Z" fill="#FF7C3F"/>
+<path d="M6 9H7V8H6V9Z" fill="#FF7C3F"/>
+<path d="M4 9H5V8H4V9Z" fill="#FF7C3F"/>
+<path d="M7 11H8V10H7V11Z" fill="#FF7C3F"/>
+</svg>

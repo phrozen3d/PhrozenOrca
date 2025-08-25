@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect x="0.5" y="0.5" width="14" height="14" rx="1" style="fill:none;stroke:gray;stroke-linecap:round;stroke-linejoin:round"/><polyline points="10.5 0.5 10.5 3.5 4.5 3.5 4.5 0.5" style="fill:none;stroke:gray;stroke-linecap:round;stroke-linejoin:round"/><line x1="3.5" y1="5.5" x2="11.5" y2="5.5" style="fill:none;stroke:gray;stroke-linecap:square;stroke-linejoin:round"/><line x1="3.5" y1="9.5" x2="11.5" y2="9.5" style="fill:none;stroke:gray;stroke-linecap:square;stroke-linejoin:round"/><line x1="3.5" y1="7.5" x2="11.5" y2="7.5" style="fill:none;stroke:gray;stroke-linecap:square;stroke-linejoin:round"/><line x1="3.5" y1="11.5" x2="11.5" y2="11.5" style="fill:none;stroke:gray;stroke-linecap:square;stroke-linejoin:round"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M13.5 0.5H1.5C0.947715 0.5 0.5 0.947715 0.5 1.5V13.5C0.5 14.0523 0.947715 14.5 1.5 14.5H13.5C14.0523 14.5 14.5 14.0523 14.5 13.5V1.5C14.5 0.947715 14.0523 0.5 13.5 0.5Z" stroke="#808080" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10.5 0.5V3.5H4.5V0.5" stroke="#808080" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3.5 5.5H11.5" stroke="#808080" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M3.5 9.5H11.5" stroke="#808080" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M3.5 7.5H11.5" stroke="#808080" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M3.5 11.5H11.5" stroke="#808080" stroke-linecap="square" stroke-linejoin="round"/>
+</svg>

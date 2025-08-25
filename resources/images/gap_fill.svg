@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><polygon points="8 0 0 0 0 6 8 0" style="fill:#009688"/><polygon points="16 7 10 0 7 6 16 7" style="fill:#009688"/><polygon points="2 8 13 11 5 16 2 8" style="fill:#009688"/><rect x="0.5" y="0.5" width="15" height="15" transform="translate(16 16) rotate(180)" style="fill:none;stroke:#54545a;stroke-linecap:square;stroke-linejoin:round"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_10670_18239)">
+<path d="M8 0H0V6L8 0Z" fill="#FF7C3F"/>
+<path d="M16 7L10 0L7 6L16 7Z" fill="#FF7C3F"/>
+<path d="M2 8L13 11L5 16L2 8Z" fill="#FF7C3F"/>
+<path d="M0.5 15.5L15.5 15.5L15.5 0.5L0.5 0.5L0.5 15.5Z" stroke="#54545A" stroke-linecap="square" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_10670_18239">
+<rect width="16" height="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>

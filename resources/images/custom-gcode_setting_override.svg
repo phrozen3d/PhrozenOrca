@@ -1,1 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><rect x="9.5" y="0.5" width="3" height="6" rx="1" transform="translate(22 7) rotate(-180)" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><rect y="3" width="1" height="1" style="fill:#009688"/><rect x="2" y="3" width="1" height="1" style="fill:#009688"/><rect x="4" y="3" width="1" height="1" style="fill:#009688"/><rect x="6" y="3" width="1" height="1" style="fill:#009688"/><rect x="8" y="3" width="1" height="1" style="fill:#009688"/><rect x="5.5" y="8.5" width="3" height="6" rx="1" transform="translate(14 23) rotate(-180)" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><rect y="11" width="1" height="1" style="fill:#009688"/><rect x="2" y="11" width="1" height="1" style="fill:#009688"/><rect x="4" y="11" width="1" height="1" style="fill:#009688"/><rect x="10" y="11" width="1" height="1" style="fill:#949494"/><rect x="12" y="11" width="1" height="1" style="fill:#949494"/><rect x="14" y="11" width="1" height="1" style="fill:#949494"/><rect x="14" y="3" width="1" height="1" style="fill:#949494"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10.5 6.5H11.5C12.0523 6.5 12.5 6.05228 12.5 5.5V1.5C12.5 0.947715 12.0523 0.5 11.5 0.5H10.5C9.94772 0.5 9.5 0.947715 9.5 1.5V5.5C9.5 6.05228 9.94772 6.5 10.5 6.5Z" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M1 3H0V4H1V3Z" fill="#FF7C3F"/>
+<path d="M3 3H2V4H3V3Z" fill="#FF7C3F"/>
+<path d="M5 3H4V4H5V3Z" fill="#FF7C3F"/>
+<path d="M7 3H6V4H7V3Z" fill="#FF7C3F"/>
+<path d="M9 3H8V4H9V3Z" fill="#FF7C3F"/>
+<path d="M6.5 14.5H7.5C8.05228 14.5 8.5 14.0523 8.5 13.5V9.5C8.5 8.94772 8.05228 8.5 7.5 8.5H6.5C5.94772 8.5 5.5 8.94772 5.5 9.5V13.5C5.5 14.0523 5.94772 14.5 6.5 14.5Z" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M1 11H0V12H1V11Z" fill="#FF7C3F"/>
+<path d="M3 11H2V12H3V11Z" fill="#FF7C3F"/>
+<path d="M5 11H4V12H5V11Z" fill="#FF7C3F"/>
+<path d="M11 11H10V12H11V11Z" fill="#949494"/>
+<path d="M13 11H12V12H13V11Z" fill="#949494"/>
+<path d="M15 11H14V12H15V11Z" fill="#949494"/>
+<path d="M15 3H14V4H15V3Z" fill="#949494"/>
+</svg>

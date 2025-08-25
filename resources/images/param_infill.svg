@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><polygon points="1 7.293 1 8.707 8.707 1 7.293 1 1 7.293" style="fill:#009688"/><polygon points="5.707 16 16 5.707 16 4.293 4.293 16 5.707 16" style="fill:#009688"/><path d="M1,15.5a.5.5,0,0,0,.5.5h.207L16,1.707V1.5a.5.5,0,0,0-.5-.5h-.207L1,15.293Z" style="fill:#009688"/><polygon points="1 12.707 12.707 1 11.293 1 1 11.293 1 12.707" style="fill:#009688"/><polygon points="3.293 1 1 3.293 1 4.707 4.707 1 3.293 1" style="fill:#009688"/><polygon points="13.707 16 16 13.707 16 12.293 12.293 16 13.707 16" style="fill:#009688"/><polygon points="9.707 16 16 9.707 16 8.293 8.293 16 9.707 16" style="fill:#009688"/><rect x="0.5" y="0.5" width="16" height="16" rx="1" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/></svg>
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M1 7.293V8.707L8.707 1H7.293L1 7.293Z" fill="#FF7C3F"/>
+<path d="M5.70697 16L16 5.70697V4.29297L4.29297 16H5.70697Z" fill="#FF7C3F"/>
+<path d="M1 15.5C1 15.6326 1.05268 15.7598 1.14645 15.8536C1.24021 15.9473 1.36739 16 1.5 16H1.707L16 1.707V1.5C16 1.36739 15.9473 1.24021 15.8536 1.14645C15.7598 1.05268 15.6326 1 15.5 1H15.293L1 15.293V15.5Z" fill="#FF7C3F"/>
+<path d="M1 12.707L12.707 1H11.293L1 11.293V12.707Z" fill="#FF7C3F"/>
+<path d="M3.293 1L1 3.293V4.707L4.707 1H3.293Z" fill="#FF7C3F"/>
+<path d="M13.707 16L16 13.707V12.293L12.293 16H13.707Z" fill="#FF7C3F"/>
+<path d="M9.70697 16L16 9.70697V8.29297L8.29297 16H9.70697Z" fill="#FF7C3F"/>
+<path d="M15.5 0.5H1.5C0.947715 0.5 0.5 0.947715 0.5 1.5V15.5C0.5 16.0523 0.947715 16.5 1.5 16.5H15.5C16.0523 16.5 16.5 16.0523 16.5 15.5V1.5C16.5 0.947715 16.0523 0.5 15.5 0.5Z" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

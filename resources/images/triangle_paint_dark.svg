@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><polygon points="15.5 15.5 0.5 15.5 0.5 0.5 15.5 15.5" style="fill:#009688"/><line x1="15" y1="15" x2="1" y2="1" style="fill:none;stroke:#cfcfcf;stroke-linecap:square;stroke-linejoin:round"/><rect x="0.5" y="0.5" width="15" height="15" transform="translate(16 16) rotate(180)" style="fill:none;stroke:#cfcfcf;stroke-linecap:square;stroke-linejoin:round"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_10670_21306)">
+<path d="M15.5 15.5H0.5V0.5L15.5 15.5Z" fill="#FF7C3F"/>
+<path d="M15 15L1 1" stroke="#CFCFCF" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M0.5 15.5L15.5 15.5L15.5 0.5L0.5 0.5L0.5 15.5Z" stroke="#CFCFCF" stroke-linecap="square" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_10670_21306">
+<rect width="16" height="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>

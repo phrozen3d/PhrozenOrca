@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><polyline points="14.5 3.5 14.5 0.5 0.5 0.5 0.5 3.5" style="fill:none;stroke:#949494;stroke-linecap:square;stroke-linejoin:round"/><path d="M14.5,5.5v-2c-2,2-4.091,1.163-6,.107S3.5,1.5.5,3.5v11h7" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/><path d="M10,7h1V8H10ZM8,7H9V6H8ZM8,9H9V8H8ZM6,8H7V7H6Zm0,2H7V9H6ZM6,6H7V5H6Z" style="fill:#009688"/><path d="M12.5,8.5l2,2v4h-4v-4h0Zm-2,2h4m-2-2,0,0v-1" style="fill:none;stroke:#009688;stroke-linecap:square;stroke-linejoin:round"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M14.5 3.5V0.5H0.5V3.5" stroke="#949494" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M14.5 5.50001V3.50001C12.5 5.50001 10.409 4.66301 8.5 3.60701C6.591 2.55101 3.5 1.50001 0.5 3.50001V14.5H7.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+<path d="M10 7H11V8H10V7ZM8 7H9V6H8V7ZM8 9H9V8H8V9ZM6 8H7V7H6V8ZM6 10H7V9H6V10ZM6 6H7V5H6V6Z" fill="#FF7C3F"/>
+<path d="M12.5 8.5L14.5 10.5M12.5 8.5L10.5 10.5M12.5 8.5V7.5M14.5 10.5V14.5H10.5V10.5M14.5 10.5H10.5" stroke="#FF7C3F" stroke-linecap="square" stroke-linejoin="round"/>
+</svg>

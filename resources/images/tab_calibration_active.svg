@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M7.5,17.5h-5a1,1,0,0,1-1-1v-5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><path d="M17.5,11.5v5a1,1,0,0,1-1,1h-5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><path d="M11.5,2.5h5a1,1,0,0,1,1,1v4" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><path d="M1.5,7.5v-4a1,1,0,0,1,1-1h5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="9.5" y1="2.5" x2="9.5" y2="4.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="9.5" y1="7.5" x2="9.5" y2="11.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="9.5" y1="14.5" x2="9.5" y2="17.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="17.5" y1="9.5" x2="14.5" y2="9.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="4.5" y1="9.5" x2="1.5" y2="9.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/><line x1="11.5" y1="9.5" x2="7.5" y2="9.5" style="fill:none;stroke:#fff;stroke-linecap:square;stroke-miterlimit:10"/></svg>
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M7.5 17.5H2.5C2.23478 17.5 1.98043 17.3946 1.79289 17.2071C1.60536 17.0196 1.5 16.7652 1.5 16.5V11.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M17.5 11.5V16.5C17.5 16.7652 17.3946 17.0196 17.2071 17.2071C17.0196 17.3946 16.7652 17.5 16.5 17.5H11.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M11.5 2.5H16.5C16.7652 2.5 17.0196 2.60536 17.2071 2.79289C17.3946 2.98043 17.5 3.23478 17.5 3.5V7.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M1.5 7.5V3.5C1.5 3.23478 1.60536 2.98043 1.79289 2.79289C1.98043 2.60536 2.23478 2.5 2.5 2.5H7.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M9.5 2.5V4.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M9.5 7.5V11.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M9.5 14.5V17.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M17.5 9.5H14.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M4.5 9.5H1.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+<path d="M11.5 9.5H7.5" stroke="white" stroke-miterlimit="10" stroke-linecap="square"/>
+</svg>

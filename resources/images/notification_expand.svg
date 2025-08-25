@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="14" height="16" viewBox="0 0 14 16"><polyline points="3.604 11.354 8.604 9.354 13.604 11.354" style="fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round"/><polyline points="3.604 6.354 8.604 4.354 13.604 6.354" style="fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round"/></svg>
+<svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_10670_22899)">
+<path d="M3.60352 11.354L8.60352 9.354L13.6035 11.354" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3.60352 6.354L8.60352 4.354L13.6035 6.354" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_10670_22899">
+<rect width="14" height="16" fill="white"/>
+</clipPath>
+</defs>
+</svg>

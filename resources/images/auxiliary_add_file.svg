@@ -1,8 +1,11 @@
-<svg width="25" height="25" xmlns="http://www.w3.org/2000/svg" fill="none">
-
- <g>
-  <title>Layer 1</title>
-  <path id="svg_1" stroke-linecap="round" stroke-width="2" stroke="#262E30" d="m1,12.5l23,0"/>
-  <path id="svg_2" stroke-linecap="round" stroke-width="2" stroke="#262E30" d="m12.5,24l0,-23"/>
- </g>
+<svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_10670_19554)">
+<path d="M1 12.5H24" stroke="#262E30" stroke-width="2" stroke-linecap="round"/>
+<path d="M12.5 24V1" stroke="#262E30" stroke-width="2" stroke-linecap="round"/>
+</g>
+<defs>
+<clipPath id="clip0_10670_19554">
+<rect width="25" height="25" fill="white"/>
+</clipPath>
+</defs>
 </svg>

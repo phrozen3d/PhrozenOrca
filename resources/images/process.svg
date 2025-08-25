@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><polyline points="1.375 7 0.5 7.5 7.5 11.5 14.5 7.5 13.625 7" style="fill:none;stroke:#009688;stroke-linecap:round;stroke-linejoin:round"/><polygon points="14.5 4.5 7.5 8.5 0.5 4.5 7.5 0.5 14.5 4.5" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/><polyline points="1.375 10 0.5 10.5 7.5 14.5 14.5 10.5 13.625 10" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/></svg>
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M1.375 7L0.5 7.5L7.5 11.5L14.5 7.5L13.625 7" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M14.5 4.5L7.5 8.5L0.5 4.5L7.5 0.5L14.5 4.5Z" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1.375 10L0.5 10.5L7.5 14.5L14.5 10.5L13.625 10" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

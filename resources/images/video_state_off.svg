@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="14" viewBox="0 0 20 14"><rect x="1.5" y="0.5" width="12" height="13" rx="1" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/><polyline points="13.5 6.499 18.5 2.5 18.5 11.5 13.5 7.5" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/><line x1="3.5" y1="3.5" x2="8.5" y2="3.5" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/><circle cx="6" cy="9" r="2.5" style="fill:none;stroke:#949494;stroke-linecap:round;stroke-linejoin:round"/></svg>
+<svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.5 0.5H2.5C1.94772 0.5 1.5 0.947715 1.5 1.5V12.5C1.5 13.0523 1.94772 13.5 2.5 13.5H12.5C13.0523 13.5 13.5 13.0523 13.5 12.5V1.5C13.5 0.947715 13.0523 0.5 12.5 0.5Z" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13.5 6.499L18.5 2.5V11.5L13.5 7.5" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3.5 3.5H8.5" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M6 11.5C7.38071 11.5 8.5 10.3807 8.5 9C8.5 7.61929 7.38071 6.5 6 6.5C4.61929 6.5 3.5 7.61929 3.5 9C3.5 10.3807 4.61929 11.5 6 11.5Z" stroke="#949494" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

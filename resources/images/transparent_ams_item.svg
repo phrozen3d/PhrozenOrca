@@ -1,21 +1,28 @@
 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="48" height="48" transform="matrix(1 0 0 -1 0 48)" fill="#FEFFFE"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 0 8)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 0 24)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 0 40)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 8 0)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 8 16)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 8 32)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 16 8)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 16 24)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 16 40)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 24 0)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 24 16)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 24 32)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 32 8)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 32 24)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 32 40)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 40 0)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 40 16)" fill="#D9D9D9"/>
-<rect width="8" height="8" transform="matrix(0 1 1 0 40 32)" fill="#D9D9D9"/>
+<g clip-path="url(#clip0_10670_21197)">
+<path d="M48 48H0V0H48V48Z" fill="#FEFFFE"/>
+<path d="M0 16V8H8V16H0Z" fill="#D9D9D9"/>
+<path d="M0 32V24H8V32H0Z" fill="#D9D9D9"/>
+<path d="M0 48V40H8V48H0Z" fill="#D9D9D9"/>
+<path d="M8 8V0H16V8H8Z" fill="#D9D9D9"/>
+<path d="M8 24V16H16V24H8Z" fill="#D9D9D9"/>
+<path d="M8 40V32H16V40H8Z" fill="#D9D9D9"/>
+<path d="M16 16V8H24V16H16Z" fill="#D9D9D9"/>
+<path d="M16 32V24H24V32H16Z" fill="#D9D9D9"/>
+<path d="M16 48V40H24V48H16Z" fill="#D9D9D9"/>
+<path d="M24 8V0H32V8H24Z" fill="#D9D9D9"/>
+<path d="M24 24V16H32V24H24Z" fill="#D9D9D9"/>
+<path d="M24 40V32H32V40H24Z" fill="#D9D9D9"/>
+<path d="M32 16V8H40V16H32Z" fill="#D9D9D9"/>
+<path d="M32 32V24H40V32H32Z" fill="#D9D9D9"/>
+<path d="M32 48V40H40V48H32Z" fill="#D9D9D9"/>
+<path d="M40 8V0H48V8H40Z" fill="#D9D9D9"/>
+<path d="M40 24V16H48V24H40Z" fill="#D9D9D9"/>
+<path d="M40 40V32H48V40H40Z" fill="#D9D9D9"/>
+</g>
+<defs>
+<clipPath id="clip0_10670_21197">
+<rect width="48" height="48" fill="white"/>
+</clipPath>
+</defs>
 </svg>
