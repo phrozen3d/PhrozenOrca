@@ -1,7 +1,6 @@
 {
-
-	"writeKey": "a8151210718646444184-5b716da2c0543d32e9395b9dfe0759d748e606c831979a0ffb2122900ac18917",
-	"readKey": "a8151210718646444184-a8f8385bc116854945c43849e2717742aa20b2fea65739e87183979aec15b26a",
+	"writeKey": "a6829414794774909814-7c54f833aa8d0f0e6ea8c59229921fa9e1d62f9a3390f17a408feeffc8809ca3",
+	"readKey": "a6829414794774909814-9b60bcdcbb8438de9094fd1c6afbf4da50d89a9bd6ba2c1f4e7d2098bcc3c920",
 	"upload": {
 		"files": [
 			{
@@ -41,7 +40,7 @@
 			},
 			{
 				"type": "po",
-				"pattern": "localization/i18n/ja/PhrozenOrca_hu.po",
+				"pattern": "localization/i18n/it/PhrozenOrca_it.po",
 				"lang": "it"
 			},
 			{
@@ -71,16 +70,46 @@
 			},
 			{
 				"type": "po",
-				"pattern": "localization/i18n/tr/PhrozenOrca_pl.po",
+				"pattern": "localization/i18n/pl/PhrozenOrca_pl.po",
 				"lang": "pl"
+			},
+			{
+				"type": "po",
+				"pattern": "localization/i18n/cs/PhrozenOrca_cs.po",
+				"lang": "cs"
+			},
+			{
+				"type": "po",
+				"pattern": "localization/i18n/pt_BR/PhrozenOrca_pt_BR.po",
+				"lang": "pt_BR"
+			},
+			{
+				"type": "po",
+				"pattern": "localization/i18n/uk/PhrozenOrca_uk.po",
+				"lang": "uk"
+			},
+			{
+				"type": "po",
+				"pattern": "localization/i18n/zh_CN/PhrozenOrca_zh_CN.po",
+				"lang": "zh_CN"
 			}
 		]
 	},
 	"download": {
 		"folder": "localization/i18n",
-		"includeSourceLang" : "true",
-		"files": {
-			"output": "${lang}/PhrozenOrca_${lang}.po"
-		}
+		"includeSourceLang": "true",
+		"langAliases": {
+			"zh-Hant-TW": "zh_TW"
+		},
+		"files": [
+			{
+				"conditions": "!empty:${regionCode}",
+				"output": "${languageCode}_${regionCode}/PhrozenOrca_${languageCode}_${regionCode}.po"
+			},
+			{
+				"conditions": "empty:${regionCode}",
+				"output": "${languageCode}/PhrozenOrca_${languageCode}.po"
+			}
+		]
 	}
 }
