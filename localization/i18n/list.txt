@@ -177,3 +177,7 @@ src/slic3r/Utils/Flashforge.cpp
 src/slic3r/GUI/Jobs/OAuthJob.cpp
 src/slic3r/GUI/BackgroundSlicingProcess.cpp
 src/slic3r/GUI/Gizmos/GLGizmoBrimEars.cpp
+src/slic3r/GUI/PhrozenGUI/PhrozenStatusPanel.hpp
+src/slic3r/GUI/PhrozenGUI/PhrozenStatusPanel.cpp
+src/slic3r/GUI/PhrozenGUI/PhrozenMonitor.hpp
+src/slic3r/GUI/PhrozenGUI/PhrozenMonitor.cpp
