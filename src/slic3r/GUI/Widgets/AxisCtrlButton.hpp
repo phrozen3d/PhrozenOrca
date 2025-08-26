@@ -43,7 +43,18 @@ protected:
         INNER_DOWN = 6,
         INNER_RIGHT = 7,
         INNER_HOME = 8,
-        UNDEFINED = 9
+
+        //Phrozen Style Control Button
+        PHROZEN_UP = 9,
+        PHROZEN_LEFT = 10,
+        PHROZEN_DOWN = 11,
+        PHROZEN_RIHGT = 12,
+        MOVE_STEP_01MM = 13,
+        MOVE_STEP_1MM = 14,
+        MOVE_STEP_10MM = 15,
+
+
+        UNDEFINED = 16
     };
 
 public:
@@ -64,7 +75,7 @@ public:
     void Rescale();
 
 protected:
-    virtual void render(wxDC& dc);
+    void render(wxDC& dc);
 private:
     void updateParams();
 
@@ -81,14 +92,98 @@ private:
 #pragma endregion
 
 #pragma region PhrozenAxisCtrlButton
-class PhrozenAxisCtrlButton : public AxisCtrlButton
+class PhrozenAxisCtrlButton : public wxWindow
 {
+
 public:
-    PhrozenAxisCtrlButton(wxWindow *parent, ScalableBitmap &icon, long style = 0);
+
+    enum CurrentPos 
+    {
+        AXIS_UP           = 0,
+        AXIS_LEFT         = 1,
+        AXIS_DOWN         = 2,
+        AXIS_RIGHT        = 3,
+        AXIS_HOME         = 4,
+        MOVE_STEP_01MM    = 5,
+        MOVE_STEP_1MM     = 6,
+        MOVE_STEP_10MM    = 7,
+        BUTTON_COUNT      = 8,
+
+        UNDEFINED           = 255
+    };
+
 protected:
-    virtual void render(wxDC& dc) override;
+    wxSize minSize;
+    double stretch;
+    double gap;
+
+    wxSize m_kAxisButtonSize;
+    wxSize m_kMoveStepButtonSize;
+	wxPoint center;
+
+	bool pressedDown = false;
+
+    unsigned char last_pos = CurrentPos::UNDEFINED;
+    unsigned char current_pos = CurrentPos::UNDEFINED;
+    unsigned char current_move_step = CurrentPos::MOVE_STEP_1MM;
+
+    class CButtonInfo
+    {
+    public:
+        CButtonInfo( const CurrentPos& kType, const wxSize& kCenter, const wxSize& kSize )
+        : m_kType( kType ), m_kCenter( kCenter ), m_kSize( kSize ){}
+
+        void SetImage( const std::string& strNormal, const std::string& strHover, const std::string& strPressed  )
+        {
+            m_strNormalName = strNormal;
+            m_strHoverName = strHover;
+            m_strPressedName = strPressed;
+        }
+
+        CurrentPos m_kType = CurrentPos::UNDEFINED;
+        wxSize m_kCenter;
+        wxSize m_kSize;
+        std::string m_strNormalName;
+        std::string m_strHoverName;
+        std::string m_strPressedName;
+    };
+    std::vector< CButtonInfo > m_kDrawButtonInfo;
+
+public:
+    PhrozenAxisCtrlButton(wxWindow *parent, long style = 0 );
+
+    void SetMinSize(const wxSize& size) override;
+
+    void SetTextColor(StateColor const& color);
+
+    void SetBorderColor(StateColor const& color);
+
+    void SetBackgroundColor(StateColor const& color);
+
+    void SetInnerBackgroundColor(StateColor const& color);
+
+    void SetBitmap(ScalableBitmap &bmp);
+
+    void Rescale();
+
+protected:
+    void render(wxDC& dc);
+    void renderPhrozenStyle2(wxDC& dc);
 
 private:
+    void updateParams();
+    void initializeDrawButtonInfo();
+
+    void paintEvent(wxPaintEvent& evt);
+
+    void mouseDown(wxMouseEvent& event);
+    void mouseReleased(wxMouseEvent& event);
+    void mouseMoving(wxMouseEvent& event);
+    
+
+    void sendButtonEvent();
+
+    DECLARE_EVENT_TABLE()
 };
 #pragma endregion
 
