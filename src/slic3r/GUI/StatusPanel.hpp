@@ -363,6 +363,8 @@ protected:
     float           m_fixed_aspect_ratio{1.8};
 
     AxisCtrlButton *m_bpButton_xy;
+    PhrozenAxisCtrlButton *m_phButton_xy;
+
     //wxStaticText *  m_staticText_xy;
     Button *        m_bpButton_z_10;
     Button *        m_bpButton_z_1;
