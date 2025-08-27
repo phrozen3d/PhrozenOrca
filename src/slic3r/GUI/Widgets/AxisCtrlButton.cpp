@@ -9,7 +9,7 @@ StateColor blank_bg(StateColor(std::make_pair(wxColour("#FFFFFF"), (int)StateCol
 static const wxColour BUTTON_BG_COL = wxColour("#EEEEEE");
 static const wxColour BUTTON_IN_BG_COL = wxColour("#CECECE");
 
-static const wxColour bd = wxColour(0, 150, 136);
+static const wxColour bd = wxColour(255, 124, 63);
 static const wxColour text_num_color = wxColour(0x898989);
 static const wxColour BUTTON_PRESS_COL = wxColour(172, 172, 172);
 static const double sqrt2 = std::sqrt(2);
@@ -377,7 +377,7 @@ StateColor phrozen_blank_bg(StateColor(std::make_pair(wxColour("#FFFFFF"), (int)
 static const wxColour PHROZEN_BUTTON_BG_COL = wxColour("#FF7C3F");
 static const wxColour PHROZEN_BUTTON_IN_BG_COL = wxColour("#F05E20");
 
-static const wxColour phrozen_bd = wxColour(0, 150, 136);
+static const wxColour phrozen_bd = wxColour(255, 124, 63);
 static const wxColour phrozen_text_num_color = wxColour(0x898989);
 static const wxColour PHROZEN_BUTTON_PRESS_COL = wxColour(172, 172, 172);
 

@@ -257,12 +257,12 @@ AboutDialog::AboutDialog()
         #else
             version_font.SetPointSize(11);
         #endif
-        version_font.SetPointSize(20);
+        version_font.SetPointSize(18);
         version->SetFont(version_font);
         version->SetForegroundColour(wxColour("#949494"));
         credits_string->SetForegroundColour(wxColour("#949494"));
-        version->SetBackgroundColour(wxColour("#FFFFFF"));
-        credits_string->SetBackgroundColour(wxColour("#FFFFFF"));
+        version->SetBackgroundColour(wxColour("#0F1113"));
+        credits_string->SetBackgroundColour(wxColour("#0F1113"));
 
         vesizer->Add(version, 0, wxRIGHT | wxALIGN_RIGHT, FromDIP(20));
         vesizer->AddSpacer(FromDIP(5));

@@ -207,7 +207,7 @@ void SendDeviceItem::doRender(wxDC& dc)
 
     //device state
     if (state_printable <= 2) {
-        dc.SetTextForeground(wxColour(0, 150, 136));
+        dc.SetTextForeground(wxColour(255, 124, 63));
     }
     else {
         dc.SetTextForeground(wxColour(208, 27, 27));
@@ -232,7 +232,7 @@ void SendDeviceItem::doRender(wxDC& dc)
     }
 
     if (m_hover) {
-        dc.SetPen(wxPen(wxColour(0, 150, 136)));
+        dc.SetPen(wxPen(wxColour(255, 124, 63)));
         dc.SetBrush(*wxTRANSPARENT_BRUSH);
         dc.DrawRoundedRectangle(0, 0, size.x, size.y, 3);
     }
@@ -1259,8 +1259,8 @@ wxPanel* SendMultiMachinePage::create_page()
 
     auto m_btn_bg_enable = StateColor(
         std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
-        std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal)
+        std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
+        std::pair<wxColour, int>(wxColour(255, 124, 63), StateColor::Normal)
     );
 
     m_button_add = new Button(main_page, _L("Add"));
@@ -1320,8 +1320,8 @@ wxPanel* SendMultiMachinePage::create_page()
     sizer->AddSpacer(FromDIP(10));
 
     // add send button
-    btn_bg_enable = StateColor(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(38, 166, 154), StateColor::Hovered),
-        std::pair<wxColour, int>(wxColour(0, 150, 136), StateColor::Normal));
+    btn_bg_enable = StateColor(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
+        std::pair<wxColour, int>(wxColour(255, 124, 63), StateColor::Normal));
 
     m_button_send = new Button(main_page, _L("Send"));
     m_button_send->SetBackgroundColor(btn_bg_enable);
