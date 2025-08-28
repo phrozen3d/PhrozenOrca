@@ -971,6 +971,38 @@
         {
             "name": "Polymaker HT-PLA-GF @System",
             "sub_path": "filament/Polymaker/Polymaker HT-PLA-GF @System.json"
+        },
+		{
+            "name": "Phrozen PLA HS Fast @base",
+            "sub_path": "filament/Phrozen/Phrozen PLA HS Fast @base.json"
+        },
+        {
+            "name": "Phrozen PLA HS Fast @System",
+            "sub_path": "filament/Phrozen/Phrozen PLA HS Fast @System.json"
+        },
+		{
+            "name": "Phrozen PLA Tough @base",
+            "sub_path": "filament/Phrozen/Phrozen PLA Tough @base.json"
+        },
+        {
+            "name": "Phrozen PLA Tough @System",
+            "sub_path": "filament/Phrozen/Phrozen PLA Tough @System.json"
+        },
+		{
+            "name": "Phrozen PLA HS Standard @base",
+            "sub_path": "filament/Phrozen/Phrozen PLA HS Standard @base.json"
+        },
+        {
+            "name": "Phrozen PLA HS Standard @System",
+            "sub_path": "filament/Phrozen/Phrozen PLA HS Standard @System.json"
+        },
+		{
+            "name": "SpiderMaker PLA Matte @base",
+            "sub_path": "filament/Phrozen/SpiderMaker PLA Matte @base.json"
+        },
+        {
+            "name": "SpiderMaker PLA Matte @System",
+            "sub_path": "filament/Phrozen/SpiderMaker PLA Matte @System.json"
         }
     ]
 }

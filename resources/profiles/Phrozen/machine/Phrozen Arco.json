@@ -8,5 +8,5 @@
     "bed_model": "Phrozen Arco_buildplate_model.stl",
     "bed_texture": "Phrozen Arco_buildplate_texture.png",
     "hotend_model": "",
-    "default_materials": "Phrozen PLA @Phrozen Arco 0.4 nozzle"
+    "default_materials": "Phrozen PLA HS Standard;Phrozen PLA HS Fast;Phrozen PLA Tough;SpiderMaker PLA Matte"
 }

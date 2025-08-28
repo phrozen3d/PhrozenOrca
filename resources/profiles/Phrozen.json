@@ -1,6 +1,6 @@
 {
     "name": "Phrozen",
-    "version":  "00.00.00.01",
+    "version":  "00.00.00.02",
     "force_update": "0",
     "description": "Phrozen configurations",
     "machine_model_list": [
@@ -17,7 +17,16 @@
         {
             "name": "0.20mm Standard @Phrozen Arco",
             "sub_path": "process/0.20mm Standard @Phrozen Arco 0.4 nozzle.json"
+        },
+        {
+            "name": "0.20mm Fast @Phrozen Arco",
+            "sub_path": "process/0.20mm Fast @Phrozen Arco 0.4 nozzle.json"
+        },
+        {
+            "name": "0.20mm Ultra Fast @Phrozen Arco",
+            "sub_path": "process/0.20mm Ultra Fast @Phrozen Arco 0.4 nozzle.json"
         }
+		
     ],
     "filament_list": [
         {
