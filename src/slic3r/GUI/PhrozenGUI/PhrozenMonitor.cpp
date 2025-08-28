@@ -34,7 +34,8 @@ namespace GUI {
 
 #pragma region PhrozenMonitorPanel
  PhrozenMonitorPanel::PhrozenMonitorPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
-    : wxPanel(parent, id, pos, size, style)
+    : wxPanel(parent, id, pos, size, style),
+      m_select_machine(SelectMachinePopup(this))
 {
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
@@ -45,11 +46,14 @@ namespace GUI {
     init_tabpanel();
 
     m_main_sizer = new wxBoxSizer(wxHORIZONTAL);
-    m_main_sizer->Add(m_status_info_panel, 1, wxEXPAND | wxLEFT, 0);
+    m_main_sizer->Add(m_tabpanel, 1, wxEXPAND | wxLEFT, 0);
     SetSizerAndFit(m_main_sizer);
     m_status_info_panel->show_ams_group(true);
 
     init_timer();
+
+    //m_side_tools->get_panel()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(MonitorPanel::on_printer_clicked), NULL, this);
+
     
     Bind(wxEVT_TIMER, &PhrozenMonitorPanel::on_timer, this);
     Bind(wxEVT_SIZE, &PhrozenMonitorPanel::on_size, this);
@@ -90,7 +94,22 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
 
   void PhrozenMonitorPanel::init_tabpanel()
 {
-    m_status_info_panel = new PhrozenStatusPanel(this);
+    m_side_tools = new SideTools(this, wxID_ANY);
+    wxBoxSizer* sizer_side_tools = new wxBoxSizer(wxVERTICAL);
+    sizer_side_tools->Add(m_side_tools, 1, wxEXPAND, 0);
+    m_tabpanel = new Tabbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer_side_tools, wxNB_LEFT | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
+    m_side_tools->set_table_panel(m_tabpanel);
+    m_tabpanel->SetBackgroundColour(wxColour("#FEFFFF"));
+    m_tabpanel->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxBookCtrlEvent& e) {
+        auto page = m_tabpanel->GetCurrentPage();
+        page->SetFocus();
+    }, m_tabpanel->GetId());
+
+    m_status_info_panel = new PhrozenStatusPanel(m_tabpanel);
+    m_tabpanel->AddPage(m_status_info_panel, _L("Status"), "", true);
+
+    m_spPrintHistoryPanel = std::make_shared< wxPanel >( m_tabpanel );
+    m_tabpanel->AddPage(m_spPrintHistoryPanel.get(), _L("Print History"), "", false);
 
     m_initialized = true;
     show_status((int) MonitorStatus::MONITOR_NO_PRINTER);
@@ -119,8 +138,12 @@ void PhrozenMonitorPanel::msw_rescale()
 {
     init_bitmap();
 
-    //m_status_add_machine_panel->msw_rescale();
+    /* side_tool rescale */
+    m_side_tools->msw_rescale();
+    m_tabpanel->Rescale();
+    /* Panel rescale */
     m_status_info_panel->msw_rescale();
+    //m_spPrintHistoryPanel->msw_rescale();
 
     Layout();
     Refresh();
@@ -192,7 +215,7 @@ void PhrozenMonitorPanel::update_all()
 
     m_status_info_panel->obj = obj;
     //m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
-    //m_media_file_panel->SetMachineObject(obj);
+    m_side_tools->update_status(obj);
 
     if (!obj) {
         show_status((int)MONITOR_NO_PRINTER);
@@ -295,6 +318,7 @@ Freeze();
     if ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0) 
     {
         set_default();
+        m_tabpanel->Layout();
     } else if (((status & (int)MonitorStatus::MONITOR_NORMAL) != 0)
         || ((status & (int)MonitorStatus::MONITOR_DISCONNECTED) != 0)
         || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
@@ -307,6 +331,7 @@ Freeze();
         {
             set_default();
         }
+        m_tabpanel->Layout();
     }
     Layout();
 Thaw();

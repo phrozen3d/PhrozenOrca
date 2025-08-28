@@ -52,8 +52,18 @@ private:
     wxSizer*        m_main_sizer{ nullptr };
     Tabbook*        m_tabpanel{nullptr};
     
-    PhrozenStatusPanel* m_status_info_panel;
+    PhrozenStatusPanel* m_status_info_panel{ nullptr };
+    std::shared_ptr< wxPanel > m_spPrintHistoryPanel{ nullptr };
 
+	/* side tools */
+    SideTools*      m_side_tools{nullptr};
+    wxStaticBitmap* m_bitmap_printer_type;
+    wxStaticBitmap* m_bitmap_arrow;
+    wxStaticText*   m_staticText_printer_name;
+    wxStaticBitmap* m_bitmap_wifi_signal;
+    wxBoxSizer *    m_side_tools_sizer;
+    SelectMachinePopup m_select_machine;
+      
 	/* images */
     wxBitmap m_signal_strong_img;
     wxBitmap m_signal_middle_img;
