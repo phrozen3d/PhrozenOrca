@@ -1,0 +1,9 @@
+{
+    "type": "filament",
+	"setting_id": "PRZGFSA01",
+    "name": "Phrozen PLA HS Fast @System",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA HS Fast @base",
+    "compatible_printers": []
+}
