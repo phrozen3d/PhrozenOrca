@@ -244,12 +244,6 @@ void PhrozenMonitorPanel::update_all()
         m_status_info_panel->update(obj);
     }
 
-#if !BBL_RELEASE_TO_PUBLIC
-    if (m_upgrade_panel->IsShown()) {
-        m_upgrade_panel->update(obj);
-    }
-#endif
-
 }
 
 bool PhrozenMonitorPanel::Show(bool show)
@@ -307,9 +301,6 @@ void PhrozenMonitorPanel::show_status(int status)
     BOOST_LOG_TRIVIAL(info) << "monitor: show_status = " << status;
 
 
-#if !BBL_RELEASE_TO_PUBLIC
-    m_upgrade_panel->update(nullptr);
-#endif
 
 Freeze();
     // update panels
