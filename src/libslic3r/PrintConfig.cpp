@@ -3833,6 +3833,11 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("Phrozen Orca can upload G-code files to a printer host. This field must contain "
                    "the kind of the host.");
     def->enum_keys_map = &ConfigOptionEnum<PrintHostType>::get_enum_values();
+
+#if BUILD_PHROZEN_ORCA
+    def->enum_values.push_back("phrozenconnect");
+    def->enum_labels.push_back("PhrozenConnect");
+#else
     def->enum_values.push_back("prusalink");
     def->enum_values.push_back("prusaconnect");
     def->enum_values.push_back("octoprint");
@@ -3863,6 +3868,7 @@ void PrintConfigDef::init_fff_params()
     def->enum_labels.push_back("SimplyPrint");
     def->enum_labels.push_back("Elegoo Link");
     def->enum_labels.push_back("PhrozenConnect");
+#endif
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionEnum<PrintHostType>(htOctoPrint));

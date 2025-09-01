@@ -279,6 +279,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
     port_line.append_widget(print_host_printers);
     m_optgroup->append_line(port_line);
 
+#if !BUILD_PHROZEN_ORCA
     const auto ca_file_hint = _u8L("HTTPS CA file is optional. It is only needed if you use HTTPS with a self-signed certificate.");
 
     if (Http::ca_file_supported()) {
@@ -332,6 +333,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         };
         m_optgroup->append_line(line);
     }
+#endif
 
     for (const std::string& opt_key : std::vector<std::string>{ "printhost_user", "printhost_password" }) {        
         option = m_optgroup->get_option(opt_key);
@@ -443,12 +445,33 @@ void PhysicalPrinterDialog::update_webui()
 void PhysicalPrinterDialog::update_printhost_buttons()
 {
     std::unique_ptr<PrintHost> host(PrintHost::get_print_host(m_config));
+#if BUILD_PHROZEN_ORCA
+    if (host) {
+        auto name = std::string( host->get_name() );
+        if ( name == "PhrozenConnect" )
+        {
+            m_printhost_test_btn->Enable(!m_config->opt_string("print_host").empty() && host->can_test());
+            m_printhost_browse_btn->Show( false );
+            m_printhost_logout_btn->Show( false );
+            m_printhost_test_btn->SetLabel(host->is_cloud() ? _L("Login/Test") : _L("Test"));
+        }
+        else
+        {
+            m_printhost_test_btn->Enable(!m_config->opt_string("print_host").empty() && host->can_test());
+            m_printhost_browse_btn->Show(host->has_auto_discovery());
+            m_printhost_logout_btn->Show(host->is_logged_in());
+            m_printhost_test_btn->SetLabel(host->is_cloud() ? _L("Login/Test") : _L("Test"));
+        }
+    }
+#else
     if (host) {
         m_printhost_test_btn->Enable(!m_config->opt_string("print_host").empty() && host->can_test());
         m_printhost_browse_btn->Show(host->has_auto_discovery());
         m_printhost_logout_btn->Show(host->is_logged_in());
         m_printhost_test_btn->SetLabel(host->is_cloud() ? _L("Login/Test") : _L("Test"));
     }
+#endif
+    
 }
 
 void PhysicalPrinterDialog::update_preset_input() {
@@ -625,6 +648,12 @@ void PhysicalPrinterDialog::update(bool printer_change)
                 m_optgroup->disable_field("printhost_ssl_ignore_revoke");
                 if (m_printhost_cafile_browse_btn)
                     m_printhost_cafile_browse_btn->Disable();
+            }
+            else if ( BUILD_PHROZEN_ORCA && opt->value == htPhrozenConnect ){
+                m_optgroup->hide_field("print_host_webui");
+                m_optgroup->hide_field("printhost_apikey");
+                m_optgroup->hide_field("printhost_cafile");
+                m_optgroup->hide_field("printhost_ssl_ignore_revoke");
             }
         }
         
