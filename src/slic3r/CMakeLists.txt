@@ -553,6 +553,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/SerialMessage.hpp
     Utils/MKS.cpp
     Utils/MKS.hpp
+    Utils/PhrozenConnect.cpp
+    Utils/PhrozenConnect.hpp
     Utils/ESP3D.cpp
     Utils/ESP3D.hpp
     Utils/CrealityPrint.cpp
