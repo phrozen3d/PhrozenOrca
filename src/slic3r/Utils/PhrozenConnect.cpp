@@ -31,7 +31,12 @@ namespace pt = boost::property_tree;
 namespace Slic3r {
 
 PhrozenConnect::PhrozenConnect(DynamicPrintConfig *config) : OctoPrint( config )
-{}
+{
+    auto kHasPortInfo = m_host.find( ":8808" );
+    if ( kHasPortInfo == std::string::npos ){
+        m_host += ":8808";
+    }
+}
 
 const char* PhrozenConnect::get_name() const { return "PhrozenConnect"; }
 

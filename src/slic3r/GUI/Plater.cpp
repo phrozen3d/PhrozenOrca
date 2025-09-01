@@ -1272,6 +1272,8 @@ void Sidebar::update_all_preset_comboboxes()
             if (!url.Lower().starts_with("http"))
                 url = wxString::Format("http://%s", url);
             const auto host_type = cfg.option<ConfigOptionEnum<PrintHostType>>("host_type")->value;
+            if ( host_type == htPhrozenConnect && url.find(":8808") == std::string::npos )
+                url += ":8808";
             if (cfg.has("printhost_apikey") && (host_type != htSimplyPrint))
                 apikey = cfg.opt_string("printhost_apikey");
             print_btn_type = preset_bundle.is_bbl_vendor() ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
