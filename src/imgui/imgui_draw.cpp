@@ -3616,7 +3616,7 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col
     const ImU32 col_untinted = col | ~IM_COL32_A_MASK;
 
     ImU32 defaultCol = col;
-    ImU32 highlighCol = ImGui::GetColorU32(ImGuiCol_ButtonHovered);
+    ImU32 highlighCol = IM_COL32(255, 124, 63, 255); // #FF7C3F
     // if text is started with ColorMarkerHovered symbol, we should use another color for a highlighting
     if (*s == ImGui::ColorMarkerHovered) {
         highlighCol = ImGui::GetColorU32(ImGuiCol_FrameBg);

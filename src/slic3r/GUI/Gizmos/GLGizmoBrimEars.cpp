@@ -738,7 +738,7 @@ void GLGizmoBrimEars::on_render_input_window(float x, float y, float bottom_limi
     if (glb_cfg.opt_enum<BrimType>("brim_type") != btPainted) {
         ImGui::SameLine();
         auto link_text = [&]() {
-            ImColor HyperColor = ImGuiWrapper::COL_ORCA;
+            ImColor HyperColor = ImGuiWrapper::COL_PHROZEN;
             ImGui::PushStyleColor(ImGuiCol_Text, ImGuiWrapper::to_ImVec4(ColorRGB::WARNING()));
             float parent_width = ImGui::GetContentRegionAvail().x;
             m_imgui->text_wrapped(_L("Warning: The brim type is not set to \"painted\", the brim ears will not take effect!"), parent_width);
