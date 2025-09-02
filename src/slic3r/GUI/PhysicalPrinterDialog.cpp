@@ -35,6 +35,7 @@
 #include "RemovableDriveManager.hpp"
 #include "BitmapCache.hpp"
 #include "BonjourDialog.hpp"
+#include "PhrozenGUI/PhrozenBrowserDialog.hpp"
 #include "MsgDialog.hpp"
 #include "OAuthDialog.hpp"
 #include "SimplyPrint.hpp"
@@ -144,6 +145,20 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
         return sizer;
     };
 
+#if BUILD_PHROZEN_ORCA
+    auto printhost_browse = [=](wxWindow* parent) 
+    {
+        auto sizer = create_sizer_with_btn(parent, &m_printhost_browse_btn, "printer_host_browser", _L("Browse") + " " + dots);
+        m_printhost_browse_btn->Bind(wxEVT_BUTTON, [=](wxCommandEvent& e) {
+            PhrozenBrowserDialog dialog(this, Preset::printer_technology(*m_config));
+            if (dialog.show_and_lookup()) {
+                m_optgroup->set_value("print_host", dialog.get_selected(), true);
+                m_optgroup->get_field("print_host")->field_changed();
+            }
+        });
+        return sizer;
+    };
+ #else
     auto printhost_browse = [=](wxWindow* parent) 
     {
         auto sizer = create_sizer_with_btn(parent, &m_printhost_browse_btn, "printer_host_browser", _L("Browse") + " " + dots);
@@ -157,6 +172,7 @@ void PhysicalPrinterDialog::build_printhost_settings(ConfigOptionsGroup* m_optgr
 
         return sizer;
     };
+ #endif
 
     auto print_host_test = [=](wxWindow* parent) {
         auto sizer = create_sizer_with_btn(parent, &m_printhost_test_btn, "printer_host_test", _L("Test"));
@@ -451,7 +467,7 @@ void PhysicalPrinterDialog::update_printhost_buttons()
         if ( name == "PhrozenConnect" )
         {
             m_printhost_test_btn->Enable(!m_config->opt_string("print_host").empty() && host->can_test());
-            m_printhost_browse_btn->Show( false );
+            m_printhost_browse_btn->Show( true );
             m_printhost_logout_btn->Show( false );
             m_printhost_test_btn->SetLabel(host->is_cloud() ? _L("Login/Test") : _L("Test"));
         }
