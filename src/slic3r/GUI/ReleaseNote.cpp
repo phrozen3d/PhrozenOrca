@@ -288,17 +288,6 @@ UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
     m_vebview_release_note->SetSize(wxSize(FromDIP(560), FromDIP(430)));
     m_vebview_release_note->SetMinSize(wxSize(FromDIP(560), FromDIP(430)));
     // m_vebview_release_note->SetMaxSize(wxSize(FromDIP(560), FromDIP(430))); // 如需限制最大尺寸可開啟
-    m_vebview_release_note->Bind(wxEVT_WEBVIEW_NAVIGATING,[=](wxWebViewEvent& event){
-        // 僅允許第一次（載入本地 releasenote.html）導航；其餘（包含外鏈）一律 Veto()
-        static bool load_url_first = false;
-        if (load_url_first) {
-            // Orca: 不在此打開外部瀏覽器；維持內嵌頁不跳轉
-            // wxLaunchDefaultBrowser(url_line);
-            event.Veto();
-        } else {
-            load_url_first = true; // 標記已完成第一次導航
-        }
-    });
 
     // 準備載入本地 HTML 模板：data_dir/resources/tooltip/releasenote.html，否則回退到 resources_dir/tooltip/releasenote.html
 	fs::path ph(data_dir());
