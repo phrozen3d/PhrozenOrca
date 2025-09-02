@@ -692,7 +692,7 @@ void PhysicalPrinterDialog::update_host_type(bool printer_change)
         return;
     Field* ht = m_optgroup->get_field("host_type");
     wxArrayString types;
-    int last_in_conf = m_config->option("host_type")->getInt(); //  this is real position in last choice
+    int last_in_conf = htPhrozenConnect;// m_config->option("host_type")->getInt(); //  this is real position in last choice
 
     // Append localized enum_labels
     assert(ht->m_opt.enum_labels.size() == ht->m_opt.enum_values.size());
