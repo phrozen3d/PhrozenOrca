@@ -299,7 +299,7 @@ UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
 	auto url = ph.string();                 // 轉字串
 	std::replace(url.begin(), url.end(), '\\', '/'); // Windows 分隔符換成 POSIX 形式
 	url = "file:///" + url;                 // 形成 file URL
-    m_vebview_release_note->LoadURL(from_u8(url)); // 載入模板
+    WebView::LoadUrl(m_vebview_release_note, from_u8(url)); // 載入模板（透過封裝處理 URI）
 
     // Simplebook 加入兩頁（索引 0: 純文字、1: WebView）
     m_simplebook_release_note->AddPage(m_scrollwindows_release_note, wxEmptyString, false);
@@ -502,7 +502,7 @@ void UpdateVersionDialog::update_version_info(wxString release_note, wxString ve
         m_brand->Hide();
         m_text_up_info->Hide();
         m_simplebook_release_note->SetSelection(1); // 切換到 WebView 頁
-        m_vebview_release_note->LoadURL(from_u8(url_line));
+        WebView::LoadUrl(m_vebview_release_note, from_u8(url_line));
     }
     else {
         // 以純文字頁顯示釋出說明
