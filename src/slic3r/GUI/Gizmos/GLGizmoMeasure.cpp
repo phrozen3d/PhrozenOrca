@@ -1705,27 +1705,27 @@ void GLGizmoMeasure::render_debug_dialog()
 {
     auto add_feature_data = [this](const SelectedFeatures::Item& item) {
         const std::string text = (item.source == item.feature) ? surface_feature_type_as_string(item.feature->get_type()) : point_on_feature_type_as_string(item.source->get_type(), m_hover_id);
-        add_strings_row_to_table(*m_imgui, "Type", ImGuiWrapper::COL_ORCA, text, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        add_strings_row_to_table(*m_imgui, "Type", ImGuiWrapper::COL_PHROZEN, text, ImGui::GetStyleColorVec4(ImGuiCol_Text));
         switch (item.feature->get_type())
         {
         case Measure::SurfaceFeatureType::Point:
         {
-            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_ORCA, format_vec3(item.feature->get_point()), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_PHROZEN, format_vec3(item.feature->get_point()), ImGui::GetStyleColorVec4(ImGuiCol_Text));
             break;
         }
         case Measure::SurfaceFeatureType::Edge:
         {
             auto [from, to] = item.feature->get_edge();
-            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_ORCA, format_vec3(from), ImGui::GetStyleColorVec4(ImGuiCol_Text));
-            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_ORCA, format_vec3(to), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_PHROZEN, format_vec3(from), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_PHROZEN, format_vec3(to), ImGui::GetStyleColorVec4(ImGuiCol_Text));
             break;
         }
         case Measure::SurfaceFeatureType::Plane:
         {
             auto [idx, normal, origin] = item.feature->get_plane();
-            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_ORCA, format_vec3(normal), ImGui::GetStyleColorVec4(ImGuiCol_Text));
-            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_ORCA, format_vec3(origin), ImGui::GetStyleColorVec4(ImGuiCol_Text));
-            add_strings_row_to_table(*m_imgui, "m_value", ImGuiWrapper::COL_ORCA, format_double(idx), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_PHROZEN, format_vec3(normal), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_PHROZEN, format_vec3(origin), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_value", ImGuiWrapper::COL_PHROZEN, format_double(idx), ImGui::GetStyleColorVec4(ImGuiCol_Text));
             break;
         }
         case Measure::SurfaceFeatureType::Circle:
@@ -1733,15 +1733,15 @@ void GLGizmoMeasure::render_debug_dialog()
             auto [center, radius, normal] = item.feature->get_circle();
             const Vec3d on_circle = center + radius * Measure::get_orthogonal(normal, true);
             radius = (on_circle - center).norm();
-            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_ORCA, format_vec3(center), ImGui::GetStyleColorVec4(ImGuiCol_Text));
-            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_ORCA, format_vec3(normal), ImGui::GetStyleColorVec4(ImGuiCol_Text));
-            add_strings_row_to_table(*m_imgui, "m_value", ImGuiWrapper::COL_ORCA, format_double(radius), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt1", ImGuiWrapper::COL_PHROZEN, format_vec3(center), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt2", ImGuiWrapper::COL_PHROZEN, format_vec3(normal), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_value", ImGuiWrapper::COL_PHROZEN, format_double(radius), ImGui::GetStyleColorVec4(ImGuiCol_Text));
             break;
         }
         }
         std::optional<Vec3d> extra_point = item.feature->get_extra_point();
         if (extra_point.has_value())
-            add_strings_row_to_table(*m_imgui, "m_pt3", ImGuiWrapper::COL_ORCA, format_vec3(*extra_point), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, "m_pt3", ImGuiWrapper::COL_PHROZEN, format_vec3(*extra_point), ImGui::GetStyleColorVec4(ImGuiCol_Text));
     };
 
     m_imgui->begin("Measure tool debug", ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
@@ -1753,15 +1753,15 @@ void GLGizmoMeasure::render_debug_dialog()
         case EMode::PointSelection:   { txt = "Point selection"; break; }
         default:                      { assert(false); break; }
         }
-        add_strings_row_to_table(*m_imgui, "Mode", ImGuiWrapper::COL_ORCA, txt, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        add_strings_row_to_table(*m_imgui, "Mode", ImGuiWrapper::COL_PHROZEN, txt, ImGui::GetStyleColorVec4(ImGuiCol_Text));
         ImGui::EndTable();
     }
 
     ImGui::Separator();
     if (ImGui::BeginTable("Hover", 2)) {
-        add_strings_row_to_table(*m_imgui, "Hover id", ImGuiWrapper::COL_ORCA, std::to_string(m_hover_id), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        add_strings_row_to_table(*m_imgui, "Hover id", ImGuiWrapper::COL_PHROZEN, std::to_string(m_hover_id), ImGui::GetStyleColorVec4(ImGuiCol_Text));
         const std::string txt = m_curr_feature.has_value() ? surface_feature_type_as_string(m_curr_feature->get_type()) : "None";
-        add_strings_row_to_table(*m_imgui, "Current feature", ImGuiWrapper::COL_ORCA, txt, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        add_strings_row_to_table(*m_imgui, "Current feature", ImGuiWrapper::COL_PHROZEN, txt, ImGui::GetStyleColorVec4(ImGuiCol_Text));
         ImGui::EndTable();
     }
 
@@ -1771,14 +1771,14 @@ void GLGizmoMeasure::render_debug_dialog()
     else {
         const ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersH;
         if (m_selected_features.first.feature.has_value()) {
-            m_imgui->text_colored(ImGuiWrapper::COL_ORCA, "Selection 1");
+            m_imgui->text_colored(ImGuiWrapper::COL_PHROZEN, "Selection 1");
             if (ImGui::BeginTable("Selection 1", 2, flags)) {
                 add_feature_data(m_selected_features.first);
                 ImGui::EndTable();
             }
         }
         if (m_selected_features.second.feature.has_value()) {
-            m_imgui->text_colored(ImGuiWrapper::COL_ORCA, "Selection 2");
+            m_imgui->text_colored(ImGuiWrapper::COL_PHROZEN, "Selection 2");
             if (ImGui::BeginTable("Selection 2", 2, flags)) {
                 add_feature_data(m_selected_features.second);
                 ImGui::EndTable();
@@ -1987,7 +1987,7 @@ void GLGizmoMeasure::show_distance_xyz_ui()
             if (measure.angle.has_value() && m_measure_mode == EMeasureMode::ONLY_MEASURE)
                 {
                 ImGui::PushID("ClipboardAngle");
-                add_measure_row_to_table(_u8L("Angle"), ImGuiWrapper::COL_ORCA, format_double(Geometry::rad2deg(measure.angle->angle)) + "°",
+                add_measure_row_to_table(_u8L("Angle"), ImGuiWrapper::COL_PHROZEN, format_double(Geometry::rad2deg(measure.angle->angle)) + "°",
                                             ImGui::GetStyleColorVec4(ImGuiCol_Text));
                 ++measure_row_count;
                 ImGui::PopID();
@@ -2000,7 +2000,7 @@ void GLGizmoMeasure::show_distance_xyz_ui()
                 double distance = measure.distance_infinite->dist;
                 if (m_use_inches) distance = GizmoObjectManipulation::mm_to_in * distance;
                 ImGui::PushID("ClipboardDistanceInfinite");
-                add_measure_row_to_table(show_strict ? _u8L("Perpendicular distance") : _u8L("Distance"), ImGuiWrapper::COL_ORCA, format_double(distance) + m_units,
+                add_measure_row_to_table(show_strict ? _u8L("Perpendicular distance") : _u8L("Distance"), ImGuiWrapper::COL_PHROZEN, format_double(distance) + m_units,
                                             ImGui::GetStyleColorVec4(ImGuiCol_Text));
                 ++measure_row_count;
                 ImGui::PopID();
@@ -2013,7 +2013,7 @@ void GLGizmoMeasure::show_distance_xyz_ui()
                 if (m_use_inches)
                     distance = GizmoObjectManipulation::mm_to_in * distance;
                 ImGui::PushID("ClipboardDistanceStrict");
-                add_measure_row_to_table(_u8L("Direct distance"), ImGuiWrapper::COL_ORCA, format_double(distance) + m_units, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+                add_measure_row_to_table(_u8L("Direct distance"), ImGuiWrapper::COL_PHROZEN, format_double(distance) + m_units, ImGui::GetStyleColorVec4(ImGuiCol_Text));
                 ++measure_row_count;
                 ImGui::PopID();
             }
@@ -2022,7 +2022,7 @@ void GLGizmoMeasure::show_distance_xyz_ui()
                 if (m_use_inches) distance = GizmoObjectManipulation::mm_to_in * distance;
                 if (measure.distance_xyz->norm() > EPSILON) {
                     ImGui::PushID("ClipboardDistanceXYZ");
-                    add_measure_row_to_table(_u8L("Distance XYZ"), ImGuiWrapper::COL_ORCA, format_vec3(distance), ImGui::GetStyleColorVec4(ImGuiCol_Text));
+                    add_measure_row_to_table(_u8L("Distance XYZ"), ImGuiWrapper::COL_PHROZEN, format_vec3(distance), ImGui::GetStyleColorVec4(ImGuiCol_Text));
                     ++measure_row_count;
                     ImGui::PopID();
                 }
@@ -2036,7 +2036,7 @@ void GLGizmoMeasure::show_distance_xyz_ui()
         }
         // add dummy rows to keep dialog size fixed
         /*for (unsigned int i = measure_row_count; i < max_measure_row_count; ++i) {
-            add_strings_row_to_table(*m_imgui, " ", ImGuiWrapper::COL_ORCA, " ", ImGui::GetStyleColorVec4(ImGuiCol_Text));
+            add_strings_row_to_table(*m_imgui, " ", ImGuiWrapper::COL_PHROZEN, " ", ImGui::GetStyleColorVec4(ImGuiCol_Text));
         }*/
         ImGui::EndTable();
     }

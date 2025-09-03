@@ -178,7 +178,6 @@ const ImVec4 ImGuiWrapper::COL_WINDOW_BG         = { 1.000f, 1.000f, 1.000f, 1.0
 const ImVec4 ImGuiWrapper::COL_WINDOW_BG_DARK    = { 45 / 255.f, 45 / 255.f, 49 / 255.f, 1.f };
 const ImVec4 ImGuiWrapper::COL_TOOLBAR_BG        = { 250 / 255.f, 250 / 255.f, 250 / 255.f, 1.f }; // ORCA color matches with toolbar_background.png
 const ImVec4 ImGuiWrapper::COL_TOOLBAR_BG_DARK   = { 57  / 255.f, 60  / 255.f, 66  / 255.f, 1.f }; // ORCA color matches with toolbar_background_dark.png
-const ImVec4 ImGuiWrapper::COL_ORCA              = to_ImVec4(ColorRGBA::ORCA());
 const ImVec4 ImGuiWrapper::COL_PHROZEN           = to_ImVec4(ColorRGBA::PHROZEN());
 
 int ImGuiWrapper::TOOLBAR_WINDOW_FLAGS = ImGuiWindowFlags_AlwaysAutoResize
@@ -2622,7 +2621,7 @@ void ImGuiWrapper::push_combo_style(const float scale)
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGuiWrapper::COL_WINDOW_BG_DARK);
         ImGui::PushStyleColor(ImGuiCol_BorderActive, ImVec4(0.f, 150.f / 255.f, 136.f / 255.f, 0.6f));  // ORCA hovered item border color
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, {0.f, 0.f, 0.f, 0.f});                            // ORCA hovered item background color
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive, COL_ORCA);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, COL_PHROZEN);
         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.f, 150.f / 255.f, 136.f / 255.f, 0.25f));       // ORCA active item background color
         ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImGuiWrapper::COL_WINDOW_BG_DARK);
         ImGui::PushStyleColor(ImGuiCol_Button, {1.00f, 1.00f, 1.00f, 0.0f});
@@ -2632,7 +2631,7 @@ void ImGuiWrapper::push_combo_style(const float scale)
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImGuiWrapper::COL_WINDOW_BG);
         ImGui::PushStyleColor(ImGuiCol_BorderActive, ImVec4(0.f, 150.f / 255.f, 136.f / 255.f, 0.6f));  // ORCA hovered item border color
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, {0.f, 0.f, 0.f, 0.f});                            // ORCA hovered item background color
-        ImGui::PushStyleColor(ImGuiCol_HeaderActive, COL_ORCA);
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, COL_PHROZEN);
         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.f, 150.f / 255.f, 136.f / 255.f, 0.25f));       // ORCA active item background color
         ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, ImGuiWrapper::COL_WINDOW_BG);
         ImGui::PushStyleColor(ImGuiCol_Button, {1.00f, 1.00f, 1.00f, 0.0f});
@@ -2931,12 +2930,12 @@ void ImGuiWrapper::init_style()
 
     // ComboBox items
     set_color(ImGuiCol_Header, COL_ORANGE_DARK);
-    set_color(ImGuiCol_HeaderHovered,	to_ImVec4(to_rgba(ColorRGB::ORCA(), 0.50f))); // ORCA Use orca color for headers
-    set_color(ImGuiCol_HeaderActive,	to_ImVec4(to_rgba(ColorRGB::ORCA(), 0.75f)));  // ORCA Use orca color for headers
+    set_color(ImGuiCol_HeaderHovered,	to_ImVec4(to_rgba(ColorRGB::PHROZEN(), 0.50f))); // ORCA Use orca color for headers
+    set_color(ImGuiCol_HeaderActive, to_ImVec4(to_rgba(ColorRGB::PHROZEN(), 0.75f)));  // ORCA Use orca color for headers
 
     // Slider
-    set_color(ImGuiCol_SliderGrab,			to_ImVec4(to_rgba(ColorRGB::ORCA(), 0.50f))); // ORCA Use orca color for slider thumbs 
-    set_color(ImGuiCol_SliderGrabActive,	to_ImVec4(to_rgba(ColorRGB::ORCA(), 0.75f))); // ORCA Use orca color for slider thumbs 
+    set_color(ImGuiCol_SliderGrab, to_ImVec4(to_rgba(ColorRGB::PHROZEN(), 0.50f)));    // ORCA Use orca color for slider thumbs 
+    set_color(ImGuiCol_SliderGrabActive, to_ImVec4(to_rgba(ColorRGB::PHROZEN(), 0.75f))); // ORCA Use orca color for slider thumbs 
 
     // Separator
     set_color(ImGuiCol_Separator, COL_BLUE_LIGHT);
