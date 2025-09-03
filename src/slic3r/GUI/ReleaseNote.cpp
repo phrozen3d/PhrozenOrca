@@ -253,80 +253,69 @@ void UpdatePluginDialog::update_info(std::string json_path)
 UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
     : DPIDialog(parent, wxID_ANY, _L("New version of Phrozen Orca"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX | wxRESIZE_BORDER)
 {
-    SetBackgroundColour(*wxWHITE);
+    SetBackgroundColour(*wxWHITE); // 對話框白色背景
 
-    wxBoxSizer *m_sizer_main = new wxBoxSizer(wxVERTICAL);
-    auto        m_line_top   = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1));
-    m_line_top->SetBackgroundColour(wxColour(166, 169, 170));
+    wxBoxSizer *m_sizer_main = new wxBoxSizer(wxVERTICAL); // 主垂直 sizer
+    auto        m_line_top   = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1)); // 頂部細分隔線
+    m_line_top->SetBackgroundColour(wxColour(166, 169, 170)); // 分隔線顏色
     
 
-    wxBoxSizer *m_sizer_body = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer *m_sizer_body = new wxBoxSizer(wxHORIZONTAL); // 內容區：左右排列（品牌圖 + 右側內容）
 
-    
-
+    // 左側品牌圖（70px）
     auto sm    = create_scaled_bitmap("PhrozenOrca", nullptr, 70);
     m_brand = new wxStaticBitmap(this, wxID_ANY, sm, wxDefaultPosition, wxSize(FromDIP(70), FromDIP(70)));
 
-    
-
+    // 右側縱向容器（說明文字、Simplebook、按鈕列）
     wxBoxSizer *m_sizer_right = new wxBoxSizer(wxVERTICAL);
 
-    m_text_up_info = new Label(this, Label::Head_14, wxEmptyString, LB_AUTO_WRAP);
-    m_text_up_info->SetForegroundColour(wxColour(0x26, 0x2E, 0x30));
+    m_text_up_info = new Label(this, Label::Head_14, wxEmptyString, LB_AUTO_WRAP); // 置頂提示文字
+    m_text_up_info->SetForegroundColour(wxColour(0x26, 0x2E, 0x30)); // 文字色
 
-    m_simplebook_release_note = new wxSimplebook(this);
-    m_simplebook_release_note->SetSize(wxSize(FromDIP(560), FromDIP(430)));
-    m_simplebook_release_note->SetMinSize(wxSize(FromDIP(560), FromDIP(430)));
-    m_simplebook_release_note->SetBackgroundColour(wxColour(0xF8, 0xF8, 0xF8));
+    m_simplebook_release_note = new wxSimplebook(this); // 用來切換純文字/網頁兩種釋出說明展示
+    m_simplebook_release_note->SetSize(wxSize(FromDIP(560), FromDIP(430)));       // 固定尺寸
+    m_simplebook_release_note->SetMinSize(wxSize(FromDIP(560), FromDIP(430)));    // 最小尺寸
+    m_simplebook_release_note->SetBackgroundColour(wxColour(0xF8, 0xF8, 0xF8));   // 背景灰白
 
+    // 純文字釋出說明的滾動容器
     m_scrollwindows_release_note = new wxScrolledWindow(m_simplebook_release_note, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(560), FromDIP(430)), wxVSCROLL);
-    m_scrollwindows_release_note->SetScrollRate(5, 5);
+    m_scrollwindows_release_note->SetScrollRate(5, 5); // 垂直滾動步距
     m_scrollwindows_release_note->SetBackgroundColour(wxColour(0xF8, 0xF8, 0xF8));
 
-    //webview
+    // WebView 頁面：透過本地 HTML 範本 + JS 顯示 Markdown
     m_vebview_release_note = CreateTipView(m_simplebook_release_note);
     m_vebview_release_note->SetBackgroundColour(wxColour(0xF8, 0xF8, 0xF8));
     m_vebview_release_note->SetSize(wxSize(FromDIP(560), FromDIP(430)));
     m_vebview_release_note->SetMinSize(wxSize(FromDIP(560), FromDIP(430)));
-    //m_vebview_release_note->SetMaxSize(wxSize(FromDIP(560), FromDIP(430)));
-    m_vebview_release_note->Bind(wxEVT_WEBVIEW_NAVIGATING,[=](wxWebViewEvent& event){
-        static bool load_url_first = false;
-        if(load_url_first){
-            // Orca: not used in Orca Slicer
-            // wxLaunchDefaultBrowser(url_line);
-            event.Veto();
-        }else{
-            load_url_first = true;
-        }
-        
-    });
+    // m_vebview_release_note->SetMaxSize(wxSize(FromDIP(560), FromDIP(430))); // 如需限制最大尺寸可開啟
 
+    // 準備載入本地 HTML 模板：data_dir/resources/tooltip/releasenote.html，否則回退到 resources_dir/tooltip/releasenote.html
 	fs::path ph(data_dir());
 	ph /= "resources/tooltip/releasenote.html";
 	if (!fs::exists(ph)) {
 		ph = resources_dir();
 		ph /= "tooltip/releasenote.html";
 	}
-	auto url = ph.string();
-	std::replace(url.begin(), url.end(), '\\', '/');
-	url = "file:///" + url;
-    m_vebview_release_note->LoadURL(from_u8(url));
+	auto url = ph.string();                 // 轉字串
+	std::replace(url.begin(), url.end(), '\\', '/'); // Windows 分隔符換成 POSIX 形式
+	url = "file:///" + url;                 // 形成 file URL
+    WebView::LoadUrl(m_vebview_release_note, from_u8(url)); // 載入模板（透過封裝處理 URI）
 
+    // Simplebook 加入兩頁（索引 0: 純文字、1: WebView）
     m_simplebook_release_note->AddPage(m_scrollwindows_release_note, wxEmptyString, false);
     m_simplebook_release_note->AddPage(m_vebview_release_note, wxEmptyString, false);
 
-
-    
+    // 底部按鈕列
     auto sizer_button = new wxBoxSizer(wxHORIZONTAL);
 
-
+    // 共用按鈕配色狀態
     StateColor btn_bg_green(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
                             std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
 
     StateColor btn_bg_white(std::pair<wxColour, int>(wxColour(206, 206, 206), StateColor::Pressed), std::pair<wxColour, int>(wxColour(238, 238, 238), StateColor::Hovered),
                             std::pair<wxColour, int>(*wxWHITE, StateColor::Normal));
 
-    m_button_download = new Button(this, _L("Download"));
+    m_button_download = new Button(this, _L("Download")); // 下載按鈕
     m_button_download->SetBackgroundColor(btn_bg_green);
     m_button_download->SetBorderColor(*wxWHITE);
     m_button_download->SetTextColor(wxColour("#FFFFFE"));
@@ -336,10 +325,10 @@ UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
     m_button_download->SetCornerRadius(FromDIP(12));
 
     m_button_download->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &e) {
-        EndModal(wxID_YES);
+        EndModal(wxID_YES); // 回傳 YES，呼叫端據此開瀏覽器
     });
 
-    m_button_skip_version = new Button(this, _L("Skip this Version"));
+    m_button_skip_version = new Button(this, _L("Skip this Version")); // 略過此版本
     m_button_skip_version->SetBackgroundColor(btn_bg_white);
     m_button_skip_version->SetBorderColor(wxColour(38, 46, 48));
     m_button_skip_version->SetFont(Label::Body_12);
@@ -348,23 +337,23 @@ UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
     m_button_skip_version->SetCornerRadius(FromDIP(12));
 
     m_button_skip_version->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &e) { 
-        wxGetApp().set_skip_version(true);
-        EndModal(wxID_NO);
+        wxGetApp().set_skip_version(true); // 設定略過此版本
+        EndModal(wxID_NO);                 // 回傳 NO，不開瀏覽器
     });
 
-    m_cb_stable_only = new CheckBox(this);
-    m_cb_stable_only->SetValue(wxGetApp().app_config->get_bool("check_stable_update_only"));
+    m_cb_stable_only = new CheckBox(this); // 「僅檢查穩定版」
+    m_cb_stable_only->SetValue(wxGetApp().app_config->get_bool("check_stable_update_only")); // 初始值由設定檔讀取
     m_cb_stable_only->Bind(wxEVT_TOGGLEBUTTON, [this](wxCommandEvent& e) {
-        wxGetApp().app_config->set_bool("check_stable_update_only", m_cb_stable_only->GetValue());
+        wxGetApp().app_config->set_bool("check_stable_update_only", m_cb_stable_only->GetValue()); // 寫回設定
         e.Skip();
     });
 
-    auto stable_only_label = new Label(this, _L("Check for stable updates only"));
+    auto stable_only_label = new Label(this, _L("Check for stable updates only")); // 切換文字說明
     stable_only_label->SetFont(Label::Body_13);
     stable_only_label->SetForegroundColour(wxColour(38, 46, 48));
     stable_only_label->SetFont(Label::Body_12);
 
-    m_button_cancel = new Button(this, _L("Cancel"));
+    m_button_cancel = new Button(this, _L("Cancel")); // 取消按鈕
     m_button_cancel->SetBackgroundColor(btn_bg_white);
     m_button_cancel->SetBorderColor(wxColour(38, 46, 48));
     m_button_cancel->SetFont(Label::Body_12);
@@ -373,37 +362,37 @@ UpdateVersionDialog::UpdateVersionDialog(wxWindow *parent)
     m_button_cancel->SetCornerRadius(FromDIP(12));
 
     m_button_cancel->Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent &e) {
-        EndModal(wxID_NO);
+        EndModal(wxID_NO); // 回傳 NO
     });
 
-    m_sizer_main->Add(m_line_top, 0, wxEXPAND | wxBOTTOM, 0);
+    m_sizer_main->Add(m_line_top, 0, wxEXPAND | wxBOTTOM, 0); // 加入頂部分隔線
     
     //sizer_button->Add(m_remind_choice, 0, wxALL | wxEXPAND, FromDIP(5));
-    sizer_button->AddStretchSpacer();
-    sizer_button->Add(stable_only_label, 0, wxALIGN_CENTER | wxLEFT, FromDIP(7));
-    sizer_button->Add(m_cb_stable_only, 0, wxALIGN_CENTER | wxLEFT, FromDIP(5));
-    sizer_button->Add(m_button_download, 0, wxALL, FromDIP(5));
-    sizer_button->Add(m_button_skip_version, 0, wxALL, FromDIP(5));
-    sizer_button->Add(m_button_cancel, 0, wxALL, FromDIP(5));
+    sizer_button->AddStretchSpacer(); // 推到右側
+    sizer_button->Add(stable_only_label, 0, wxALIGN_CENTER | wxLEFT, FromDIP(7)); // 文案
+    sizer_button->Add(m_cb_stable_only, 0, wxALIGN_CENTER | wxLEFT, FromDIP(5));  // 切換按鈕
+    sizer_button->Add(m_button_download, 0, wxALL, FromDIP(5));                   // 下載
+    sizer_button->Add(m_button_skip_version, 0, wxALL, FromDIP(5));               // 略過版本
+    sizer_button->Add(m_button_cancel, 0, wxALL, FromDIP(5));                     // 取消
 
-    m_sizer_right->Add(m_text_up_info, 0, wxEXPAND | wxBOTTOM | wxTOP, FromDIP(15));
-    m_sizer_right->Add(m_simplebook_release_note, 1, wxEXPAND | wxRIGHT, 0);
-    m_sizer_right->Add(sizer_button, 0, wxEXPAND | wxRIGHT, FromDIP(20));
+    m_sizer_right->Add(m_text_up_info, 0, wxEXPAND | wxBOTTOM | wxTOP, FromDIP(15));  // 上方提示
+    m_sizer_right->Add(m_simplebook_release_note, 1, wxEXPAND | wxRIGHT, 0);          // 釋出說明頁
+    m_sizer_right->Add(sizer_button, 0, wxEXPAND | wxRIGHT, FromDIP(20));             // 底部按鈕列
 
-    m_sizer_body->Add(m_brand, 0, wxTOP|wxRIGHT|wxLEFT, FromDIP(15));
-    m_sizer_body->Add(0, 0, 0, wxRIGHT, 0);
-    m_sizer_body->Add(m_sizer_right, 1, wxBOTTOM | wxEXPAND, FromDIP(8));
-    m_sizer_main->Add(m_sizer_body, 1, wxEXPAND, 0);
-    m_sizer_main->Add(0, 0, 0, wxBOTTOM, 10);
+    m_sizer_body->Add(m_brand, 0, wxTOP|wxRIGHT|wxLEFT, FromDIP(15)); // 左側品牌圖
+    m_sizer_body->Add(0, 0, 0, wxRIGHT, 0);                           // 間距填充
+    m_sizer_body->Add(m_sizer_right, 1, wxBOTTOM | wxEXPAND, FromDIP(8)); // 右側內容
+    m_sizer_main->Add(m_sizer_body, 1, wxEXPAND, 0);                  // 主內容
+    m_sizer_main->Add(0, 0, 0, wxBOTTOM, 10);                         // 底部間距
 
-    SetSizer(m_sizer_main);
-    Layout();
-    Fit();
+    SetSizer(m_sizer_main); // 套用 sizer
+    Layout();               // 重新佈局
+    Fit();                  // 根據內容調整窗口大小
 
-    SetMinSize(GetSize());
+    SetMinSize(GetSize()); // 鎖定最小尺寸為當前大小，避免被過度縮小
 
-    Centre(wxBOTH);
-    wxGetApp().UpdateDlgDarkUI(this);
+    Centre(wxBOTH);                 // 視窗置中
+    wxGetApp().UpdateDlgDarkUI(this); // 套用深色主題外觀（若啟用）
 }
 
 UpdateVersionDialog::~UpdateVersionDialog() {}
@@ -411,26 +400,26 @@ UpdateVersionDialog::~UpdateVersionDialog() {}
 
 wxWebView* UpdateVersionDialog::CreateTipView(wxWindow* parent)
 {
-	wxWebView* tipView = WebView::CreateWebView(parent, "");
-	tipView->Bind(wxEVT_WEBVIEW_LOADED, &UpdateVersionDialog::OnLoaded, this);
-	tipView->Bind(wxEVT_WEBVIEW_NAVIGATED, &UpdateVersionDialog::OnTitleChanged, this);
-	tipView->Bind(wxEVT_WEBVIEW_ERROR, &UpdateVersionDialog::OnError, this);
-	return tipView;
+	wxWebView* tipView = WebView::CreateWebView(parent, ""); // 以共用封裝建立 WebView
+	tipView->Bind(wxEVT_WEBVIEW_LOADED, &UpdateVersionDialog::OnLoaded, this);      // 綁定載入完成事件
+	tipView->Bind(wxEVT_WEBVIEW_NAVIGATED, &UpdateVersionDialog::OnTitleChanged, this); // 綁定導航/標題事件
+	tipView->Bind(wxEVT_WEBVIEW_ERROR, &UpdateVersionDialog::OnError, this);        // 綁定錯誤事件
+	return tipView; // 回傳已綁定事件的 WebView
 }
 
 void UpdateVersionDialog::OnLoaded(wxWebViewEvent& event)
 {
-    event.Skip();
+    event.Skip(); // 不攔截，保留後續處理機會
 }
 
 void UpdateVersionDialog::OnTitleChanged(wxWebViewEvent& event)
 {
-    //ShowReleaseNote();
-    event.Skip();
+    // ShowReleaseNote(); // 如需在標題更新時注入內容，可於此呼叫
+    event.Skip(); // 目前不做處理
 }
 void UpdateVersionDialog::OnError(wxWebViewEvent& event)
 {
-    event.Skip();
+    event.Skip(); // 錯誤事件暫不特別處理
 }
 
 static std::string url_encode(const std::string& value) {
@@ -456,18 +445,20 @@ static std::string url_encode(const std::string& value) {
 
 bool UpdateVersionDialog::ShowReleaseNote(std::string content)
 {
-	auto script = "window.showMarkdown('" + url_encode(content) + "', true);";
-    RunScript(script);
-    return true;
+	// 透過 JS 函式 window.showMarkdown 顯示 Markdown（第二參數 true 代表使用簡體樣式或特定配置，依模板定義）
+	auto script = "window.showMarkdown('" + url_encode(content) + "', true);"; // 先 URL encode，再以字串拼接
+    RunScript(script); // 注入腳本到 WebView
+    return true; // 單純回傳成功（未檢查執行結果）
 }
 
 void UpdateVersionDialog::RunScript(std::string script)
 {
-    WebView::RunScript(m_vebview_release_note, script);
-    script.clear();
+    WebView::RunScript(m_vebview_release_note, script); // 執行 JS 腳本
+    script.clear(); // 釋放臨時字串
 }
 
 void UpdateVersionDialog::on_dpi_changed(const wxRect &suggested_rect) {
+    // DPI 變更：調整三顆按鈕的尺寸以符合縮放
     m_button_download->Rescale();
     m_button_skip_version->Rescale();
     m_button_cancel->Rescale();
@@ -475,18 +466,19 @@ void UpdateVersionDialog::on_dpi_changed(const wxRect &suggested_rect) {
 
 std::vector<std::string> UpdateVersionDialog::splitWithStl(std::string str,std::string pattern)
 {
+    // 以 pattern 在 str 中逐次尋找並切割，回傳分段結果
     std::string::size_type pos;
     std::vector<std::string> result;
-    str += pattern;
+    str += pattern;                 // 在尾端附加一次 pattern，便於收尾分段
     int size = str.size();
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < size; i++) // 線性掃描
     {
-        pos = str.find(pattern, i);
+        pos = str.find(pattern, i); // 從 i 起尋找下一個 pattern
         if (pos < size)
         {
-            std::string s = str.substr(i, pos - i);
+            std::string s = str.substr(i, pos - i); // 擷取當前分段
             result.push_back(s);
-            i = pos + pattern.size() - 1;
+            i = pos + pattern.size() - 1; // 跳過 pattern 的長度，繼續往後找
         }
     }
     return result;
@@ -494,45 +486,42 @@ std::vector<std::string> UpdateVersionDialog::splitWithStl(std::string str,std::
 
 void UpdateVersionDialog::update_version_info(wxString release_note, wxString version)
 {
-    //bbs check whether the web display is used
+    // 判斷是否以外部連結顯示
     bool use_web_link = false;
     url_line          = "";
-    // Orca: not used in Orca Slicer
-    // auto split_array = splitWithStl(release_note.ToStdString(), "###");
-    // if (split_array.size() >= 3) {
-    //     for (auto i = 0; i < split_array.size(); i++) {
-    //         std::string url = split_array[i];
-    //         if (std::strstr(url.c_str(), "http://") != NULL || std::strstr(url.c_str(), "https://") != NULL) {
-    //             use_web_link = true;
-    //             url_line     = url;
-    //             break;
-    //         }
-    //     }
-    // }
+    
+    // 檢查傳入的 release_note 是否為有效的 URL
+    std::string url_str = release_note.ToStdString();
+    if (std::strstr(url_str.c_str(), "http://") != NULL || std::strstr(url_str.c_str(), "https://") != NULL) {
+        use_web_link = true;
+        url_line     = url_str;
+    }
 
     if (use_web_link) {
+        // 以 Web 連結為主：隱藏品牌與標題，切到 WebView 頁面並載入 url_line
         m_brand->Hide();
         m_text_up_info->Hide();
-        m_simplebook_release_note->SetSelection(1);
-        m_vebview_release_note->LoadURL(from_u8(url_line));
+        m_simplebook_release_note->SetSelection(1); // 切換到 WebView 頁
+        WebView::LoadUrl(m_vebview_release_note, from_u8(url_line));
     }
     else {
-        m_simplebook_release_note->SetMaxSize(wxSize(FromDIP(560), FromDIP(430)));
-        m_simplebook_release_note->SetSelection(0);
-        m_text_up_info->SetLabel(wxString::Format(_L("Click to download new version in default browser: %s"), version));
-        wxBoxSizer* sizer_text_release_note = new wxBoxSizer(wxVERTICAL);
-        auto        m_staticText_release_note = new ::Label(m_scrollwindows_release_note, release_note, LB_AUTO_WRAP);
-        m_staticText_release_note->SetMinSize(wxSize(FromDIP(560), -1));
+        // 以純文字頁顯示釋出說明
+        m_simplebook_release_note->SetMaxSize(wxSize(FromDIP(560), FromDIP(430))); // 限制最大尺寸，避免過度放大
+        m_simplebook_release_note->SetSelection(0); // 切換到純文字頁
+        m_text_up_info->SetLabel(wxString::Format(_L("Click to download new version in default browser: %s"), version)); // 更新標題文字
+        wxBoxSizer* sizer_text_release_note = new wxBoxSizer(wxVERTICAL); // 文字頁 sizer
+        auto        m_staticText_release_note = new ::Label(m_scrollwindows_release_note, release_note, LB_AUTO_WRAP); // 自動換行文字
+        m_staticText_release_note->SetMinSize(wxSize(FromDIP(560), -1)); // 鎖寬以利換行
         m_staticText_release_note->SetMaxSize(wxSize(FromDIP(560), -1));
-        sizer_text_release_note->Add(m_staticText_release_note, 0, wxALL, 5);
-        m_scrollwindows_release_note->SetSizer(sizer_text_release_note);
+        sizer_text_release_note->Add(m_staticText_release_note, 0, wxALL, 5); // 加入文字控件
+        m_scrollwindows_release_note->SetSizer(sizer_text_release_note); // 套用 sizer
         m_scrollwindows_release_note->Layout();
         m_scrollwindows_release_note->Fit();
-        SetMinSize(GetSize());
-        SetMaxSize(GetSize());
+        SetMinSize(GetSize()); // 鎖最小尺寸
+        SetMaxSize(GetSize()); // 鎖最大尺寸（固定大小）
     }
 
-    wxGetApp().UpdateDlgDarkUI(this);
+    wxGetApp().UpdateDlgDarkUI(this); // 同步深色主題
     Layout();
     Fit();
 }
