@@ -1,1 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?><svg id="a" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M12.5,17.5H2.5c-.55,0-1-.45-1-1V2.5c0-.55.45-1,1-1h7l4,4v11c0,.55-.45,1-1,1Z" style="fill:none; stroke:#009688; stroke-linecap:round; stroke-linejoin:round;"/><path d="M13.5,5.5h-3c-.55,0-1-.45-1-1V1.5" style="fill:none; stroke:#009688; stroke-linecap:round; stroke-linejoin:round;"/><polyline points="12.5 1.5 15.5 4.5 15.5 17.5" style="fill:none; stroke:#009688; stroke-linecap:round; stroke-linejoin:round;"/><polyline points="14.5 1.5 17.5 4.5 17.5 17.5" style="fill:none; stroke:#009688; stroke-linecap:round; stroke-linejoin:round;"/></svg>
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12.5 17.5H2.5C1.95 17.5 1.5 17.05 1.5 16.5V2.5C1.5 1.95 1.95 1.5 2.5 1.5H9.5L13.5 5.5V16.5C13.5 17.05 13.05 17.5 12.5 17.5Z" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13.5 5.5H10.5C9.95 5.5 9.5 5.05 9.5 4.5V1.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M12.5 1.5L15.5 4.5V17.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M14.5 1.5L17.5 4.5V17.5" stroke="#FF7C3F" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
