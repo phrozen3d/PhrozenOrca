@@ -3154,7 +3154,7 @@ void MainFrame::init_menubar_as_editor()
         [this](wxCommandEvent&) { wxLaunchDefaultBrowser("https://github.com/SoftFever/OrcaSlicer/wiki/Calibration", wxBROWSER_NEW_WINDOW); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     
-    m_menubar->Append(calib_menu,wxString::Format("&%s", _L("Calibration")));
+    //m_menubar->Append(calib_menu,wxString::Format("&%s", _L("Calibration")));
     if (helpMenu)
         m_menubar->Append(helpMenu, wxString::Format("&%s", _L("Help")));
     SetMenuBar(m_menubar);
