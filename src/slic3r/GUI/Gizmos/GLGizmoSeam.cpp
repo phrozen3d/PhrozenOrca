@@ -196,10 +196,11 @@ void GLGizmoSeam::on_render_input_window(float x, float y, float bottom_limit)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f, 0.f, 0.f, 0.f));                     // ORCA Removes button background on dark mode
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f));                       // ORCA: Fixes icon rendered without colors while using Light theme
         if (m_current_tool == tool_ids[i]) {
-            ImGui::PushStyleColor(ImGuiCol_Button,          ImVec4(0.f, 0.59f, 0.53f, 0.25f));  // ORCA use orca color for selected tool / brush
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,   ImVec4(0.f, 0.59f, 0.53f, 0.25f));  // ORCA use orca color for selected tool / brush
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,    ImVec4(0.f, 0.59f, 0.53f, 0.30f));  // ORCA use orca color for selected tool / brush
-            ImGui::PushStyleColor(ImGuiCol_Border,          ImGuiWrapper::COL_ORCA);            // ORCA use orca color for border on selected tool / brush
+
+            ImGui::PushStyleColor(ImGuiCol_Button,          ImVec4(255 / 255.f, 176 / 255.f, 140 / 255.f, 0.25f));  // Phrozen use phrozen color for selected tool / brush
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,   ImVec4(255 / 255.f, 176 / 255.f, 140 / 255.f, 0.25f));  // Phrozen use phrozen color for selected tool / brush
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,    ImVec4(255 / 255.f, 176 / 255.f, 140 / 255.f, 0.30f));  // Phrozen use phrozen color for selected tool / brush
+            ImGui::PushStyleColor(ImGuiCol_Border, ImGuiWrapper::COL_PHROZEN); // Phrozen use phrozen color for border on selected tool / brush
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 1.0);
         }
