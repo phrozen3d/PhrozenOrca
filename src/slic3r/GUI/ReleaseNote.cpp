@@ -484,11 +484,12 @@ std::vector<std::string> UpdateVersionDialog::splitWithStl(std::string str,std::
     return result;
 }
 
-void UpdateVersionDialog::update_version_info(wxString release_note, wxString version)
+void UpdateVersionDialog::update_version_info(wxString release_note, wxString version, wxString file_url)
 {
     // 判斷是否以外部連結顯示
     bool use_web_link = false;
     url_line          = "";
+    download_file_url = file_url.ToStdString();
     
     // 檢查傳入的 release_note 是否為有效的 URL
     std::string url_str = release_note.ToStdString();

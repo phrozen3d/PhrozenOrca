@@ -157,6 +157,7 @@ public:
     std::string version_name;
     std::string description;
     std::string url;
+    std::string file_url;
     bool        force_upgrade{ false };
     int      ver_items[VERSION_LEN];  // AA.BB.CC.DD
     VersionInfo() {

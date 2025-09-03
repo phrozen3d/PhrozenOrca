@@ -2493,8 +2493,9 @@ bool GUI_App::on_init_inner()
                 if (!skip_this_version
                     || evt.GetInt() != 0) {
                     UpdateVersionDialog dialog(this->mainframe);
-                    wxString            extmsg = wxString::FromUTF8(version_info.url);
-                    dialog.update_version_info(extmsg, version_info.version_str);
+                    wxString            extmsg = wxString::FromUTF8(version_info.url.c_str());
+                    wxString            file_url = wxString::FromUTF8(version_info.file_url.c_str());
+                    dialog.update_version_info(extmsg, version_info.version_str, file_url);
                     //dialog.update_version_info(version_info.description);
                     if (evt.GetInt() != 0) {
                         dialog.m_button_skip_version->Hide();
@@ -2502,7 +2503,11 @@ bool GUI_App::on_init_inner()
                     switch (dialog.ShowModal())
                     {
                     case wxID_YES:
-                        wxLaunchDefaultBrowser(version_info.url);
+                        if (!version_info.file_url.empty()) {
+                            wxLaunchDefaultBrowser(version_info.file_url);
+                        } else {
+                            wxLaunchDefaultBrowser(version_info.url);
+                        }
                         break;
                     case wxID_NO:
                         break;
@@ -4407,7 +4412,59 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
             std::string best_release_url;
             std::string best_release_content;
             std::string best_pre_content;
+            std::string best_pre_file_url;
+            std::string best_release_file_url;
             const std::regex reg_num("([0-9]+)");
+            
+static const std::vector<std::string> WINDOWS_EXTS = { ".exe" };
+static const std::vector<std::string> MACOS_EXTS   = { ".dmg" };
+static const std::vector<std::string> LINUX_EXTS   = { ".appimage", ".AppImage" };
+
+// Helper function to get platform-specific download URL from assets
+auto get_platform_file_url = [](const boost::property_tree::ptree& release_json) -> std::string {
+    // assets is an array in GitHub JSON; access via ptree child
+    auto assets_opt = release_json.get_child_optional("assets");
+    if (!assets_opt) {
+        return "";
+    }
+
+    std::string platform;
+#ifdef __APPLE__
+    platform = "macos";
+#elif defined(_WIN32) || defined(_WIN64)
+    platform = "windows";
+#else
+    platform = "linux";
+#endif
+
+    auto iequals = [](const std::string& a, const std::string& b) {
+        return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+            [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+    };
+
+    for (const auto& asset_pair : *assets_opt) {
+        const auto& asset = asset_pair.second;
+        auto url_opt = asset.get_optional<std::string>("browser_download_url");
+        if (!url_opt) continue;
+        const std::string& url = *url_opt;
+
+        const std::vector<std::string>* exts = nullptr;
+        if (platform == "windows")      exts = &WINDOWS_EXTS;
+        else if (platform == "macos")   exts = &MACOS_EXTS;
+        else if (platform == "linux")   exts = &LINUX_EXTS;
+
+        if (exts) {
+            for (const auto& ext : *exts) {
+                if (url.size() >= ext.size() &&
+                    iequals(url.substr(url.size() - ext.size()), ext)) {
+                    return url;
+                }
+            }
+        }
+    }
+    return "";
+};
+            };
             if (check_stable_only) {
                 std::string tag = root.get<std::string>("tag_name");
                 if (tag[0] == 'v')
@@ -4419,12 +4476,14 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
                         best_pre         = tag_version;
                         best_pre_url     = root.get<std::string>("html_url");
                         best_pre_content = root.get<std::string>("body");
+                        best_pre_file_url = get_platform_file_url(root);
                     }
                 } else {
                     if (best_release < tag_version) {
                         best_release         = tag_version;
                         best_release_url     = root.get<std::string>("html_url");
                         best_release_content = root.get<std::string>("body");
+                        best_release_file_url = get_platform_file_url(root);
                     }
                 }
             } else {
@@ -4440,12 +4499,14 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
                             best_pre         = tag_version;
                             best_pre_url     = json_version.second.get<std::string>("html_url");
                             best_pre_content = json_version.second.get<std::string>("body");
+                            best_pre_file_url = get_platform_file_url(json_version.second);
                         }
                     } else {
                         if (best_release < tag_version) {
                             best_release         = tag_version;
                             best_release_url     = json_version.second.get<std::string>("html_url");
                             best_release_content = json_version.second.get<std::string>("body");
+                            best_release_file_url = get_platform_file_url(json_version.second);
                         }
                     }
                 }
@@ -4456,6 +4517,7 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
                 best_pre         = best_release;
                 best_pre_url     = best_release_url;
                 best_pre_content = best_release_content;
+                best_pre_file_url = best_release_file_url;
             }
             // if we're the most recent, don't do anything
             if ((check_stable_only ? best_release : best_pre) <= current_version) {
@@ -4467,6 +4529,7 @@ void GUI_App::check_new_version_sf(bool show_tips, int by_user)
             version_info.url           = check_stable_only ? best_release_url : best_pre_url;
             version_info.version_str   = check_stable_only ? best_release.to_string_sf() : best_pre.to_string();
             version_info.description   = check_stable_only ? best_release_content : best_pre_content;
+            version_info.file_url      = check_stable_only ? best_release_file_url : best_pre_file_url;
             version_info.force_upgrade = false;
 
             wxCommandEvent* evt = new wxCommandEvent(EVT_SLIC3R_VERSION_ONLINE);
