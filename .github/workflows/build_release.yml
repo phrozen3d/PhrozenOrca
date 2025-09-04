@@ -1,0 +1,59 @@
+name: Release Build & Upload
+
+on:
+  release:
+    types: [created, published]  # Draft(建立) 與 Publish(發布) 都會觸發
+
+permissions:
+  contents: write  # 讓 gh CLI 可以上傳 Release assets
+
+concurrency:
+  group: release-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (Windows + macOS)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          - os: macos-14
+            arch: arm64
+    uses: ./.github/workflows/build_check_cache.yml
+    with:
+      os: ${{ matrix.os }}
+      arch: ${{ matrix.arch }}
+      build-deps-only: false
+    secrets: inherit
+
+  upload-assets:
+    name: Upload .exe/.dmg to this Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Collect only .exe and .dmg
+        shell: bash
+        run: |
+          shopt -s nullglob
+          mkdir -p release
+          for f in dist/**/*.dmg dist/**/*.exe; do
+            cp -v "$f" release/
+          done
+          echo "Will upload these files:"
+          ls -l release
+
+      - name: Upload to triggering Release (overwrite if exists)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" release/* --clobber
