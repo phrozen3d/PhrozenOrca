@@ -4468,7 +4468,6 @@ auto get_platform_file_url = [](const boost::property_tree::ptree& release_json)
     }
     return "";
 };
-            };
             if (check_stable_only) {
                 std::string tag = root.get<std::string>("tag_name");
                 if (tag[0] == 'v')

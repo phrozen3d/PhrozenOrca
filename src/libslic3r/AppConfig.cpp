@@ -283,7 +283,7 @@ void AppConfig::set_defaults()
     }
 
     if (get("show_build_edges").empty()) {
-        set_bool("show_build_edgets", false);
+        set_bool("show_build_edges", false);
     }
 
     if (get("show_daily_tips").empty()) {
