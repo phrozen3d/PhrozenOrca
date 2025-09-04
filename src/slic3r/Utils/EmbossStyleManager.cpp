@@ -55,9 +55,31 @@ boost::assign::list_of<VerticalAlignToName::relation>
 
 void StyleManager::init(AppConfig *app_config)
 {
+    // Debug 模式：使用 assert 進行嚴格檢查
     assert(app_config != nullptr);
+    
+    // Release 模式：添加防護代碼確保安全
+    // 檢查 app_config 是否為空指標，避免在應用程式初始化過程中發生崩潰
+    if (!app_config) {
+        // 輸出除錯訊息到終端機，方便開發者追蹤問題
+        //std::cerr << "DEBUG: EmbossStyleManager::init() - app_config = NULL (via cerr)" << std::endl;
+        // 記錄警告日誌，說明使用預設值的原因
+        BOOST_LOG_TRIVIAL(warning) << "StyleManager::init() called with null app_config, using defaults";
+        // 清空樣式列表，使用預設樣式
+        m_styles.clear();
+        return;
+    }
+    
+    try {
+        // 嘗試從應用程式配置中載入文字樣式
+        m_styles = ::load_styles(*app_config);
+    } catch (const std::exception& e) {
+        // 如果載入樣式時發生例外，記錄錯誤並使用預設樣式
+        BOOST_LOG_TRIVIAL(error) << "Failed to load styles: " << e.what();
+        m_styles.clear();
+    }
+
     m_app_config = app_config;
-    m_styles = ::load_styles(*app_config);
 
     if (m_styles.empty()) {
         // No styles loaded from ini file so use default
