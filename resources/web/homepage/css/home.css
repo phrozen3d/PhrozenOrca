@@ -8,6 +8,10 @@
 	user-select: none;
 }
 
+body {
+    background-color:#FFFFFF;
+}
+
 html, body {
 	height: 100%;
 	width: 100%;
