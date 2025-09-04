@@ -154,7 +154,7 @@ void Button::SetCenter(bool isCenter)
 //                           Background                                             Foreground                       Border on focus
 // Button Colors             0-Disabled 1-Pressed  2-Hover    3-Normal   4-Enabled  5-Disabled 6-Normal   7-Hover    8-Dark     9-Light
 wxString btn_regular[10]  = {"#DFDFDF", "#DFDFDF", "#D4D4D4", "#DFDFDF", "#DFDFDF", "#6B6A6A", "#262E30", "#262E30", "#FF7C3F", "#FF7C3F"};
-wxString btn_confirm[10]  = {"#DFDFDF", "#FF7C3F", "#F05E20", "#FF7C3F", "#FF7C3F", "#6B6A6A", "#FEFEFE", "#FEFEFE", "#F05E20", "#00FFD4"};
+wxString btn_confirm[10]  = {"#DFDFDF", "#FF7C3F", "#F05E20", "#FF7C3F", "#FF7C3F", "#6B6A6A", "#FEFEFE", "#FEFEFE", "#F05E20", "#F05E20"};
 wxString btn_alert[10]    = {"#DFDFDF", "#DFDFDF", "#E14747", "#DFDFDF", "#DFDFDF", "#6B6A6A", "#262E30", "#FFFFFD", "#FF7C3F", "#FF7C3F"};
 wxString btn_disabled[10] = {"#DFDFDF", "#DFDFDF", "#DFDFDF", "#DFDFDF", "#DFDFDF", "#6B6A6A", "#6B6A6A", "#262E30", "#DFDFDF", "#DFDFDF"};
 
