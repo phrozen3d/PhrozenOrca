@@ -10,6 +10,10 @@ body {
 
 .container {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     padding: 30px;
     border-radius: 10px;
     background-color: #272727;
