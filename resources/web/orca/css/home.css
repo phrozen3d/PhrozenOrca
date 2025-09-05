@@ -2,9 +2,9 @@ body
 {
     background-color:#eeeeee;
     font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    /* display: flex; */
+    /* justify-content: center; */
+    /* align-items: center; */
     height: 100vh;
     margin: 0;
 }
@@ -13,7 +13,7 @@ body
     text-align: center;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    /* justify-content: center; */
     align-items: center;
     padding: 30px;
     border-radius: 10px;
