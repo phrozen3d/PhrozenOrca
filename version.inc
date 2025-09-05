@@ -10,7 +10,7 @@ endif()
 if(NOT DEFINED BBL_INTERNAL_TESTING)
 set(BBL_INTERNAL_TESTING "0")
 endif()
-set(Phrozen_VERSION "1.1.0-dev")
+set(Phrozen_VERSION "1.0.0")
 string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)"
        Phrozen_VERSION_MATCH ${Phrozen_VERSION})
 set(PHROZEN_ORCA_VERSION_MAJOR ${CMAKE_MATCH_1})
