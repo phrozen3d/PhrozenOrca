@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build (Windows + macOS)
+    name: Build
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +35,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -44,16 +45,33 @@ jobs:
       - name: Collect only .exe and .dmg
         shell: bash
         run: |
-          shopt -s nullglob
+          set -euo pipefail
+          shopt -s nullglob globstar
+
           mkdir -p release
-          for f in dist/**/*.dmg dist/**/*.exe; do
-            cp -v "$f" release/
-          done
+          files=(dist/*.dmg dist/*.exe dist/**/*.dmg dist/**/*.exe)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No .dmg/.exe found under dist/; listing tree for debugging:"
+            ls -alR dist || true
+            exit 1
+          fi
+
+          cp -vt release "${files[@]}"
+
           echo "Will upload these files:"
-          ls -l release
+          ls -l release 
 
       - name: Upload to triggering Release (overwrite if exists)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
+          set -euo pipefail
+          shopt -s nullglob
+          if ! compgen -G "release/*" > /dev/null; then
+            echo "release/ is empty. Nothing to upload."
+            ls -alR release || true
+            exit 1
+          fi
           gh release upload "${{ github.event.release.tag_name }}" release/* --clobber
