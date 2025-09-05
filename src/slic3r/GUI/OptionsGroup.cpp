@@ -1282,8 +1282,8 @@ wxString OptionsGroup::get_url(const std::string& path_end)
         str = str.Left(pos) + anchor;
     }
     // Orca: point to sf wiki for seam parameters
-    return wxString::Format(L"https://github.com/SoftFever/OrcaSlicer/wiki/%s", from_u8(path_end));
-
+    //return wxString::Format(L"https://github.com/SoftFever/OrcaSlicer/wiki/%s", from_u8(path_end));
+    return wxString::Format(L"https://github.com/phrozen3d/PhrozenOrca/wiki/Phrozen-Orca-Wiki-Page", from_u8(""));
 }
 
 bool OptionsGroup::launch_browser(const std::string& path_end)

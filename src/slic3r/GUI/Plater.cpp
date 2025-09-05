@@ -810,7 +810,8 @@ Sidebar::Sidebar(Plater *parent)
             SetCursor(wxCURSOR_ARROW);
         });
         bed_type_title->Bind(wxEVT_LEFT_UP, [bed_type_title, this](wxMouseEvent &e) {
-            wxLaunchDefaultBrowser("https://github.com/SoftFever/OrcaSlicer/wiki/bed-types");
+            //wxLaunchDefaultBrowser("https://github.com/SoftFever/OrcaSlicer/wiki/bed-types");
+            wxLaunchDefaultBrowser("https://github.com/phrozen3d/PhrozenOrca/wiki/Phrozen-Orca-Wiki-Page");
         });
 
         AppConfig *app_config = wxGetApp().app_config;
