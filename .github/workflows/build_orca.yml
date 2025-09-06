@@ -107,7 +107,7 @@ jobs:
           MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
           MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          CERTIFICATE_ID: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+          CERTIFICATE_ID: ${{ secrets.MAC_CERTIFICATE_NAME }}
         run: |
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
