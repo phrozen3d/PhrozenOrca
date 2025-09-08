@@ -17,7 +17,7 @@ END_EVENT_TABLE()
 static wxColour BORDER_HOVER_COL = wxColour(255, 124, 63);
 
 const static wxColour TAB_BUTTON_BG    = wxColour("#FEFFFF");
-const static wxColour TAB_BUTTON_SEL   = wxColour("#98593D"); // ORCA
+const static wxColour TAB_BUTTON_SEL   = wxColour("#EB8550"); // ORCA
 
 TabButton::TabButton()
     : paddingSize(43, 16)
