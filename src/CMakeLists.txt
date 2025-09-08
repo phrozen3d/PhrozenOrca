@@ -116,6 +116,12 @@ else ()
     add_executable(PhrozenOrca PhrozenOrca.cpp PhrozenOrca.hpp)
 endif ()
 
+# Ensure macOS bundles use our generated Info.plist and correct icon with any generator (Xcode/Ninja).
+if (APPLE)
+    # Use the explicitly configured Info.plist for the app bundle.
+    set_target_properties(PhrozenOrca PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+endif ()
+
 if (MINGW)
     target_link_options(PhrozenOrca PUBLIC "-Wl,-allow-multiple-definition")
     set_target_properties(PhrozenOrca PROPERTIES PREFIX "")
@@ -246,7 +252,8 @@ else ()
         else()
             set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/PhrozenOrca.app/Contents/Resources")
         endif()
-        set(MACOSX_BUNDLE_ICON_FILE Icon.icns)
+        # Point to the actual app icon shipped in resources.
+        set(MACOSX_BUNDLE_ICON_FILE images/PhrozenOrca.icns)
         set(MACOSX_BUNDLE_BUNDLE_NAME "PhrozenOrca")
         set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${Phrozen_VERSION})
         set(MACOSX_BUNDLE_COPYRIGHT "Copyright(C) 2022-2024 Li Jiang All Rights Reserved")
