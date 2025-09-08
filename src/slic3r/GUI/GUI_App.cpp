@@ -269,26 +269,6 @@ public:
 #endif // !__APPLE__
         )
     {
-        // 初始化透明背景相關設定
-        initialize_splash_screen(bitmap, pos);
-    }
-
-private:
-    /**
-     * @brief 初始化啟動畫面，包含透明背景設定和DPI縮放
-     * @param bitmap 啟動畫面位圖
-     * @param pos 視窗位置
-     * 
-     * 此方法負責：
-     * 1. 計算並應用 DPI 縮放比例
-     * 2. 設定視窗透明背景
-     * 3. 縮放位圖和字體以適應不同 DPI
-     * 4. 繪製啟動畫面內容（Logo、版本資訊等）
-     * 5. 應用深色模式主題
-     */
-    void initialize_splash_screen(const wxBitmap& bitmap, const wxPoint& pos)
-    {
-        // 計算 DPI 縮放比例
         int init_dpi = get_dpi_for_window(this);
         this->SetPosition(pos);
         this->CenterOnScreen();
@@ -296,31 +276,11 @@ private:
 
         m_scale = (float)(new_dpi) / (float)(init_dpi);
 
-        // 設定視窗透明背景相關屬性
-        this->SetBackgroundColour(wxColour(0, 0, 0, 0));
-
-        
-        // 處理位圖縮放和內容繪製
         m_main_bitmap = bitmap;
-        scale_bitmap(m_main_bitmap, m_scale);  // 根據 DPI 縮放位圖
-        initialize_text_rendering();           // 初始化文字渲染設定
-        Decorate(m_main_bitmap);               // 繪製啟動畫面內容
-        
-        // 更新深色模式 UI 主題
-        wxGetApp().UpdateFrameDarkUI(this);
-    }
 
-    /**
-     * @brief 初始化文字渲染相關設定
-     * 
-     * 此方法負責：
-     * 1. 初始化常數文字內容（版本號、基於資訊等）
-     * 2. 根據 DPI 縮放比例調整字體大小
-     * 3. 設定動態文字使用的字體
-     */
-    void initialize_text_rendering()
-    {
-        // 初始化常數文字內容和基礎字體
+        scale_bitmap(m_main_bitmap, m_scale);
+
+        // init constant texts and scale fonts
         m_constant_text.init(Label::Body_16);
 
 		// ORCA scale all fonts with monitor scale
@@ -330,9 +290,11 @@ private:
 
         // this font will be used for the action string
         m_action_font = m_constant_text.credits_font;
-    }
 
-public:
+        // draw logo and constant info text
+        Decorate(m_main_bitmap);
+        wxGetApp().UpdateFrameDarkUI(this);
+    }
 
     void SetText(const wxString& text)
     {
@@ -372,68 +334,9 @@ public:
         int width = bmp.GetWidth();
 		int height = bmp.GetHeight();
 
-		// ===== Logo 載入與處理 =====
-        // 創建位圖快取物件，用於載入和快取 SVG 圖像
+		// Logo
         BitmapCache bmp_cache;
-        
-        // 載入啟動畫面 logo
-        // 獲取 DPI 縮放比例，用於補償高解析度顯示器的自動縮放
-        const double scale = bmp_cache.scale();
-        
-        // 載入 SVG logo 圖像
-        // 根據深色模式選擇對應的 logo 資源名稱
-        // 傳入調整後的尺寸以補償 BitmapCache 內部的 DPI 縮放
-        wxBitmap logo_bmp = *bmp_cache.load_svg(
-            is_dark ? "splash_logo_dark" : "splash_logo", 
-            static_cast<int>(width / scale),   // 調整寬度以補償內部縮放
-            static_cast<int>(height / scale)   // 調整高度以補償內部縮放
-        );
-        
-        // ===== 半透明邊緣清理處理 =====
-        // 清理半透明邊緣，確保圓角效果清晰
-        // 使用結構化綁定語法同時宣告變數和檢查條件
-        
-        // 處理前後的對比圖解：
-        // ┌─────────────────────────────────┐
-        // │ 處理前：SVG 載入後的原始圖像      │
-        // │ ┌─────────────────────────────┐ │
-        // │ │  ████████████████████████   │ │ ← 主要內容 (alpha = 255)
-        // │ │ ██████████████████████████  │ │ ← 主要內容 (alpha = 255)
-        // │ │ ██████████████████████████  │ │ ← 主要內容 (alpha = 255)
-        // │ │  ░░████████████████████░░   │ │ ← 主要內容 (alpha = 255 / 半透明邊緣 (alpha = 64 / 128)
-        // │ └─────────────────────────────┘ │
-        // └─────────────────────────────────┘
-        //                    ↓ 清理處理
-        // ┌─────────────────────────────────┐
-        // │ 處理後：清理半透明邊緣的圖像         │
-        // │ ┌─────────────────────────────┐ │
-        // │ │  ████████████████████████   │ │ ← 主要內容 (alpha = 255)
-        // │ │ ██████████████████████████  │ │ ← 主要內容 (alpha = 255)
-        // │ │ ██████████████████████████  │ │ ← 主要內容 (alpha = 255)
-        // │ │   ███████████████████████   │ │ ← 主要內容 (alpha = 255)
-        // │ └─────────────────────────────┘ │
-        // └─────────────────────────────────┘
-        
-        if (wxImage logo_img = logo_bmp.ConvertToImage(); logo_img.HasAlpha()) {
-            // 獲取圖像尺寸
-            const int w = logo_img.GetWidth(), h = logo_img.GetHeight();
-            
-            // 遍歷所有像素，清理半透明邊緣
-            // 使用單一循環替代嵌套循環，提高效能
-            for (int i = 0; i < w * h; ++i) {
-                // 計算當前像素的座標 (x, y)
-                // i % w = x 座標，i / w = y 座標
-                if (logo_img.GetAlpha(i % w, i / w) < 240) {
-                    // 將 alpha 值小於 240 的像素設為完全透明
-                    // 這確保了圓角邊緣的清晰度，避免半透明延伸
-                    logo_img.SetAlpha(i % w, i / w, 0);
-                }
-            }
-            
-            // 將清理後的圖像轉換回位圖格式
-            logo_bmp = wxBitmap(logo_img);
-        }
-        
+        wxBitmap logo_bmp = *bmp_cache.load_svg(is_dark ? "splash_logo_dark" : "splash_logo", width, height);  // use with full width & height
         memDc.DrawBitmap(logo_bmp, 0, 0, true);
 
         // Version
@@ -460,48 +363,20 @@ public:
         memDc.DrawLabel(bs_version, based_on_rect, wxALIGN_CENTER);
     }
 
-    /**
-     * @brief 創建透明背景的啟動畫面位圖
-     * @details 此方法創建完全透明的位圖作為啟動畫面的背景畫布
-     * 
-     * 啟動畫面結構圖解：
-     * ┌─────────────────────────────────┐
-     * │ 背景位圖 (MakeBitmap 創建)        │ ← 完全透明
-     * │  ┌────────────────────────────┐ │
-     * │  │ 實際內容 (Decorate 繪製)     │ │ ← 包含 logo、文字等
-     * │  │ - Logo 圖片                │ │
-     * │  │ - 版本文字                  │ │
-     * │  │ - 其他 UI 元素              │ │
-     * │  └────────────────────────────┘ │
-     * └─────────────────────────────────┘
-     * 
-     * 背景透明的作用：
-     * - 讓啟動畫面可以顯示桌面背景
-     * - 只有背景是透明的，內容保持可見
-     * - 實現現代化的透明視窗效果
-     * 
-     * @return wxBitmap 完全透明的位圖
-     */
     static wxBitmap MakeBitmap()
     {
-        // 獲取設備無關像素尺寸
         int width = FromDIP(480, nullptr);
         int height = FromDIP(480, nullptr);
-        
-        // 創建具有 alpha 通道的圖像
-        wxImage image(width, height, true);
-        
-        // 如果沒有 alpha 通道，手動初始化
-        if (!image.HasAlpha()) {
-            image.InitAlpha();
-        }
-        
-        // 快速設定所有像素為完全透明
-        // 這只影響背景畫布，不會影響後續繪製的內容
-        image.SetAlpha(0);  // 一次性設定所有 alpha 值為 0
-        
-        // 轉換為位圖並返回
-        return wxBitmap(image);
+
+        wxImage image(width, height);
+        wxBitmap new_bmp(image);
+
+        wxMemoryDC memDC;
+        memDC.SelectObject(new_bmp);
+        memDC.SetBrush(StateColor::darkModeColorFor(*wxWHITE));
+        memDC.DrawRectangle(-1, -1, width + 2, height + 2);
+        memDC.DrawBitmap(new_bmp, 0, 0, true);
+        return new_bmp;
     }
 
     void set_bitmap(wxBitmap& bmp)
@@ -2557,7 +2432,7 @@ bool GUI_App::on_init_inner()
         }
 
         BOOST_LOG_TRIVIAL(info) << "begin to show the splash screen...";
-        //BBS use BBL splashScreen with transparency support
+        //BBS use BBL splashScreen
         scrn = new SplashScreen(bmp, wxSPLASH_CENTRE_ON_SCREEN | wxSPLASH_TIMEOUT, 1500, splashscreen_pos);
         wxYield();
         scrn->SetText(_L("Loading configuration")+ dots);
