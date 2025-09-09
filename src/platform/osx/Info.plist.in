@@ -13,7 +13,7 @@
   <key>CFBundleShortVersionString</key>
   <string>@SLIC3R_APP_NAME@ @SLIC3R_BUILD_ID@</string>
   <key>CFBundleIdentifier</key>
-  <string>com.phrozen3d.phrozen-orca</string>
+  <string>com.softfever3d.orca-slic3r/</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -28,11 +28,11 @@
   <array>
     <dict>
       <key>CFBundleURLName</key>
-      <string>phrozenorcaopen url</string>
+      <string>orcasliceropen url</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>phrozenorcaopen</string>
-        <string>phrozenorca</string>
+        <string>orcasliceropen</string>
+        <string>orcaslicer</string>
       </array>
     </dict>
   </array>
