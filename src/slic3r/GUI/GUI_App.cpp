@@ -2641,7 +2641,8 @@ bool GUI_App::on_init_inner()
 
     sidebar().obj_list()->init();
     //sidebar().aux_list()->init_auxiliary();
-    mainframe->m_project->init_auxiliary();
+    if (mainframe->m_project)
+        mainframe->m_project->init_auxiliary();
 
 //     update_mode(); // !!! do that later
     SetTopWindow(mainframe);
