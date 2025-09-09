@@ -30,7 +30,7 @@ Wiki page is currently under construction. Stay tuned!
 
 ### Stable Release
 📥 **[Download the Latest Stable Release](https://github.com/phrozen3d/PhrozenOrca/releases/latest)**  
-Visit our GitHub Releases page for the latest stable version of Orca Slicer, recommended for most users.
+Visit our GitHub Releases page for the latest stable version of Phrozen Orca, recommended for most users.
 
 
 
@@ -50,11 +50,6 @@ Download the **Windows Installer exe**  for your preferred version from the [rel
         -  [Alternative Download Link Hosted by Microsoft](https://aka.ms/vs/17/release/vc_redist.x64.exe)
         -  This file may already be available on your computer if you've installed visual studio.  Check the following location: `%VCINSTALLDIR%Redist\MSVC\v142`
     </details>
-
-Windows Package Manager:
-```shell
-winget install --id=SoftFever.OrcaSlicer --e
-```
 
 ### Mac:
 1. Download the DMG for your computer: `arm64` version for Apple Silicon and `x86_64` for Intel CPU.
