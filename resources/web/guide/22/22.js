@@ -262,12 +262,10 @@ function SortUI()
 	if(SelectNumber==0)
 		ChooseDefaultFilament();
 	
-	//--If Need Install Network Plugin
-	if(m_ProfileItem["network_plugin_install"]!='1' || (m_ProfileItem["network_plugin_install"]=='1' && m_ProfileItem["network_plugin_compability"]=='0') )
-	{
-		$("#AcceptBtn").hide();
-		$("#GotoNetPluginBtn").show();
-	}
+	//--If Need Install Network Plugin - DISABLED: Skip network plugin page
+	// Always show finish button and hide network plugin button
+	$("#AcceptBtn").show();
+	$("#GotoNetPluginBtn").hide();
 }
 
 
@@ -578,10 +576,11 @@ function ReturnPreviewPage()
 
 function GotoNetPluginPage()
 {
+	// DISABLED: Skip network plugin page, go directly to finish
 	let bRet=ResponseFilamentResult();
 	
 	if(bRet)
-		window.location.href="../5/index.html";
+		FinishGuide();
 }
 
 function FinishGuide()
