@@ -1,11 +1,8 @@
-<h1> <p "font-size:200px;"><img align="left" src="https://github.com/phrozen3d/PhrozenOrca/blob/phrozen-custom-dev/resources/images/PhrozenOrca.ico" width="100"> Phrozen Orca</p> </h1>
-
-<br>
+#  <p><img align="left" src="https://github.com/phrozen3d/PhrozenOrca/blob/phrozen-custom-dev/resources/images/PhrozenOrca.ico" width="40"> Phrozen Orca</p>
 
 PhrozenOrca is the official release of our customized slicing software, based on OrcaSlicer and optimized for Phrozen FDM 3D printers.  
 This version provides an integrated workflow from model preparation to print monitoring, ensuring a smoother and more reliable slicing experience tailored for Phrozen printers.
 
----
 
 # Features
 
