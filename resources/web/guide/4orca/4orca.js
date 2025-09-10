@@ -27,10 +27,11 @@ function SendStealthModeCheck()
 
 function GotoNetPluginPage()
 {
+	// DISABLED: Skip network plugin page, go directly to finish
 	let bRet=SendStealthModeCheck();
 	
 	if(bRet)
-		window.location.href="../5/index.html";
+		FinishGuide();
 }
 
 
