@@ -86,5 +86,4 @@ private:
     bool m_skip_popup_dropdown_menu;
     bool m_skip_popup_calib_menu;
     
-    std::unique_ptr< wxAuiToolBar > m_spHiddenToolBar; 
 };
