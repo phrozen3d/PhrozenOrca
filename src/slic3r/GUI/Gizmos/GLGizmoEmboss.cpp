@@ -1684,7 +1684,7 @@ void GLGizmoEmboss::draw_font_list_line()
             if (new_wx_font.IsOk() && m_style_manager.set_wx_font(new_wx_font))
                 exist_change = true;
         } else if (ImGui::IsItemHovered())
-            m_imgui->tooltip(_u8L("Revert font changes."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Revert font changes."), m_gui_cfg->max_tooltip_width);
     }
 
     if (exist_change) {
@@ -1852,7 +1852,7 @@ void GLGizmoEmboss::draw_model_type()
     if (ImGui::RadioButton(_u8L("Join").c_str(), type == part))
         new_type = part;
     else if (ImGui::IsItemHovered())
-        m_imgui->tooltip(_u8L("Click to change text into object part."), m_gui_cfg->max_tooltip_width);
+        m_imgui->tooltip(L("Click to change text into object part."), m_gui_cfg->max_tooltip_width);
     ImGui::SameLine();
 
     std::string last_solid_part_hint = _u8L("You can't change a type of the last solid part of the object.");
@@ -1862,7 +1862,7 @@ void GLGizmoEmboss::draw_model_type()
         if (is_last_solid_part)
             m_imgui->tooltip(last_solid_part_hint, m_gui_cfg->max_tooltip_width);
         else if (type != negative)
-            m_imgui->tooltip(_u8L("Click to change part type into negative volume."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Click to change part type into negative volume."), m_gui_cfg->max_tooltip_width);
     }
 
     // In simple mode are not modifiers
@@ -1874,7 +1874,7 @@ void GLGizmoEmboss::draw_model_type()
             if (is_last_solid_part)
                 m_imgui->tooltip(last_solid_part_hint, m_gui_cfg->max_tooltip_width);
             else if (type != modifier)
-                m_imgui->tooltip(_u8L("Click to change part type into modifier."), m_gui_cfg->max_tooltip_width);
+                m_imgui->tooltip(L("Click to change part type into modifier."), m_gui_cfg->max_tooltip_width);
         }
     }
     ImGuiWrapper::pop_radio_style();
@@ -1964,8 +1964,8 @@ void GLGizmoEmboss::draw_style_rename_button()
         ImGui::OpenPopup(popup_id);
     }
     else if (ImGui::IsItemHovered()) {
-        if (can_rename) m_imgui->tooltip(_u8L("Rename current style."), m_gui_cfg->max_tooltip_width);
-        else            m_imgui->tooltip(_u8L("Can't rename temporary style."), m_gui_cfg->max_tooltip_width);
+        if (can_rename) m_imgui->tooltip(L("Rename current style."), m_gui_cfg->max_tooltip_width);
+        else            m_imgui->tooltip(L("Can't rename temporary style."), m_gui_cfg->max_tooltip_width);
     }
     if (ImGui::BeginPopupModal(popup_id, 0, ImGuiWindowFlags_AlwaysAutoResize)) {
         m_imgui->disable_background_fadeout_animation();
@@ -2050,11 +2050,11 @@ void GLGizmoEmboss::draw_style_add_button()
         }
     } else if (ImGui::IsItemHovered()) {
         if (!can_add) {
-            m_imgui->tooltip(_u8L("Only valid font can be added to style."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Only valid font can be added to style."), m_gui_cfg->max_tooltip_width);
         } else if (only_add_style) {
-            m_imgui->tooltip(_u8L("Add style to my list."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Add style to my list."), m_gui_cfg->max_tooltip_width);
         } else {
-            m_imgui->tooltip(_u8L("Save as new style."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Save as new style."), m_gui_cfg->max_tooltip_width);
         }
     }
 
@@ -2310,7 +2310,7 @@ bool GLGizmoEmboss::draw_italic_button()
             return true;
         }
         if (ImGui::IsItemHovered())
-            m_imgui->tooltip(_u8L("Unset italic"), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Unset italic"), m_gui_cfg->max_tooltip_width);
     } else {
         // set italic
         if (draw_button(m_icons, IconType::italic)) {
@@ -2327,7 +2327,7 @@ bool GLGizmoEmboss::draw_italic_button()
             return true;
         }
         if (ImGui::IsItemHovered())
-            m_imgui->tooltip(_u8L("Set italic"), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Set italic"), m_gui_cfg->max_tooltip_width);
     }
     return false;
 }
@@ -2356,7 +2356,7 @@ bool GLGizmoEmboss::draw_bold_button() {
             return true;
         }
         if (ImGui::IsItemHovered())
-            m_imgui->tooltip(_u8L("Unset bold"), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Unset bold"), m_gui_cfg->max_tooltip_width);
     } else {
         // set bold
         if (draw_button(m_icons, IconType::bold)) {
@@ -2374,7 +2374,7 @@ bool GLGizmoEmboss::draw_bold_button() {
             return true;
         }
         if (ImGui::IsItemHovered())
-            m_imgui->tooltip(_u8L("Set bold"), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Set bold"), m_gui_cfg->max_tooltip_width);
     }
     return false;
 }
@@ -2692,9 +2692,9 @@ void GLGizmoEmboss::draw_advanced()
         process();
     } else if (ImGui::IsItemHovered()) {
         if (per_glyph) {
-            m_imgui->tooltip(_u8L("Set global orientation for whole text."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Set global orientation for whole text."), m_gui_cfg->max_tooltip_width);
         } else {
-            m_imgui->tooltip(_u8L("Set position and orientation per glyph."), m_gui_cfg->max_tooltip_width);
+            m_imgui->tooltip(L("Set position and orientation per glyph."), m_gui_cfg->max_tooltip_width);
             if (!m_text_lines.is_init())
                 reinit_text_lines();
         }
@@ -2981,7 +2981,7 @@ void GLGizmoEmboss::draw_advanced()
         if (face_selected_volume_to_camera(cam, m_parent, wanted_up_limit))
             volume_transformation_changed();
     } else if (ImGui::IsItemHovered()) {
-        m_imgui->tooltip(_u8L("Orient the text towards the camera."), m_gui_cfg->max_tooltip_width);
+        m_imgui->tooltip(L("Orient the text towards the camera."), m_gui_cfg->max_tooltip_width);
     }
 
     //ImGui::SameLine(); if (ImGui::Button("Re-emboss")) GLGizmoEmboss::re_emboss(*m_volume);    

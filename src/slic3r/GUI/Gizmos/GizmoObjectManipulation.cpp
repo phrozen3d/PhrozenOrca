@@ -1053,7 +1053,7 @@ void GizmoObjectManipulation::do_render_rotate_window(ImGuiWrapper *imgui_wrappe
         }
         if (ImGui::IsItemHovered()) {
             float tooltip_size = imgui_wrapper->calc_text_size(_L("Reset current rotation to the value when open the rotation tool.")).x + 3 * space_size;
-            imgui_wrapper->tooltip(_u8L("Reset current rotation to the value when open the rotation tool."), tooltip_size);
+            imgui_wrapper->tooltip(L("Reset current rotation to the value when open the rotation tool."), tooltip_size);
         }
     } else {
         ImGui::SameLine(caption_max + 3 * unit_size + 5 * space_size + end_text_size);
