@@ -1090,14 +1090,14 @@ void MainFrame::init_tabpanel() {
 
     create_preset_tabs();
 
-        //BBS add pages
+    //BBS add pages
     m_monitor = new MonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     m_monitor->SetBackgroundColour(*wxWHITE);
     m_tabpanel->AddPage(m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
 
-    //m_PhrozenMonitor = new PhrozenMonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-    //m_PhrozenMonitor->SetBackgroundColour(*wxWHITE);
-    //m_tabpanel->AddPage(m_PhrozenMonitor, _L("Device_Test"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
+    m_PhrozenMonitor = new PhrozenMonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    m_PhrozenMonitor->SetBackgroundColour(*wxWHITE);
+    m_tabpanel->AddPage(m_PhrozenMonitor, _L("Device_Test"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
 
     m_printer_view = new PrinterWebView(m_tabpanel);
     Bind(EVT_LOAD_PRINTER_URL, [this](LoadPrinterViewEvent &evt) {
