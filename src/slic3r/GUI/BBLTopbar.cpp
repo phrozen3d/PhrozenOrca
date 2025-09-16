@@ -194,9 +194,6 @@ BBLTopbar::BBLTopbar(wxWindow* pwin, wxFrame* parent)
 
 void BBLTopbar::Init(wxFrame* parent) 
 {
-    m_spHiddenToolBar = std::make_unique< wxAuiToolBar >( nullptr );
-    m_spHiddenToolBar->Hide();
-
     SetArtProvider(new BBLTopbarArt());
     m_frame = parent;
     m_skip_popup_file_menu = false;
@@ -253,8 +250,7 @@ void BBLTopbar::Init(wxFrame* parent)
 
     wxBitmap calib_bitmap          = create_scaled_bitmap("calib_sf", nullptr, TOPBAR_ICON_SIZE);
     wxBitmap calib_bitmap_inactive = create_scaled_bitmap("calib_sf_inactive", nullptr, TOPBAR_ICON_SIZE);
-    //m_calib_item                   = this->AddTool(ID_CALIB, _L("Calibration"), calib_bitmap);
-    m_calib_item                     = m_spHiddenToolBar->AddTool(ID_CALIB, _L("Calibration"), calib_bitmap);
+    m_calib_item                   = this->AddTool(ID_CALIB, _L("Calibration"), calib_bitmap);
     m_calib_item->SetDisabledBitmap(calib_bitmap_inactive);
 
     this->AddSpacer(FromDIP(10));
