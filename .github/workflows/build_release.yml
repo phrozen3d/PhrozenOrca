@@ -19,9 +19,8 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-          # Github mac runner 還沒建好之前禁止使用太貴了
-          # - os: macos-14
-          #   arch: arm64
+          - os: macos-14
+            arch: arm64
     uses: ./.github/workflows/build_check_cache.yml
     with:
       os: ${{ matrix.os }}
