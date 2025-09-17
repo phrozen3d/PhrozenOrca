@@ -19,6 +19,12 @@ on:
       build-deps-only:
         required: false
         type: boolean
+      build-installer:
+        required: false
+        type: boolean
+      sign-and-notarize:
+        required: false
+        type: boolean
 
 jobs:
   build_deps:
@@ -115,4 +121,6 @@ jobs:
       cache-path: ${{ inputs.cache-path }}
       os: ${{ inputs.os }}
       arch: ${{ inputs.arch }}
+      build-installer: ${{ inputs.build-installer }}
+      sign-and-notarize: ${{ inputs.sign-and-notarize }}
     secrets: inherit

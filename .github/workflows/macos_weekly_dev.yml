@@ -1,4 +1,4 @@
-name: Mac Weekly (phrozen-custom-dev, unsigned)
+name: Mac Weekly
 
 on:
   schedule:
@@ -42,73 +42,10 @@ jobs:
     name: Build macOS unsigned DMG
     needs: [check_changes]
     if: needs.check_changes.outputs.should_build == 'true'
-    runs-on: macos-14
-    env:
-      date:
-      ver:
-      ver_pure:
-    steps:
-      - name: Checkout phrozen-custom-dev
-        uses: actions/checkout@v5
-        with:
-          lfs: 'true'
-          ref: phrozen-custom-dev
-
-      - name: Restore deps cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/deps/build
-          key: macos-14-cache-phrozenorca_deps-build-${{ hashFiles('deps/**') }}
-
-      - uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: "~3.28.0"
-
-      - name: Install tools
-        run: |
-          brew install libtool automake texinfo
-          brew list
-          mkdir -p ${{ github.workspace }}/deps/build
-
-      - name: Free disk space
-        run: |
-          df -hI /dev/disk3s1s1 || true
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} + || true
-          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/* || true
-          df -hI /dev/disk3s1s1 || true
-
-      - name: Get version and date
-        shell: bash
-        run: |
-          ver_pure=$(grep 'set(Phrozen_VERSION' version.inc | cut -d '"' -f2)
-          ver=V$ver_pure
-          echo "ver=$ver" >> $GITHUB_ENV
-          echo "ver_pure=$ver_pure" >> $GITHUB_ENV
-          echo "date=$(date +'%Y%m%d')" >> $GITHUB_ENV
-
-      - name: Build dependencies (cache will persist)
-        run: |
-          brew uninstall --ignore-dependencies zstd || true
-          ./build_release_macos.sh -dx -a universal -t 10.15 -1
-          for arch in arm64 x86_64; do
-            (cd "${{ github.workspace }}/deps/build/${arch}" && \
-             find . -mindepth 1 -maxdepth 1 ! -name 'PhrozenOrca_dep' -exec rm -rf {} +) || true
-          done
-          brew install zstd
-
-      - name: Build app
-        run: |
-          ./build_release_macos.sh -s -n -x -a universal -t 10.15 -1
-
-      - name: Create DMG (unsigned, no notary)
-        working-directory: ${{ github.workspace }}
-        run: |
-          ln -s /Applications ${{ github.workspace }}/build/universal/PhrozenOrca/Applications
-          hdiutil create -volname "PhrozenOrca" -srcfolder ${{ github.workspace }}/build/universal/PhrozenOrca -ov -format UDZO PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
-
-      - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
-          path: ${{ github.workspace }}/PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
-
+    uses: ./.github/workflows/build_check_cache.yml
+    with:
+      os: macos-14
+      arch: arm64
+      build-deps-only: false
+      sign-and-notarize: false
+    secrets: inherit

@@ -12,6 +12,12 @@ on:
       build-deps-only:
         required: false
         type: boolean
+      build-installer:
+        required: false
+        type: boolean
+      sign-and-notarize:
+        required: false
+        type: boolean
   
 jobs:
   check_cache: # determines if there is a cache and outputs variables used in caching process
@@ -56,4 +62,6 @@ jobs:
       os: ${{ inputs.os }}
       arch: ${{ inputs.arch }}
       build-deps-only: ${{ inputs.build-deps-only }}
+      build-installer: ${{ inputs.build-installer }}
+      sign-and-notarize: ${{ inputs.sign-and-notarize }}
     secrets: inherit
