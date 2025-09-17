@@ -26,6 +26,7 @@ jobs:
       os: ${{ matrix.os }}
       arch: ${{ matrix.arch }}
       build-deps-only: false
+      sign-and-notarize: true
     secrets: inherit
 
   upload-assets:

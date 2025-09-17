@@ -16,6 +16,9 @@ on:
         build-installer:
           required: false
           type: boolean
+        sign-and-notarize:
+          required: false
+          type: boolean
 
 jobs:
   build_orca:
@@ -104,7 +107,7 @@ jobs:
 
  # Thanks to RaySajuuk, it's working now
       - name: Sign app and notary
-        if: (github.event_name == 'release' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && inputs.os == 'macos-14'
+        if: inputs.sign-and-notarize == true && inputs.os == 'macos-14'
         working-directory: ${{ github.workspace }}
         env:
           MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
@@ -130,7 +133,7 @@ jobs:
           xcrun stapler staple PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
 
       - name: Create DMG without notary
-        if: github.event_name != 'release' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release' && inputs.os == 'macos-14'
+        if: (inputs.sign-and-notarize != true) && inputs.os == 'macos-14'
         working-directory: ${{ github.workspace }}
         run: |
           ln -s /Applications ${{ github.workspace }}/build/universal/PhrozenOrca/Applications
