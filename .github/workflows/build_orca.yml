@@ -13,6 +13,9 @@ on:
         arch:
           required: false
           type: string
+        build-installer:
+          required: false
+          type: boolean
 
 jobs:
   build_orca:
@@ -157,7 +160,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Install nsis
-        if: inputs.os == 'windows-latest'
+        if: inputs.os == 'windows-latest' && inputs.build-installer != false
         run: |
           dir "C:/Program Files (x86)/Windows Kits/10/Include"
           choco install nsis
@@ -171,7 +174,7 @@ jobs:
         run: .\build_release_vs2022.bat slicer
 
       - name: Create installer Win
-        if: inputs.os == 'windows-latest'
+        if: inputs.os == 'windows-latest' && inputs.build-installer != false
         working-directory: ${{ github.workspace }}/build
         run: |
           cpack -G NSIS
@@ -196,7 +199,7 @@ jobs:
           path: ${{ github.workspace }}/build/PhrozenOrca
 
       - name: Upload artifacts Win installer
-        if: inputs.os == 'windows-latest'
+        if: inputs.os == 'windows-latest' && inputs.build-installer != false
         uses: actions/upload-artifact@v4
         with:
           name: PhrozenOrca_Windows_${{ env.ver }}
@@ -221,7 +224,7 @@ jobs:
           max_releases: 1
 
       - name: Deploy Windows release installer
-        if: github.ref == 'refs/heads/main' && inputs.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main' && inputs.os == 'windows-latest' && inputs.build-installer != false
         uses: WebFreak001/deploy-nightly@v3.2.0
         with:
           upload_url: https://uploads.github.com/repos/phrozen3d/PhrozenOrca/releases/244999625/assets{?name,label}

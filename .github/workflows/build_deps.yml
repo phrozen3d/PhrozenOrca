@@ -19,6 +19,9 @@ on:
       build-deps-only:
         required: false
         type: boolean
+      build-installer:
+        required: false
+        type: boolean
 
 jobs:
   build_deps:
@@ -115,4 +118,5 @@ jobs:
       cache-path: ${{ inputs.cache-path }}
       os: ${{ inputs.os }}
       arch: ${{ inputs.arch }}
+      build-installer: ${{ inputs.build-installer }}
     secrets: inherit

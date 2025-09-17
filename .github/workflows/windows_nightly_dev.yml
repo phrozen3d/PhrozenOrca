@@ -1,4 +1,4 @@
-name: Windows Nightly (phrozen-custom-dev)
+name: Windows Nightly
 
 on:
   schedule:
@@ -42,74 +42,9 @@ jobs:
     name: Build Windows portable + PDB
     needs: [check_changes]
     if: needs.check_changes.outputs.should_build == 'true'
-    runs-on: windows-latest
-    env:
-      date:
-      ver:
-      ver_pure:
-    steps:
-      - name: Checkout phrozen-custom-dev
-        uses: actions/checkout@v5
-        with:
-          lfs: 'true'
-          ref: phrozen-custom-dev
-
-      - name: Restore deps cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/deps/build/PhrozenOrca_dep
-          key: windows-latest-cache-phrozenorca_deps-build-${{ hashFiles('deps/**') }}
-
-      - uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: "~3.28.0"
-
-      - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Get version and date
-        shell: pwsh
-        run: |
-          $date = Get-Date -Format 'yyyyMMdd'
-          $content = Get-Content version.inc -Raw
-          if ($content -match 'set\(Phrozen_VERSION "(.*?)"\)') { $ver = $matches[1] }
-          $ver = "V$ver"
-          echo "ver=$ver" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
-          echo "date=$date" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
-
-      - name: Build dependencies (cache will persist)
-        shell: pwsh
-        run: |
-          choco install strawberryperl
-          .\build_release_vs2022.bat deps
-          .\build_release_vs2022.bat pack
-
-      - name: Build app (Release)
-        env:
-          WindowsSdkDir: 'C:\\Program Files (x86)\\Windows Kits\\10\\'
-          WindowsSDKVersion: '10.0.22000.0\\'
-        shell: pwsh
-        run: .\build_release_vs2022.bat slicer
-
-      - name: Pack portable ZIP
-        working-directory: ${{ github.workspace }}/build
-        shell: cmd
-        run: '"C:/Program Files/7-Zip/7z.exe" a -tzip PhrozenOrca_Windows_${{ env.ver }}_portable.zip ${{ github.workspace }}/build/PhrozenOrca'
-
-      - name: Pack PDB archive
-        working-directory: ${{ github.workspace }}/build/src/Release
-        shell: cmd
-        run: '"C:/Program Files/7-Zip/7z.exe" a -m0=lzma2 -mx9 Debug_PDB_${{ env.ver }}_for_developers_only.7z *.pdb'
-
-      - name: Upload portable ZIP
-        uses: actions/upload-artifact@v4
-        with:
-          name: PhrozenOrca_Windows_${{ env.ver }}_portable.zip
-          path: ${{ github.workspace }}/build/PhrozenOrca_Windows_${{ env.ver }}_portable.zip
-
-      - name: Upload PDB archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: Debug_PDB_${{ env.ver }}_for_developers_only.7z
-          path: ${{ github.workspace }}/build/src/Release/Debug_PDB_${{ env.ver }}_for_developers_only.7z
-
+    uses: ./.github/workflows/build_check_cache.yml
+    with:
+      os: windows-latest
+      build-deps-only: false
+      build-installer: false
+    secrets: inherit
