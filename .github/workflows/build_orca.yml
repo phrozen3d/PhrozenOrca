@@ -13,12 +13,13 @@ on:
         arch:
           required: false
           type: string
-        build-installer:
-          required: false
-          type: boolean
         sign-and-notarize:
           required: false
           type: boolean
+        package_style:
+          required: false
+          type: string
+          description: "Packaging style after Windows build: release | nightly"
 
 jobs:
   build_orca:
@@ -162,12 +163,6 @@ jobs:
         if: inputs.os == 'windows-latest'
         uses: microsoft/setup-msbuild@v2
 
-      - name: Install nsis
-        if: inputs.os == 'windows-latest' && inputs.build-installer != false
-        run: |
-          dir "C:/Program Files (x86)/Windows Kits/10/Include"
-          choco install nsis
-
       - name: Build slicer Win
         if: inputs.os == 'windows-latest'
         working-directory: ${{ github.workspace }}
@@ -176,63 +171,19 @@ jobs:
           WindowsSDKVersion: '10.0.22000.0\'
         run: .\build_release_vs2022.bat slicer
 
-      - name: Create installer Win
-        if: inputs.os == 'windows-latest' && inputs.build-installer != false
-        working-directory: ${{ github.workspace }}/build
-        run: |
-          cpack -G NSIS
-
-      - name: Pack app
-        if: inputs.os == 'windows-latest'
-        working-directory: ${{ github.workspace }}/build
-        shell: cmd
-        run: '"C:/Program Files/7-Zip/7z.exe" a -tzip PhrozenOrca_Windows_${{ env.ver }}_portable.zip ${{ github.workspace }}/build/PhrozenOrca'
-
-      - name: Pack PDB
-        if: inputs.os == 'windows-latest'
-        working-directory: ${{ github.workspace }}/build/src/Release
-        shell: cmd
-        run: '"C:/Program Files/7-Zip/7z.exe" a -m0=lzma2 -mx9 Debug_PDB_${{ env.ver }}_for_developers_only.7z  *.pdb'
-
-      - name: Upload artifacts Win zip
-        if: inputs.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
+      # Windows packaging is delegated to composite actions based on package_style
+      - name: Pack Windows (release)
+        if: inputs.os == 'windows-latest' && (inputs.package_style == 'release' || inputs.package_style == '')
+        uses: ./.github/actions/pack-win-release
         with:
-          name: PhrozenOrca_Windows_${{ env.ver }}_portable
-          path: ${{ github.workspace }}/build/PhrozenOrca
+          build_dir: ${{ github.workspace }}/build/PhrozenOrca
+          version: ${{ env.ver }}
 
-      - name: Upload artifacts Win installer
-        if: inputs.os == 'windows-latest' && inputs.build-installer != false
-        uses: actions/upload-artifact@v4
+      - name: Pack Windows (nightly)
+        if: inputs.os == 'windows-latest' && inputs.package_style == 'nightly'
+        uses: ./.github/actions/pack-win-nightly
         with:
-          name: PhrozenOrca_Windows_${{ env.ver }}
-          path: ${{ github.workspace }}/build/PhrozenOrca*.exe
-
-      - name: Upload artifacts Win PDB
-        if: inputs.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: PDB
-          path: ${{ github.workspace }}/build/src/Release/Debug_PDB_${{ env.ver }}_for_developers_only.7z
-
-      - name: Deploy Windows release portable
-        if: github.ref == 'refs/heads/main' && inputs.os == 'windows-latest'
-        uses: WebFreak001/deploy-nightly@v3.2.0
-        with:
-          upload_url: https://uploads.github.com/repos/phrozen3d/PhrozenOrca/releases/244999625/assets{?name,label}
-          release_id: 244999625
-          asset_path: ${{ github.workspace }}/build/PhrozenOrca_Windows_${{ env.ver }}_portable.zip
-          asset_name: PhrozenOrca_Windows_${{ env.ver }}_portable.zip
-          asset_content_type: application/x-zip-compressed
-          max_releases: 1
-
-      - name: Deploy Windows release installer
-        if: github.ref == 'refs/heads/main' && inputs.os == 'windows-latest' && inputs.build-installer != false
-        uses: WebFreak001/deploy-nightly@v3.2.0
-        with:
-          upload_url: https://uploads.github.com/repos/phrozen3d/PhrozenOrca/releases/244999625/assets{?name,label}
-          release_id: 244999625
-          asset_path: ${{ github.workspace }}/build/PhrozenOrca_Windows_Installer_${{ env.ver }}.exe
-          asset_name: PhrozenOrca_Windows_Installer_${{ env.ver }}.exe
-          asset_content_type: application/x-msdownload
-          max_releases: 1
+          build_dir: ${{ github.workspace }}/build/PhrozenOrca
+          version: ${{ env.ver }}
+          date: ${{ env.date }}
+          sha: ${{ github.sha }}
