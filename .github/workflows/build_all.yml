@@ -59,5 +59,6 @@ jobs:
       os: ${{ matrix.os }}
       arch: ${{ matrix.arch }}
       build-deps-only: ${{ inputs.build-deps-only || false }}
+      package_style: release
       sign-and-notarize: true
     secrets: inherit

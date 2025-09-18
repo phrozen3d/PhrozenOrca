@@ -47,4 +47,5 @@ jobs:
       os: windows-latest
       build-deps-only: false
       build-installer: false
+      package_style: nightly
     secrets: inherit

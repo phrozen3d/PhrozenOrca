@@ -1,0 +1,60 @@
+name: "Pack Windows Release"
+description: "Create NSIS installer, portable ZIP, PDB archive, and upload artifacts for Windows release."
+inputs:
+  build_dir:
+    description: "Path to built Windows app folder (e.g., build/PhrozenOrca)"
+    required: true
+  version:
+    description: "Version string used in artifact naming (e.g., V1.2.3)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Determine build root
+      id: paths
+      shell: pwsh
+      run: |
+        $buildDir = Resolve-Path '${{ inputs.build_dir }}'
+        $buildRoot = Resolve-Path (Join-Path $buildDir '..')
+        echo "build_root=$buildRoot" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
+    - name: Install NSIS
+      shell: pwsh
+      run: |
+        choco install nsis
+
+    - name: Create installer (NSIS)
+      shell: pwsh
+      working-directory: ${{ steps.paths.outputs.build_root }}
+      run: |
+        cpack -G NSIS
+
+    - name: Pack portable ZIP
+      shell: cmd
+      working-directory: ${{ inputs.build_dir }}
+      run: '"C:/Program Files/7-Zip/7z.exe" a -tzip ../PhrozenOrca_Windows_${{ inputs.version }}_portable.zip .'
+
+    - name: Pack PDB
+      shell: cmd
+      working-directory: ${{ steps.paths.outputs.build_root }}\src\Release
+      run: '"C:/Program Files/7-Zip/7z.exe" a -m0=lzma2 -mx9 Debug_PDB_${{ inputs.version }}_for_developers_only.7z  *.pdb'
+
+    - name: Upload artifacts Win portable folder
+      uses: actions/upload-artifact@v4
+      with:
+        name: PhrozenOrca_Windows_${{ inputs.version }}_portable
+        path: ${{ inputs.build_dir }}
+
+    - name: Upload artifacts Win installer
+      if: ${{ inputs.build_installer == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: PhrozenOrca_Windows_${{ inputs.version }}
+        path: ${{ steps.paths.outputs.build_root }}/PhrozenOrca*.exe
+
+    - name: Upload artifacts Win PDB
+      uses: actions/upload-artifact@v4
+      with:
+        name: PDB
+        path: ${{ steps.paths.outputs.build_root }}/src/Release/Debug_PDB_${{ inputs.version }}_for_developers_only.7z

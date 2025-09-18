@@ -1,0 +1,62 @@
+name: "Pack Windows Nightly"
+description: "Create nightly portable ZIP (date folder + commit_info.txt), pack PDB, and upload artifacts."
+inputs:
+  build_dir:
+    description: "Path to built Windows app folder (e.g., build/PhrozenOrca)"
+    required: true
+  date:
+    description: "Date string yyyymmdd used in ZIP name and top-level folder"
+    required: true
+  sha:
+    description: "Commit SHA to write into commit_info.txt"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Determine build root
+      id: paths
+      shell: pwsh
+      run: |
+        $buildDir = Resolve-Path '${{ inputs.build_dir }}'
+        $buildRoot = Resolve-Path (Join-Path $buildDir '..')
+        $stage = Join-Path $env:RUNNER_TEMP 'phz-nightly'
+        New-Item -ItemType Directory -Force -Path $stage | Out-Null
+        echo "build_root=$buildRoot" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+        echo "stage=$stage" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
+    - name: Prepare nightly folder structure
+      shell: pwsh
+      run: |
+        $stage = '${{ steps.paths.outputs.stage }}'
+        $dateFolder = Join-Path $stage '${{ inputs.date }}'
+        New-Item -ItemType Directory -Force -Path $dateFolder | Out-Null
+
+        # Write commit_info.txt with the provided SHA
+        Set-Content -Path (Join-Path $dateFolder 'commit_info.txt') -Value '${{ inputs.sha }}' -Encoding UTF8
+
+        # Copy PhrozenOrca folder into yyyymmdd/PhrozenOrca/
+        $destApp = Join-Path $dateFolder 'PhrozenOrca'
+        Copy-Item -Path '${{ inputs.build_dir }}' -Destination $destApp -Recurse -Force
+
+    - name: Create nightly portable ZIP
+      shell: cmd
+      working-directory: ${{ steps.paths.outputs.stage }}
+      run: '"C:/Program Files/7-Zip/7z.exe" a -tzip ${{ inputs.date }}_PhrozenOrca_portable.zip ${{ inputs.date }}'
+
+    - name: Pack PDB (same as release)
+      shell: cmd
+      working-directory: ${{ steps.paths.outputs.build_root }}\src\Release
+      run: '"C:/Program Files/7-Zip/7z.exe" a -m0=lzma2 -mx9 Debug_PDB_${{ inputs.date }}_for_developers_only.7z  *.pdb'
+
+    - name: Upload nightly portable ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.date }}_PhrozenOrca_portable.zip
+        path: ${{ steps.paths.outputs.stage }}/${{ inputs.date }}_PhrozenOrca_portable.zip
+
+    - name: Upload artifacts Win PDB
+      uses: actions/upload-artifact@v4
+      with:
+        name: PDB
+        path: ${{ steps.paths.outputs.build_root }}/src/Release/Debug_PDB_${{ inputs.date }}_for_developers_only.7z
+
