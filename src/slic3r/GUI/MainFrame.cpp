@@ -2930,10 +2930,10 @@ void MainFrame::init_menubar_as_editor()
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(false, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     flowrate_menu->AppendSeparator();
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("Orca YOLO flowrate calibration, 0.01 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("PhrozenOrca YOLO flowrate calibration, 0.01 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 1); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("Orca YOLO flowrate calibration, 0.005 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("PhrozenOrca YOLO flowrate calibration, 0.005 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     m_topbar->GetCalibMenu()->AppendSubMenu(flowrate_menu, _L("Flow rate"));
@@ -3066,10 +3066,10 @@ void MainFrame::init_menubar_as_editor()
     append_submenu(calib_menu,flowrate_menu,wxID_ANY,_L("Flow rate"),_L("Flow rate"),"",
                    [this]() {return m_plater->is_view3D_shown();; });
     flowrate_menu->AppendSeparator();
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("Orca YOLO flowrate calibration, 0.01 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("PhrozenOrca YOLO flowrate calibration, 0.01 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 1); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("Orca YOLO flowrate calibration, 0.005 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("PhrozenOrca YOLO flowrate calibration, 0.005 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
@@ -3092,7 +3092,7 @@ void MainFrame::init_menubar_as_editor()
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
     // Tolerance Test
-    append_menu_item(calib_menu, wxID_ANY, _L("Orca Tolerance Test"), _L("Orca Tolerance Test"),
+    append_menu_item(calib_menu, wxID_ANY, _L("PhrozenOrca Tolerance Test"), _L("PhrozenOrca Tolerance Test"),
         [this](wxCommandEvent&) {
             m_plater->new_project();
             m_plater->add_model(false, Slic3r::resources_dir() + "/calib/tolerance_test/OrcaToleranceTest.stl");
