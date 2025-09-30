@@ -597,6 +597,10 @@ set(SLIC3R_GUI_SOURCES
     GUI/PhrozenGUI/PhrozenStatusPanel.cpp
     GUI/PhrozenGUI/PhrozenBrowserDialog.hpp
     GUI/PhrozenGUI/PhrozenBrowserDialog.cpp
+	GUI/PhrozenGUI/PhrozenMonitorController.hpp
+    GUI/PhrozenGUI/PhrozenMonitorController.cpp
+	GUI/PhrozenGUI/PhrozenDeviceManager.hpp
+    GUI/PhrozenGUI/PhrozenDeviceManager.cpp
 
 )
 
