@@ -94,6 +94,8 @@
 #include "ParamsDialog.hpp"
 #include "KBShortcutsDialog.hpp"
 #include "DownloadProgressDialog.hpp"
+#include "PhrozenGUI/PhrozenMonitorController.hpp"
+#include "PhrozenGUI/PhrozenDeviceManager.hpp"
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
@@ -6898,6 +6900,99 @@ bool is_support_filament(int extruder_id)
 
     return support_option->get_at(0);
 };
+
+
+#pragma region Phrozen
+bool GUI_App::InitPhrozenConnector( const std::string& strIp )
+{
+    MonitorControl::SetIp( strIp );
+    CURLcode kResult = MonitorControl::Initialconnect();
+
+    if ( kResult != CURLcode::CURLE_OK )
+    {
+        MonitorControl::m_pWebServiceInfo->ip = "";
+        MonitorControl::m_kMonitorWindow.connectedMachineName = "";
+        MonitorControl::m_kMonitorWindow.isShownIPConnectNotification = true;
+        MonitorControl::m_bStartReceiving = false;
+        MonitorControl::m_bStartSending = false;
+    
+    }
+    else
+    {
+        pPhrozenMachineObject = std::make_shared< PhrozenMachineObject >( "Arco", "Arco", strIp );
+    }
+    return kResult == CURLcode::CURLE_OK;
+}
+
+void GUI_App::ProcessPhrozenConnector()
+{
+    MonitorControl::m_kHistoryInfoList.clear();
+    MonitorControl::m_kMonitorWindow.selectMachineWindowShow = false;
+    MonitorControl::m_kMonitorWindow.selectMachineWindowShow_preview = false;
+    MonitorControl::m_bStartReceiving = true;
+    MonitorControl::m_bStartSending = true;
+    
+    std::thread _threadReceiveMessage(RunReceiveMessage);
+    _threadReceiveMessage.detach();
+    
+    std::thread _threadSendMessage(RunSendMessage);
+    _threadSendMessage.detach();
+
+    std::thread _threadReceiveWebCameraView(RunReceiveWebCameraView);
+    _threadReceiveWebCameraView.detach();
+}
+
+PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()
+{
+    return pPhrozenMachineObject? pPhrozenMachineObject.get() : nullptr;
+}
+
+void RunGetPrinterInfo( )
+{
+    unique_lock<mutex> ulForPrintInfo(MonitorControl::threadControl.mutexPrinterInfo);
+    
+    while ( MonitorControl::threadControl.waitForPrinterInfo) {
+    	MonitorControl::threadControl.cvPrinterInfo.wait(ulForPrintInfo);
+    }
+    
+    MonitorControl::threadControl.waitForPrinterInfo = true;
+    
+    MonitorControl::m_bStartlistening = true;
+    MonitorControl::GetPrinterInfo();
+    MonitorControl::m_bStartlistening = false;
+    
+    MonitorControl::threadControl.waitForPrinterInfo = false;
+    MonitorControl::threadControl.cvPrinterInfo.notify_all();
+}
+
+void RunReceiveMessage( )
+{
+    MonitorControl::ReceiveResponse();
+}
+
+void RunReceiveWebCameraView()
+{
+    auto pObject = wxGetApp().GetPhrozenMachineObject();
+    if ( pObject )
+    {
+        std::string url = pObject->GetPhrozenWebCameraSnapshotUrl();
+        MonitorControl::ReceiveWebCameraView(url);
+    }
+    else
+    {
+        assert( 0 );
+    }
+}
+
+void RunSendMessage(  )
+{
+    MonitorControl::GetAllInfo_websocket();
+}
+
+#pragma endregion
+
+
+
 
 } // GUI
 } //Slic3r

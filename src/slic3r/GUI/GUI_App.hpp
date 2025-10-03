@@ -62,6 +62,7 @@ class UserManager;
 class DeviceManager;
 class NetworkAgent;
 class TaskManager;
+class PhrozenMachineObject;
 
 namespace GUI{
 
@@ -682,6 +683,15 @@ public:
     void            restart_networking();
     void            check_config_updates_from_updater() { check_updates(false); }
 
+#pragma region Phrozen
+    bool InitPhrozenConnector( const std::string& strIp );
+    void ProcessPhrozenConnector();
+    std::shared_ptr< PhrozenMachineObject > pPhrozenMachineObject = nullptr;
+    PhrozenMachineObject* GetPhrozenMachineObject();
+#pragma endregion
+
+
+
 private:
     int             updating_bambu_networking();
     bool            on_init_inner();
@@ -712,6 +722,13 @@ private:
     bool                    m_config_corrupted { false };
     std::string             m_open_method;
 };
+
+#pragma region Phrozen
+void RunGetPrinterInfo( );
+void RunReceiveMessage( );
+void RunReceiveWebCameraView();
+void RunSendMessage( );
+#pragma endregion
 
 DECLARE_APP(GUI_App)
 wxDECLARE_EVENT(EVT_CONNECT_LAN_MODE_PRINT, wxCommandEvent);

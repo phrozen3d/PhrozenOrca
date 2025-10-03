@@ -410,6 +410,16 @@ private:
     // type, time stamp, delay
     std::vector<std::tuple<std::string, uint64_t, uint64_t>> message_delay;
 
+#pragma region PhrozenMachineInfo
+public:
+    virtual float GetPhrozenBedTemperature() { return 0.0f; }
+    virtual float GetPhrozenNozzleTemperature() { return 0.0f; }
+    virtual std::string GetPhrozenWebCameraStreamUrl() { return ""; }
+    virtual std::string GetPhrozenWebCameraSnapshotUrl() { return ""; }
+    virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) {return false;}
+
+#pragma endregion
+
 public:
 
     enum LIGHT_EFFECT {

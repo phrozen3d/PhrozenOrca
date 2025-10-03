@@ -345,8 +345,9 @@ SelectMachinePopup::SelectMachinePopup(wxWindow *parent)
     m_sizer_other_devices = new wxBoxSizer(wxVERTICAL);
 
 
-    m_panel_ping_code = new PinCodePanel(m_scrolledWindow, 0, wxID_ANY, wxDefaultPosition, SELECT_MACHINE_ITEM_SIZE);
-    m_panel_direct_connection = new PinCodePanel(m_scrolledWindow, 1, wxID_ANY, wxDefaultPosition, SELECT_MACHINE_ITEM_SIZE);
+    m_panel_ping_code = new PinCodePanel(m_scrolledWindow, PinCodePanelType::BindWithPinCode, wxID_ANY, wxDefaultPosition, SELECT_MACHINE_ITEM_SIZE);
+    //m_panel_direct_connection = new PinCodePanel(m_scrolledWindow, PinCodePanelType::BindWithAccessCode, wxID_ANY, wxDefaultPosition, SELECT_MACHINE_ITEM_SIZE);
+    m_panel_direct_connection = new PinCodePanel(m_scrolledWindow, PinCodePanelType::BindWithIP, wxID_ANY, wxDefaultPosition, SELECT_MACHINE_ITEM_SIZE);
 
     m_sizxer_scrolledWindow->Add(own_title, 0, wxEXPAND | wxLEFT, FromDIP(15));
     m_sizxer_scrolledWindow->Add(m_sizer_my_devices, 0, wxEXPAND, 0);
@@ -1012,8 +1013,9 @@ PinCodePanel::PinCodePanel(wxWindow* parent, int type, wxWindowID winid /*= wxID
      dc.SetFont(::Label::Head_13);
      dc.SetTextForeground(StateColor::darkModeColorFor(wxColour("#262E30"))); // ORCA fix text not visible on dark theme
      wxString txt;
-     if (m_type == 0) {txt = _L("Bind with Pin Code");}
-     else if (m_type == 1) {txt = _L("Bind with Access Code");}
+     if (m_type == PinCodePanelType::BindWithPinCode )          {txt = _L("Bind with Pin Code");}
+     else if (m_type == PinCodePanelType::BindWithAccessCode )  {txt = _L("Bind with Access Code");}
+     else if ( m_type == PinCodePanelType::BindWithIP )         {txt = _L("Bind with IP");}
 
      auto txt_size = dc.GetTextExtent(txt);
      dc.DrawText(txt, wxPoint(FromDIP(28), (size.y - txt_size.y) / 2));
@@ -1039,11 +1041,16 @@ PinCodePanel::PinCodePanel(wxWindow* parent, int type, wxWindowID winid /*= wxID
 
  void PinCodePanel::on_mouse_left_up(wxMouseEvent& evt)
  {
-     if (m_type == 0) {
+     if (m_type == PinCodePanelType::BindWithPinCode) {
          wxGetApp().popup_ping_bind_dialog();
      }
-     else if (m_type == 1) {
+     else if (m_type == PinCodePanelType::BindWithAccessCode) {
          InputIpAddressDialog dlgo;
+         dlgo.ShowModal();
+     }
+     else if (m_type == PinCodePanelType::BindWithIP) {
+         InputIpAddressDialog dlgo;
+         dlgo.SetEnablePhrozenMonitor( true );
          dlgo.ShowModal();
      }
  }
