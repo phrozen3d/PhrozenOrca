@@ -26,6 +26,8 @@
 #include "../MediaPlayCtrl.h"
 #include "../MediaFilePanel.h"
 #include "../BindDialog.hpp"
+#include "PhrozenMonitorController.hpp"
+#include "PhrozenDeviceManager.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -52,7 +54,7 @@ namespace GUI {
 
     init_timer();
 
-    //m_side_tools->get_panel()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(MonitorPanel::on_printer_clicked), NULL, this);
+    m_side_tools->get_panel()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenMonitorPanel::on_printer_clicked), NULL, this);
 
     
     Bind(wxEVT_TIMER, &PhrozenMonitorPanel::on_timer, this);
@@ -167,6 +169,27 @@ void PhrozenMonitorPanel::on_update_all(wxMouseEvent& event)
      }
 }
 
+void PhrozenMonitorPanel::on_printer_clicked(wxMouseEvent &event)
+{
+    auto mouse_pos = ClientToScreen(event.GetPosition());
+    wxPoint rect = m_side_tools->ClientToScreen(wxPoint(0, 0));
+
+    if (!m_side_tools->is_in_interval()) {
+        wxPoint pos = m_side_tools->ClientToScreen(wxPoint(0, 0));
+        pos.y += m_side_tools->GetRect().height;
+        //pos.x = pos.x < 0? 0:pos.x;
+        m_select_machine.Move(pos);
+
+#ifdef __linux__
+        m_select_machine.SetSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine.SetMaxSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine.SetMinSize(wxSize(m_side_tools->GetSize().x, -1));
+#endif
+
+        m_select_machine.Popup();
+    }
+}
+
 void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 {
     Layout();
@@ -177,6 +200,10 @@ void PhrozenMonitorPanel::update_all()
 {
     //Debug
     show_status(MONITOR_NORMAL);
+    if (m_status_info_panel->IsShown() && MonitorControl::m_bStartReceiving ) {
+        m_status_info_panel->update( wxGetApp().GetPhrozenMachineObject() );
+    }
+
     return;
 
     NetworkAgent* m_agent = wxGetApp().getAgent();
@@ -214,7 +241,7 @@ void PhrozenMonitorPanel::update_all()
     }
 
     m_status_info_panel->obj = obj;
-    //m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
+    m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
     m_side_tools->update_status(obj);
 
     if (!obj) {

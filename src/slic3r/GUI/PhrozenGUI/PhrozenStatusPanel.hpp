@@ -80,6 +80,12 @@ public:
     //
     //void           show_ams_group(bool show = true);
     //MediaPlayCtrl* get_media_play_ctrl() { return m_media_play_ctrl; };
+
+    std::vector<unsigned char> m_kWebCameraImageData;
+    wxBitmap m_kCurrentWebCamBitmap;
+    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
+    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
+
 };
 
 class PhrozenStatusPanel : public PhrozenStatusBasePanel
@@ -221,6 +227,7 @@ protected:
 
     /* update apis */
     void update(MachineObject* obj);
+    void UpdateWebCameraView(MachineObject* obj);
     void show_printing_status(bool ctrl_area = true, bool temp_area = true);
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
@@ -244,6 +251,9 @@ protected:
     /* camera */
     void update_camera_state(MachineObject* obj);
     bool show_vcamera = false;
+
+    void on_update_webcam_ui_timer(wxTimerEvent& event);
+    void InitWebCamUiUpdateTimer();
 
 public:
     void update_error_message();

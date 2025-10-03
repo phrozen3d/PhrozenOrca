@@ -22,8 +22,12 @@
 #include <wx/mstream.h>
 #include <wx/sstream.h>
 #include <wx/zstream.h>
+#include "PhrozenMonitorController.hpp"
+#include "PhrozenDeviceManager.hpp"
 
 
+//對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
+#define REFRESH_WEBCAM_UI_INTERVAL 15 
 
 namespace Slic3r { namespace GUI {
 
@@ -219,8 +223,7 @@ void PhrozenStatusBasePanel::Initizlize()
 
 wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page() 
 {
-    wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-
+    
     m_panel_monitoring_title = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, PAGE_TITLE_HEIGHT), wxTAB_TRAVERSAL);
     m_panel_monitoring_title->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
 
@@ -290,7 +293,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
         const std::string js_request_pip = R"(
             document.querySelector('video').requestPictureInPicture();
         )";
-        m_custom_camera_view->RunScript(js_request_pip);
+        //m_custom_camera_view->RunScript(js_request_pip);
     });
     m_camera_switch_button->Hide();
 
@@ -310,41 +313,54 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0);
 
+    wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
     m_panel_monitoring_title->SetSizer(bSizer_monitoring_title);
     m_panel_monitoring_title->Layout();
     bSizer_monitoring_title->Fit(m_panel_monitoring_title);
     sizer->Add(m_panel_monitoring_title, 0, wxEXPAND | wxALL, 0);
 
-//    media_ctrl_panel              = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-//    media_ctrl_panel->SetBackgroundColour(*wxBLACK);
-//    wxBoxSizer *bSizer_monitoring = new wxBoxSizer(wxVERTICAL);
-    m_media_ctrl = new wxMediaCtrl2(this);
-    m_media_ctrl->SetMinSize(wxSize(PAGE_MIN_WIDTH, FromDIP(288)));
 
-    m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString);
-    m_custom_camera_view->EnableContextMenu(false);
-    Bind(wxEVT_WEBVIEW_NAVIGATING, &StatusBasePanel::on_webview_navigating, this, m_custom_camera_view->GetId());
+    media_ctrl_panel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    media_ctrl_panel->SetBackgroundColour(*wxBLACK);
 
-    m_media_play_ctrl = new MediaPlayCtrl(this, m_media_ctrl, wxDefaultPosition, wxSize(-1, FromDIP(40)));
-    m_custom_camera_view->Hide();
-    m_custom_camera_view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [this](wxWebViewEvent& evt) {
-        if (evt.GetString() == "leavepictureinpicture") {
-            // When leaving PiP, video gets paused in some cases and toggling play
-            // programmatically does not work.
-            m_custom_camera_view->Reload();
+    auto fnUpdate = [this](auto& e)->void 
+    {
+        wxPaintDC dc(media_ctrl_panel);
+        if ( m_kCurrentWebCamBitmap.IsOk()) {
+            dc.DrawBitmap( m_kCurrentWebCamBitmap, 0, 0, false);
         }
-        else if (evt.GetString() == "enterpictureinpicture") {
-            toggle_builtin_camera();
-        }
-    });
+    };
+    media_ctrl_panel->Bind(wxEVT_PAINT, fnUpdate);//called by media_ctrl_panel->Refresh();
 
-    sizer->Add(m_media_ctrl, 1, wxEXPAND | wxALL, 0);
-    sizer->Add(m_custom_camera_view, 1, wxEXPAND | wxALL, 0);
-    sizer->Add(m_media_play_ctrl, 0, wxEXPAND | wxALL, 0);
+
+    //wxBoxSizer *bSizer_monitoring = new wxBoxSizer(wxVERTICAL);
+    //m_media_ctrl = new wxMediaCtrl2(this);
+    //m_media_ctrl->SetMinSize(wxSize(PAGE_MIN_WIDTH, FromDIP(288)));
+
+    //m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString);
+    //m_custom_camera_view->EnableContextMenu(false);
+    //Bind(wxEVT_WEBVIEW_NAVIGATING, &StatusBasePanel::on_webview_navigating, this, m_custom_camera_view->GetId());
+
+    //m_media_play_ctrl = new PhrozenMediaPlayCtrl(this, m_media_ctrl, wxDefaultPosition, wxSize(-1, FromDIP(40)));
+    //m_custom_camera_view->Hide();
+    //m_custom_camera_view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [this](wxWebViewEvent& evt) {
+    //    if (evt.GetString() == "leavepictureinpicture") {
+    //        // When leaving PiP, video gets paused in some cases and toggling play
+    //        // programmatically does not work.
+    //        m_custom_camera_view->Reload();
+    //    }
+    //    else if (evt.GetString() == "enterpictureinpicture") {
+    //        toggle_builtin_camera();
+    //    }
+    //});
+
+    //sizer->Add(m_media_ctrl, 1, wxEXPAND | wxALL, 0);
+    //sizer->Add(m_custom_camera_view, 1, wxEXPAND | wxALL, 0);
+    //sizer->Add(m_media_play_ctrl, 0, wxEXPAND | wxALL, 0);
 //    media_ctrl_panel->SetSizer(bSizer_monitoring);
 //    media_ctrl_panel->Layout();
 //
-//    sizer->Add(media_ctrl_panel, 1, wxEXPAND | wxALL, 1);
+    sizer->Add(media_ctrl_panel, 1, wxEXPAND | wxALL, 1);
 
     if (wxGetApp().app_config->get("camera", "enable_custom_source") == "true") {
         handle_camera_source_change();
@@ -937,27 +953,27 @@ void PhrozenStatusPanel::update_camera_state(MachineObject* obj)
     }
 
     // vcamera
-    if (obj->virtual_camera) {
-        if (m_last_vcamera != (m_media_play_ctrl->IsStreaming() ? 1 : 0)) {
-            if (m_media_play_ctrl->IsStreaming()) {
-                m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
-            } else {
-                m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
-            }
-            m_last_vcamera = m_media_play_ctrl->IsStreaming() ? 1 : 0;
-        }
-        if (!m_bitmap_vcamera_img->IsShown())
-            m_bitmap_vcamera_img->Show();
-    } else {
-        if (m_bitmap_vcamera_img->IsShown())
-            m_bitmap_vcamera_img->Hide();
-    }
+    //if (obj->virtual_camera) {
+    //    if (m_last_vcamera != (m_media_play_ctrl->IsStreaming() ? 1 : 0)) {
+    //        if (m_media_play_ctrl->IsStreaming()) {
+    //            m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
+    //        } else {
+    //            m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
+    //        }
+    //        m_last_vcamera = m_media_play_ctrl->IsStreaming() ? 1 : 0;
+    //    }
+    //    if (!m_bitmap_vcamera_img->IsShown())
+    //        m_bitmap_vcamera_img->Show();
+    //} else {
+    //    if (m_bitmap_vcamera_img->IsShown())
+    //        m_bitmap_vcamera_img->Hide();
+    //}
 
     // camera setting
-    if (m_camera_popup && m_camera_popup->IsShown()) {
-        bool show_vcamera = m_media_play_ctrl->IsStreaming();
-        m_camera_popup->update(show_vcamera);
-    }
+    //if (m_camera_popup && m_camera_popup->IsShown()) {
+    //    bool show_vcamera = m_media_play_ctrl->IsStreaming();
+    //    m_camera_popup->update(show_vcamera);
+    //}
 
     m_panel_monitoring_title->Layout();
 }
@@ -1048,9 +1064,10 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     Bind(EVT_PRINT_ERROR_STOP, &PhrozenStatusPanel::on_subtask_abort, this);
     Bind(EVT_LOAD_VAMS_TRAY, &PhrozenStatusPanel::on_ams_load_vams, this);
     Bind(EVT_JUMP_TO_LIVEVIEW, [this](wxCommandEvent& e) {
-        m_media_play_ctrl->jump_to_play();
-        if (m_print_error_dlg)
-            m_print_error_dlg->on_hide();
+        assert( 0 );
+        //m_media_play_ctrl->jump_to_play();
+        //if (m_print_error_dlg)
+        //    m_print_error_dlg->on_hide();
     });
 
 
@@ -1320,7 +1337,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
 {
     if (!obj) return;
     m_project_task_panel->Freeze();
-    update_subtask(obj);
+    //update_subtask(obj);
     m_project_task_panel->Thaw();
 
 #if !BBL_RELEASE_TO_PUBLIC
@@ -1337,17 +1354,22 @@ void PhrozenStatusPanel::update(MachineObject *obj)
 
     m_machine_ctrl_panel->Freeze();
 
-    if (obj->is_in_printing() && !obj->can_resume())
-        show_printing_status(false, true);
-    else
-        show_printing_status();
+    //if (obj->is_in_printing() && !obj->can_resume())
+    //    show_printing_status(false, true);
+    //else
+    //    show_printing_status();
 
     update_temp_ctrl(obj);
-    update_misc_ctrl(obj);
+    if ( !IsWebCamRefreshTimerInitialized() )
+    {
+        InitWebCamUiUpdateTimer();
+    }
+    //update_misc_ctrl(obj);
 
-    update_ams(obj);
-    update_cali(obj);
+    //update_ams(obj);
+    //update_cali(obj);
 
+#if 0
     if (obj) {
         // update extrusion calibration
         if (m_extrusion_cali_dlg) {
@@ -1423,8 +1445,48 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     }
 
     update_camera_state(obj);
+#endif
 
     m_machine_ctrl_panel->Thaw();
+}
+
+void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
+{
+    if ( !m_spWebCam_refresh_timer )
+    {
+        m_spWebCam_refresh_timer = std::make_unique< wxTimer >();
+        m_spWebCam_refresh_timer->SetOwner(this);
+        m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
+        Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
+        wxPostEvent(this, wxTimerEvent());
+    }
+}
+
+void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
+{
+    auto obj = wxGetApp().GetPhrozenMachineObject();
+    if (!obj) return;
+    UpdateWebCameraView( obj );
+}
+
+void PhrozenStatusPanel::UpdateWebCameraView(MachineObject* obj)
+{
+    if (!obj) return;
+
+    if ( !obj->GetPhrozenWebCameraSnapshotImage( m_kWebCameraImageData ) )
+    {
+        return;
+    }
+    
+    wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
+    wxImage image(memStream, wxBITMAP_TYPE_JPEG);
+    image = image.Rotate180(); //水平+垂直翻轉
+    int x, y;
+    media_ctrl_panel->GetSize( &x, &y );
+    image.Rescale(x, y);
+
+    m_kCurrentWebCamBitmap = wxBitmap(image);
+    media_ctrl_panel->Refresh();
 }
 
 void PhrozenStatusPanel::show_recenter_dialog() {
@@ -1616,29 +1678,36 @@ void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
 {
     if (!obj) return;
 
-    m_tempCtrl_bed->SetCurrTemp((int) obj->bed_temp);
-    m_tempCtrl_bed->SetMaxTemp(obj->get_bed_temperature_limit());
+    m_tempCtrl_bed->SetCurrTemp((int) obj->GetPhrozenBedTemperature()); //obj->bed_temp
 
-    // update temprature if not input temp target
-    if (m_temp_bed_timeout > 0) {
-        m_temp_bed_timeout--;
-    } else {
-        if (!bed_temp_input) { m_tempCtrl_bed->SetTagTemp((int) obj->bed_temp_target); }
-    }
+    //m_tempCtrl_bed->SetMaxTemp(obj->get_bed_temperature_limit());
+    //
+    //// update temprature if not input temp target
+    //if (m_temp_bed_timeout > 0) {
+    //    m_temp_bed_timeout--;
+    //} else {
+    //    if (!bed_temp_input) { m_tempCtrl_bed->SetTagTemp((int) obj->bed_temp_target); }
+    //}
+    //
+    //if ((obj->bed_temp_target - obj->bed_temp) >= TEMP_THRESHOLD_VAL) {
+    //    m_tempCtrl_bed->SetIconActive();
+    //} else {
+    //    m_tempCtrl_bed->SetIconNormal();
+    //}
 
-    if ((obj->bed_temp_target - obj->bed_temp) >= TEMP_THRESHOLD_VAL) {
-        m_tempCtrl_bed->SetIconActive();
-    } else {
-        m_tempCtrl_bed->SetIconNormal();
-    }
+    m_tempCtrl_nozzle->SetCurrTemp((int) obj->GetPhrozenNozzleTemperature() );//  m_extder_data.extders[0].temp);
+    //if (obj->nozzle_max_temperature > -1) {
+    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(obj->nozzle_max_temperature);
+    //}
+    //else {
+    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(phrozen_nozzle_temp_range[1]);
+    //}
 
-    m_tempCtrl_nozzle->SetCurrTemp((int) obj->m_extder_data.extders[0].temp);
-    if (obj->nozzle_max_temperature > -1) {
-        if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(obj->nozzle_max_temperature);
-    }
-    else {
-        if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(phrozen_nozzle_temp_range[1]);
-    }
+
+    #if 0
+
+
+
 
     if (m_temp_nozzle_timeout > 0) {
         m_temp_nozzle_timeout--;
@@ -1667,6 +1736,7 @@ void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
     else {
         m_tempCtrl_chamber->SetIconNormal();
     }
+    #endif
 }
 
 void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)
@@ -3426,40 +3496,42 @@ void PhrozenStatusPanel::on_lamp_switch(wxCommandEvent &event)
 
 void PhrozenStatusPanel::on_switch_vcamera(wxMouseEvent &event)
 {
+    assert( 0 );
     //if (!obj) return;
     //bool value = m_recording_button->get_switch_status();
     //obj->command_ipcam_record(!value);
-    m_media_play_ctrl->ToggleStream();
-    show_vcamera = m_media_play_ctrl->IsStreaming();
+    //m_media_play_ctrl->ToggleStream();
+    //show_vcamera = m_media_play_ctrl->IsStreaming();
     if (m_camera_popup)
         m_camera_popup->sync_vcamera_state(show_vcamera);
 }
 
 void PhrozenStatusPanel::on_camera_enter(wxMouseEvent& event)
 {
-    if (obj) {
-        if (m_camera_popup == nullptr)
-            m_camera_popup = std::make_shared<CameraPopup>(this);
-        m_camera_popup->check_func_supported(obj);
-        m_camera_popup->sync_vcamera_state(show_vcamera);
-        m_camera_popup->Bind(EVT_VCAMERA_SWITCH, &PhrozenStatusPanel::on_switch_vcamera, this);
-        m_camera_popup->Bind(EVT_SDCARD_ABSENT_HINT, [this](wxCommandEvent &e) {
-            if (sdcard_hint_dlg == nullptr) {
-                sdcard_hint_dlg = new SecondaryCheckDialog(this->GetParent(), wxID_ANY, _L("Warning"), SecondaryCheckDialog::ButtonStyle::ONLY_CONFIRM);
-                sdcard_hint_dlg->update_text(_L("Can't start this without SD card."));
-            }
-            sdcard_hint_dlg->on_show();
-            });
-        m_camera_popup->Bind(EVT_CAM_SOURCE_CHANGE, &PhrozenStatusPanel::on_camera_source_change, this);
-        wxWindow* ctrl = (wxWindow*)event.GetEventObject();
-        wxPoint   pos = ctrl->ClientToScreen(wxPoint(0, 0));
-        wxSize    sz = ctrl->GetSize();
-        pos.x += sz.x;
-        pos.y += sz.y;
-        m_camera_popup->SetPosition(pos);
-        m_camera_popup->update(m_media_play_ctrl->IsStreaming());
-        m_camera_popup->Popup();
-    }
+    assert( 0 );
+    //if (obj) {
+    //    if (m_camera_popup == nullptr)
+    //        m_camera_popup = std::make_shared<CameraPopup>(this);
+    //    m_camera_popup->check_func_supported(obj);
+    //    m_camera_popup->sync_vcamera_state(show_vcamera);
+    //    m_camera_popup->Bind(EVT_VCAMERA_SWITCH, &PhrozenStatusPanel::on_switch_vcamera, this);
+    //    m_camera_popup->Bind(EVT_SDCARD_ABSENT_HINT, [this](wxCommandEvent &e) {
+    //        if (sdcard_hint_dlg == nullptr) {
+    //            sdcard_hint_dlg = new SecondaryCheckDialog(this->GetParent(), wxID_ANY, _L("Warning"), SecondaryCheckDialog::ButtonStyle::ONLY_CONFIRM);
+    //            sdcard_hint_dlg->update_text(_L("Can't start this without SD card."));
+    //        }
+    //        sdcard_hint_dlg->on_show();
+    //        });
+    //    m_camera_popup->Bind(EVT_CAM_SOURCE_CHANGE, &PhrozenStatusPanel::on_camera_source_change, this);
+    //    wxWindow* ctrl = (wxWindow*)event.GetEventObject();
+    //    wxPoint   pos = ctrl->ClientToScreen(wxPoint(0, 0));
+    //    wxSize    sz = ctrl->GetSize();
+    //    pos.x += sz.x;
+    //    pos.y += sz.y;
+    //    m_camera_popup->SetPosition(pos);
+    //    m_camera_popup->update(m_media_play_ctrl->IsStreaming());
+    //    m_camera_popup->Popup();
+    //}
 }
 
 void PhrozenStatusPanel::on_camera_leave(wxMouseEvent& event)
@@ -3618,12 +3690,12 @@ void PhrozenStatusPanel::rescale_camera_icons()
     m_bitmap_vcamera_on = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_vcamera_on_dark":"monitor_vcamera_on", 20);
     m_bitmap_vcamera_off = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_vcamera_off_dark":"monitor_vcamera_off", 20);
 
-    if (m_media_play_ctrl->IsStreaming()) {
-        m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
-    }
-    else {
-        m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
-    }
+    //if (m_media_play_ctrl->IsStreaming()) {
+    //    m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
+    //}
+    //else {
+    //    m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
+    //}
 
     if (!obj) return;
 
@@ -3672,7 +3744,7 @@ void PhrozenStatusPanel::msw_rescale()
     m_bmToggleBtn_timelapse->Rescale();
     m_panel_control_title->SetSize(wxSize(-1, FromDIP(PAGE_TITLE_HEIGHT)));
     //m_staticText_control->SetMinSize(wxSize(-1, PAGE_TITLE_HEIGHT));
-    m_media_play_ctrl->msw_rescale();
+    //m_media_play_ctrl->msw_rescale();
     m_phButton_xy->SetMinSize(AXIS_MIN_SIZE);
     m_phButton_xy->SetSize(AXIS_MIN_SIZE);
     m_temp_extruder_line->SetSize(wxSize(FromDIP(1), -1));

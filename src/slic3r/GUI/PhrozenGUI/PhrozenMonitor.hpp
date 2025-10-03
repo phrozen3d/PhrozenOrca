@@ -108,7 +108,7 @@ public:
     void on_update_all(wxMouseEvent &event);
     void on_timer(wxTimerEvent& event);
     //void on_select_printer(wxCommandEvent& event);
-    //void on_printer_clicked(wxMouseEvent &event);
+    void on_printer_clicked(wxMouseEvent &event);
     void on_size(wxSizeEvent &event);
 
     /* update apis */
