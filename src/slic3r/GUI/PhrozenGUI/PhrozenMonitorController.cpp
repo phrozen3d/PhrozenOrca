@@ -653,7 +653,7 @@ CURLcode ReceiveWebCameraView( const std::string & url )
             }
             curl_easy_cleanup(curl);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     return res;
 
