@@ -48,4 +48,5 @@ jobs:
       arch: arm64
       build-deps-only: false
       sign-and-notarize: false
+      ref: phrozen-custom-dev
     secrets: inherit

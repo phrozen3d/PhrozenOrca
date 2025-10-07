@@ -47,4 +47,5 @@ jobs:
       os: windows-latest
       build-deps-only: false
       package_style: nightly
+      ref: phrozen-custom-dev
     secrets: inherit
