@@ -530,9 +530,8 @@ wxMenu* MenuFactory::append_submenu_add_generic(wxMenu* menu, ModelVolumeType ty
 // Orca: add submenu for adding handy models
 wxMenu* MenuFactory::append_submenu_add_handy_model(wxMenu* menu, ModelVolumeType type) {
     auto sub_menu = new wxMenu;
-
-    for (auto &item : {L("PhrozenOrca Cube"), L("3DBenchy"), L("Autodesk FDM Test"),
-                       L("Voron Cube"), L("Stanford Bunny"), L("PhrozenOrca String Hell") }) {
+    //temporary remove: L("PhrozenOrca Cube"), L("PhrozenOrca String Hell"), because need change to phrozen orca style
+    for (auto &item : {L("3DBenchy"), L("Autodesk FDM Test"), L("Voron Cube"), L("Stanford Bunny") }) {
         append_menu_item(
             sub_menu, wxID_ANY, _(item), "",
             [type, item](wxCommandEvent&) {
