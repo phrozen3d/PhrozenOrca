@@ -217,10 +217,6 @@ protected:
     void on_auto_leveling(wxCommandEvent &event);
     void on_xyz_abs(wxCommandEvent &event);
 
-    void on_show_parts_options(wxCommandEvent& event);
-    /* print options */
-    void on_show_print_options(wxCommandEvent &event);
-
     /* calibration */
     void on_start_calibration(wxCommandEvent &event);
 
