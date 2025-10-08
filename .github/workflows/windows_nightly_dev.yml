@@ -26,8 +26,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin phrozen-custom-dev:phrozen-custom-dev
-          last_ts=$(git log -1 --format=%ct phrozen-custom-dev)
+          # Fetch the remote branch without updating a local checked-out branch
+          git fetch origin phrozen-custom-dev
+          last_ts=$(git log -1 --format=%ct origin/phrozen-custom-dev)
           now=$(date +%s)
           day=$((24*60*60))
           if [ $((now - last_ts)) -le $day ]; then
