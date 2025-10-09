@@ -12,6 +12,7 @@ on:
      - 'version.inc'
      - 'localization/**'
      - 'resources/**'
+     - '.github/actions/**'
      - ".github/workflows/build_*.yml"
      # - 'flatpak/**'  # removed flatpak triggers
 
@@ -24,6 +25,7 @@ on:
      - 'src/**'
      - '**/CMakeLists.txt'
      - 'version.inc'
+     - '.github/actions/**'
      - ".github/workflows/build_*.yml"
      - 'build_linux.sh'
      - 'build_release_vs2022.bat'
