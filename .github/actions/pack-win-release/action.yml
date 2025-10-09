@@ -47,7 +47,6 @@ runs:
         path: ${{ inputs.build_dir }}
 
     - name: Upload artifacts Win installer
-      if: ${{ inputs.build_installer == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: PhrozenOrca_Windows_${{ inputs.version }}
