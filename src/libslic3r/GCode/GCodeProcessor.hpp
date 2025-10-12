@@ -748,7 +748,8 @@ class Print;
             Simplify3D,
             CraftWare,
             ideaMaker,
-            KissSlicer
+            KissSlicer,
+            PhrozenOrca
         };
 
         static const std::vector<std::pair<GCodeProcessor::EProducer, std::string>> Producers;
