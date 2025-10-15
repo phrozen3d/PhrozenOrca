@@ -1099,15 +1099,6 @@ void PresetUpdater::priv::check_installed_vendor_profiles() const
     AppConfig *app_config = GUI::wxGetApp().app_config;
     const auto enabled_vendors = app_config->vendors();
 
-    bool bCheck_vender_patch_version = false;
-#ifdef CMAKE_INTDIR
-    std::string strINTDIR( CMAKE_INTDIR );
-    if ( strINTDIR == "RelWithDebInfo" )
-    {
-        bCheck_vender_patch_version = true;
-    }
-#endif
-
     std::set<std::string> bundles;
     // Orca: always install filament library
     bundles.insert(PresetBundle::ORCA_FILAMENT_LIBRARY);
@@ -1130,10 +1121,6 @@ void PresetUpdater::priv::check_installed_vendor_profiles() const
                         Semver vendor_ver = get_version_from_json(path_in_vendor.string());
 
                         bool version_match = ((resource_ver.maj() == vendor_ver.maj()) && (resource_ver.min() == vendor_ver.min()));
-                        if ( bCheck_vender_patch_version )
-                        {
-                            version_match = version_match && (resource_ver.patch() == vendor_ver.patch());
-                        }
 
                         if (!version_match || (vendor_ver < resource_ver)) {
                             BOOST_LOG_TRIVIAL(info) << "[Orca Updater]:found vendor "<<vendor_name<<" newer version "<<resource_ver.to_string() <<" from resource, old version "<<vendor_ver.to_string();
