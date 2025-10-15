@@ -3073,6 +3073,7 @@ void MainFrame::init_menubar_as_editor()
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
+#if 0 //close because phrozen arco not suitable to use these test - same as Windows
     // PA
     append_menu_item(calib_menu, wxID_ANY, _L("Pressure advance"), _L("Pressure advance"),
         [this](wxCommandEvent&) {
@@ -3081,6 +3082,7 @@ void MainFrame::init_menubar_as_editor()
             m_pa_calib_dlg->ShowModal();
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
+#endif
 
     // Retraction
     append_menu_item(calib_menu, wxID_ANY, _L("Retraction test"), _L("Retraction test"),
@@ -3099,6 +3101,7 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
+#if 0 //close because phrozen arco not suitable to use these test - same as Windows
     // Advance calibrations
     auto advance_menu = new wxMenu();
     append_menu_item(
@@ -3155,6 +3158,7 @@ void MainFrame::init_menubar_as_editor()
     
     append_submenu(calib_menu, advance_menu, wxID_ANY, _L("More..."), _L("More calibrations"), "",
         [this]() {return m_plater->is_view3D_shown();; });
+#endif
     // help
     append_menu_item(calib_menu, wxID_ANY, _L("Tutorial"), _L("Calibration help"),
         //[this](wxCommandEvent&) { wxLaunchDefaultBrowser("https://github.com/SoftFever/OrcaSlicer/wiki/Calibration", wxBROWSER_NEW_WINDOW); }, "", nullptr,
