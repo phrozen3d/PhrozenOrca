@@ -3,7 +3,7 @@
     "from": "system",
     "setting_id": "GP005",
     "name": "0.20mm Ultra Fast @Phrozen Arco 0.4 nozzle",
-    "inherits": "fdm_process_common",
+    "inherits": "0.20mm Standard @Phrozen Arco 0.4 nozzle",
     "instantiation": "true",
     "default_acceleration": "40000",
     "default_jerk": "0",
