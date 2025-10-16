@@ -3093,6 +3093,7 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
+#if 0 //close because phrozen arco not suitable to use these test - same as Windows
     // Tolerance Test
     append_menu_item(calib_menu, wxID_ANY, _L("PhrozenOrca Tolerance Test"), _L("PhrozenOrca Tolerance Test"),
         [this](wxCommandEvent&) {
@@ -3101,7 +3102,6 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-#if 0 //close because phrozen arco not suitable to use these test - same as Windows
     // Advance calibrations
     auto advance_menu = new wxMenu();
     append_menu_item(
