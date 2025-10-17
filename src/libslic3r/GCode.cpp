@@ -748,9 +748,13 @@ static std::vector<Vec2d> get_path_of_change_filament(const Print& print)
             // FIXME: It would be better if the wipe tower set the force_travel flag for all toolchanges,
             // then we could simplify the condition and make it more readable.
             gcode += gcodegen.retract();
-            gcodegen.m_avoid_crossing_perimeters.use_external_mp_once();
-           // gcode += gcodegen.travel_to(wipe_tower_point_to_object_point(gcodegen, start_pos + plate_origin_2d), erMixed, "Travel to a Wipe Tower");
-            gcode += gcodegen.unretract();
+            if (!is_ramming) {
+                gcodegen.m_avoid_crossing_perimeters.use_external_mp_once();
+                gcode += gcodegen.travel_to(wipe_tower_point_to_object_point(gcodegen, start_pos + plate_origin_2d), erMixed,
+                                            "Travel to a Wipe Tower");
+                gcode += gcodegen.unretract();
+            } else
+                gcodegen.unretract();
         } else {
             // When this is multiextruder printer without any ramming, we can just change
             // the tool without travelling to the tower.
