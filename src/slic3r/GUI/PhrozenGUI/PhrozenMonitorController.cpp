@@ -298,7 +298,10 @@ CURLcode ReceiveResponse() {
     char buffer[500000];
     size_t rlen;
     CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
-    const struct curl_ws_frame* meta;
+    // Note: curl 8.x requires non-const pointer for curl_ws_recv() fifth parameter
+    // Changed from: const struct curl_ws_frame* meta;
+    // See: https://curl.se/docs/websockets.html - API changed in curl 8.0+
+    struct curl_ws_frame* meta;
     std::string historyInfo;
     bool historyStart = false;
     int again = 0;
@@ -696,7 +699,7 @@ CURLcode CheckAMSConnection() {
                 // 
                 // Set up a buffer to store received data
                 // Use curl_ws_recv or similar WebSocket function to receive data
-                const struct curl_ws_frame* meta;
+                struct curl_ws_frame* meta;
                 char buffer[2048];
                 size_t rlen;
                 res = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
@@ -804,7 +807,8 @@ CURLcode send_action_Command(std::string send_payload)
 CURLcode CheckReceiveValue(const char* exected_payload)
 {
     size_t rlen;
-    const struct curl_ws_frame* meta;
+    // Note: curl 8.x requires non-const pointer - API breaking change
+    struct curl_ws_frame* meta;
     char buffer[256];
     CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
     if (result == CURLE_OK) {
@@ -842,7 +846,8 @@ std::wstring CheckReceiveValue_new(std::wstring expected)
         long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime_printinfo).count();
 
         size_t rlen;
-        const struct curl_ws_frame* meta;
+        // Note: curl 8.x WebSocket API change - non-const pointer required
+        struct curl_ws_frame* meta;
         char buffer[2048];
         CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
 
@@ -916,7 +921,8 @@ std::wstring CheckReceiveValue_new(std::wstring expected)
 CURLcode CheckReceiveValue_AMS(const char* exected_payload)
 {
     size_t rlen;
-    const struct curl_ws_frame* meta;
+    // Note: curl 8.x breaking change - removed const qualifier for WebSocket frame pointer
+    struct curl_ws_frame* meta;
     char buffer[2048];
     CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
     std::wstring ws(&buffer[0], &buffer[2048]);
@@ -1914,12 +1920,14 @@ CURLcode GetLEDState() {
                 // Set up a buffer to store received data
                 // Use curl_ws_recv or similar WebSocket function to receive data
                 // first response
-                const struct curl_ws_frame* meta;
+                // Note: curl 8.x requires non-const for WebSocket operations
+                struct curl_ws_frame* meta;
                 char buffer[2048] = { 0 };;
                 size_t rlen;
                 res = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
                 // second response
-                const struct curl_ws_frame* meta2;
+                // Note: curl 8.x API change - non-const pointer required
+                struct curl_ws_frame* meta2;
                 char buffer2[2048] = { 0 };;
                 size_t rlen2;
                 res = curl_ws_recv(m_pCurl, buffer2, sizeof(buffer2), &rlen2, &meta2);
