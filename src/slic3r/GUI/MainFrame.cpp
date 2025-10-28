@@ -2961,7 +2961,7 @@ void MainFrame::init_menubar_as_editor()
     m_topbar->GetCalibMenu()->AppendSubMenu(flowrate_menu, _L("Flow rate"));
 
     //Retraction test
-    append_menu_item(m_topbar->GetCalibMenu(), wxID_ANY, _L("Retraction test"), _L("Retraction test"),
+    append_menu_item( m_topbar->GetCalibMenu(), wxID_ANY, _L("Retraction test"), _L("Retraction test"),
         [this](wxCommandEvent&) {
             if (!m_retraction_calib_dlg)
                 m_retraction_calib_dlg = new Retraction_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
@@ -2969,27 +2969,8 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-#if 0 //close because phrozen arco not suitable to use these test
-    //Pressure advance
-    append_menu_item(m_topbar->GetCalibMenu(), wxID_ANY, _L("Pressure advance"), _L("Pressure advance"),
-        [this](wxCommandEvent&) {
-            if (!m_pa_calib_dlg)
-                m_pa_calib_dlg = new PA_Calibration_Dlg((wxWindow*)this, wxID_ANY, m_plater);
-            m_pa_calib_dlg->ShowModal();
-        }, "", nullptr,
-        [this]() {return m_plater->is_view3D_shown();; }, this);
-
-    append_menu_item(m_topbar->GetCalibMenu(), wxID_ANY, _L("Orca Tolerance Test"), _L("Orca Tolerance Test"),
-        [this](wxCommandEvent&) {
-            m_plater->new_project();
-        m_plater->add_model(false, Slic3r::resources_dir() + "/calib/tolerance_test/OrcaToleranceTest.stl");
-        }, "", nullptr,
-        [this]() {return m_plater->is_view3D_shown();; }, this);
-    // Advance calibrations
-    auto advance_menu = new wxMenu();
-
-    append_menu_item(
-        advance_menu, wxID_ANY, _L("Max flowrate"), _L("Max flowrate"),
+    //Max flowrate
+    append_menu_item( m_topbar->GetCalibMenu(), wxID_ANY, _L("Max flowrate"), _L("Max flowrate"),
         [this](wxCommandEvent&) {
             if (!m_vol_test_dlg)
                 m_vol_test_dlg = new MaxVolumetricSpeed_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
@@ -2998,8 +2979,8 @@ void MainFrame::init_menubar_as_editor()
         "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-    append_menu_item(
-        advance_menu, wxID_ANY, _L("VFA"), _L("VFA"),
+    //VFA
+    append_menu_item( m_topbar->GetCalibMenu(), wxID_ANY, _L("VFA"), _L("VFA"),
         [this](wxCommandEvent&) {
             if (!m_vfa_test_dlg)
                 m_vfa_test_dlg = new VFA_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
@@ -3007,6 +2988,28 @@ void MainFrame::init_menubar_as_editor()
         },
         "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
+
+    //Pressure advance
+    append_menu_item( m_topbar->GetCalibMenu(), wxID_ANY, _L("Pressure advance"), _L("Pressure advance"),
+        [this](wxCommandEvent&) {
+            if (!m_pa_calib_dlg)
+                m_pa_calib_dlg = new PA_Calibration_Dlg((wxWindow*)this, wxID_ANY, m_plater);
+            m_pa_calib_dlg->ShowModal();
+        }, "", nullptr,
+        [this]() {return m_plater->is_view3D_shown();; }, this);
+
+
+#if 0 //close because phrozen arco not suitable to use these test
+    // Advance calibrations
+    auto advance_menu = new wxMenu();
+
+    append_menu_item(advance_menu, wxID_ANY, _L("Orca Tolerance Test"), _L("Orca Tolerance Test"),
+        [this](wxCommandEvent&) {
+            m_plater->new_project();
+        m_plater->add_model(false, Slic3r::resources_dir() + "/calib/tolerance_test/OrcaToleranceTest.stl");
+        }, "", nullptr,
+        [this]() {return m_plater->is_view3D_shown();; }, this);
+
         
     // Input Shaping calibrations
     auto input_shaping_menu = new wxMenu();
@@ -3031,11 +3034,14 @@ void MainFrame::init_menubar_as_editor()
         "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     
-    m_topbar->GetCalibMenu()->AppendSubMenu(input_shaping_menu, _L("Input Shaping"));
+    advance_menu->AppendSubMenu(input_shaping_menu, _L("Input Shaping"));
     
-    // Add Junction Deviation option to More menu
+
+    // Cornering calibrations
+    auto cornering_menu = new wxMenu();
+    // Add Junction Deviation option to Cornering menu
     append_menu_item(
-        advance_menu, wxID_ANY, _L("Junction Deviation"), _L("Junction Deviation calibration"),
+        cornering_menu, wxID_ANY, _L("Junction Deviation"), _L("Junction Deviation calibration"),
         [this](wxCommandEvent&) {
             if (!m_junction_deviation_calib_dlg)
                 m_junction_deviation_calib_dlg = new Junction_Deviation_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
@@ -3043,7 +3049,9 @@ void MainFrame::init_menubar_as_editor()
         },
         "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-        
+
+    advance_menu->AppendSubMenu(cornering_menu, _L("Cornering"));
+
     m_topbar->GetCalibMenu()->AppendSubMenu(advance_menu, _L("More..."));
 #endif
 
@@ -3056,7 +3064,7 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-#else
+#else // for APPLE
     m_menubar->Append(fileMenu, wxString::Format("&%s", _L("File")));
     if (editMenu)
         m_menubar->Append(editMenu, wxString::Format("&%s", _L("Edit")));
@@ -3095,7 +3103,6 @@ void MainFrame::init_menubar_as_editor()
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-#if 0 //close because phrozen arco not suitable to use these test - same as Windows
     // PA
     append_menu_item(calib_menu, wxID_ANY, _L("Pressure advance"), _L("Pressure advance"),
         [this](wxCommandEvent&) {
@@ -3104,7 +3111,6 @@ void MainFrame::init_menubar_as_editor()
             m_pa_calib_dlg->ShowModal();
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-#endif
 
     // Retraction
     append_menu_item(calib_menu, wxID_ANY, _L("Retraction test"), _L("Retraction test"),
@@ -3115,37 +3121,42 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 
-#if 0 //close because phrozen arco not suitable to use these test - same as Windows
-    // Tolerance Test
-    append_menu_item(calib_menu, wxID_ANY, _L("PhrozenOrca Tolerance Test"), _L("PhrozenOrca Tolerance Test"),
-        [this](wxCommandEvent&) {
-            m_plater->new_project();
-            m_plater->add_model(false, Slic3r::resources_dir() + "/calib/tolerance_test/OrcaToleranceTest.stl");
-        }, "", nullptr,
-        [this]() {return m_plater->is_view3D_shown();; }, this);
-
-    // Advance calibrations
-    auto advance_menu = new wxMenu();
-    append_menu_item(
-        advance_menu, wxID_ANY, _L("Max flowrate"), _L("Max flowrate"),
+    append_menu_item(calib_menu, wxID_ANY, _L("Max flowrate"), _L("Max flowrate"),
         [this](wxCommandEvent&) { 
             if (!m_vol_test_dlg)
                 m_vol_test_dlg = new MaxVolumetricSpeed_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
             m_vol_test_dlg->ShowModal(); 
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-    append_menu_item(
-        advance_menu, wxID_ANY, _L("VFA"), _L("VFA"),
+
+    append_menu_item(calib_menu, wxID_ANY, _L("VFA"), _L("VFA"),
         [this](wxCommandEvent&) { 
             if (!m_vfa_test_dlg)
                 m_vfa_test_dlg = new VFA_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
             m_vfa_test_dlg->ShowModal();
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);    
-       
-    // Add Junction Deviation option to More menu
+
+
+#if 0 //close because phrozen arco not suitable to use these test - same as Windows
+
+    // Advance calibrations
+    auto advance_menu = new wxMenu();
+
+    // Tolerance Test
+    append_menu_item(advance_menu, wxID_ANY, _L("Orca Tolerance Test"), _L("Orca Tolerance Test"),
+        [this](wxCommandEvent&) {
+            m_plater->new_project();
+            m_plater->add_model(false, Slic3r::resources_dir() + "/calib/tolerance_test/OrcaToleranceTest.stl");
+        }, "", nullptr,
+        [this]() {return m_plater->is_view3D_shown();; }, this);
+
+    // Cornering
+    auto cornering_menu = new wxMenu();
+
+    // Add Junction Deviation option to Cornering menu
     append_menu_item(
-        advance_menu, wxID_ANY, _L("Junction Deviation"), _L("Junction Deviation calibration"),
+        cornering_menu, wxID_ANY, _L("Junction Deviation"), _L("Junction Deviation calibration"),
         [this](wxCommandEvent&) {
             if (!m_junction_deviation_calib_dlg)
                 m_junction_deviation_calib_dlg = new Junction_Deviation_Test_Dlg((wxWindow*)this, wxID_ANY, m_plater);
@@ -3153,6 +3164,8 @@ void MainFrame::init_menubar_as_editor()
         }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
         
+    advance_menu->AppendSubMenu(cornering_menu, _L("Cornering"));
+
     // Input Shaping calibrations
     auto input_shaping_menu = new wxMenu();
     
@@ -3176,7 +3189,7 @@ void MainFrame::init_menubar_as_editor()
         "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     
-    calib_menu->AppendSubMenu(input_shaping_menu, _L("Input Shaping"));
+    advance_menu->AppendSubMenu(input_shaping_menu, _L("Input Shaping"));
     
     append_submenu(calib_menu, advance_menu, wxID_ANY, _L("More..."), _L("More calibrations"), "",
         [this]() {return m_plater->is_view3D_shown();; });
