@@ -1641,8 +1641,16 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
         } );
     }
 
+    for ( auto kItem : m_kNozzleMovementRangeButtons )
+    {
+        kItem.second->Bind(wxEVT_LEFT_DOWN, &PhrozenStatusPanel::on_nozzle_movement_range_mouse_left_down, this);
+    }
 
-    // Connect Events
+    for ( auto kItem : m_kBedMovementRangeButtons )
+    {
+        kItem.second->Bind(wxEVT_LEFT_DOWN, &PhrozenStatusPanel::on_bed_movement_range_mouse_left_down, this);
+    }
+
     m_project_task_panel->get_bitmap_thumbnail()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::refresh_thumbnail_webrequest), NULL, this);
     m_project_task_panel->get_pause_resume_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_pause_resume), NULL, this);
     m_project_task_panel->get_abort_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_abort), NULL, this);
@@ -4621,6 +4629,55 @@ void PhrozenStatusPanel::on_print_speed_changed( PhrozenPrintSpeed eLevel )
         }
     } catch (...) {
         ;
+    }
+}
+
+void PhrozenStatusPanel::on_nozzle_movement_range_mouse_left_down( wxMouseEvent& event )
+{
+    wxToggleButton* btn = dynamic_cast<wxToggleButton*>(event.GetEventObject());
+    if (!btn) {
+        event.Skip();
+        return;
+    }
+
+    if (btn->GetValue()) {
+        // is checked state, so ignore
+        event.Skip(false); // block state change
+    } else {
+        for ( auto kItem : m_kNozzleMovementRangeButtons )
+        {
+            if ( kItem.second->GetValue() ) {
+                kItem.second->SetValue( false );
+                break;
+            }
+        }
+        // button toggled not checked, let it continue pass event to change state
+        event.Skip();
+    }
+
+}
+
+void PhrozenStatusPanel::on_bed_movement_range_mouse_left_down( wxMouseEvent& event )
+{
+    wxToggleButton* btn = dynamic_cast<wxToggleButton*>(event.GetEventObject());
+    if (!btn) {
+        event.Skip();
+        return;
+    }
+
+    if (btn->GetValue()) {
+        // is checked state, so ignore
+        event.Skip(false); // block state change
+    } else {
+        for ( auto kItem : m_kBedMovementRangeButtons )
+        {
+            if ( kItem.second->GetValue() ) {
+                kItem.second->SetValue( false );
+                break;
+            }
+        }
+        // button toggled not checked, let it continue pass event to change state
+        event.Skip();
     }
 }
 

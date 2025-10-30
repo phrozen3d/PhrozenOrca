@@ -390,6 +390,8 @@ public:
     PhrozenPrintSpeed print_speed_percent_to_enum( float fPercentage );
     float print_speed_enum_to_percent( PhrozenPrintSpeed eLevel );
 
+
+
 };
 
 class PhrozenStatusPanel : public PhrozenStatusBasePanel
@@ -585,6 +587,9 @@ protected:
     void on_set_cooling_shield();
 
     void on_print_speed_changed( PhrozenPrintSpeed eLevel ); 
+
+    void on_nozzle_movement_range_mouse_left_down( wxMouseEvent& event );
+    void on_bed_movement_range_mouse_left_down( wxMouseEvent& event );
 
 
     void on_set_chamber_temp();// no use maybe future
