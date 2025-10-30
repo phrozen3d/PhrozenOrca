@@ -1335,6 +1335,10 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_moveRange( wxWindow* pParen
 
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent )
 {
+    
+    
+
+    wxBitmapButton* pButton{nullptr};
     auto sizer = new wxGridSizer(4, 3, wxSize(5, 5));
 
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
@@ -1342,15 +1346,21 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent 
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
 
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
 
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_left.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_home.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_right.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Y_Positive );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_left.bmp(), PhrozenMovement::Nozzle_X_Negative );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_home.bmp(), PhrozenMovement::Nozzle_Home );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_right.bmp(), PhrozenMovement::Nozzle_X_Positive );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
 
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Y_Negative );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
     
     return sizer;
@@ -1358,18 +1368,25 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent 
 
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
 {
+    wxBitmapButton* pButton{nullptr};
     auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
 
     sizer->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Control_z_title.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Z_Positive );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+
     sizer->Add( new wxStaticBitmap( pParent, wxID_ANY, m_Control_z_nozzle.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Z_Negative );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
     
     return sizer;
 }
 
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent )
 {
+    wxBitmapButton* pButton{nullptr};
     auto sizer = new wxGridSizer(2, 3, wxSize(5, 5));
 
     auto fnCreateToggleButton =[&] ( const std::string& strName,
@@ -1382,14 +1399,27 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent
 
     fnCreateToggleButton("0.005mm", PhrozenPrintBedMoveRange::Range_0005_MM );
     fnCreateToggleButton("0.01mm", PhrozenPrintBedMoveRange::Range_001_MM );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Bed_Z_Positive );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
 
     fnCreateToggleButton("0.05mm", PhrozenPrintBedMoveRange::Range_005_MM );
     fnCreateToggleButton("0.1mm", PhrozenPrintBedMoveRange::Range_01_MM );
-    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Bed_Z_Negative );
+    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
 
     m_kBedMovementRangeButtons[ PhrozenPrintBedMoveRange::Range_0005_MM ]->SetValue( true );
     return sizer;
+}
+
+wxBitmapButton* PhrozenStatusBasePanel::CreateManualMovementButton( wxWindow* pParent,
+                                                                    wxBitmap& kIcon, 
+                                                                    const PhrozenMovement eType )
+{
+    auto pButton =  new wxBitmapButton(pParent, wxID_ANY, kIcon, wxDefaultPosition, wxSize(36, 36) );
+    m_kManualMovementButtons.insert( { eType, pButton } );
+    return pButton;
 }
 
 // control panel
@@ -1482,6 +1512,47 @@ float PhrozenStatusBasePanel::print_speed_enum_to_percent( PhrozenPrintSpeed eLe
     }
     return fPercentage;
 }
+
+float PhrozenStatusBasePanel::get_selected_nozzle_movement_range()
+{
+    for ( auto kItem : m_kNozzleMovementRangeButtons )
+    {
+        if ( kItem.second->GetValue() )
+        {
+            if ( kItem.second->GetValue() )
+            {
+                switch( kItem.first )
+                {
+                    case PhrozenNozzleMoveRange::Range_01_MM:   return 0.01f; break;
+                    case PhrozenNozzleMoveRange::Range_1_MM:    return 1.0f; break;
+                    case PhrozenNozzleMoveRange::Range_10_MM:   return 10.0f; break;
+                }
+            }
+        }
+    }
+    assert( 0 && "has wrong, no selected? " );
+    return 0.0f;
+}
+
+float PhrozenStatusBasePanel::get_selected_bed_movement_range()
+{
+    for ( auto kItem : m_kBedMovementRangeButtons )
+    {
+        if ( kItem.second->GetValue() )
+        {
+            switch( kItem.first )
+            {
+                case PhrozenPrintBedMoveRange::Range_0005_MM:   return 0.005f; break;
+                case PhrozenPrintBedMoveRange::Range_001_MM:    return 0.01f; break;
+                case PhrozenPrintBedMoveRange::Range_005_MM:    return 0.05f; break;
+                case PhrozenPrintBedMoveRange::Range_01_MM:     return 0.1f; break;
+            }
+        }
+    }
+    assert( 0 && "has wrong, no selected? " );
+    return 0.0f;
+}
+
 #pragma endregion
 
 
@@ -1651,6 +1722,14 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
         kItem.second->Bind(wxEVT_LEFT_DOWN, &PhrozenStatusPanel::on_bed_movement_range_mouse_left_down, this);
     }
 
+    for ( auto kItem : m_kManualMovementButtons )
+    {
+        kItem.second->Bind( wxEVT_BUTTON, [=](wxCommandEvent& WXUNUSED(event)){ 
+            on_manual_movement_changed( kItem.first ); 
+        } );
+    }
+
+
     m_project_task_panel->get_bitmap_thumbnail()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::refresh_thumbnail_webrequest), NULL, this);
     m_project_task_panel->get_pause_resume_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_pause_resume), NULL, this);
     m_project_task_panel->get_abort_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_abort), NULL, this);
@@ -1730,6 +1809,12 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     {
         delete kItem.second;
     }
+
+    for ( auto kItem : m_kManualMovementButtons )
+    {
+        delete kItem.second;
+    }
+    
 
     #if HideOriginUiWidget
     m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
@@ -4679,6 +4764,59 @@ void PhrozenStatusPanel::on_bed_movement_range_mouse_left_down( wxMouseEvent& ev
         // button toggled not checked, let it continue pass event to change state
         event.Skip();
     }
+}
+
+void PhrozenStatusPanel::on_manual_movement_changed( PhrozenMovement eMoveType )
+{
+    try {
+        if (obj) {
+             float fMoveRange = 0.0f;
+            switch( eMoveType )
+            {
+                case PhrozenMovement::Nozzle_X_Positive:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_X_Negative:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_Y_Positive:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_Y_Negative:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_Z_Positive:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_Z_Negative:
+                    fMoveRange = get_selected_nozzle_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Bed_Z_Positive:
+                    fMoveRange = get_selected_bed_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Bed_Z_Negative:
+                    fMoveRange = get_selected_bed_movement_range();
+                    //todo: call obj
+                    break;
+                case PhrozenMovement::Nozzle_Home:
+                    //todo: call obj
+                    break;
+                default:
+                    assert( 0 && "not implement" );
+            }
+        }
+    } catch (...) {
+        ;
+    }
+
+    
 }
 
 #pragma endregion

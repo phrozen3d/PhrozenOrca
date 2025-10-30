@@ -73,12 +73,15 @@ enum class PhrozenPrintBedMoveRange : int32_t
 
 enum class PhrozenMovement : int32_t
 {
-    X_Positive,
-    X_Negative,
-    Y_Positive,
-    Y_Negative,
-    Z_Positive,
-    Z_Negative,
+    Nozzle_X_Positive,
+    Nozzle_X_Negative,
+    Nozzle_Y_Positive,
+    Nozzle_Y_Negative,
+    Nozzle_Z_Positive,
+    Nozzle_Z_Negative,
+    Nozzle_Home,
+    Bed_Z_Positive,
+    Bed_Z_Negative,
 };
 
 class PhrozenStatusBasePanel : public wxScrolledWindow//StatusBasePanel
@@ -315,6 +318,7 @@ public:
     wxSizer* GenManualAdjustment_move_xy( wxWindow* pParent );
     wxSizer* GenManualAdjustment_move_z( wxWindow* pParent );
     wxSizer* GenManualAdjustment_z_offset( wxWindow* pParent );
+    wxBitmapButton* CreateManualMovementButton( wxWindow* pParent, wxBitmap& kIcon, const PhrozenMovement eType );
 
     //icon
     ScalableBitmap m_ParamSeparator ;
@@ -366,7 +370,9 @@ public:
     //bed(z-offet) movement ragne
     std::unordered_map< PhrozenPrintBedMoveRange, wxToggleButton* > m_kBedMovementRangeButtons;
 
-
+    // manual movement
+    std::unordered_map< PhrozenMovement, wxBitmapButton* > m_kManualMovementButtons;
+    
 #pragma endregion
 
 
@@ -389,6 +395,9 @@ public:
     void update_print_speed_level( PhrozenPrintSpeed eLevel );
     PhrozenPrintSpeed print_speed_percent_to_enum( float fPercentage );
     float print_speed_enum_to_percent( PhrozenPrintSpeed eLevel );
+
+    float get_selected_nozzle_movement_range();
+    float get_selected_bed_movement_range();
 
 
 
@@ -416,7 +425,7 @@ protected:
     SecondaryCheckDialog* con_load_dlg = nullptr;
     SecondaryCheckDialog* ctrl_e_hint_dlg = nullptr;
     SecondaryCheckDialog* sdcard_hint_dlg = nullptr;
-
+     
     FanControlPopup* m_fan_control_popup{nullptr};
 
     ExtrusionCalibration *m_extrusion_cali_dlg{nullptr};
@@ -590,6 +599,7 @@ protected:
 
     void on_nozzle_movement_range_mouse_left_down( wxMouseEvent& event );
     void on_bed_movement_range_mouse_left_down( wxMouseEvent& event );
+    void on_manual_movement_changed( PhrozenMovement eMoveType );
 
 
     void on_set_chamber_temp();// no use maybe future
