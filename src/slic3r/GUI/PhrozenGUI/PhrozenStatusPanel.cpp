@@ -25,7 +25,7 @@
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
 
-
+#define HideOriginUiWidget 0
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
 #define REFRESH_WEBCAM_UI_INTERVAL 15 
 
@@ -133,13 +133,22 @@ static wxColour PHROZEN_TEXT_LIGHT_FONT_COL  = wxColour(107, 107, 107);
 #pragma region PhrozenStatusBasePanel
 PhrozenStatusBasePanel::PhrozenStatusBasePanel(
     wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
-    : StatusBasePanel(parent, id, pos, size, style, name)
+    : wxScrolledWindow(parent, id, pos, size, wxHSCROLL | wxVSCROLL)
 {
     Initizlize();
 }
 
 PhrozenStatusBasePanel::~PhrozenStatusBasePanel()
 {
+    if ( m_media_play_ctrl ){
+        delete m_media_play_ctrl;
+        m_media_play_ctrl = nullptr;
+    }
+
+    if (m_custom_camera_view) {
+        delete m_custom_camera_view;
+        m_custom_camera_view = nullptr;
+    }
 }
 
 void PhrozenStatusBasePanel::Initizlize() 
@@ -288,7 +297,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_camera_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
     m_camera_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
     m_camera_switch_button->SetBitmap(m_bitmap_switch_camera.bmp());
-    m_camera_switch_button->Bind(wxEVT_LEFT_DOWN, &StatusBasePanel::on_camera_switch_toggled, this);
+    m_camera_switch_button->Bind(wxEVT_LEFT_DOWN, &PhrozenStatusBasePanel::on_camera_switch_toggled, this);
     m_camera_switch_button->Bind(wxEVT_RIGHT_DOWN, [this](auto& e) {
         const std::string js_request_pip = R"(
             document.querySelector('video').requestPictureInPicture();
@@ -339,7 +348,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
     //m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString);
     //m_custom_camera_view->EnableContextMenu(false);
-    //Bind(wxEVT_WEBVIEW_NAVIGATING, &StatusBasePanel::on_webview_navigating, this, m_custom_camera_view->GetId());
+    //Bind(wxEVT_WEBVIEW_NAVIGATING, &PhrozenStatusBasePanel::on_webview_navigating, this, m_custom_camera_view->GetId());
 
     //m_media_play_ctrl = new PhrozenMediaPlayCtrl(this, m_media_ctrl, wxDefaultPosition, wxSize(-1, FromDIP(40)));
     //m_custom_camera_view->Hide();
@@ -371,7 +380,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
 wxBoxSizer* PhrozenStatusBasePanel::create_machine_control_page(wxWindow* parent)
 {
-    //return StatusBasePanel::create_machine_control_page(parent);
 
     wxBoxSizer* bSizer_right = new wxBoxSizer(wxVERTICAL);
 
@@ -410,7 +418,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_machine_control_page(wxWindow* parent
     wxBoxSizer* bSizer_control = new wxBoxSizer(wxVERTICAL);
 
     auto temp_axis_ctrl_sizer = create_temp_axis_group(parent);
-    bSizer_control->Add(temp_axis_ctrl_sizer, 0, wxEXPAND, 0);
+    bSizer_control->Add(temp_axis_ctrl_sizer, 1, wxEXPAND, 0);
 
     auto m_ams_ctrl_sizer = create_ams_group(parent);
     bSizer_control->Add(m_ams_ctrl_sizer, 0, wxEXPAND | wxBOTTOM, FromDIP(10));
@@ -432,34 +440,111 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     box->SetBorderColor(box_border_colour);
     box->SetCornerRadius(5);
 
-    box->SetMinSize(wxSize(FromDIP(586), -1));
-    box->SetMaxSize(wxSize(FromDIP(586), -1));
+    box->SetMinSize(wxSize(FromDIP(600), -1));
+    box->SetMaxSize(wxSize(FromDIP(600), -1));
 
     wxBoxSizer *content_sizer = new wxBoxSizer(wxHORIZONTAL);
-    wxBoxSizer *m_temp_ctrl   = create_temp_control(box);
 
 
-    m_temp_extruder_line = new StaticLine(box, true);
-    m_temp_extruder_line->SetLineColour(PHROZEN_STATIC_BOX_LINE_COL);
+
+    // the first column
+    wxSizer *sizerCol1 = new wxBoxSizer(wxVERTICAL);
+
+    //Temperature title
+    wxPanel* line0 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1) ) );
+    line0->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+
+    sizerCol1->Add( line0, 0, wxALL | wxEXPAND, 0 );
+    sizerCol1->Add(new wxStaticText(box, wxID_ANY, "Temperature"), 0, wxLEFT | wxEXPAND, 5);
+
+    
+    //Temerature body
+    wxPanel* line01 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line01->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line01, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol1->Add(GenNozzleTempControllor(box), 0, wxALL | wxEXPAND, 0);
+    sizerCol1->Add(GenHeatedBedTempControllor(box), 0, wxALL | wxEXPAND, 0);
+
+    //speed title
+    wxPanel* line1 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line1->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line1, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol1->Add(new wxStaticText(box, wxID_ANY, "Speed"), 0, wxLEFT | wxEXPAND, 5);
+    
+    // speed body
+    wxPanel* line11 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line11->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line11, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol1->Add(GenSpeed_PrintLevel(box), 0, wxALL | wxEXPAND, 0);
+
+    // cooling title
+    wxPanel* line2 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line2->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line2, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol1->Add(new wxStaticText(box, wxID_ANY, "Cooling"), 0, wxLEFT, 5);
+
+    // cooling body
+    wxPanel* line22 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line22->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line22, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol1->Add(GenCooling_Auxiliary(box), 0, wxALL | wxEXPAND, 0);
+    sizerCol1->Add(GenCooling_Part(box), 0, wxALL | wxEXPAND, 0);
+    sizerCol1->Add(GenCooling_Shield(box), 0, wxALL | wxEXPAND, 0);
+
+    wxPanel* line3 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line3->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol1->Add( line3, 0, wxALL | wxEXPAND, 0 );
+
+    // the second column
+    wxSizer *sizerCol2 = new wxBoxSizer(wxVERTICAL);
+
+    // Manual Adjustment title
+    wxPanel* line5 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line5->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol2->Add( line5, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol2->Add(new wxStaticText(box, wxID_ANY, "Manual Adjustment"), 0, wxLEFT, 5);
+
+    // Manual Adjustment body
+    wxPanel* line55 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line55->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol2->Add( line55, 0, wxALL | wxEXPAND, 0 );
+
+    auto sizerFlex = new wxFlexGridSizer(1, 3, wxSize(5, 5));
+    sizerFlex->Add( GenManualAdjustment_moveRange(box), 0, wxALL | wxEXPAND, 0);
+    sizerFlex->Add( GenManualAdjustment_move_xy(box), 0, wxALL | wxEXPAND, 20);
+    sizerFlex->Add( GenManualAdjustment_move_z(box), 0, wxALL | wxEXPAND, 20);
+    sizerCol2->Add( sizerFlex, 0, wxALL | wxEXPAND, 10 );
+
+    // z-offset title
+    wxPanel* line6 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line6->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol2->Add( line6, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol2->Add(new wxStaticText(box, wxID_ANY, "Z-Offset"), 0, wxLEFT | wxEXPAND, 5);
+
+    // z-offset body
+    wxPanel* line66 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line66->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerCol2->Add( line66, 0, wxALL | wxEXPAND, 0 );
+
+    sizerCol2->Add(GenManualAdjustment_z_offset(box), 1, wxALL | wxEXPAND, 10);
 
 
-    auto m_axis_sizer = create_axis_control(box);
+    wxSizer *sizerTop = new wxBoxSizer(wxHORIZONTAL);
+    sizerTop->Add(sizerCol1, 0, wxEXPAND);
 
+    wxPanel* line7 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
+    line7->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
+    sizerTop->Add( line7, 0, wxALL | wxEXPAND, 0 );
 
-    wxBoxSizer *bed_sizer = create_bed_control(box);
-    wxBoxSizer *extruder_sizer = create_extruder_control(box);
-
-    content_sizer->Add(m_temp_ctrl, 0, wxEXPAND | wxALL, FromDIP(5));
-    content_sizer->Add(m_temp_extruder_line, 0, wxEXPAND, 1);
-    content_sizer->Add(FromDIP(9), 0, 0, wxEXPAND, 1);
-    content_sizer->Add(0, 0, 0, wxLEFT, FromDIP(18));
-    content_sizer->Add(m_axis_sizer, 0, wxALIGN_CENTER_VERTICAL | wxALL, 0);
-    content_sizer->Add(0, 0, 0, wxLEFT, FromDIP(18));
-    content_sizer->Add(bed_sizer, 0, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, FromDIP(12));
-    content_sizer->Add(0, 0, 0, wxLEFT, FromDIP(18));
-    content_sizer->Add(extruder_sizer, 0, wxEXPAND  | wxTOP | wxBOTTOM, FromDIP(12));
-
-    box->SetSizer(content_sizer);
+    sizerTop->Add(sizerCol2, 1, wxEXPAND);
+    box->SetSizer(sizerTop);
     sizer->Add(box, 0, wxEXPAND | wxALL, FromDIP(9));
 
     return sizer;
@@ -876,8 +961,475 @@ void PhrozenStatusBasePanel::init_bitmaps()
     m_bitmap_vcamera_off = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_vcamera_off_dark" : "monitor_vcamera_off", 20);
     m_bitmap_switch_camera = ScalableBitmap(this, wxGetApp().dark_mode() ? "camera_switch_dark" : "camera_switch", 20);
 
+
+    m_ParamSeparator    = ScalableBitmap(this, "PhrozenImages/ControlPanel_Temp_Separator", FromDIP(12));
+    m_Dot_c             = ScalableBitmap(this, "PhrozenImages/ControlPanel_Dot_C", FromDIP(12));
+    m_Percent           = ScalableBitmap(this, "PhrozenImages/ControlPanel_Percent", FromDIP(12));
+    m_Nozzle_temp       = ScalableBitmap(this, "PhrozenImages/ControlPanel_Nozzle_Temp", FromDIP(12));
+    m_Heated_bed_temp   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Bed_Temp", FromDIP(12));
+    m_Fan               = ScalableBitmap(this, "PhrozenImages/ControlPanel_Fan", FromDIP(12));
+                                        
+    m_Speed             = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed", FromDIP(12));
+    m_Speed_Level       = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed_Level", FromDIP(12));
+                                        
+    m_Control_xy_up     = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Up", FromDIP(12));
+    m_Control_xy_down   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Down", FromDIP(12));
+    m_Control_xy_left   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Left", FromDIP(12));
+    m_Control_xy_right  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Right", FromDIP(12));
+    m_Control_xy_home   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Home", FromDIP(12));
+    m_Control_xy_title  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_XY", FromDIP(12));
+                                         
+    m_Control_z_title   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_Z", FromDIP(12));
+    m_Control_z_nozzle  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Nozzle", FromDIP(12));
+
 }
+
+void PhrozenStatusBasePanel::on_webview_navigating(wxWebViewEvent& evt) {
+    wxGetApp().CallAfter([this] {
+        remove_controls();
+    });
+}
+
+void PhrozenStatusBasePanel::reset_temp_misc_control()
+{
+#if 0
+    // reset temp string
+    m_tempCtrl_nozzle->SetLabel(TEMP_BLANK_STR);
+    m_tempCtrl_nozzle->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
+    m_tempCtrl_bed->SetLabel(TEMP_BLANK_STR);
+    m_tempCtrl_bed->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
+    m_tempCtrl_chamber->SetLabel(TEMP_BLANK_STR);
+    m_tempCtrl_chamber->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
+    m_button_unload->Show();
+
+    m_tempCtrl_nozzle->Enable(true);
+    m_tempCtrl_chamber->Enable(true);
+    m_tempCtrl_bed->Enable(true);
+
+    // reset misc control
+    m_switch_speed->SetLabels("100%", "100%");
+    m_switch_speed->SetValue(false);
+    m_switch_lamp->SetLabels(_L("Lamp"), _L("Lamp"));
+    m_switch_lamp->SetValue(false);
+    m_switch_nozzle_fan->SetValue(false);
+    m_switch_printing_fan->SetValue(false);
+    m_switch_cham_fan->SetValue(false);
+    #endif
+}
+
+wxBoxSizer *PhrozenStatusBasePanel::create_ams_group(wxWindow *parent)
+{
+    auto sizer     = new wxBoxSizer(wxVERTICAL);
+    auto sizer_box = new wxBoxSizer(wxVERTICAL);
+
+    m_ams_control_box = new StaticBox(parent);
+
+    StateColor box_colour(std::pair<wxColour, int>(*wxWHITE, StateColor::Normal));
+    StateColor box_border_colour(std::pair<wxColour, int>(PHROZEN_STATUS_PANEL_BG, StateColor::Normal));
+
+    m_ams_control_box->SetBackgroundColor(box_colour);
+    m_ams_control_box->SetBorderColor(box_border_colour);
+    m_ams_control_box->SetCornerRadius(5);
+
+    m_ams_control_box->SetMinSize(wxSize(FromDIP(586), -1));
+    m_ams_control_box->SetBackgroundColour(*wxWHITE);
+#if !BBL_RELEASE_TO_PUBLIC
+    m_ams_debug = new wxStaticText(m_ams_control_box, wxID_ANY, _L("Debug Info"), wxDefaultPosition, wxDefaultSize, 0);
+    sizer_box->Add(m_ams_debug, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+    m_ams_debug->Hide();
+#endif
+
+    m_ams_control = new AMSControl(m_ams_control_box, wxID_ANY);
+    //m_ams_control->SetMinSize(wxSize(FromDIP(510), FromDIP(286)));
+    m_ams_control->SetDoubleBuffered(true);
+    sizer_box->Add(m_ams_control, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, FromDIP(10));
+
+    m_ams_control_box->SetBackgroundColour(*wxWHITE);
+    m_ams_control_box->SetSizer(sizer_box);
+    m_ams_control_box->Layout();
+    m_ams_control_box->Fit();
+    sizer->Add(m_ams_control_box, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, FromDIP(0));
+    return sizer;
+}
+
+void PhrozenStatusBasePanel::show_ams_group(bool show)
+{
+    m_ams_control->Show(true);
+    m_ams_control_box->Show(true);
+    m_ams_control->show_noams_mode();
+    if (m_show_ams_group != show) {
+        Fit();
+    }
+    m_show_ams_group = show;
+}
+
+void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
+{
+    handle_camera_source_change();
+}
+
+void PhrozenStatusBasePanel::handle_camera_source_change()
+{
+    const auto new_cam_url = wxGetApp().app_config->get("camera", "custom_source");
+    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
+
+    if (enabled && !new_cam_url.empty()) {
+        m_custom_camera_view->LoadURL(new_cam_url);
+        toggle_custom_camera();
+        m_camera_switch_button->Show();
+    } else {
+        toggle_builtin_camera();
+        m_camera_switch_button->Hide();
+    }
+}
+
+void PhrozenStatusBasePanel::toggle_builtin_camera()
+{
+    m_custom_camera_view->Hide();
+    m_media_ctrl->Show();
+    m_media_play_ctrl->Show();
+}
+
+void PhrozenStatusBasePanel::toggle_custom_camera()
+{
+    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
+
+    if (enabled) {
+        m_custom_camera_view->Show();
+        m_media_ctrl->Hide();
+        m_media_play_ctrl->Hide();
+    }
+}
+
+void PhrozenStatusBasePanel::on_camera_switch_toggled(wxMouseEvent& event)
+{
+    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
+    if (enabled && m_media_ctrl->IsShown()) {
+        toggle_custom_camera();
+    } else {
+        toggle_builtin_camera();
+    }
+}
+
+void PhrozenStatusBasePanel::remove_controls()
+{
+    const std::string js_cleanup_video_element = R"(
+        document.body.style.overflow='hidden';
+        const video = document.querySelector('video');
+        video.setAttribute('style', 'width: 100% !important;');
+        video.removeAttribute('controls');
+        video.addEventListener('leavepictureinpicture', () => {
+            window.wx.postMessage('leavepictureinpicture');
+        });
+        video.addEventListener('enterpictureinpicture', () => {
+            window.wx.postMessage('enterpictureinpicture');
+        });
+    )";
+    m_custom_camera_view->RunScript(js_cleanup_video_element);
+}
+
+
+
+
+
+
+
+
+
+//=========================================================//
+// ================ phrozen style ui ===================== //
+
+void CreateValueText( std::unique_ptr<wxStaticText>& ptr, wxWindow* pParent )
+{
+    ptr = std::make_unique<wxStaticText>( pParent, wxID_ANY, "0" );
+    assert( ptr );
+}
+
+void CreateValueTextCtrl( std::unique_ptr<wxSpinCtrl>& ptr, wxWindow* pParent, const PhrozenParamControl& eType )
+{
+    ptr = std::make_unique<wxSpinCtrl>( pParent, (int)eType, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS | wxTE_PROCESS_ENTER, 0, 100, 0  );
+
+    // kill focus and press enter will trigger event
+    //ptr->Bind(wxEVT_SPINCTRL, [&](wxSpinEvent& event ){
+    //    OnPrintParameterChanged( (PhrozenParamControl)event.GetId(), event.GetValue() );
+    //    //m_pMainPanel->SetFocus();
+    //    //ptr->Navigate();
+    //});
+
+    //ptr->Bind(wxEVT_KILL_FOCUS, [&](wxFocusEvent& event ){
+    //    OnPrintParameterChanged( (PhrozenParamControl)event.GetId(), ptr->GetValue() );
+    //    //m_pMainPanel->SetFocus();
+    //    //ptr->Navigate();
+    //    event.Skip();
+    //});
+
+    //ptr->Bind(wxEVT_TEXT_ENTER, [&](wxCommandEvent& event ){
+    //    OnPrintParameterChanged( (PhrozenParamControl)event.GetId(), ptr->GetValue() );
+    //    //m_pMainPanel->SetFocus();
+    //    //ptr->Navigate();
+    //    event.Skip();
+    //});
+    assert( ptr );
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenNozzleTempControllor(wxWindow* pParent)
+{
+    auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
+    sizerFlex->AddGrowableCol(1);
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Nozzle_temp.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Nozzle"), 1, wxLEFT, 10 );
+
+    CreateValueText( m_spTemp_nozzle, pParent );
+    sizerFlex->Add( m_spTemp_nozzle.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    CreateValueTextCtrl( m_spTemp_nozzle_ctrl, pParent, PhrozenParamControl::Temperature_Nozzle );
+    sizerFlex->Add( m_spTemp_nozzle_ctrl.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    return sizerFlex;
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenHeatedBedTempControllor(wxWindow* pParent)
+{
+    auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
+    sizerFlex->AddGrowableCol(1);
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Heated_bed_temp.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Heated Bed"), 1, wxLEFT, 10 );
+
+    CreateValueText( m_spTemp_heatedBed, pParent ); 
+    sizerFlex->Add( m_spTemp_heatedBed.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    CreateValueTextCtrl( m_spTemp_heatedBed_ctrl, pParent, PhrozenParamControl::Temperature_HeatedBed ); 
+    sizerFlex->Add( m_spTemp_heatedBed_ctrl.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    return sizerFlex;
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
+{
+
+    auto sizerFlex = new wxFlexGridSizer(2, 1, wxSize(5, 0));
+    sizerFlex->AddGrowableCol(0);
+
+    auto title = new wxBoxSizer( wxHORIZONTAL );
+    title->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Speed.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    title->Add( new wxStaticText(pParent, wxID_ANY, "Print"), 1, wxLEFT, 10 );
+    sizerFlex->Add( title, 0, wxALL | wxEXPAND, 0 );
+
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    bool bIsFirst = true;
+    auto fnCreateRadioButton =[&] ( const std::string& strName,
+                                    const PhrozenPrintSpeed eSpeedType ) -> void
+    {
+        std::shared_ptr< wxRadioButton > spButton;
+        spButton = bIsFirst ? std::make_unique< wxRadioButton >( pParent, wxID_ANY, strName, wxDefaultPosition, wxDefaultSize, wxRB_GROUP )
+                            : std::make_shared< wxRadioButton >( pParent, wxID_ANY, strName );
+        //spButton->Bind( wxEVT_RADIOBUTTON, [=](wxCommandEvent& WXUNUSED(event)){ OnPrintSpeedChanged(eSpeedType); } );
+        sizer->Add(spButton.get(), 0, wxALL, 5);
+        m_kPrintSpeedButtons.insert( { eSpeedType, spButton } );
+
+        bIsFirst = false;
+    };
+
+    fnCreateRadioButton( "Sil", PhrozenPrintSpeed::Silent );
+    fnCreateRadioButton( "Qui", PhrozenPrintSpeed::Quite );
+    fnCreateRadioButton( "Sta", PhrozenPrintSpeed::Standard );
+    fnCreateRadioButton( "Fas", PhrozenPrintSpeed::Fast );
+    fnCreateRadioButton( "Tur", PhrozenPrintSpeed::Turbo );
+
+    m_kPrintSpeedButtons[ PhrozenPrintSpeed::Standard ]->SetValue( true );
+    sizerFlex->Add( sizer, 0, wxALL | wxEXPAND, 0 );
+
+    return sizerFlex;
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Auxiliary(wxWindow* pParent)
+{
+    auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
+    sizerFlex->AddGrowableCol(1);
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Auxiliary"), 1, wxLEFT, 10 );
+
+    CreateValueText( m_spCooling_auxiliary, pParent ); 
+    sizerFlex->Add( m_spCooling_auxiliary.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    CreateValueTextCtrl( m_spCooling_auxiliary_ctrl, pParent, PhrozenParamControl::Cooling_Auxiliary ); 
+    sizerFlex->Add( m_spCooling_auxiliary_ctrl.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    return sizerFlex;
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Part(wxWindow* pParent)
+{
+    auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
+    sizerFlex->AddGrowableCol(1);
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Part"), 1, wxLEFT, 10 );
+
+    CreateValueText( m_spCooling_part, pParent ); 
+    sizerFlex->Add( m_spCooling_part.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    CreateValueTextCtrl( m_spCooling_part_ctrl, pParent, PhrozenParamControl::Cooling_Part ); 
+    sizerFlex->Add( m_spCooling_part_ctrl.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    return sizerFlex;
+}
+
+wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Shield(wxWindow* pParent)
+{
+    auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
+    sizerFlex->AddGrowableCol(1);
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Shield"), 1, wxLEFT, 10 );
+
+    CreateValueText( m_spCooling_shield, pParent ); 
+    sizerFlex->Add( m_spCooling_shield.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    CreateValueTextCtrl( m_spCooling_shield_ctrl, pParent, PhrozenParamControl::Cooling_Shield ); 
+    sizerFlex->Add( m_spCooling_shield_ctrl.get(), 0, wxLEFT, 10 );
+
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxEXPAND, 10 );
+
+    return sizerFlex;
+}
+
+wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_moveRange( wxWindow* pParent )
+{
+    auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxButton(pParent, wxID_ANY, "0.1mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxButton(pParent, wxID_ANY, "1mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxButton(pParent, wxID_ANY, "10mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
+    return sizer;
+}
+
+wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent )
+{
+    auto sizer = new wxGridSizer(4, 3, wxSize(5, 5));
+
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Control_xy_title.bmp(), wxDefaultPosition, wxSize(36, 36) ), 1, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_left.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_home.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_right.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    
+    return sizer;
+}
+
+wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
+{
+    auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
+
+    sizer->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Control_z_title.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxStaticBitmap( pParent, wxID_ANY, m_Control_z_nozzle.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    
+    return sizer;
+}
+
+wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent )
+{
+    auto sizer = new wxGridSizer(2, 3, wxSize(5, 5));
+
+    sizer->Add( new wxButton(pParent, wxID_ANY, "0.005mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxButton(pParent, wxID_ANY, "0.01mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    sizer->Add( new wxButton(pParent, wxID_ANY, "0.05mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxButton(pParent, wxID_ANY, "0.1mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    return sizer;
+}
+
+// control panel
+void PhrozenStatusBasePanel::update_nozzle_current_temp( int nTemp )
+{
+    m_spTemp_nozzle->SetLabelText( std::to_string( nTemp ) );
+}
+
+void PhrozenStatusBasePanel::update_nozzle_target_temp( int nTemp )
+{
+    m_spTemp_nozzle_ctrl->SetValue( nTemp );
+}
+
+void PhrozenStatusBasePanel::update_bed_current_temp( int nTemp )
+{
+    m_spTemp_heatedBed->SetLabelText( std::to_string( nTemp ) );
+}
+
+void PhrozenStatusBasePanel::update_bed_target_temp( int nTemp )
+{
+    m_spTemp_heatedBed_ctrl->SetValue( nTemp );
+}
+
+void PhrozenStatusBasePanel::update_cooling_auxiliary_current_power( int nPower )
+{
+    m_spCooling_auxiliary->SetLabelText( std::to_string( nPower ) );
+}
+
+void PhrozenStatusBasePanel::update_cooling_auxiliary_target_power( int nPower )
+{
+    m_spCooling_auxiliary_ctrl->SetValue( nPower );
+}
+
+void PhrozenStatusBasePanel::update_cooling_part_current_power( int nPower )
+{
+    m_spCooling_part->SetLabelText( std::to_string( nPower ) );
+}
+
+void PhrozenStatusBasePanel::update_cooling_part_target_power( int nPower )
+{
+    m_spCooling_part_ctrl->SetValue( nPower );
+}
+
+void PhrozenStatusBasePanel::update_cooling_shield_current_power( int nPower )
+{
+    m_spCooling_shield->SetLabelText( std::to_string( nPower ) );
+}
+
+void PhrozenStatusBasePanel::update_cooling_shield_target_power( int nPower )
+{
+    m_spCooling_shield_ctrl->SetValue( nPower );
+}
+
 #pragma endregion
+
+
+
 
 #pragma region PhrozenStatusPanel
 void PhrozenStatusPanel::update_camera_state(MachineObject* obj)
@@ -979,10 +1531,12 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_score_data         = new ScoreData;
     m_score_data->rating_id = -1;
     /* set default values */
+    #if HideOriginUiWidget
     m_switch_lamp->SetValue(false);
     m_switch_printing_fan->SetValue(false);
     m_switch_nozzle_fan->SetValue(false);
     m_switch_cham_fan->SetValue(false);
+    #endif
 
     /* set default enable state */
     m_project_task_panel->enable_pause_resume_button(false, "resume_disable");
@@ -992,15 +1546,37 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     Bind(wxEVT_WEBREQUEST_STATE, &PhrozenStatusPanel::on_webrequest_state, this);
 
     Bind(wxCUSTOMEVT_SET_TEMP_FINISH, [this](wxCommandEvent e) {
-        int id = e.GetInt();
-        if (id == m_tempCtrl_bed->GetType()) {
-            on_set_bed_temp();
-        } else if (id == m_tempCtrl_nozzle->GetType()) {
-            on_set_nozzle_temp();
-        } else if (id == m_tempCtrl_chamber->GetType()) {
-            on_set_chamber_temp();
+        PhrozenParamControl eParamType = (PhrozenParamControl)e.GetInt();
+        switch( eParamType )
+        {
+            case PhrozenParamControl::Temperature_Nozzle:       on_set_nozzle_temp(); break;
+            case PhrozenParamControl::Temperature_HeatedBed:    on_set_bed_temp(); break;
+            case PhrozenParamControl::Cooling_Auxiliary:        on_set_cooling_auxiliary(); break;
+            case PhrozenParamControl::Cooling_Part:             on_set_cooling_part(); break;
+            case PhrozenParamControl::Cooling_Shield:           on_set_cooling_shield(); break;
+            default:
+                assert( 0 && "not implement" );
         }
     });
+
+    m_spTemp_nozzle_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
+    m_spTemp_nozzle_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
+
+    m_spTemp_heatedBed_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
+    m_spTemp_heatedBed_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
+
+    m_spCooling_auxiliary_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_kill_focus), NULL, this);
+    m_spCooling_auxiliary_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_set_focus), NULL, this);
+
+    m_spCooling_part_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_kill_focus), NULL, this);
+    m_spCooling_part_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_set_focus), NULL, this);
+
+    m_spCooling_shield_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_kill_focus), NULL, this);
+    m_spCooling_shield_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_set_focus), NULL, this);
+    
+    //m_tempCtrl_chamber->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_kill_focus), NULL, this);
+    //m_tempCtrl_chamber->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_set_focus), NULL, this);
+
 
 
     // Connect Events
@@ -1011,14 +1587,12 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_project_task_panel->get_market_retry_buttom()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_retry), NULL, this); 
     m_project_task_panel->get_clean_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
 
+
+
+
+    #if HideOriginUiWidget
     m_setting_button->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_setting_button->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_tempCtrl_bed->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
-    m_tempCtrl_bed->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
-    m_tempCtrl_nozzle->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
-    m_tempCtrl_nozzle->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
-    m_tempCtrl_chamber->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_kill_focus), NULL, this);
-    m_tempCtrl_chamber->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_set_focus), NULL, this);
     m_switch_lamp->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
     m_switch_nozzle_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); // TODO
     m_switch_printing_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
@@ -1031,6 +1605,7 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_bpButton_e_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_up_10), NULL, this);
     m_bpButton_e_down_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_down_10), NULL, this);
     m_button_unload->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_unload), NULL, this);
+    #endif
     Bind(EVT_AMS_EXTRUSION_CALI, &PhrozenStatusPanel::on_filament_extrusion_cali, this);
     Bind(EVT_AMS_LOAD, &PhrozenStatusPanel::on_ams_load, this);
     Bind(EVT_AMS_UNLOAD, &PhrozenStatusPanel::on_ams_unload, this);
@@ -1054,9 +1629,10 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
         //    m_print_error_dlg->on_hide();
     });
 
-
+    #if HideOriginUiWidget
     m_switch_speed->Connect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
     m_calibration_btn->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
+    #endif
 }
 
 PhrozenStatusPanel::~PhrozenStatusPanel()
@@ -1069,6 +1645,7 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     m_project_task_panel->get_market_retry_buttom()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_retry), NULL, this); 
     m_project_task_panel->get_clean_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
 
+    #if HideOriginUiWidget
     m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_setting_button->Disconnect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_tempCtrl_bed->Disconnect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
@@ -1089,7 +1666,7 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     m_switch_speed->Disconnect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
     m_calibration_btn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
     m_button_unload->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_unload), NULL, this);
-
+    #endif
     // remove warning dialogs
     if (m_print_error_dlg != nullptr)
         delete m_print_error_dlg;
@@ -1110,6 +1687,7 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
 
 void PhrozenStatusPanel::init_scaled_buttons()
 {
+#if HideOriginUiWidget //origin
     m_project_task_panel->init_scaled_buttons();
     m_button_unload->SetMinSize(wxSize(-1, FromDIP(24)));
     m_button_unload->SetCornerRadius(FromDIP(12));
@@ -1125,6 +1703,7 @@ void PhrozenStatusPanel::init_scaled_buttons()
     m_bpButton_e_10->SetCornerRadius(FromDIP(12));
     m_bpButton_e_down_10->SetMinSize(wxSize(FromDIP(40), FromDIP(40)));
     m_bpButton_e_down_10->SetCornerRadius(FromDIP(12));
+#endif
 }
 
 void PhrozenStatusPanel::on_market_scoring(wxCommandEvent &event) { 
@@ -1340,6 +1919,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     //    show_printing_status();
 
     update_temp_ctrl(obj);
+    update_fan_cooling_speed_ctrl(obj);
     if ( !IsWebCamRefreshTimerInitialized() )
     {
         InitWebCamUiUpdateTimer();
@@ -1584,6 +2164,7 @@ void PhrozenStatusPanel::update_error_message()
 
 void PhrozenStatusPanel::show_printing_status(bool ctrl_area, bool temp_area)
 {
+#if HideOriginUiWidget
     if (!ctrl_area) {
         m_phButton_xy->Enable(false);
         m_bpButton_z_10->Enable(false);
@@ -1652,55 +2233,66 @@ void PhrozenStatusPanel::show_printing_status(bool ctrl_area, bool temp_area)
         m_switch_printing_fan->Enable();
         m_switch_cham_fan->Enable();
     }
+#endif
 }
 
 void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
 {
     if (!obj) return;
 
-    m_tempCtrl_bed->SetCurrTemp((int) obj->GetPhrozenBedTemperature()); //obj->bed_temp
 
-    //m_tempCtrl_bed->SetMaxTemp(obj->get_bed_temperature_limit());
-    //
-    //// update temprature if not input temp target
-    //if (m_temp_bed_timeout > 0) {
-    //    m_temp_bed_timeout--;
-    //} else {
-    //    if (!bed_temp_input) { m_tempCtrl_bed->SetTagTemp((int) obj->bed_temp_target); }
-    //}
-    //
-    //if ((obj->bed_temp_target - obj->bed_temp) >= TEMP_THRESHOLD_VAL) {
-    //    m_tempCtrl_bed->SetIconActive();
-    //} else {
-    //    m_tempCtrl_bed->SetIconNormal();
-    //}
+    // bed
+    int nTempBedCurrent = (int)obj->GetPhrozenBedTemperature();
+    int nTempBedTarget = (int) obj->GetPhrozenBedTargetTemperature();
 
-    m_tempCtrl_nozzle->SetCurrTemp((int) obj->GetPhrozenNozzleTemperature() );//  m_extder_data.extders[0].temp);
+    update_bed_current_temp( nTempBedCurrent );
+    //todo set max bed temp
+
+    // update temprature if not input temp target
+    if (m_temp_bed_timeout > 0) {
+        m_temp_bed_timeout--;
+    } else {
+        if (!bed_temp_input) { update_bed_target_temp( nTempBedTarget ); }
+    }
+
+    if ((nTempBedTarget - nTempBedCurrent) >= TEMP_THRESHOLD_VAL) {
+        //todo m_spTemp_heatedBed set active
+        m_spTemp_heatedBed;//m_tempCtrl_bed->SetIconActive();
+    } else {
+        //todo m_spTemp_heatedBed set normal
+        m_spTemp_heatedBed;//m_tempCtrl_bed->SetIconNormal();
+    }
+
+
+    // nozzle
+    int nTempNozzleCurrent = (int)obj->GetPhrozenNozzleTemperature();
+    int nTempNozzleTarget = (int) obj->GetPhrozenNozzleTargetTemperature();
+
+    update_nozzle_current_temp( nTempNozzleCurrent );
+    //todo set max nozzle temp
+    //reference:
     //if (obj->nozzle_max_temperature > -1) {
     //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(obj->nozzle_max_temperature);
     //}
     //else {
-    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(phrozen_nozzle_temp_range[1]);
+    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(nozzle_temp_range[1]);
     //}
-
-
-    #if 0
-
-
-
 
     if (m_temp_nozzle_timeout > 0) {
         m_temp_nozzle_timeout--;
     } else {
-        if (!nozzle_temp_input) { m_tempCtrl_nozzle->SetTagTemp((int) obj->m_extder_data.extders[0].target_temp); }
+        if (!nozzle_temp_input) { update_nozzle_target_temp( nTempNozzleTarget ); }
     }
 
-    if ((obj->m_extder_data.extders[0].target_temp - obj->m_extder_data.extders[0].temp) >= TEMP_THRESHOLD_VAL) {
-        m_tempCtrl_nozzle->SetIconActive();
+    if ((nTempNozzleTarget - nTempNozzleCurrent) >= TEMP_THRESHOLD_VAL) {
+        //todo m_spTemp_nozzle set active
+        m_spTemp_nozzle; //m_tempCtrl_nozzle->SetIconActive();
     } else {
-        m_tempCtrl_nozzle->SetIconNormal();
+        //todo m_spTemp_nozzle set normal
+        m_spTemp_nozzle; //m_tempCtrl_nozzle->SetIconNormal();
     }
 
+#if 0 //chamber setting -> todo
     m_tempCtrl_chamber->SetCurrTemp(obj->chamber_temp);
     // update temprature if not input temp target
     if (m_temp_chamber_timeout > 0) {
@@ -1716,7 +2308,7 @@ void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
     else {
         m_tempCtrl_chamber->SetIconNormal();
     }
-    #endif
+#endif
 }
 
 void PhrozenStatusPanel::update_print_speed_ctrl(MachineObject *obj)
@@ -1729,10 +2321,32 @@ void PhrozenStatusPanel::update_print_speed_ctrl(MachineObject *obj)
 void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
 {
     if (!obj) return;
+
+    int current_auxiliary_cooling = (int)( obj->GetPhrozenAuxiliaryCoolingSpeed()* 100 );
+    int current_part_cooling = (int)( obj->GetPhrozenPartCoolingSpeed()* 100 );
+    int current_shield_cooling = (int)( obj->GetPhrozenShieldCoolingSpeed()* 100 );
+
+    update_cooling_auxiliary_current_power( current_auxiliary_cooling );
+    if (m_cooling_auxiliary_timeout > 0) {
+        m_cooling_auxiliary_timeout--;
+    } else {
+        if (!cooling_auxiliary_input) { update_cooling_auxiliary_target_power( current_auxiliary_cooling ); }
+    }
+
+    update_cooling_part_current_power( current_part_cooling );
+    if (m_cooling_part_timeout > 0) {
+        m_cooling_part_timeout--;
+    } else {
+        if (!cooling_part_input) { update_cooling_part_target_power( current_part_cooling ); }
+    }
+
+    update_cooling_shield_target_power( current_shield_cooling );
+    if (m_cooling_shield_timeout > 0) {
+        m_cooling_shield_timeout--;
+    } else {
+        if (!cooling_shield_input) { update_cooling_shield_target_power( current_shield_cooling ); }
+    }
     
-    int current_part_cooling = (int) obj->GetPhrozenPartCoolingSpeed();
-    int current_shield_cooling = (int) obj->GetPhrozenShieldCoolingSpeed();
-    int current_auxiliary_cooling = (int) obj->GetPhrozenAuxiliaryCoolingSpeed();
 }
 
 void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)
@@ -2785,46 +3399,6 @@ void PhrozenStatusPanel::on_start_unload(wxCommandEvent &event)
     if (obj) obj->command_ams_change_filament(false, "255", "255");
 }
 
-void PhrozenStatusPanel::on_set_bed_temp()
-{
-    wxString str = m_tempCtrl_bed->GetTextCtrl()->GetValue();
-    try {
-        long bed_temp;
-        if (str.ToLong(&bed_temp) && obj) {
-            set_hold_count(m_temp_bed_timeout);
-            int limit = obj->get_bed_temperature_limit();
-            if (bed_temp >= limit) {
-                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
-                bed_temp = limit;
-                m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
-                m_tempCtrl_bed->Warning(false);
-            }
-            obj->command_set_bed(bed_temp);
-        }
-    } catch (...) {
-        ;
-    }
-}
-
-void PhrozenStatusPanel::on_set_nozzle_temp()
-{
-    wxString str = m_tempCtrl_nozzle->GetTextCtrl()->GetValue();
-    try {
-        long nozzle_temp;
-        if (str.ToLong(&nozzle_temp) && obj) {
-            set_hold_count(m_temp_nozzle_timeout);
-            if (nozzle_temp > m_tempCtrl_nozzle->get_max_temp()) {
-                nozzle_temp = m_tempCtrl_nozzle->get_max_temp();
-                m_tempCtrl_nozzle->SetTagTemp(wxString::Format("%d", nozzle_temp));
-                m_tempCtrl_nozzle->Warning(false);
-            }
-            obj->command_set_nozzle(nozzle_temp);
-        }
-    } catch (...) {
-        ;
-    }
-}
-
 void PhrozenStatusPanel::on_set_chamber_temp()
 {
     wxString str = m_tempCtrl_chamber->GetTextCtrl()->GetValue();
@@ -3317,30 +3891,6 @@ void PhrozenStatusPanel::on_cham_temp_set_focus(wxFocusEvent& event)
     cham_temp_input = true;
 }
 
-void PhrozenStatusPanel::on_bed_temp_kill_focus(wxFocusEvent &event)
-{
-    event.Skip();
-    bed_temp_input = false;
-}
-
-void PhrozenStatusPanel::on_bed_temp_set_focus(wxFocusEvent &event)
-{
-    event.Skip();
-    bed_temp_input = true;
-}
-
-void PhrozenStatusPanel::on_nozzle_temp_kill_focus(wxFocusEvent &event)
-{
-    event.Skip();
-    nozzle_temp_input = false;
-}
-
-void PhrozenStatusPanel::on_nozzle_temp_set_focus(wxFocusEvent &event)
-{
-    event.Skip();
-    nozzle_temp_input = true;
-}
-
 void PhrozenStatusPanel::on_switch_speed(wxCommandEvent &event)
 {
     auto now = boost::posix_time::microsec_clock::universal_time();
@@ -3597,8 +4147,10 @@ void PhrozenStatusPanel::set_default()
     m_bitmap_timelapse_img->Hide();
     m_bitmap_recording_img->Hide();
     m_bitmap_vcamera_img->Hide();
+    #if HideOriginUiWidget
     m_setting_button->Show();
     m_tempCtrl_chamber->Show();
+    #endif
 
     reset_temp_misc_control();
     m_ams_control->Hide();
@@ -3750,6 +4302,233 @@ void PhrozenStatusPanel::msw_rescale()
 
     Layout();
     Refresh();
+}
+
+
+// =============== phrozen checked done =============== //
+
+void PhrozenStatusPanel::on_nozzle_temp_kill_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    nozzle_temp_input = false;
+
+    wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
+    finishEvent.SetInt( (int)PhrozenParamControl::Temperature_Nozzle );
+    wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_nozzle_temp_set_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    nozzle_temp_input = true;
+}
+
+void PhrozenStatusPanel::on_bed_temp_kill_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    bed_temp_input = false;
+
+    wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
+    finishEvent.SetInt( (int)PhrozenParamControl::Temperature_HeatedBed );
+    wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_bed_temp_set_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    bed_temp_input = true;
+}
+
+void PhrozenStatusPanel::on_cooling_auxiliary_kill_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_auxiliary_input = false;
+
+    wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
+    finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Auxiliary );
+    wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_auxiliary_set_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_auxiliary_input = true;
+}
+
+void PhrozenStatusPanel::on_cooling_part_kill_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_part_input = false;
+
+    wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
+    finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Part );
+    wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_part_set_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_part_input = true;
+}
+
+void PhrozenStatusPanel::on_cooling_shield_kill_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_shield_input = false;
+
+    wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
+    finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Shield );
+    wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_shield_set_focus(wxFocusEvent &event)
+{
+    event.Skip();
+    cooling_shield_input = true;
+}
+
+
+void PhrozenStatusPanel::on_set_nozzle_temp()
+{
+    long nozzle_temp = m_spTemp_nozzle_ctrl->GetValue();
+    try {
+        
+        if (obj) {
+            set_hold_count(m_temp_nozzle_timeout);
+            
+            if (nozzle_temp > obj->GetPhrozenNozzleTemperature_limit()) {
+                nozzle_temp = obj->GetPhrozenNozzleTemperature_limit();
+                //todo add warning for phrozen
+                //m_tempCtrl_nozzle->SetTagTemp(wxString::Format("%d", nozzle_temp));
+                //m_tempCtrl_nozzle->Warning(false);
+            }
+            obj->SetPhrozenCommand_nozzle_temp(nozzle_temp);
+        }
+    } catch (...) {
+        ;
+    }
+
+#if 0
+    wxString str = m_tempCtrl_nozzle->GetTextCtrl()->GetValue();
+    try {
+        long nozzle_temp;
+        if (str.ToLong(&nozzle_temp) && obj) {
+            set_hold_count(m_temp_nozzle_timeout);
+            if (nozzle_temp > m_tempCtrl_nozzle->get_max_temp()) {
+                nozzle_temp = m_tempCtrl_nozzle->get_max_temp();
+                m_tempCtrl_nozzle->SetTagTemp(wxString::Format("%d", nozzle_temp));
+                m_tempCtrl_nozzle->Warning(false);
+            }
+            obj->command_set_nozzle(nozzle_temp);
+        }
+    } catch (...) {
+        ;
+    }
+#endif
+}
+
+void PhrozenStatusPanel::on_set_bed_temp()
+{
+    long bed_temp = m_spTemp_heatedBed_ctrl->GetValue();
+    try {
+        if (obj) {
+            set_hold_count(m_temp_bed_timeout);
+            int limit = obj->GetPhrozenBedTemperature_limit();
+            if (bed_temp >= limit) {
+                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
+                bed_temp = limit;
+                //Todo add warning for phrozen
+                //m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
+                //m_tempCtrl_bed->Warning(false);
+            }
+            obj->SetPhrozenCommand_bed_temp(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
+
+#if 0 //ref 
+    wxString str = m_tempCtrl_bed->GetTextCtrl()->GetValue();
+    try {
+        long bed_temp;
+        if (str.ToLong(&bed_temp) && obj) {
+            set_hold_count(m_temp_bed_timeout);
+            int limit = obj->get_bed_temperature_limit();
+            if (bed_temp >= limit) {
+                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
+                bed_temp = limit;
+                m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
+                m_tempCtrl_bed->Warning(false);
+            }
+            obj->command_set_bed(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
+#endif
+}
+
+void PhrozenStatusPanel::on_set_cooling_auxiliary()
+{
+    long bed_temp = m_spCooling_auxiliary_ctrl->GetValue();
+    try {
+        if (obj) {
+            set_hold_count(m_cooling_auxiliary_timeout);
+            int limit = obj->GetPhrozenCoolingPower_limit();
+            if (bed_temp >= limit) {
+                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
+                bed_temp = limit;
+                //Todo add warning for phrozen
+                //m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
+                //m_tempCtrl_bed->Warning(false);
+            }
+            obj->SetPhrozenCommand_cooling_auxiliary(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
+}
+
+void PhrozenStatusPanel::on_set_cooling_part()
+{
+    long bed_temp = m_spCooling_part_ctrl->GetValue();
+    try {
+        if (obj) {
+            set_hold_count(m_cooling_part_timeout);
+            int limit = obj->GetPhrozenCoolingPower_limit();
+            if (bed_temp >= limit) {
+                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
+                bed_temp = limit;
+                //Todo add warning for phrozen
+                //m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
+                //m_tempCtrl_bed->Warning(false);
+            }
+            obj->SetPhrozenCommand_cooling_part(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
+}
+
+void PhrozenStatusPanel::on_set_cooling_shield()
+{
+    long bed_temp = m_spCooling_shield_ctrl->GetValue();
+    try {
+        if (obj) {
+            set_hold_count(m_cooling_shield_timeout);
+            int limit = obj->GetPhrozenCoolingPower_limit();
+            if (bed_temp >= limit) {
+                BOOST_LOG_TRIVIAL(info) << "can not set over limit = " << limit << ", set temp = " << bed_temp;
+                bed_temp = limit;
+                //Todo add warning for phrozen
+                //m_tempCtrl_bed->SetTagTemp(wxString::Format("%d", bed_temp));
+                //m_tempCtrl_bed->Warning(false);
+            }
+            obj->SetPhrozenCommand_cooling_shield(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
 }
 
 #pragma endregion

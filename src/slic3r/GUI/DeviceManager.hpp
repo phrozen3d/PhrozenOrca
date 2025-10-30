@@ -418,10 +418,23 @@ public:
     virtual float GetPhrozenAuxiliaryCoolingSpeed() { return 0.0f; }
     virtual float GetPhrozenPartCoolingSpeed() { return 0.0f; }
     virtual float GetPhrozenShieldCoolingSpeed() { return 0.0f; }
+
+    virtual float GetPhrozenBedTargetTemperature() { return 0.0f; }
+    virtual float GetPhrozenNozzleTargetTemperature() { return 0.0f; }
+
     virtual std::string GetPhrozenWebCameraStreamUrl() { return ""; }
     virtual std::string GetPhrozenWebCameraSnapshotUrl() { return ""; }
     virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) {return false;}
+    virtual int GetPhrozenBedTemperature_limit() { return 300; }
+    virtual int GetPhrozenNozzleTemperature_limit() { return 300; }
+    virtual int GetPhrozenCoolingPower_limit() { return 100; }
 
+    //set command to machine
+    virtual void SetPhrozenCommand_bed_temp( int nTemp ) {}
+    virtual void SetPhrozenCommand_nozzle_temp( int nTemp ) {}
+    virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) {}
+    virtual void SetPhrozenCommand_cooling_part( int nPower ) {}
+    virtual void SetPhrozenCommand_cooling_shield( int nPower ) {}
 #pragma endregion
 
 public:

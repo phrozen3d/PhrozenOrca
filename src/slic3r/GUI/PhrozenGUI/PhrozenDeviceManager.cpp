@@ -46,6 +46,11 @@ float PhrozenMachineObject::GetPhrozenPrintSpeed()
     return MonitorControl::m_pPrinterInfo->print_speed;
 }
 
+float PhrozenMachineObject::GetPhrozenAuxiliaryCoolingSpeed()
+{
+    return MonitorControl::m_pPrinterInfo->auxiliary_fan_speed;
+}
+
 float PhrozenMachineObject::GetPhrozenPartCoolingSpeed()
 {
     return MonitorControl::m_pPrinterInfo->fan_speed;
@@ -56,10 +61,16 @@ float PhrozenMachineObject::GetPhrozenShieldCoolingSpeed()
     return MonitorControl::m_pPrinterInfo->shield_fan_speed;
 }
 
-float PhrozenMachineObject::GetPhrozenAuxiliaryCoolingSpeed()
+float PhrozenMachineObject::GetPhrozenBedTargetTemperature() 
 {
-    return MonitorControl::m_pPrinterInfo->auxiliary_fan_speed;
+    return MonitorControl::m_pPrinterInfo->bed_temperature_target;
 }
+
+float PhrozenMachineObject::GetPhrozenNozzleTargetTemperature() 
+{
+    return MonitorControl::m_pPrinterInfo->extruder_temperature_target;
+}
+
 
 std::string PhrozenMachineObject::GetPhrozenWebCameraStreamUrl()
 {
@@ -87,10 +98,45 @@ bool PhrozenMachineObject::GetPhrozenWebCameraSnapshotImage( std::vector<unsigne
     return true;
 }
 
+int PhrozenMachineObject::GetPhrozenBedTemperature_limit()
+{
+    //todo get from machine?
+    return 300;
+}
+
+int PhrozenMachineObject::GetPhrozenNozzleTemperature_limit() 
+{
+    //todo get from machine?
+    return 300;
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_bed_temp( int nTemp ) 
+{
+//todo
+}
+void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp ) 
+{
+//todo
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_cooling_auxiliary( int nPower ) 
+{
+//todo
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_cooling_part( int nPower ) 
+{
+//todo
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_cooling_shield( int nPower ) 
+{
+//todo
+}
+
+
 
 #if 0
-
-
 /* Common Functions */
 void split_string(std::string s, std::vector<std::string>& v) {
 
