@@ -1230,10 +1230,9 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
     auto fnCreateRadioButton =[&] ( const std::string& strName,
                                     const PhrozenPrintSpeed eSpeedType ) -> void
     {
-        std::shared_ptr< wxRadioButton > spButton;
-        spButton = bIsFirst ? std::make_unique< wxRadioButton >( pParent, wxID_ANY, strName, wxDefaultPosition, wxDefaultSize, wxRB_GROUP )
-                            : std::make_shared< wxRadioButton >( pParent, wxID_ANY, strName );
-        sizer->Add(spButton.get(), 0, wxALL, 5);
+        wxRadioButton * spButton = bIsFirst ? new wxRadioButton( pParent, wxID_ANY, strName, wxDefaultPosition, wxDefaultSize, wxRB_GROUP )
+                                            : new wxRadioButton( pParent, wxID_ANY, strName );
+        sizer->Add( spButton, 0, wxALL, 5);
         m_kPrintSpeedButtons.insert( { eSpeedType, spButton } );
 
         bIsFirst = false;
@@ -1318,9 +1317,19 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_moveRange( wxWindow* pParen
 {
     auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxButton(pParent, wxID_ANY, "0.1mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxButton(pParent, wxID_ANY, "1mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxButton(pParent, wxID_ANY, "10mm", wxDefaultPosition, wxSize(156, 36) ), 0, wxALL | wxEXPAND, 0 );
+
+    auto fnCreateToggleButton =[&] ( const std::string& strName,
+                                     const PhrozenNozzleMoveRange eType ) -> void
+    {
+        auto spButton = new wxToggleButton( pParent, wxID_ANY, strName, wxDefaultPosition, wxSize(100, 36) );
+        sizer->Add(spButton, 0, wxALL, 5);
+        m_kNozzleMovementRangeButtons.insert( { eType, spButton } );
+    };
+
+    fnCreateToggleButton( "0.1mm", PhrozenNozzleMoveRange::Range_01_MM );
+    fnCreateToggleButton( "1mm", PhrozenNozzleMoveRange::Range_1_MM );
+    fnCreateToggleButton( "10mm", PhrozenNozzleMoveRange::Range_10_MM );
+    m_kNozzleMovementRangeButtons[ PhrozenNozzleMoveRange::Range_01_MM ]->SetValue( true );
     return sizer;
 }
 
@@ -1363,14 +1372,23 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent
 {
     auto sizer = new wxGridSizer(2, 3, wxSize(5, 5));
 
-    sizer->Add( new wxButton(pParent, wxID_ANY, "0.005mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxButton(pParent, wxID_ANY, "0.01mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    auto fnCreateToggleButton =[&] ( const std::string& strName,
+                                     const PhrozenPrintBedMoveRange eType ) -> void
+    {
+        auto spButton = new wxToggleButton( pParent, wxID_ANY, strName, wxDefaultPosition, wxSize(100, 36) );
+        sizer->Add(spButton, 0, wxALL, 5);
+        m_kBedMovementRangeButtons.insert( { eType, spButton } );
+    };
+
+    fnCreateToggleButton("0.005mm", PhrozenPrintBedMoveRange::Range_0005_MM );
+    fnCreateToggleButton("0.01mm", PhrozenPrintBedMoveRange::Range_001_MM );
     sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_up.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
 
-    sizer->Add( new wxButton(pParent, wxID_ANY, "0.05mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxButton(pParent, wxID_ANY, "0.1mm", wxDefaultPosition, wxSize(156, 36) ), 1, wxALL | wxEXPAND, 0 );
+    fnCreateToggleButton("0.05mm", PhrozenPrintBedMoveRange::Range_005_MM );
+    fnCreateToggleButton("0.1mm", PhrozenPrintBedMoveRange::Range_01_MM );
     sizer->Add( new wxBitmapButton( pParent, wxID_ANY, m_Control_xy_down.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
 
+    m_kBedMovementRangeButtons[ PhrozenPrintBedMoveRange::Range_0005_MM ]->SetValue( true );
     return sizer;
 }
 
@@ -1689,6 +1707,21 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     //m_project_task_panel->get_market_scoring_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_scoring), NULL, this);
     //m_project_task_panel->get_market_retry_buttom()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_retry), NULL, this); 
     //m_project_task_panel->get_clean_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
+
+    for ( auto kItem : m_kPrintSpeedButtons )
+    {
+        delete kItem.second;
+    }
+
+    for ( auto kItem : m_kNozzleMovementRangeButtons )
+    {
+        delete kItem.second;
+    }
+
+    for ( auto kItem : m_kBedMovementRangeButtons )
+    {
+        delete kItem.second;
+    }
 
     #if HideOriginUiWidget
     m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);

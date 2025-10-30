@@ -358,7 +358,15 @@ public:
     int m_nCooling_shield = 0;
 
     //Speed
-    std::unordered_map< PhrozenPrintSpeed, std::shared_ptr< wxRadioButton > > m_kPrintSpeedButtons;
+    std::unordered_map< PhrozenPrintSpeed, wxRadioButton* > m_kPrintSpeedButtons;
+
+    //nozzle movement range
+    std::unordered_map< PhrozenNozzleMoveRange, wxToggleButton* > m_kNozzleMovementRangeButtons;
+
+    //bed(z-offet) movement ragne
+    std::unordered_map< PhrozenPrintBedMoveRange, wxToggleButton* > m_kBedMovementRangeButtons;
+
+
 #pragma endregion
 
 
