@@ -134,6 +134,10 @@ void PhrozenMachineObject::SetPhrozenCommand_cooling_shield( int nPower )
 //todo
 }
 
+void PhrozenMachineObject::SetPhrozenCommand_print_speed( float fValue )
+{
+//todo
+}
 
 
 #if 0

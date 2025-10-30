@@ -1233,7 +1233,6 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         std::shared_ptr< wxRadioButton > spButton;
         spButton = bIsFirst ? std::make_unique< wxRadioButton >( pParent, wxID_ANY, strName, wxDefaultPosition, wxDefaultSize, wxRB_GROUP )
                             : std::make_shared< wxRadioButton >( pParent, wxID_ANY, strName );
-        //spButton->Bind( wxEVT_RADIOBUTTON, [=](wxCommandEvent& WXUNUSED(event)){ OnPrintSpeedChanged(eSpeedType); } );
         sizer->Add(spButton.get(), 0, wxALL, 5);
         m_kPrintSpeedButtons.insert( { eSpeedType, spButton } );
 
@@ -1426,6 +1425,45 @@ void PhrozenStatusBasePanel::update_cooling_shield_target_power( int nPower )
     m_spCooling_shield_ctrl->SetValue( nPower );
 }
 
+void PhrozenStatusBasePanel::update_print_speed_level( PhrozenPrintSpeed eLevel )
+{
+    auto pItem = m_kPrintSpeedButtons.find( eLevel );
+    if ( pItem == m_kPrintSpeedButtons.end() )
+    {
+        assert( 0 && "not implement" );
+        return;
+    }
+    pItem->second->SetValue( true );
+}
+
+PhrozenPrintSpeed PhrozenStatusBasePanel::print_speed_percent_to_enum( float fPercentage )
+{
+    int print_speed = (int) (fPercentage * 100.0f);
+    PhrozenPrintSpeed eLevel = PhrozenPrintSpeed::Standard;
+    if ( print_speed <= 50 ) eLevel = PhrozenPrintSpeed::Silent;
+    else if ( print_speed > 50 && print_speed <= 80 ) eLevel = PhrozenPrintSpeed::Quite;
+    else if ( print_speed > 80 && print_speed <= 100 ) eLevel = PhrozenPrintSpeed::Standard;
+    else if ( print_speed > 100 && print_speed <= 120 ) eLevel = PhrozenPrintSpeed::Fast;
+    else if ( print_speed > 120 && print_speed <= 150 ) eLevel = PhrozenPrintSpeed::Turbo;
+    else { assert( 0 && "out of range" ); eLevel = PhrozenPrintSpeed::Turbo; }
+    return eLevel;
+}
+
+float PhrozenStatusBasePanel::print_speed_enum_to_percent( PhrozenPrintSpeed eLevel )
+{
+    float fPercentage = 0.9f;
+    switch( eLevel )
+    {
+        case PhrozenPrintSpeed::Silent: fPercentage = 0.4f; break;
+        case PhrozenPrintSpeed::Quite: fPercentage = 0.7f; break;
+        case PhrozenPrintSpeed::Standard: fPercentage = 0.9f; break;
+        case PhrozenPrintSpeed::Fast: fPercentage = 1.1f; break;
+        case PhrozenPrintSpeed::Turbo: fPercentage = 1.3f; break;
+        default:
+            assert( 0 && "not implement" );
+    }
+    return fPercentage;
+}
 #pragma endregion
 
 
@@ -1559,6 +1597,7 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
         }
     });
 
+
     m_spTemp_nozzle_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
     m_spTemp_nozzle_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
 
@@ -1577,6 +1616,12 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     //m_tempCtrl_chamber->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_kill_focus), NULL, this);
     //m_tempCtrl_chamber->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_set_focus), NULL, this);
 
+    for ( auto kItem : m_kPrintSpeedButtons )
+    {
+        kItem.second->Bind( wxEVT_RADIOBUTTON, [=](wxCommandEvent& WXUNUSED(event)){ 
+            on_print_speed_changed( kItem.first ); 
+        } );
+    }
 
 
     // Connect Events
@@ -1638,20 +1683,16 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 PhrozenStatusPanel::~PhrozenStatusPanel()
 {
     // Disconnect Events
-    m_project_task_panel->get_bitmap_thumbnail()->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::refresh_thumbnail_webrequest), NULL, this);
-    m_project_task_panel->get_pause_resume_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_pause_resume), NULL, this);
-    m_project_task_panel->get_abort_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_abort), NULL, this);
-    m_project_task_panel->get_market_scoring_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_scoring), NULL, this);
-    m_project_task_panel->get_market_retry_buttom()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_retry), NULL, this); 
-    m_project_task_panel->get_clean_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
+    //m_project_task_panel->get_bitmap_thumbnail()->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::refresh_thumbnail_webrequest), NULL, this);
+    //m_project_task_panel->get_pause_resume_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_pause_resume), NULL, this);
+    //m_project_task_panel->get_abort_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_abort), NULL, this);
+    //m_project_task_panel->get_market_scoring_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_scoring), NULL, this);
+    //m_project_task_panel->get_market_retry_buttom()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_market_retry), NULL, this); 
+    //m_project_task_panel->get_clean_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
 
     #if HideOriginUiWidget
     m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_setting_button->Disconnect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_tempCtrl_bed->Disconnect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
-    m_tempCtrl_bed->Disconnect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
-    m_tempCtrl_nozzle->Disconnect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
-    m_tempCtrl_nozzle->Disconnect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
     m_switch_lamp->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
     m_switch_nozzle_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
     m_switch_printing_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
@@ -1919,7 +1960,9 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     //    show_printing_status();
 
     update_temp_ctrl(obj);
+    update_print_speed_ctrl(obj);
     update_fan_cooling_speed_ctrl(obj);
+    
     if ( !IsWebCamRefreshTimerInitialized() )
     {
         InitWebCamUiUpdateTimer();
@@ -2315,7 +2358,12 @@ void PhrozenStatusPanel::update_print_speed_ctrl(MachineObject *obj)
 {
     if (!obj) return;
     
-    int current_print_speed = (int) obj->GetPhrozenPrintSpeed();
+    PhrozenPrintSpeed eLevel = print_speed_percent_to_enum( obj->GetPhrozenPrintSpeed() );
+    if (m_print_speed_timeout > 0) {
+        m_print_speed_timeout--;
+    } else {
+        if (!bed_temp_input) { update_print_speed_level( eLevel ); }
+    }
 }
 
 void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
@@ -4525,6 +4573,18 @@ void PhrozenStatusPanel::on_set_cooling_shield()
                 //m_tempCtrl_bed->Warning(false);
             }
             obj->SetPhrozenCommand_cooling_shield(bed_temp);
+        }
+    } catch (...) {
+        ;
+    }
+}
+
+void PhrozenStatusPanel::on_print_speed_changed( PhrozenPrintSpeed eLevel )
+{
+    try {
+        if (obj) {
+            set_hold_count(m_print_speed_timeout);
+            obj->SetPhrozenCommand_print_speed( print_speed_enum_to_percent( eLevel ) );
         }
     } catch (...) {
         ;

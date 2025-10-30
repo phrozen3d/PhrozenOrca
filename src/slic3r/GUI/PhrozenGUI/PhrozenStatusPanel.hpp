@@ -378,6 +378,9 @@ public:
     void update_cooling_shield_current_power( int nPower );
     void update_cooling_shield_target_power( int nPower );
 
+    void update_print_speed_level( PhrozenPrintSpeed eLevel );
+    PhrozenPrintSpeed print_speed_percent_to_enum( float fPercentage );
+    float print_speed_enum_to_percent( PhrozenPrintSpeed eLevel );
 
 };
 
@@ -543,12 +546,14 @@ protected:
     bool cooling_auxiliary_input   = false;
     bool cooling_part_input   = false;
     bool cooling_shield_input   = false;
+    bool print_speed_input    = false;
 
     int  m_temp_nozzle_timeout{ 0 };
     int  m_temp_bed_timeout {0};
     int  m_cooling_auxiliary_timeout {0};
     int  m_cooling_part_timeout {0};
     int  m_cooling_shield_timeout {0};
+    int  m_print_speed_timeout {0};
 
 #pragma region Event_from_ui
     void on_nozzle_temp_kill_focus(wxFocusEvent &event);
@@ -570,6 +575,8 @@ protected:
     void on_cooling_shield_kill_focus(wxFocusEvent &event);
     void on_cooling_shield_set_focus(wxFocusEvent &event);
     void on_set_cooling_shield();
+
+    void on_print_speed_changed( PhrozenPrintSpeed eLevel ); 
 
 
     void on_set_chamber_temp();// no use maybe future

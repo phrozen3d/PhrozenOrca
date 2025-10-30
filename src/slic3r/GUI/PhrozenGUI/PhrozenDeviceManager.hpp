@@ -35,6 +35,7 @@ public:
     virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) override;
     virtual void SetPhrozenCommand_cooling_part( int nPower ) override;
     virtual void SetPhrozenCommand_cooling_shield( int nPower ) override;
+    virtual void SetPhrozenCommand_print_speed( float fValue ) override;
 };
 
 } // namespace Slic3r

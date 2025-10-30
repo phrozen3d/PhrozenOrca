@@ -435,6 +435,7 @@ public:
     virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) {}
     virtual void SetPhrozenCommand_cooling_part( int nPower ) {}
     virtual void SetPhrozenCommand_cooling_shield( int nPower ) {}
+    virtual void SetPhrozenCommand_print_speed( float fValue ){}
 #pragma endregion
 
 public:
