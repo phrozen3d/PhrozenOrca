@@ -1719,6 +1719,22 @@ void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
     #endif
 }
 
+void PhrozenStatusPanel::update_print_speed_ctrl(MachineObject *obj)
+{
+    if (!obj) return;
+    
+    int current_print_speed = (int) obj->GetPhrozenPrintSpeed();
+}
+
+void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
+{
+    if (!obj) return;
+    
+    int current_part_cooling = (int) obj->GetPhrozenPartCoolingSpeed();
+    int current_shield_cooling = (int) obj->GetPhrozenShieldCoolingSpeed();
+    int current_auxiliary_cooling = (int) obj->GetPhrozenAuxiliaryCoolingSpeed();
+}
+
 void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)
 {
     if (!obj) return;

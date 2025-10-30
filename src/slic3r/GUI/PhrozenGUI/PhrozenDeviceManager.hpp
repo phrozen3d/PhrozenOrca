@@ -15,6 +15,10 @@ public:
 
     virtual float GetPhrozenBedTemperature() override;
     virtual float GetPhrozenNozzleTemperature() override;
+    virtual float GetPhrozenPrintSpeed() override;
+    virtual float GetPhrozenAuxiliaryCoolingSpeed() override;
+    virtual float GetPhrozenPartCoolingSpeed() override;
+    virtual float GetPhrozenShieldCoolingSpeed() override;
     virtual std::string GetPhrozenWebCameraStreamUrl() override;
     virtual std::string GetPhrozenWebCameraSnapshotUrl() override;
     virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) override;

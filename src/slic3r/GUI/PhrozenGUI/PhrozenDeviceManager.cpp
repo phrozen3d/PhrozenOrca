@@ -41,6 +41,26 @@ float PhrozenMachineObject::GetPhrozenNozzleTemperature()
     return MonitorControl::m_pPrinterInfo->extruder_temperature;
 }
 
+float PhrozenMachineObject::GetPhrozenPrintSpeed()
+{
+    return MonitorControl::m_pPrinterInfo->print_speed;
+}
+
+float PhrozenMachineObject::GetPhrozenPartCoolingSpeed()
+{
+    return MonitorControl::m_pPrinterInfo->fan_speed;
+}
+
+float PhrozenMachineObject::GetPhrozenShieldCoolingSpeed()
+{
+    return MonitorControl::m_pPrinterInfo->shield_fan_speed;
+}
+
+float PhrozenMachineObject::GetPhrozenAuxiliaryCoolingSpeed()
+{
+    return MonitorControl::m_pPrinterInfo->auxiliary_fan_speed;
+}
+
 std::string PhrozenMachineObject::GetPhrozenWebCameraStreamUrl()
 {
     std::string url = "http://" + MonitorControl::m_pWebServiceInfo->ip + MonitorControl::m_pWebServiceInfo->port_device + "/webcam/?action=stream";//action=snapshot";

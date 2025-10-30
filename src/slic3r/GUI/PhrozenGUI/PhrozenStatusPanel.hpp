@@ -232,6 +232,8 @@ protected:
     void update_cloud_subtask(MachineObject *obj);
     void update_sdcard_subtask(MachineObject *obj);
     void update_temp_ctrl(MachineObject *obj);
+    void update_print_speed_ctrl(MachineObject *obj);
+    void update_fan_cooling_speed_ctrl(MachineObject *obj);
     void update_misc_ctrl(MachineObject *obj);
     void update_ams(MachineObject* obj);
     void update_ams_insert_material(MachineObject* obj);

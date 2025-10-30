@@ -414,6 +414,10 @@ private:
 public:
     virtual float GetPhrozenBedTemperature() { return 0.0f; }
     virtual float GetPhrozenNozzleTemperature() { return 0.0f; }
+    virtual float GetPhrozenPrintSpeed() { return 0.0f; }
+    virtual float GetPhrozenAuxiliaryCoolingSpeed() { return 0.0f; }
+    virtual float GetPhrozenPartCoolingSpeed() { return 0.0f; }
+    virtual float GetPhrozenShieldCoolingSpeed() { return 0.0f; }
     virtual std::string GetPhrozenWebCameraStreamUrl() { return ""; }
     virtual std::string GetPhrozenWebCameraSnapshotUrl() { return ""; }
     virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) {return false;}
