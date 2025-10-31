@@ -39,8 +39,8 @@ namespace MonitorControl{
     bool m_bDoingAction = false;
     bool m_bStartReceiving = false;
     bool m_bStartSending = false;
-    CURL* m_pCurl;
-    CURL* m_pCurl_websocket;
+    CURL* m_pCurl = nullptr;
+    CURL* m_pCurl_websocket = nullptr;
 
     std::vector<NetworkingMachineInfo> m_kNetworkingMachineInfoList;
     std::vector<HistoryInfo> m_kHistoryInfoList;

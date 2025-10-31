@@ -139,6 +139,16 @@ void PhrozenMachineObject::SetPhrozenCommand_print_speed( float fValue )
 //todo
 }
 
+bool PhrozenMachineObject::IsPhrozenConnected() 
+{
+    return MonitorControl::m_pCurl_websocket != nullptr;
+}
+
+bool PhrozenMachineObject::IsPhrozenStartReceiving() 
+{
+    return MonitorControl::m_bStartReceiving;
+}
+
 
 #if 0
 /* Common Functions */

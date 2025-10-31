@@ -201,76 +201,49 @@ void PhrozenMonitorPanel::update_all()
     //Debug
     show_status(MONITOR_NORMAL);
     if (m_status_info_panel->IsShown() && MonitorControl::m_bStartReceiving ) {
+        m_status_info_panel->SetMachineObject( obj );
         m_status_info_panel->update( wxGetApp().GetPhrozenMachineObject() );
+        
     }
-
     return;
 
-    NetworkAgent* m_agent = wxGetApp().getAgent();
-    Slic3r::DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev)
-        return;
-    obj = dev->get_selected_machine();
+#if 0
+    obj = wxGetApp().GetPhrozenMachineObject();
 
     // check valid machine
-    if (obj && dev->get_my_machine(obj->dev_id) == nullptr) {
-        dev->set_selected_machine("");
-        if (m_agent)
-            m_agent->set_user_selected_machine("");
+    if (obj && !obj->IsPhrozenConnected() ) {
+        obj->dev_ip = "";
         show_status((int)MONITOR_NO_PRINTER);
         return;
     }
 
-    //BBS check mqtt connections if user is login
-    if (wxGetApp().is_user_login()) {
-        dev->check_pushing();
-        // check mqtt connection and reconnect if disconnected
-        try {
-            m_agent->refresh_connection();
-        }
-        catch (...) {
-            ;
-        }
-    }
-
-    if (obj) {
-        wxGetApp().reset_to_active();
-        if (obj->connection_type() != last_conn_type) {
-            last_conn_type = obj->connection_type();
-        }
-    }
-
-    m_status_info_panel->obj = obj;
-    m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
-    m_side_tools->update_status(obj);
+    m_status_info_panel->SetMachineObject( obj );
+    //m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
+    //m_side_tools->update_status(obj);
 
     if (!obj) {
         show_status((int)MONITOR_NO_PRINTER);
+        //m_tabpanel->GetBtnsListCtrl()->showNewTag(3, false);
         return;
     }
 
-    if (obj->is_connecting()) {
+    if (obj->IsPhrozenConnected() && obj->IsPhrozenStartReceiving() ) {
         show_status(MONITOR_CONNECTING);
         return;
     } else if (!obj->is_connected()) {
         int server_status = 0;
-        // only disconnected server in cloud mode
-        if (obj->connection_type() != "lan") {
-            if (m_agent) {
-                server_status = m_agent->is_server_connected() ? 0 : (int)MONITOR_DISCONNECTED_SERVER;
-            }
-        }
         show_status((int) MONITOR_DISCONNECTED + server_status);
         return;
     }
 
     show_status(MONITOR_NORMAL);
 
-
     if (m_status_info_panel->IsShown()) {
         m_status_info_panel->update(obj);
     }
 
+    //update_hms_tag();
+#endif
 }
 
 bool PhrozenMonitorPanel::Show(bool show)

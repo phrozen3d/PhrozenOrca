@@ -291,7 +291,7 @@ public:
 
 public:
 
-
+    void SetMachineObject( MachineObject* pObj ) { obj = pObj; }
     MachineObject* obj{nullptr};
 
     void reset_temp_misc_control();
