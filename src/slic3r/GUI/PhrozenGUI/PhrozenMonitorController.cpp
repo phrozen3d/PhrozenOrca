@@ -32,6 +32,14 @@
 //namespace GUI {
 namespace MonitorControl{
 
+    
+void DebugOutput(const std::string& prefix, const char* message = ""  ) {
+    std::string combined = prefix + message;
+    OutputDebugStringA(combined.c_str());
+}
+
+
+
     // Define global variables
     ThreadControl threadControl;
     bool m_bUdp_ing = false;
@@ -466,12 +474,12 @@ CURLcode ReceiveResponse() {
                                 }
                                 else {
                                     m_kHistoryInfoList.clear();
-                                    std::cerr << "Invalid JSON format or missing 'jobs' array." << std::endl;
+                                    DebugOutput( "Invalid JSON format or missing 'jobs' array." );
                                 }
                             }
                         }
                         catch (const std::exception& e) {
-                            std::cerr << "Parse error: " << e.what() << std::endl;
+                            DebugOutput( "Parse error: ", e.what() );
                         }
                     }
 
@@ -580,7 +588,7 @@ CURLcode ReceiveResponse() {
                             }
                         }
                         catch (const std::invalid_argument& e) {
-                            std::cerr << "Error (input1): " << e.what() << std::endl;
+                            DebugOutput( "Error (input1): ", e.what() );
                         }
                     }
                     
@@ -613,11 +621,11 @@ CURLcode ReceiveResponse() {
             }
         }
         catch (const std::runtime_error& e) {
-            std::cout << "Error: " << e.what() << std::endl;
+            DebugOutput( "Error: " , e.what() );
         } catch (const std::invalid_argument& e) {
-            std::cerr << "Caught std::invalid_argument: " << e.what() << std::endl;
+            DebugOutput( "Caught std::invalid_argument: " , e.what() );
         } catch (const std::exception& e) {
-            std::cerr << "Caught std::exception: " << e.what() << std::endl;
+            DebugOutput( "Caught std::exception: " , e.what() );
         }
 
         //curl_easy_cleanup(curl);
@@ -651,7 +659,7 @@ CURLcode ReceiveWebCameraView( const std::string & url )
 
             CURL* curl = curl_easy_init();
             if (!curl) {
-                std::cerr << "cURL initialization failed!" << std::endl;
+                DebugOutput( "cURL initialization failed!");
                 return res;
             }
 
@@ -779,7 +787,7 @@ CURLcode CheckAMSConnection() {
         }
         else {
             BOOST_LOG_TRIVIAL(info) << "WebSocket connection failed: " << curl_easy_strerror(res) << endl;
-            std::cerr << "WebSocket connection failed: " << curl_easy_strerror(res) << std::endl;
+            DebugOutput( "WebSocket connection failed: " , curl_easy_strerror(res));
         }
 
         // Cleanup
@@ -822,7 +830,7 @@ CURLcode send_action_Command(std::string send_payload)
         //curl_easy_cleanup(curl);
     }
     catch (const std::exception& e) {
-        std::cerr << "send error: " << e.what() << std::endl;
+        DebugOutput( "send error: " , e.what());
     }
     return result;
 }
@@ -1107,19 +1115,19 @@ int DownloadProgressCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow
 int CURLDebug(CURL*, curl_infotype type, char* data, size_t size, void*) {
     switch (type) {
     case CURLINFO_TEXT:
-        std::cerr << "== Info: " << data;
+        DebugOutput( "== Info: " , data);
         break;
     case CURLINFO_HEADER_OUT:
-        std::cerr << "=> Send header: " << data;
+        DebugOutput( "=> Send header: " , data);
         break;
     case CURLINFO_DATA_OUT:
-        std::cerr << "=> Send data: " << data;
+        DebugOutput( "=> Send data: " , data);
         break;
     case CURLINFO_HEADER_IN:
-        std::cerr << "<= Recv header: " << data;
+        DebugOutput( "<= Recv header: " , data);
         break;
     case CURLINFO_DATA_IN:
-        std::cerr << "<= Recv data: " << data;
+        DebugOutput( "<= Recv data: " , data);
         break;
     default: // other information
         return 0;
@@ -1558,9 +1566,9 @@ void GetAllInfo_websocket()
         }
 
     } catch (const std::invalid_argument& e) {
-        std::cerr << "Caught std::invalid_argument: " << e.what() << std::endl;
+        DebugOutput( "Caught std::invalid_argument: " , e.what());
     } catch (const std::exception& e) {
-        std::cerr << "Caught std::exception: " << e.what() << std::endl;
+        DebugOutput( "Caught std::exception: " , e.what() );
     }
 
 }
@@ -1631,7 +1639,7 @@ void GetHistoryInfo()
             }
             else {
                 m_kHistoryInfoList.clear();
-                std::cerr << "Invalid JSON format or missing 'jobs' array." << std::endl;
+                DebugOutput( "Invalid JSON format or missing 'jobs' array." );
             }
             //inputFile.close();
         }
@@ -1697,7 +1705,7 @@ void GetThumbnailInfo(std::string gcode)
                 }
             }
             else {
-                std::cerr << "Invalid JSON format or missing 'jobs' array." << std::endl;
+                DebugOutput( "Invalid JSON format or missing 'jobs' array."  );
             }
             //inputFile.close();
         }
@@ -1848,7 +1856,7 @@ int GetMachineList()
             BOOST_LOG_TRIVIAL(info) << "UDP bytes sent" << n_bytes << endl;
 
             //if (::bind(sock, (struct sockaddr*)&destination, sizeof(destination)) < 0) {
-            //    std::cerr << "Error binding socket" << std::endl;
+            //    DebugOutput( "Error binding socket" );
             //    close(sock);
             //    return 1;
             //}
@@ -1877,7 +1885,7 @@ int GetMachineList()
 
                 ready = select(sock + 1, &readSet, NULL, NULL, &timeout);
                 if (ready < 0) {
-                    std::cerr << "Error in select()" << std::endl;
+                    DebugOutput( "Error in select()"  );
                 }
                 else if (ready == 0) {
                     std::cout << "No data received within the timeout." << std::endl;
@@ -1888,7 +1896,7 @@ int GetMachineList()
                         // Receive data from clients
                         size_t bytesRead = ::recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr*)&clientAddr, &clientAddrLen);
                         if (bytesRead < 0) {
-                            std::cerr << "Error receiving data" << std::endl;
+                            DebugOutput( "Error receiving data"  );
                             BOOST_LOG_TRIVIAL(info) << "UDP Error receiving data" << endl;
                         }
                         else {
@@ -2004,7 +2012,7 @@ CURLcode GetLEDState() {
                         }
                         else {
                             BOOST_LOG_TRIVIAL(info) << "GOT Data of CURLcode GetLEDState failed: " << endl;
-                            std::cerr << "GOT Data of CURLcode GetLEDState failed: " << std::endl;
+                            DebugOutput( "GOT Data of CURLcode GetLEDState failed: "  );
                             break;
                         }
                     }
@@ -2032,7 +2040,7 @@ CURLcode GetLEDState() {
         }
         else {
             BOOST_LOG_TRIVIAL(info) << "WebSocket connection failed: " << curl_easy_strerror(res) << endl;
-            std::cerr << "WebSocket connection failed: " << curl_easy_strerror(res) << std::endl;
+            DebugOutput( "WebSocket connection failed: " , curl_easy_strerror(res)  );
         }
 
         // Cleanup
