@@ -545,40 +545,45 @@ CURLcode ReceiveResponse() {
                         ws = m_kMonitorWindow.amsReturnError;
                     }
 
-                    try {
-                        std::tuple<std::string, std::string, std::string> pauseError = ParsePauseMessage(ws);
-                        std::string code = std::get<0>(pauseError);
-                        std::string oldCh = std::get<1>(pauseError);
-                        std::string newCh = std::get<2>(pauseError);
+                    std::string pause_prefix = "+PAUSE:";
+                    size_t pause_pos = ws.find(pause_prefix);
+                    if (pause_pos != std::string::npos) {
+                        try {
+                            std::tuple<std::string, std::string, std::string> pauseError = ParsePauseMessage(ws);
+                            std::string code = std::get<0>(pauseError);
+                            std::string oldCh = std::get<1>(pauseError);
+                            std::string newCh = std::get<2>(pauseError);
 
-                        std::cout << "Code: " << code << std::endl;
-                        std::cout << "Old Channel: " << oldCh << std::endl;
-                        std::cout << "New Channel: " << newCh << std::endl;
+                            std::cout << "Code: " << code << std::endl;
+                            std::cout << "Old Channel: " << oldCh << std::endl;
+                            std::cout << "New Channel: " << newCh << std::endl;
 
-                        //to trigger notification
-                        HandlePauseCode(code);
+                            //to trigger notification
+                            HandlePauseCode(code);
 
-                        //{ "4", &isShownLoadFilamentErrorNotification },
-                        //{ "8", &isShownUnloadFilamentErrorNotification },
-                        if (code == "4") {
-                            m_kMonitorWindow.AMSselectedID = std::stoi(newCh);
-                            m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+                            //{ "4", &isShownLoadFilamentErrorNotification },
+                            //{ "8", &isShownUnloadFilamentErrorNotification },
+                            if (code == "4") {
+                                m_kMonitorWindow.AMSselectedID = std::stoi(newCh);
+                                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+                            }
+                            else if (code == "8") {
+                                m_kMonitorWindow.AMSselectedID = std::stoi(oldCh);
+                                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+                            }
+                            
+                            m_kMonitorWindow.error_code = "[" + code +  "]";
+
+                            //only for test
+                            if (!m_kMonitorWindow.amsReturnError.empty()) {
+                                m_kMonitorWindow.amsReturnError.clear();
+                            }
                         }
-                        else if (code == "8") {
-                            m_kMonitorWindow.AMSselectedID = std::stoi(oldCh);
-                            m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
-                        }
-                        
-                        m_kMonitorWindow.error_code = "[" + code +  "]";
-
-                        //only for test
-                        if (!m_kMonitorWindow.amsReturnError.empty()) {
-                            m_kMonitorWindow.amsReturnError.clear();
+                        catch (const std::invalid_argument& e) {
+                            std::cerr << "Error (input1): " << e.what() << std::endl;
                         }
                     }
-                    catch (const std::invalid_argument& e) {
-                        std::cerr << "Error (input1): " << e.what() << std::endl;
-                    }
+                    
                 }
                 else if (res == CURLE_AGAIN)
                 {
@@ -609,7 +614,12 @@ CURLcode ReceiveResponse() {
         }
         catch (const std::runtime_error& e) {
             std::cout << "Error: " << e.what() << std::endl;
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Caught std::invalid_argument: " << e.what() << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Caught std::exception: " << e.what() << std::endl;
         }
+
         //curl_easy_cleanup(curl);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
@@ -1526,25 +1536,33 @@ void GetAllInfo_websocket()
     payload_AMS["params"]["script"] = "P114";
     payload_AMS["id"] = printer_gcode_script;
 
-    auto nowTime = std::chrono::steady_clock::now();
-    auto previousTime = std::chrono::steady_clock::now();
-    int sendcnt = 0;
-    while (m_bStartSending) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        std::lock_guard<std::mutex> lock(m_kCurlMutex);
-        CURLcode result = send_action_Command(payload.dump());
+    try {
+        auto nowTime = std::chrono::steady_clock::now();
+        auto previousTime = std::chrono::steady_clock::now();
+        int sendcnt = 0;
+        while (m_bStartSending) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::lock_guard<std::mutex> lock(m_kCurlMutex);
+            CURLcode result = send_action_Command(payload.dump());
 
-        nowTime = std::chrono::steady_clock::now();
-        long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
+            nowTime = std::chrono::steady_clock::now();
+            long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
 
-        if (timeDiff > 5 && m_pPrinterInfo->state != "printing" || sendcnt < 3)
-        {
-            sendcnt++;
-            result = send_action_Command(payload_history.dump());
-            result = send_action_Command(payload_AMS.dump());
-            previousTime = std::chrono::steady_clock::now();
+            if (timeDiff > 5 && m_pPrinterInfo->state != "printing" || sendcnt < 3)
+            {
+                sendcnt++;
+                result = send_action_Command(payload_history.dump());
+                result = send_action_Command(payload_AMS.dump());
+                previousTime = std::chrono::steady_clock::now();
+            }
         }
+
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "Caught std::invalid_argument: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Caught std::exception: " << e.what() << std::endl;
     }
+
 }
 
 void GetHistoryInfo()
