@@ -1,8 +1,9 @@
-name: Release Build & Upload
+name: Release Build & Upload (disabled)
 
 on:
-  release:
-    types: [created, published]  # Draft(建立) 與 Publish(發布) 都會觸發
+  workflow_dispatch: {}  # 因為win要手動簽章，所以先暫時關閉這個action
+  # release:
+   # types: [created, published]  # Draft(建立) 與 Publish(發布) 都會觸發
 
 permissions:
   contents: write  # 讓 gh CLI 可以上傳 Release assets
@@ -44,14 +45,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Collect only .exe and .dmg
+      - name: Collect only .dmg and Windows installer .exe
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob globstar
 
           mkdir -p release
-          files=(dist/*.dmg dist/*.exe dist/**/*.dmg dist/**/*.exe)
+          readarray -d '' files < <(find dist -type f \( -name '*.dmg' -o -name '*Installer*.exe' \) -print0)
 
           if [ ${#files[@]} -eq 0 ]; then
             echo "No .dmg/.exe found under dist/; listing tree for debugging:"
