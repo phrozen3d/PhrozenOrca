@@ -840,6 +840,7 @@ void SelectMachinePopup::OnLeftUp(wxMouseEvent &event)
         auto dc_rect = m_panel_direct_connection->ClientToScreen(wxPoint(0, 0));
         if (mouse_pos.x > dc_rect.x && mouse_pos.y > dc_rect.y && mouse_pos.x < (dc_rect.x + m_panel_direct_connection->GetSize().x) && mouse_pos.y < (dc_rect.y + m_panel_direct_connection->GetSize().y)) {
             InputIpAddressDialog dlgo;
+            dlgo.SetEnablePhrozenMonitor( true );
             dlgo.ShowModal();
         }
 

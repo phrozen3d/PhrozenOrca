@@ -1,6 +1,10 @@
 #include "PhrozenMonitorController.hpp"
 
 #include <codecvt>
+#include <iostream>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 //#include <wx/app.h>
 //#include <wx/button.h>
@@ -35,7 +39,11 @@ namespace MonitorControl{
     
 void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     std::string combined = prefix + message;
+#ifdef _WIN32
     OutputDebugStringA(combined.c_str());
+#else
+    std::cout << combined << std::endl;
+#endif
 }
 
 
