@@ -1687,9 +1687,9 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     });
 
 
-    m_spTemp_nozzle_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
-    m_spTemp_nozzle_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
 
+    m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
+    m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
     m_spTemp_heatedBed_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
     m_spTemp_heatedBed_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
 
