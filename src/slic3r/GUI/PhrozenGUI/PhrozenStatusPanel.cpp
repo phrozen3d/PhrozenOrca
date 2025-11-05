@@ -4566,7 +4566,11 @@ void PhrozenStatusPanel::on_set_nozzle_temp()
 {
     long nozzle_temp = m_spTemp_nozzle_ctrl->GetValue();
     try {
-        
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_temp_nozzle_timeout);
             

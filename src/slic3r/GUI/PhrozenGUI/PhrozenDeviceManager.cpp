@@ -5,6 +5,7 @@
 //#include "libslic3r/Thread.hpp"
 //#include "slic3r/Utils/ColorSpaceConvert.hpp"
 #include "PhrozenMonitorController.hpp"
+#include <algorithm>
 //#include "GUI_App.hpp"
 //#include "MsgDialog.hpp"
 //#include "Plater.hpp"
@@ -114,9 +115,55 @@ void PhrozenMachineObject::SetPhrozenCommand_bed_temp( int nTemp )
 {
 //todo
 }
+
 void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp ) 
 {
-//todo
+    // ============================================================================
+    // PHASE 1: Connection Status Validation
+    // ============================================================================
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_nozzle_temp: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected() 
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    // ============================================================================
+    // PHASE 2: Parameter Validation and Clamping
+    // ============================================================================
+    // Get maximum allowed temperature limit (typically 300°C)
+    int tempLimit = GetPhrozenNozzleTemperature_limit();
+
+    // std::clamp (C++17)
+    // 限制溫度值在 [0, tempLimit] 範圍內
+    const int originalTemp = nTemp;
+    nTemp = std::clamp(nTemp, 0, 70);
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_nozzle_temp: Temperature (" << originalTemp
+    << ") exceeds limit (" << tempLimit << "), clamped to " << tempLimit << ", nTemp=" << nTemp;
+
+    // ============================================================================
+    // PHASE 3: Asynchronous Command Execution
+    // ============================================================================
+    // 異常處理 (try-catch)
+    try {
+        // Lambda 表達式 (C++11)
+        std::thread threadForSetNozzleTemp([nTemp](){
+            
+            // RAII(Resource acquisition is initialization) - std::lock_guard<std::mutex> (C++11)
+            // 自動管理互斥鎖生命週期，確保執行緒安全
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            // Send command to printer firmware (firmware queue handles execution order)
+            MonitorControl::SetExtruderTemperature(nTemp);
+        });
+        
+        // std::thread::detach() - Fire-and-forget 異步執行模式
+        threadForSetNozzleTemp.detach();
+    }
+    // 異常處理 - catch (const std::exception& e) 按常量引用捕獲
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_temp: Failed to create thread: " << e.what();
+    }
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_cooling_auxiliary( int nPower ) 

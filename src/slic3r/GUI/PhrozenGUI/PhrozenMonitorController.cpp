@@ -114,6 +114,7 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     bool m_bIsCameraOn = false;
     bool m_bConnectionInitial = false;
     std::mutex m_kCurlMutex;
+    std::mutex m_kCommandMutex;
     bool m_bIsConnetedToAMS = false;
     WebCamImageDataThreadHandler WebCamDataHandler = {};
 

@@ -783,6 +783,7 @@ struct WebCamImageDataThreadHandler
     extern bool m_bIsCameraOn;
     extern bool m_bConnectionInitial;
     extern std::mutex m_kCurlMutex;
+    extern std::mutex m_kCommandMutex;
     extern bool m_bIsConnetedToAMS;
     extern WebCamImageDataThreadHandler WebCamDataHandler;
 
