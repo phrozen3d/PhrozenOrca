@@ -2,6 +2,21 @@
 
 #include <codecvt>
 #include <iostream>
+#ifdef __APPLE__
+#include <thread>
+#include <chrono>
+#include <cstdlib>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/sysctl.h>
+#include <net/route.h>
+#include <net/if_dl.h>
+#include <net/if_arp.h>
+#include <netinet/if_ether.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -141,6 +156,127 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
         return written;
     };
 
+#ifdef __APPLE__
+// macOS 特定：檢查 ARP 表中是否存在目標 IP
+bool CheckArpEntryExists(const std::string& target_ip) {
+    struct in_addr target;
+    if (inet_aton(target_ip.c_str(), &target) == 0) {
+        return false;
+    }
+    
+    // 查詢 ARP 表
+    size_t needed = 0;
+    int mib[6] = {CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO};
+    
+    if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+        return false;
+    }
+    
+    if (needed == 0) {
+        return false;
+    }
+    
+    char* buf = (char*)malloc(needed);
+    if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+        free(buf);
+        return false;
+    }
+    
+    // 解析 ARP 表，查找目標 IP
+    char* lim = buf + needed;
+    char* next = buf;
+    
+    while (next < lim) {
+        struct rt_msghdr* rtm = (struct rt_msghdr*)next;
+        next += rtm->rtm_msglen;
+        
+        if (rtm->rtm_type != RTM_GET) {
+            continue;
+        }
+        
+        struct sockaddr_inarp* sin = (struct sockaddr_inarp*)(rtm + 1);
+        
+        if (sin->sin_addr.s_addr == target.s_addr) {
+            // 找到 ARP 條目
+            free(buf);
+            return true;
+        }
+    }
+    
+    free(buf);
+    return false;
+}
+
+// macOS 特定：等待 ARP 表更新，直到目標 IP 出現或超時
+bool WaitForArpResolution(const std::string& target_ip, int max_wait_ms) {
+    auto start_time = std::chrono::steady_clock::now();
+    
+    while (true) {
+        // 檢查 ARP 表中是否存在目標 IP
+        if (CheckArpEntryExists(target_ip)) {
+            auto elapsed = std::chrono::steady_clock::now() - start_time;
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+            printf("ARP entry found in table after %lld ms\n", elapsed_ms);
+            return true;
+        }
+        
+        // 檢查超時
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() > max_wait_ms) {
+            printf("ARP entry not found after %d ms timeout\n", max_wait_ms);
+            return false;
+        }
+        
+        // 等待一小段時間後重試
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+}
+
+// macOS 特定：使用 socket 直接觸發 ARP 解析並等待完成
+bool TriggerArpResolution(const std::string& target_ip) {
+    if (target_ip.empty()) {
+        return false;
+    }
+    
+    // 使用 socket API 直接觸發 ARP，讓系統自動完成解析
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        printf("Failed to create socket for ARP resolution\n");
+        return false;
+    }
+    
+    // 設置較長的超時時間，等待 ARP 完成
+    struct timeval timeout;
+    timeout.tv_sec = 2;  // 2 秒超時
+    timeout.tv_usec = 0;
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    
+    // 構造目標地址（使用一個不存在的端口，觸發 ARP 但不會真正連接）
+    struct sockaddr_in target_addr;
+    memset(&target_addr, 0, sizeof(target_addr));
+    target_addr.sin_family = AF_INET;
+    target_addr.sin_port = htons(1);  // 端口 1 通常不會有服務
+    inet_aton(target_ip.c_str(), &target_addr.sin_addr);
+    
+    // 嘗試連接（會觸發 ARP 解析，系統會自動等待 ARP 完成）
+    // 即使連接失敗（端口不存在），ARP 解析也會完成
+    int result = connect(sock, (struct sockaddr*)&target_addr, sizeof(target_addr));
+    
+    close(sock);
+    
+    // 無論連接成功與否，ARP 解析都會被觸發
+    // 給系統一點時間確保 ARP 表已更新
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    printf("ARP resolution triggered via socket (connect result: %d)\n", result);
+    BOOST_LOG_TRIVIAL(info) << "ARP resolution triggered for " << target_ip
+                            << " (socket connect result: " << result << ")";
+    
+    return true;
+}
+#endif
+
 CURLcode Initialconnect()
 {
     CURLcode res = CURLE_FAILED_INIT;
@@ -196,6 +332,20 @@ CURLcode Initialconnect()
 
         std::string url = "ws://" + m_pWebServiceInfo->ip + ":" + m_pWebServiceInfo->port + "/websocket";
         printf("Attempting WebSocket connection to: %s\n", url.c_str());
+
+#ifdef __APPLE__
+        // 使用 socket API 觸發 ARP 並等待完成（內部已包含等待）
+        TriggerArpResolution(m_pWebServiceInfo->ip);
+        
+        // 等待 ARP 表更新，確認 ARP 解析完成（最多等待 1000ms）
+        if (WaitForArpResolution(m_pWebServiceInfo->ip, 1000)) {
+            printf("ARP resolution completed, ARP entry confirmed in table\n");
+        } else {
+            printf("ARP resolution may not be complete, but proceeding with connection\n");
+            // 即使 ARP 表檢查失敗，也繼續連接（可能 ARP 表更新有延遲）
+        }
+        printf("Proceeding with WebSocket connection\n");
+#endif
 
         // Set CURL options
         curl_easy_setopt(m_pCurl_websocket, CURLOPT_URL, url.c_str());

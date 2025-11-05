@@ -727,6 +727,9 @@ struct WebCamImageDataThreadHandler
 #pragma region PhrozenMonitorController
     CURLcode Initialconnect();
     void SetIp( const std::string& strIp );
+    bool CheckArpEntryExists(const std::string& target_ip);
+    bool WaitForArpResolution(const std::string& target_ip, int max_wait_ms = 1000);
+    bool TriggerArpResolution(const std::string& target_ip);
 
     extern ThreadControl threadControl;
     extern bool m_bUdp_ing;
