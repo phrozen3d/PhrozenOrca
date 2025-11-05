@@ -137,7 +137,7 @@ void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
     // std::clamp (C++17)
     // 限制溫度值在 [0, tempLimit] 範圍內
     const int originalTemp = nTemp;
-    nTemp = std::clamp(nTemp, 0, 70);
+    nTemp = std::clamp(nTemp, 0, tempLimit);
     BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_nozzle_temp: Temperature (" << originalTemp
     << ") exceeds limit (" << tempLimit << "), clamped to " << tempLimit << ", nTemp=" << nTemp;
 
