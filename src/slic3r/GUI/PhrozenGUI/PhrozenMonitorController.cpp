@@ -42,6 +42,8 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
 #ifdef _WIN32
     OutputDebugStringA(combined.c_str());
 #else
+    // to do
+    // need to modify/create a version for macOS to achieve the same effect as Windows.
     std::cout << combined << std::endl;
 #endif
 }
