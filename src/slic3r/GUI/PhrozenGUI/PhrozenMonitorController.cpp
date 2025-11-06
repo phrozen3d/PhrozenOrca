@@ -2313,9 +2313,9 @@ CURLcode SetAuxiliaryFanSpeed(int value)
     return result;
 }
 
-CURLcode SetFanSpeed(int value)
+CURLcode SetPartFanSpeed(int value)
 {
-    std::string script = "M106 S" + std::to_string(value);
+    std::string script = "M106 P1 S" + std::to_string(value);
     CURLcode result = doAction("printer.gcode.script", script, printer_gcode_script);
     return result;
 }

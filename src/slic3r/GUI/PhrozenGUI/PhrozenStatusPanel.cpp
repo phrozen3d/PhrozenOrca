@@ -1502,11 +1502,11 @@ float PhrozenStatusBasePanel::print_speed_enum_to_percent( PhrozenPrintSpeed eLe
     float fPercentage = 0.9f;
     switch( eLevel )
     {
-        case PhrozenPrintSpeed::Silent: fPercentage = 0.4f; break;
-        case PhrozenPrintSpeed::Quite: fPercentage = 0.7f; break;
-        case PhrozenPrintSpeed::Standard: fPercentage = 0.9f; break;
-        case PhrozenPrintSpeed::Fast: fPercentage = 1.1f; break;
-        case PhrozenPrintSpeed::Turbo: fPercentage = 1.3f; break;
+        case PhrozenPrintSpeed::Silent: fPercentage = 0.5f; break;
+        case PhrozenPrintSpeed::Quite: fPercentage = 0.8f; break;
+        case PhrozenPrintSpeed::Standard: fPercentage = 1.0f; break;
+        case PhrozenPrintSpeed::Fast: fPercentage = 1.2f; break;
+        case PhrozenPrintSpeed::Turbo: fPercentage = 1.5f; break;
         default:
             assert( 0 && "not implement" );
     }
@@ -1690,17 +1690,17 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
     m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
     m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
-    m_spTemp_heatedBed_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
-    m_spTemp_heatedBed_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
+    m_spTemp_heatedBed_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
+    m_spTemp_heatedBed_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
 
-    m_spCooling_auxiliary_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_kill_focus), NULL, this);
-    m_spCooling_auxiliary_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_set_focus), NULL, this);
+    m_spCooling_auxiliary_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_kill_focus), NULL, this);
+    m_spCooling_auxiliary_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_set_focus), NULL, this);
 
-    m_spCooling_part_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_kill_focus), NULL, this);
-    m_spCooling_part_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_set_focus), NULL, this);
+    m_spCooling_part_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_kill_focus), NULL, this);
+    m_spCooling_part_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_set_focus), NULL, this);
 
-    m_spCooling_shield_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_kill_focus), NULL, this);
-    m_spCooling_shield_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_set_focus), NULL, this);
+    m_spCooling_shield_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_kill_focus), NULL, this);
+    m_spCooling_shield_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_set_focus), NULL, this);
     
     //m_tempCtrl_chamber->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_kill_focus), NULL, this);
     //m_tempCtrl_chamber->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_set_focus), NULL, this);
@@ -4609,6 +4609,11 @@ void PhrozenStatusPanel::on_set_bed_temp()
 {
     long bed_temp = m_spTemp_heatedBed_ctrl->GetValue();
     try {
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_temp_bed_timeout);
             int limit = obj->GetPhrozenBedTemperature_limit();
@@ -4650,6 +4655,11 @@ void PhrozenStatusPanel::on_set_cooling_auxiliary()
 {
     long bed_temp = m_spCooling_auxiliary_ctrl->GetValue();
     try {
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_cooling_auxiliary_timeout);
             int limit = obj->GetPhrozenCoolingPower_limit();
@@ -4671,6 +4681,11 @@ void PhrozenStatusPanel::on_set_cooling_part()
 {
     long bed_temp = m_spCooling_part_ctrl->GetValue();
     try {
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_cooling_part_timeout);
             int limit = obj->GetPhrozenCoolingPower_limit();
@@ -4692,6 +4707,11 @@ void PhrozenStatusPanel::on_set_cooling_shield()
 {
     long bed_temp = m_spCooling_shield_ctrl->GetValue();
     try {
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_cooling_shield_timeout);
             int limit = obj->GetPhrozenCoolingPower_limit();
@@ -4712,6 +4732,11 @@ void PhrozenStatusPanel::on_set_cooling_shield()
 void PhrozenStatusPanel::on_print_speed_changed( PhrozenPrintSpeed eLevel )
 {
     try {
+#ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+#endif
         if (obj) {
             set_hold_count(m_print_speed_timeout);
             obj->SetPhrozenCommand_print_speed( print_speed_enum_to_percent( eLevel ) );

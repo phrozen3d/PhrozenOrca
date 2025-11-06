@@ -6,6 +6,7 @@
 //#include "slic3r/Utils/ColorSpaceConvert.hpp"
 #include "PhrozenMonitorController.hpp"
 #include <algorithm>
+#include <cmath>
 //#include "GUI_App.hpp"
 //#include "MsgDialog.hpp"
 //#include "Plater.hpp"
@@ -113,7 +114,33 @@ int PhrozenMachineObject::GetPhrozenNozzleTemperature_limit()
 
 void PhrozenMachineObject::SetPhrozenCommand_bed_temp( int nTemp ) 
 {
-//todo
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_bed_temp: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    int tempLimit = GetPhrozenBedTemperature_limit();
+
+    const int originalTemp = nTemp;
+    nTemp = std::clamp(nTemp, 0, tempLimit);
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_bed_temp: Temperature (" << originalTemp
+    << ") exceeds limit (" << tempLimit << "), clamped to " << tempLimit << ", nTemp=" << nTemp;
+
+    try {
+        std::thread threadForSetBedTemp([nTemp](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::SetBedTemperature(nTemp);
+        });
+        
+        threadForSetBedTemp.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_bed_temp: Failed to create thread: " << e.what();
+    }
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp ) 
@@ -168,22 +195,170 @@ void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
 
 void PhrozenMachineObject::SetPhrozenCommand_cooling_auxiliary( int nPower ) 
 {
-//todo
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_cooling_auxiliary: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    int powerLimit = GetPhrozenCoolingPower_limit();
+
+    const int originalPower = nPower;
+    nPower = std::clamp(nPower, 0, powerLimit);
+    // 將 UI 百分比值轉換為機器命令所需的數值範圍
+    // 原因：
+    //   - UI 輸入範圍：0-100（百分比值，更容易用戶理解）
+    //   - 機器命令範圍：0-255（M106 標準風扇速度範圍，符合 Klipper 規範）
+    //   - 必須進行數值轉換才能正確發送命令給機器
+    // 方式：
+    //   - 使用轉換係數 2.55 (255/100 = 2.55)
+    //   - 將百分比值乘以 2.55 得到對應的機器值
+    //   - 使用 std::ceil 進行無條件進位（向上取整），確保用戶輸入的數值與實際調整的數值一致
+    //   - 這樣可以讓用戶在 UI 輸入的值對應到機器實際設定的值，避免用戶輸入 50% 但機器只設定到 49.x% 的情況
+    // 效果：
+    //   - UI 輸入 0   → 機器收到 0   (ceil(0 * 2.55) = ceil(0) = 0)
+    //   - UI 輸入 50  → 機器收到 128 (ceil(50 * 2.55) = ceil(127.5) = 128)
+    //   - UI 輸入 100 → 機器收到 255 (ceil(100 * 2.55) = ceil(255) = 255)
+    // 範例：
+    //   用戶在 UI 輸入 50%（表示 50% 風扇速度）
+    //   → nPower = 50 (clamp 後)
+    //   → machinePower = ceil(50 * 2.55) = ceil(127.5) = 128
+    //   → 發送給機器：M106 P2 S128
+    int machinePower = std::ceil(nPower * 2.55);
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_cooling_auxiliary: Power (" << originalPower
+    << ") exceeds limit (" << powerLimit << "), clamped to " << nPower << ", converted to machine value: " << machinePower;
+
+    try {
+        std::thread threadForSetCoolingAuxiliary([machinePower](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::SetAuxiliaryFanSpeed(machinePower);
+        });
+        
+        threadForSetCoolingAuxiliary.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_cooling_auxiliary: Failed to create thread: " << e.what();
+    }
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_cooling_part( int nPower ) 
 {
-//todo
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_cooling_part: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    int powerLimit = GetPhrozenCoolingPower_limit();
+
+    const int originalPower = nPower;
+    nPower = std::clamp(nPower, 0, powerLimit);
+    //需要執行換算的原因，細節請參閱void PhrozenMachineObject::SetPhrozenCommand_cooling_auxiliary( int nPower )
+    int machinePower = std::ceil(nPower * 2.55);
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_cooling_part: Power (" << originalPower
+    << ") exceeds limit (" << powerLimit << "), clamped to " << nPower << ", converted to machine value: " << machinePower;
+
+    try {
+        std::thread threadForSetCoolingPart([machinePower](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::SetPartFanSpeed(machinePower);
+        });
+        
+        threadForSetCoolingPart.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_cooling_part: Failed to create thread: " << e.what();
+    }
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_cooling_shield( int nPower ) 
 {
-//todo
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_cooling_shield: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    int powerLimit = GetPhrozenCoolingPower_limit();
+
+    const int originalPower = nPower;
+    nPower = std::clamp(nPower, 0, powerLimit);
+    //需要執行換算的原因，細節請參閱void PhrozenMachineObject::SetPhrozenCommand_cooling_auxiliary( int nPower )
+    int machinePower = std::ceil(nPower * 2.55);
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_cooling_shield: Power (" << originalPower
+    << ") exceeds limit (" << powerLimit << "), clamped to " << nPower << ", converted to machine value: " << machinePower;
+
+    try {
+        std::thread threadForSetCoolingShiled([machinePower](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::SetShieldFanSpeed(machinePower);
+        });
+        
+        threadForSetCoolingShiled.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_cooling_shield: Failed to create thread: " << e.what();
+    }
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_print_speed( float fValue )
 {
-//todo
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_print_speed: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+
+    // 將 float 速度倍數值轉換為 int 百分比值
+    // 原因：
+    //   - SetPrintSpeed() 函數接收 int 類型參數
+    //   - M220 S 命令需要整數百分比值（例如 S80 表示 80%）
+    //   - print_speed_enum_to_percent() 將 UI 的五種速度模式轉換為 float 倍數值：
+    //     * Silent: 0.5 (50%)
+    //     * Quite: 0.8 (80%)
+    //     * Standard: 1.0 (100%)
+    //     * Fast: 1.2 (120%)
+    //     * Turbo: 1.5 (150%)
+    // 方式：
+    //   - 直接將 float 倍數值乘以 100 後使用 std::round 進行四捨五入，轉換為整數百分比值
+    //   - 使用標準的四捨五入轉換方法，簡單且高效
+    // 效果：
+    //   - 0.5 → 50 (Silent 模式 → 50%)
+    //   - 0.8 → 80 (Quite 模式 → 80%)
+    //   - 1.0 → 100 (Standard 模式 → 100%)
+    //   - 1.2 → 120 (Fast 模式 → 120%)
+    //   - 1.5 → 150 (Turbo 模式 → 150%)
+    // 將速度倍數值轉換為百分比整數值
+    int speedPercent = std::round(fValue * 100.0f);
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_print_speed: Speed (" << fValue << ")" 
+                            << ", converted to percent: " << speedPercent;
+
+    try {
+        std::thread threadForSetPrintSpeed([speedPercent](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::SetPrintSpeed(speedPercent);
+        });
+        
+        threadForSetPrintSpeed.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_print_speed: Failed to create thread: " << e.what();
+    }
 }
 
 bool PhrozenMachineObject::IsPhrozenConnected() 

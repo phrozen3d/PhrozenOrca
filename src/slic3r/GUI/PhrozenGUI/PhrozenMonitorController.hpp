@@ -856,11 +856,11 @@ struct WebCamImageDataThreadHandler
     
     CURLcode SetAuxiliaryFanSpeed(int value);
     
-    CURLcode SetFanSpeed(int value);
+    CURLcode SetPartFanSpeed(int value);
     
     CURLcode SetShieldFanSpeed(int value);
     
-    CURLcode SetPrintSpeed(int value);
+    CURLcode SetPrintSpeed(int value);    
     
     CURLcode MoveHead(std::string direction, float value);
     
