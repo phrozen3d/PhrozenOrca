@@ -2514,7 +2514,7 @@ void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
         if (!cooling_part_input) { update_cooling_part_target_power( current_part_cooling ); }
     }
 
-    update_cooling_shield_target_power( current_shield_cooling );
+    update_cooling_shield_current_power( current_shield_cooling );
     if (m_cooling_shield_timeout > 0) {
         m_cooling_shield_timeout--;
     } else {
