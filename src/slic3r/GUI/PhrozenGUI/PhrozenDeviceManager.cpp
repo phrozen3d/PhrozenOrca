@@ -361,6 +361,63 @@ void PhrozenMachineObject::SetPhrozenCommand_print_speed( float fValue )
     }
 }
 
+void PhrozenMachineObject::SetPhrozenCommand_nozzle_movement( std::string direction, float fValue )
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_nozzle_movement: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_nozzle_movement: direction (" << direction << "), movement (" << fValue << ")";
+
+    try {
+        std::thread threadForSetNozzleMovement([direction, fValue](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            if(direction == "home_xy"){
+                MonitorControl::homeXY();
+            }
+            else{
+                MonitorControl::MoveHead(direction, fValue);
+            }
+        });
+        
+        threadForSetNozzleMovement.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_movement: Failed to create thread: " << e.what();
+    }
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_nozzle_offset( float fValue )
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_nozzle_offset: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_nozzle_offset: movement (" << fValue << ")";
+
+    try {
+        std::thread threadForSetNozzleMovement([fValue](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::zoffset(fValue);
+        });
+        
+        threadForSetNozzleMovement.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_offset: Failed to create thread: " << e.what();
+    }
+}
+
 bool PhrozenMachineObject::IsPhrozenConnected() 
 {
     return MonitorControl::m_pCurl_websocket != nullptr;

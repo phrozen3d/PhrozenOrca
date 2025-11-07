@@ -848,7 +848,7 @@ struct WebCamImageDataThreadHandler
     
     bool homeZ_http();
     
-    CURLcode zoffset(int value);
+    CURLcode zoffset(float value);
     
     CURLcode SetExtruderTemperature(int value);
     

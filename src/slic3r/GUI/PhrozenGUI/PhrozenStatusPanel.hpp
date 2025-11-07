@@ -63,7 +63,7 @@ enum class PhrozenNozzleMoveRange : int32_t
     Range_10_MM
 };
 
-enum class PhrozenPrintBedMoveRange : int32_t
+enum class PhrozenPrintNozzleOffsetRange : int32_t
 {
     Range_0005_MM,
     Range_001_MM,
@@ -80,8 +80,9 @@ enum class PhrozenMovement : int32_t
     Nozzle_Z_Positive,
     Nozzle_Z_Negative,
     Nozzle_Home,
-    Bed_Z_Positive,
-    Bed_Z_Negative,
+    Nozzle_Home_XY,
+    Nozzle_Offset_Positive,
+    Nozzle_Offset_Negative,
 };
 
 class PhrozenStatusBasePanel : public wxScrolledWindow//StatusBasePanel
@@ -368,7 +369,7 @@ public:
     std::unordered_map< PhrozenNozzleMoveRange, wxToggleButton* > m_kNozzleMovementRangeButtons;
 
     //bed(z-offet) movement ragne
-    std::unordered_map< PhrozenPrintBedMoveRange, wxToggleButton* > m_kBedMovementRangeButtons;
+    std::unordered_map< PhrozenPrintNozzleOffsetRange, wxToggleButton* > m_kNozzleOffsetRangeButtons;
 
     // manual movement
     std::unordered_map< PhrozenMovement, wxBitmapButton* > m_kManualMovementButtons;
@@ -397,7 +398,7 @@ public:
     float print_speed_enum_to_percent( PhrozenPrintSpeed eLevel );
 
     float get_selected_nozzle_movement_range();
-    float get_selected_bed_movement_range();
+    float get_selected_nozzle_offset_range();
 
 
 
@@ -598,7 +599,7 @@ protected:
     void on_print_speed_changed( PhrozenPrintSpeed eLevel ); 
 
     void on_nozzle_movement_range_mouse_left_down( wxMouseEvent& event );
-    void on_bed_movement_range_mouse_left_down( wxMouseEvent& event );
+    void on_nozzle_offset_range_mouse_left_down( wxMouseEvent& event );
     void on_manual_movement_changed( PhrozenMovement eMoveType );
 
 

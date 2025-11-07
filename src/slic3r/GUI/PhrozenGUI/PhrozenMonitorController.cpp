@@ -2285,9 +2285,9 @@ bool homeZ_http()
     return doAction_http("G28 Z", "ok", 10);
 }
 
-CURLcode zoffset(int value)
+CURLcode zoffset(float value)
 {
-    std::string script = "SET_GCODE_OFFSET Z_ADJUST=" + std::to_string(value);
+    std::string script = "SET_GCODE_OFFSET Z_ADJUST=" + std::to_string(value) + " MOVE=1";
     CURLcode result = doAction("printer.gcode.script", script, printer_gcode_script);
     return result;
 }

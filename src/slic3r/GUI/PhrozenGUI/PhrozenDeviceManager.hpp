@@ -36,6 +36,8 @@ public:
     virtual void SetPhrozenCommand_cooling_part( int nPower ) override;
     virtual void SetPhrozenCommand_cooling_shield( int nPower ) override;
     virtual void SetPhrozenCommand_print_speed( float fValue ) override;
+    virtual void SetPhrozenCommand_nozzle_movement( std::string ,float fValue ) override;
+    virtual void SetPhrozenCommand_nozzle_offset(float fValue ) override;
 
     virtual bool IsPhrozenConnected() override;
     virtual bool IsPhrozenStartReceiving() override;
