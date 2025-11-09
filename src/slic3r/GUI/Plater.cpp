@@ -7247,7 +7247,7 @@ void Plater::priv::on_action_print_plate(SimpleEvent&)
     }
 
     PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
-    if (preset_bundle.use_bbl_network()) {
+    if (preset_bundle.use_bbl_network() || preset_bundle.is_phrozen_vendor() ) {
         // BBS
         if (!m_select_machine_dlg)
             m_select_machine_dlg = new SelectMachineDialog(q);

@@ -1713,6 +1713,24 @@ wxBoxSizer* MainFrame::create_side_tools()
             }
             else {
                 //Phrozen Orca Buttons
+                if ( wxGetApp().preset_bundle->is_phrozen_vendor() )
+                {
+                    // upload and print
+                    SideButton* send_gcode_btn = new SideButton(p, _L("Print"), "");
+                    send_gcode_btn->SetCornerRadius(0);
+                    send_gcode_btn->SetCornerRadius(0);
+                    send_gcode_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Print"));
+                        m_print_select = eSendGcode;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                    });
+                    p->append_button(send_gcode_btn);
+                }
+
+
                 SideButton* print_plate_btn = new SideButton(p, _L("Print plate"), "");
                 print_plate_btn->SetCornerRadius(0);
 
