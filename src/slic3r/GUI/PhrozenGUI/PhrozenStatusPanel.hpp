@@ -36,7 +36,7 @@
 
 namespace Slic3r {
 namespace GUI {
-
+class AMSGroupPanel;
 
 enum class PhrozenParamControl : int32_t
 {
@@ -240,8 +240,6 @@ public:
     wxBoxSizer*     m_ams_list;
     wxStaticText *  m_ams_debug;
     bool            m_show_ams_group{false};
-    AMSControl*     m_ams_control;
-    StaticBox*      m_ams_control_box;
     wxStaticBitmap *m_ams_extruder_img;
     wxStaticBitmap* m_bitmap_extruder_img;
     wxPanel *       m_panel_separator_right;
@@ -342,6 +340,7 @@ public:
     ScalableBitmap m_Control_z_title;
     ScalableBitmap m_Control_z_nozzle;
 
+    AMSGroupPanel* m_pAmsPanel{nullptr};
 
     //Temperature
     std::unique_ptr< wxStaticText > m_spTemp_nozzle;
@@ -414,11 +413,9 @@ protected:
     std::shared_ptr<ImageTransientPopup> m_image_popup;
     std::shared_ptr<CameraPopup> m_camera_popup;
     std::set<int> rated_model_id;
-    AMSSetting *m_ams_setting_dlg{nullptr};
     PrinterPartsDialog*  print_parts_dlg { nullptr };
     PrintOptionsDialog*  print_options_dlg { nullptr };
     CalibrationDialog*   calibration_dlg {nullptr};
-    AMSMaterialsSetting *m_filament_setting_dlg{nullptr};
 
     PrintErrorDialog* m_print_error_dlg = nullptr;
     SecondaryCheckDialog* m_print_error_dlg_no_action = nullptr;
@@ -429,8 +426,6 @@ protected:
      
     FanControlPopup* m_fan_control_popup{nullptr};
 
-    ExtrusionCalibration *m_extrusion_cali_dlg{nullptr};
-
     wxString     m_request_url;
     bool         m_start_loading_thumbnail = false;
     bool         m_load_sdcard_thumbnail = false;
@@ -440,7 +435,6 @@ protected:
     int          m_last_extrusion = -1;
     int          m_last_vcamera   = -1;
     int          m_model_mall_request_count = 0;
-    bool         m_is_load_with_temp = false;
     json         m_rating_result;
 
     wxWebRequest web_request;
@@ -492,20 +486,7 @@ protected:
 	void on_start_unload(wxCommandEvent &event);
 
     /* extruder apis */
-    void on_ams_load(SimpleEvent &event);
-    void update_filament_step();
-    void on_ams_load_curr();
-    void on_ams_load_vams(wxCommandEvent& event);
-    void on_ams_unload(SimpleEvent &event);
-    void on_ams_filament_backup(SimpleEvent& event);
-    void on_ams_setting_click(SimpleEvent& event);
-    void on_filament_edit(wxCommandEvent &event);
-    void on_ext_spool_edit(wxCommandEvent &event);
-    void on_filament_extrusion_cali(wxCommandEvent &event);
-    void on_ams_refresh_rfid(wxCommandEvent &event);
-    void on_ams_selected(wxCommandEvent &event);
     void on_ams_guide(wxCommandEvent &event);
-    void on_ams_retry(wxCommandEvent &event);
     void on_print_error_done(wxCommandEvent& event);
 
     void on_fan_changed(wxCommandEvent& event);
@@ -543,9 +524,7 @@ protected:
     void update_fan_cooling_speed_ctrl(MachineObject *obj);
     void update_misc_ctrl(MachineObject *obj);
     void update_ams(MachineObject* obj);
-    void update_ams_insert_material(MachineObject* obj);
     void update_extruder_status(MachineObject* obj);
-    void update_ams_control_state(bool is_curr_tray_selected);
     void update_cali(MachineObject* obj);
     void update_calib_bitmap();
 
@@ -626,16 +605,8 @@ public:
         STATE_COUNT = 4
     };
 
-    BBLSubTask *   last_subtask{nullptr};
     std::string    last_profile_id;
     std::string    last_task_id;
-    long           last_tray_exist_bits { -1 };
-    long           last_ams_exist_bits { -1 };
-    long           last_tray_is_bbl_bits{ -1 };
-    long           last_read_done_bits{ -1 };
-    long           last_reading_bits { -1 };
-    long           last_ams_version { -1 };
-    int            last_cali_version{-1};
 
     enum ThumbnailState task_thumbnail_state {ThumbnailState::PLACE_HOLDER};
     std::vector<int> last_stage_list_info;
