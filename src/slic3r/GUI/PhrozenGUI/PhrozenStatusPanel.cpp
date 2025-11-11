@@ -2737,11 +2737,11 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
 
     if ( !obj )
     {
-        m_pAmsPanel->SetFilamentInputType( FilementInputType::Empty );
+        m_pAmsPanel->SetFilamentInputType( FilamentInputType::Empty );
         return;
     }
 
-    m_pAmsPanel->SetFilamentInputType( (FilementInputType)ff );// force enable to test
+    m_pAmsPanel->SetFilamentInputType( (FilamentInputType)ff );// force enable to test
     m_pAmsPanel->SetSlotState( 0, AMSSlotState::Loading );
     m_pAmsPanel->SetSlotState( 2, AMSSlotState::Loading );
 

@@ -30,7 +30,7 @@ struct AMSSlotConfig {
     {}
 };
 
-enum class FilementInputType {
+enum class FilamentInputType {
     Empty,      // No filament connect
     AMS,        // multi filament
     Spool       // single filament
@@ -66,7 +66,7 @@ public:
     
     void msw_rescale();
 
-    void SetFilamentInputType( const FilementInputType& eType );
+    void SetFilamentInputType( const FilamentInputType& eType );
 
 protected:
     // Event handlers
@@ -94,7 +94,7 @@ protected:
 private:
     static const int SLOT_COUNT = 4;
 
-    FilementInputType m_eInputType;
+    FilamentInputType m_eInputType;
 
     // Slot configurations
     AMSSlotConfig m_slot_configs[SLOT_COUNT];

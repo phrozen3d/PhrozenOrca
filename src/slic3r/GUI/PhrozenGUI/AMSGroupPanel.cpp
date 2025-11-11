@@ -20,7 +20,7 @@ AMSGroupPanel::AMSGroupPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos
     , m_slot_outline_selected(0xFF, 0x7C, 0x3F)
     , m_line_color(0x82, 0x82, 0x80)
     , m_feed_port_color(0xCF, 0xD2, 0xD3)
-    , m_eInputType( FilementInputType::Empty )
+    , m_eInputType( FilamentInputType::Empty )
     , m_text_color(0x82, 0x82, 0x80)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
@@ -87,7 +87,7 @@ void AMSGroupPanel::msw_rescale()
     Refresh();
 }
 
-void AMSGroupPanel::SetFilamentInputType( const FilementInputType& eType )
+void AMSGroupPanel::SetFilamentInputType( const FilamentInputType& eType )
 {
     m_eInputType = eType;
     Refresh();
@@ -142,7 +142,7 @@ void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
     // <!-- panel -->
     // Modified from original SVG: <rect x="7" width="282" height="168" rx="10" fill="#EEEEEE"/>
     // Changed to x="0" width="289" to make panel edges align with parent sides
-    float fOpacity = m_eInputType == FilementInputType::AMS ? 1.0 : 0.3;
+    float fOpacity = m_eInputType == FilamentInputType::AMS ? 1.0 : 0.3;
     auto panel_bg = wxColor( m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity);
     gc->SetBrush(wxBrush(panel_bg));
     gc->SetPen(*wxTRANSPARENT_PEN);
@@ -173,7 +173,7 @@ void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double 
     double outline_x = x_offset;
     double outline_y = 32;
 
-    bool bIsEnable = ( m_eInputType == FilementInputType::AMS ) && ( config.state == AMSSlotState::Loading );
+    bool bIsEnable = ( m_eInputType == FilamentInputType::AMS ) && ( config.state == AMSSlotState::Loading );
 
     // Draw light circle (always draw, color determines state)
     DrawLightCircle(gc, light_cx, light_cy, slot_index, bIsEnable);
@@ -506,7 +506,7 @@ void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
     gc->FillPath(path);
     gc->StrokePath(path);
 
-    float fOpacity = m_eInputType == FilementInputType::AMS ? 1.0 : 0.3;
+    float fOpacity = m_eInputType == FilamentInputType::AMS ? 1.0 : 0.3;
     auto line_color = wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity );
     //wxPen pen(m_line_color, line_width_disable);
     wxPen pen(line_color, line_width_disable);
@@ -589,7 +589,7 @@ int AMSGroupPanel::HitTestSlot(const wxPoint& pos) const
 
 void AMSGroupPanel::DrawSpoolHolder(wxGraphicsContext* gc)
 {
-    float fOpacity = m_eInputType == FilementInputType::Spool ? 1.0 : 0.3;
+    float fOpacity = m_eInputType == FilamentInputType::Spool ? 1.0 : 0.3;
     auto panel_bg_color = wxColor( m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity );
     auto text_color = wxColor( m_text_color.Red(), m_text_color.Green(), m_text_color.Blue(), 255 * fOpacity );
 
