@@ -1071,34 +1071,37 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     tips_panel->SetSizer(tips_sizer);
     frame_sizer->Add(tips_panel, 0, wxALL, FromDIP(12));
 
-    m_pAmsPanel = new AMSGroupPanel(frame_panel, wxID_ANY);
+    // Create vertical layout for AMS panel and button
+    auto ams_vertical_sizer = new wxBoxSizer(wxVERTICAL);
 
-    frame_sizer->Add(m_pAmsPanel, 1, wxEXPAND | wxALL, FromDIP(12) );
-    frame_panel->SetSizer(frame_sizer);
+    m_pAmsPanel = new AMSGroupPanel(frame_panel, wxID_ANY);
+    ams_vertical_sizer->Add(m_pAmsPanel, 1, wxEXPAND | wxALL, FromDIP(0));
 
     // Unload All Slots button
-    auto button_sizer = new wxBoxSizer(wxHORIZONTAL);
-    button_sizer->AddStretchSpacer();
-
     StateColor btn_bg(std::pair<wxColour, int>(wxColour(72, 79, 86), StateColor::Disabled),
                       std::pair<wxColour, int>(wxColour(221, 80, 19), StateColor::Pressed),
                       std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
                       std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Normal));
 
-    //auto unload_btn = new Button(frame_panel, _L("Unload All Slots"));
-    //unload_btn->SetBackgroundColor(btn_bg);
-    //unload_btn->SetTextColor(*wxWHITE);
-    //unload_btn->SetFont(Label::Body_10);
-    //unload_btn->SetMinSize(wxSize(FromDIP(248), FromDIP(32)));
-    //unload_btn->SetCornerRadius(FromDIP(5));
+    m_ams_unload_all_btn = new Button(frame_panel, _L("Unload All Slots"));
+    m_ams_unload_all_btn->SetBackgroundColor(btn_bg);
+    m_ams_unload_all_btn->SetTextColor(*wxWHITE);
+    m_ams_unload_all_btn->SetFont(Label::Body_10);
+    m_ams_unload_all_btn->SetMinSize(wxSize(FromDIP(248), FromDIP(32)));
+    m_ams_unload_all_btn->SetCornerRadius(FromDIP(5));
 
-    // Position button at bottom right
-    //auto btn_panel = new wxPanel(frame_panel, wxID_ANY,
-    //                             wxPoint(FromDIP(128), FromDIP(264)),
-    //                             wxSize(FromDIP(248), FromDIP(32)));
-    //auto btn_panel_sizer = new wxBoxSizer(wxHORIZONTAL);
-    //btn_panel_sizer->Add(unload_btn, 1, wxEXPAND);
-    //btn_panel->SetSizer(btn_panel_sizer);
+    // Bind button event
+    m_ams_unload_all_btn->Bind(wxEVT_BUTTON, &PhrozenStatusBasePanel::on_ams_unload_all, this);
+
+    // Add button to vertical layout with right alignment
+    auto button_sizer = new wxBoxSizer(wxHORIZONTAL);
+    button_sizer->AddStretchSpacer();
+    button_sizer->Add(m_ams_unload_all_btn, 0, wxALL, FromDIP(10));
+
+    ams_vertical_sizer->Add(button_sizer, 0, wxEXPAND);
+
+    frame_sizer->Add(ams_vertical_sizer, 1, wxEXPAND | wxALL, FromDIP(12));
+    frame_panel->SetSizer(frame_sizer);
 
     // Main content sizer
     auto content_sizer = new wxBoxSizer(wxVERTICAL);
@@ -1123,6 +1126,11 @@ void PhrozenStatusBasePanel::show_ams_group(bool show)
 void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
 {
     handle_camera_source_change();
+}
+
+void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& event)
+{
+
 }
 
 void PhrozenStatusBasePanel::handle_camera_source_change()

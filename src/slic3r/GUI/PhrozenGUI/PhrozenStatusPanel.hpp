@@ -278,6 +278,7 @@ public:
     virtual void on_axis_ctrl_z_down_10(wxCommandEvent &event) { event.Skip(); }
     virtual void on_axis_ctrl_e_up_10(wxCommandEvent &event) { event.Skip(); }
     virtual void on_axis_ctrl_e_down_10(wxCommandEvent &event) { event.Skip(); }
+    void on_ams_unload_all(wxCommandEvent& event);
     
 public:   
     void on_camera_source_change(wxCommandEvent& event);
@@ -301,6 +302,7 @@ public:
 
     void show_ams_group(bool show = true);
     MediaPlayCtrl* get_media_play_ctrl() {return m_media_play_ctrl;};
+
 #pragma endregion
 
 
@@ -342,6 +344,7 @@ public:
 
     //AMS
     AMSGroupPanel* m_pAmsPanel{nullptr};
+    Button* m_ams_unload_all_btn{nullptr};
 
     //Temperature
     std::unique_ptr< wxStaticText > m_spTemp_nozzle;
