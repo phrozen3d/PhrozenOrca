@@ -340,6 +340,7 @@ public:
     ScalableBitmap m_Control_z_title;
     ScalableBitmap m_Control_z_nozzle;
 
+    //AMS
     AMSGroupPanel* m_pAmsPanel{nullptr};
 
     //Temperature

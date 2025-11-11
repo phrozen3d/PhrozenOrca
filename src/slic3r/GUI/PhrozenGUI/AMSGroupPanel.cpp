@@ -4,6 +4,7 @@
 namespace Slic3r {
 namespace GUI {
 
+#pragma region AMSGroupPanel
 wxBEGIN_EVENT_TABLE(AMSGroupPanel, wxPanel)
     EVT_PAINT(AMSGroupPanel::OnPaint)
     EVT_LEFT_DOWN(AMSGroupPanel::OnLeftDown)
@@ -19,13 +20,16 @@ AMSGroupPanel::AMSGroupPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos
     , m_slot_outline_selected(0xFF, 0x7C, 0x3F)
     , m_line_color(0x82, 0x82, 0x80)
     , m_feed_port_color(0xCF, 0xD2, 0xD3)
+    , m_eInputType( FilementInputType::Empty )
+    , m_text_color(0x82, 0x82, 0x80)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     // Inherit background color from parent
     if (parent) {
         SetBackgroundColour(parent->GetBackgroundColour());
+        //SetBackgroundColour(wxColor(0xff, 0x00, 0x00)); //set red for check background area
     }
-    SetMinSize(wxSize(289, 168));
+    SetMinSize(wxSize(375, 168));  // 76 (SpoolHolder) + 10 (gap) + 289 (original panel)
 
     // Initialize slot configurations
     for (int i = 0; i < SLOT_COUNT; i++) {
@@ -62,14 +66,6 @@ void AMSGroupPanel::SetSelectedSlot(int slot_index)
     }
 }
 
-void AMSGroupPanel::EnableSlot(int slot_index, bool enable)
-{
-    if (slot_index >= 0 && slot_index < SLOT_COUNT) {
-        m_slot_configs[slot_index].is_enabled = enable;
-        Refresh();
-    }
-}
-
 void AMSGroupPanel::SetSlotLightColor(int slot_index, const wxColour& color)
 {
     if (slot_index >= 0 && slot_index < SLOT_COUNT) {
@@ -88,6 +84,12 @@ void AMSGroupPanel::SetSlotState(int slot_index, AMSSlotState state)
 
 void AMSGroupPanel::msw_rescale() 
 {
+    Refresh();
+}
+
+void AMSGroupPanel::SetFilamentInputType( const FilementInputType& eType )
+{
+    m_eInputType = eType;
     Refresh();
 }
 
@@ -128,13 +130,24 @@ void AMSGroupPanel::OnPaint(wxPaintEvent& event)
 
 void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
 {
+    // Draw SpoolHolder on the left side
+    DrawSpoolHolder(gc);
+
+    // Save current transform
+    gc->PushState();
+
+    // Translate to the right of SpoolHolder with gap
+    gc->Translate(SPOOL_HOLDER_WIDTH + GAP_WIDTH, 0);
+
     // <!-- panel -->
     // Modified from original SVG: <rect x="7" width="282" height="168" rx="10" fill="#EEEEEE"/>
     // Changed to x="0" width="289" to make panel edges align with parent sides
-    gc->SetBrush(wxBrush(m_panel_bg));
+    float fOpacity = m_eInputType == FilementInputType::AMS ? 1.0 : 0.3;
+    auto panel_bg = wxColor( m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity);
+    gc->SetBrush(wxBrush(panel_bg));
     gc->SetPen(*wxTRANSPARENT_PEN);
     wxGraphicsPath path = gc->CreatePath();
-    path.AddRoundedRectangle(0, 0, PANEL_WIDTH, 168, 10);
+    path.AddRoundedRectangle(0, 0, ORIGINAL_PANEL_WIDTH, 168, 10);
     gc->FillPath(path);
 
     // Draw all four slot groups
@@ -145,6 +158,9 @@ void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
 
     // <!-- feed port rectangle -->
     DrawFeedPortRectangle(gc);
+
+    // Restore transform
+    gc->PopState();
 }
 
 void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double x_offset)
@@ -157,11 +173,10 @@ void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double 
     double outline_x = x_offset;
     double outline_y = 32;
 
-    bool bIsEnable = config.is_enabled && config.state == AMSSlotState::Loading;
-    bIsEnable = bIsEnable && m_bEnable;
+    bool bIsEnable = ( m_eInputType == FilementInputType::AMS ) && ( config.state == AMSSlotState::Loading );
 
     // Draw light circle (always draw, color determines state)
-    DrawLightCircle(gc, light_cx, light_cy, slot_index);
+    DrawLightCircle(gc, light_cx, light_cy, slot_index, bIsEnable);
 
     // Draw slot outline
     DrawSlotOutline(gc, outline_x, outline_y, is_selected, bIsEnable);
@@ -170,23 +185,25 @@ void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double 
     DrawSlotTitle(gc, outline_x, outline_y, slot_index + 1, bIsEnable);
 
     // Draw connection line
-    DrawConnectionLine(gc, slot_index, bIsEnable);
+    DrawConnectionLine(gc, slot_index, bIsEnable, config.state == AMSSlotState::Loading );
 }
 
-void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, int slot_index )
+void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, int slot_index, bool is_enabled )
 {
     const AMSSlotConfig& config = m_slot_configs[slot_index]; 
-    bool bIsEnabled = config.is_enabled  && config.state == AMSSlotState::Loading;
-    bIsEnabled = bIsEnabled && m_bEnable;
+    bool bIsEnabled = is_enabled;
+    float fOpacity = is_enabled ? 1.0 : 0.3;
+
     if ( !bIsEnabled) {
-        gc->SetPen( wxPen(wxColour(0xCF, 0xD2, 0xD3), 1) );
+        //gc->SetPen( wxPen(wxColour(0xCF, 0xD2, 0xD3), 1) );
+        gc->SetPen( wxPen(wxColour(m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity ), 1) );
         gc->SetBrush(*wxTRANSPARENT_BRUSH);
         gc->DrawEllipse(cx - 5.5, cy - 5.5, 11, 11);
         return;
     }
 
     // <!-- light circle --> <circle cx="X" cy="18" r="5.5" stroke="#323940"/>
-    gc->SetPen(wxPen(wxColour(0x32, 0x39, 0x40), 1));
+    gc->SetPen(wxPen(wxColour(m_line_color.Red(), m_line_color.Green(), m_line_color.Blue()), 1));
     gc->SetBrush(*wxTRANSPARENT_BRUSH);
     gc->DrawEllipse(cx - 5.5, cy - 5.5, 11, 11);
 
@@ -211,8 +228,10 @@ void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy,
 void AMSGroupPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, bool is_selected, bool is_enabled)
 {
     wxGraphicsPath path = gc->CreatePath();
+    float fOpacity = is_enabled ? 1.0 : 0.3;
 
-    if (is_selected) {
+
+    if (is_selected && is_enabled ) {
         // <!-- selected line --> <rect x="X" y="29" width="58" height="94" rx="13" stroke="#FF7C3F" stroke-width="1.5"/>
         path.AddRoundedRectangle(x - 3, y - 3, 58, 94, 13);
         gc->SetPen(wxPen(m_slot_outline_selected, 1.5));
@@ -224,12 +243,33 @@ void AMSGroupPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, b
     path = gc->CreatePath();
     path.AddRoundedRectangle(x, y, 52, 88, 10);
 
+    //gc->SetPen(*wxTRANSPARENT_PEN);
+    //gc->SetBrush(wxBrush(wxColour(m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity )));
+    //gc->FillPath(path);
+    if ( !is_enabled )
+    {
+        // Draw dashed stroke manually
+        DrawDashedRoundedRect(gc, x, y, 52, 88, 10, 
+                              wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity ), 
+                              1.5, 3, 3);
+    }
+    else
+    {
+        // <!-- outline --> Enabled slot
+        gc->SetPen(wxPen(wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity ), 1.5));
+        gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
+        gc->DrawPath(path);
+    }
+
+    #if 0
     if (!is_enabled) {
         // <!-- outline --> Disabled slot with dashed line
         // <rect stroke-dasharray="2.73 2.73"/>
         // wxGraphicsContext doesn't support wxPen dashes, need to manually draw dashed outline
         gc->SetPen(*wxTRANSPARENT_PEN);
-        gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
+        //gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
+        gc->SetBrush(wxBrush(wxColour(m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity )));
+        
         gc->FillPath(path);
 
         // Draw dashed stroke manually
@@ -240,6 +280,7 @@ void AMSGroupPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, b
         gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
         gc->DrawPath(path);
     }
+    #endif
 }
 
 void AMSGroupPanel::DrawDashedRoundedRect(wxGraphicsContext* gc, double x, double y, double w, double h,
@@ -344,7 +385,9 @@ void AMSGroupPanel::DrawSlotTitle(wxGraphicsContext* gc, double x, double y, int
         font = wxFont(wxFontInfo(12).Family(wxFONTFAMILY_DEFAULT));
     }
 
-    gc->SetFont(font, is_enabled ? m_slot_outline_enabled : m_slot_outline_disabled);
+    float fOpacity = is_enabled ? 1.0 : 0.3;
+    auto text_color = wxColor( m_text_color.Red(), m_text_color.Green(), m_text_color.Red(), 255 * fOpacity );
+    gc->SetFont(font, text_color );
 
     // Draw "A" + number (A1, A2, A3, A4)
     wxString title = wxString::Format("A%d", slot_number);
@@ -361,21 +404,24 @@ void AMSGroupPanel::DrawSlotTitle(wxGraphicsContext* gc, double x, double y, int
     gc->DrawText(title, text_x, text_y);
 }
 
-void AMSGroupPanel::DrawConnectionLine(wxGraphicsContext* gc, int slot_index, bool is_enabled)
+void AMSGroupPanel::DrawConnectionLine(wxGraphicsContext* gc, int slot_index, bool is_enabled, bool is_loading)
 {
     double line_width_enable = 6.0;
     double line_width_disable = 2.0;
-    auto line_width = is_enabled ? line_width_enable : line_width_disable;
-    wxColour line_color = m_line_color;
+    auto line_width = (is_enabled && is_loading) ? line_width_enable : line_width_disable;
 
     double start_x = 23 + slot_index * 66 + 26; // Center of slot
     double start_y = 120; // Bottom edge of slot (y=32 + height=88)
 
     // Use BUTT cap for the connection to slot (flat edge aligned with slot bottom)
+    float fOpacity = is_enabled ? 1.0 : 0.3;
+    auto line_color = wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity );
+    //wxPen pen_butt(m_line_color, line_width);
     wxPen pen_butt(line_color, line_width);
     pen_butt.SetCap(wxCAP_BUTT);
 
     // Use ROUND cap for other parts of the line
+    //wxPen pen_round(m_line_color, line_width);
     wxPen pen_round(line_color, line_width);
     pen_round.SetCap(wxCAP_ROUND);
 
@@ -460,7 +506,9 @@ void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
     gc->FillPath(path);
     gc->StrokePath(path);
 
-    wxColour line_color = m_line_color;
+    float fOpacity = m_eInputType == FilementInputType::AMS ? 1.0 : 0.3;
+    auto line_color = wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity );
+    //wxPen pen(m_line_color, line_width_disable);
     wxPen pen(line_color, line_width_disable);
     pen.SetCap(wxCAP_ROUND);
     gc->SetPen(pen);
@@ -468,8 +516,8 @@ void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
     // move to rectangle's bottom
     start_x += width/2.0;
     start_y += height;
-    gc->StrokeLine(start_x, start_y, start_x, start_y + 10 );
-    start_y += 10;
+    gc->StrokeLine(start_x, start_y, start_x, start_y + 20 );
+    start_y += 15;
 
 #if 0
     // draw line from feedPortRectangle to nozzle
@@ -511,11 +559,17 @@ wxRect AMSGroupPanel::GetSlotRect(int slot_index) const
     double scale_y = size.GetHeight() / PANEL_HEIGHT;
     double scale = std::min(scale_x, scale_y);
 
+    // Center offset for the entire panel (including SpoolHolder)
     double offset_x = (size.GetWidth() - PANEL_WIDTH * scale) / 2.0;
     double offset_y = (size.GetHeight() - PANEL_HEIGHT * scale) / 2.0;
 
-    double slot_x = (23 + slot_index * 66) * scale + offset_x;
-    double slot_y = 32 * scale + offset_y;
+    // Slot position needs to account for SpoolHolder width + gap + original x offset
+    // In DrawPanel, we translate by (SPOOL_HOLDER_WIDTH + GAP_WIDTH) before drawing slots
+    double slot_x_in_panel = SPOOL_HOLDER_WIDTH + GAP_WIDTH + (23 + slot_index * 66);
+    double slot_y_in_panel = 32;
+
+    double slot_x = slot_x_in_panel * scale + offset_x;
+    double slot_y = slot_y_in_panel * scale + offset_y;
     double slot_w = 52 * scale;
     double slot_h = 88 * scale;
 
@@ -531,6 +585,54 @@ int AMSGroupPanel::HitTestSlot(const wxPoint& pos) const
         }
     }
     return -1;
+}
+
+void AMSGroupPanel::DrawSpoolHolder(wxGraphicsContext* gc)
+{
+    float fOpacity = m_eInputType == FilementInputType::Spool ? 1.0 : 0.3;
+    auto panel_bg_color = wxColor( m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity );
+    auto text_color = wxColor( m_text_color.Red(), m_text_color.Green(), m_text_color.Blue(), 255 * fOpacity );
+
+    // Save current state and set opacity to 0.3
+    gc->PushState();
+
+    // <!-- Background rectangle -->
+    // <rect opacity="0.3" width="76" height="168" rx="10" fill="#EEEEEE"/>
+    gc->SetBrush(wxBrush(panel_bg_color));
+    gc->SetPen(*wxTRANSPARENT_PEN);
+    wxGraphicsPath path = gc->CreatePath();
+    path.AddRoundedRectangle(0, 0, SPOOL_HOLDER_WIDTH, PANEL_HEIGHT, 10);
+    gc->FillPath(path);
+
+    // <!-- Text path: "Spool Holder" -->
+    // Draw text using Roboto font, color #828280 with 0.3 opacity
+    wxFont font(wxFontInfo(10).FaceName("Roboto"));
+    if (!font.IsOk()) {
+        font = wxFont(wxFontInfo(10).Family(wxFONTFAMILY_DEFAULT));
+    }
+    gc->SetFont(font, text_color);
+
+    // Get text extents for centering
+    double text_width1, text_height1;
+    gc->GetTextExtent("Spool", &text_width1, &text_height1);
+
+    double text_width2, text_height2;
+    gc->GetTextExtent("Holder", &text_width2, &text_height2);
+
+    // Calculate centered positions
+    double text_y = 18.0;  // Starting y position
+    double line_spacing = 19.0;
+
+    // Center "Spool" horizontally
+    double text_x1 = (SPOOL_HOLDER_WIDTH - text_width1) / 2.0;
+    gc->DrawText("Spool", text_x1, text_y);
+
+    // Center "Holder" horizontally
+    double text_x2 = (SPOOL_HOLDER_WIDTH - text_width2) / 2.0;
+    gc->DrawText("Holder", text_x2, text_y + line_spacing);
+
+    // Restore state
+    gc->PopState();
 }
 
 void AMSGroupPanel::OnLeftDown(wxMouseEvent& event)
@@ -549,6 +651,8 @@ void AMSGroupPanel::OnLeftDown(wxMouseEvent& event)
 
     event.Skip();
 }
+#pragma endregion 
+
 
 } // namespace GUI
 } // namespace Slic3r

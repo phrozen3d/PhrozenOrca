@@ -7,6 +7,7 @@
 #include <wx/graphics.h>
 #include <vector>
 #include "../wxExtensions.hpp"
+#include "../Widgets/ImageSwitchButton.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -14,7 +15,7 @@ namespace GUI {
 // AMS Slot State
 enum class AMSSlotState {
     Empty,      // No filament installed
-    Installed,  // Filament installed
+    Installed,  // Filament installed (now no use)
     Loading     // Currently loading
 };
 
@@ -22,13 +23,17 @@ enum class AMSSlotState {
 struct AMSSlotConfig {
     AMSSlotState state;
     wxColour light_color;     // Color of the indicator light
-    bool is_enabled;          // Whether the slot is enabled
 
     AMSSlotConfig()
         : state(AMSSlotState::Empty)
         , light_color(wxColour(0x00, 0xFF, 0x00))
-        , is_enabled(true)
     {}
+};
+
+enum class FilementInputType {
+    Empty,      // No filament connect
+    AMS,        // multi filament
+    Spool       // single filament
 };
 
 class AMSGroupPanel : public wxPanel
@@ -53,18 +58,15 @@ public:
     // Get selected slot
     int GetSelectedSlot() const { return m_selected_slot; }
 
-    // Enable/disable slot
-    void EnableSlot(int slot_index, bool enaOnLeftDownble);
-
     // Set slot light color
     void SetSlotLightColor(int slot_index, const wxColour& color);
 
     // Set slot state
     void SetSlotState(int slot_index, AMSSlotState state);
-
-    void SetEnable( bool bEnable ) { m_bEnable = bEnable; }
     
     void msw_rescale();
+
+    void SetFilamentInputType( const FilementInputType& eType );
 
 protected:
     // Event handlers
@@ -75,10 +77,10 @@ protected:
     // Drawing functions
     void DrawPanel(wxGraphicsContext* gc);
     void DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double x_offset);
-    void DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, int slot_index );
+    void DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, int slot_index, bool is_enabled );
     void DrawSlotOutline(wxGraphicsContext* gc, double x, double y, bool is_selected, bool is_enabled);
     void DrawSlotTitle(wxGraphicsContext* gc, double x, double y, int slot_number, bool is_enabled);
-    void DrawConnectionLine(wxGraphicsContext* gc, int slot_index, bool is_enabled);
+    void DrawConnectionLine(wxGraphicsContext* gc, int slot_index, bool is_enabled, bool is_loading );
     void DrawFeedPortRectangle(wxGraphicsContext* gc);
 
     // Helper functions
@@ -87,9 +89,12 @@ protected:
     void DrawDashedRoundedRect(wxGraphicsContext* gc, double x, double y, double w, double h,
                                double radius, const wxColour& color, double width,
                                double dash_on, double dash_off);
+    void DrawSpoolHolder(wxGraphicsContext* gc);
 
 private:
     static const int SLOT_COUNT = 4;
+
+    FilementInputType m_eInputType;
 
     // Slot configurations
     AMSSlotConfig m_slot_configs[SLOT_COUNT];
@@ -97,8 +102,12 @@ private:
     // Current selected slot (-1 for none)
     int m_selected_slot;
 
-    // Panel dimensions (matching SVG viewBox: 289x220, but actual panel height is 168)
-    static constexpr double PANEL_WIDTH = 289.0;
+    // Panel dimensions
+    // Original: 289x168, now extended to include SpoolHolder on the left (76 width) + 10px gap
+    static constexpr double SPOOL_HOLDER_WIDTH = 76.0;
+    static constexpr double GAP_WIDTH = 10.0;
+    static constexpr double ORIGINAL_PANEL_WIDTH = 289.0;
+    static constexpr double PANEL_WIDTH = SPOOL_HOLDER_WIDTH + GAP_WIDTH + ORIGINAL_PANEL_WIDTH;  // 375.0
     static constexpr double PANEL_HEIGHT = 168.0;
 
     // Colors
@@ -109,39 +118,10 @@ private:
     wxColour m_line_color;
     wxColour m_feed_port_color;
 
+    wxColour m_text_color;
+
     double line_width_enable = 6.0;
     double line_width_disable = 2.0;
-
-    bool m_bEnable = false;
-
-    // AMS Monitor images
-    ScalableBitmap m_AMS_frame;
-    ScalableBitmap m_AMS_spool_holder;
-    ScalableBitmap m_AMS_initial;
-    ScalableBitmap m_AMS_tooltips;
-    ScalableBitmap m_AMS_tooltipsframe;
-    ScalableBitmap m_AMS_tooltips_cartridge;
-    ScalableBitmap m_AMS_tooltips_ams;
-    ScalableBitmap m_AMS_A1;
-    ScalableBitmap m_AMS_A2;
-    ScalableBitmap m_AMS_A3;
-    ScalableBitmap m_AMS_A4;
-    ScalableBitmap m_AMS_install_light;
-    ScalableBitmap m_AMS_line1;
-    ScalableBitmap m_AMS_line2;
-    ScalableBitmap m_AMS_line3;
-    ScalableBitmap m_AMS_line4;
-    ScalableBitmap m_AMS_load_A1;
-    ScalableBitmap m_AMS_load_A2;
-    ScalableBitmap m_AMS_load_A3;
-    ScalableBitmap m_AMS_load_A4;
-    ScalableBitmap m_AMS_head_A1;
-    ScalableBitmap m_AMS_head_A2;
-    ScalableBitmap m_AMS_head_A3;
-    ScalableBitmap m_AMS_head_A4;
-    ScalableBitmap m_AMS_Head;
-    ScalableBitmap m_AMS_rectangle;
-    ScalableBitmap m_AMS_selected;
 
     wxDECLARE_EVENT_TABLE();
 };

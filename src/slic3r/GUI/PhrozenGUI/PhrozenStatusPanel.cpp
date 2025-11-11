@@ -1041,7 +1041,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
 
     // Main frame panel with border
     auto frame_panel = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(600), FromDIP(320)));
-    frame_panel->SetBackgroundColour(wxColour(24, 28, 31));
+    frame_panel->SetBackgroundColour(box_colour.colorForStates(StateColor::Normal));
 
     auto frame_sizer = new wxBoxSizer(wxHORIZONTAL);
 
@@ -2727,6 +2727,7 @@ void PhrozenStatusPanel::update_extruder_status(MachineObject* obj)
     }
 }
 
+int ff = 1;
 void PhrozenStatusPanel::update_ams(MachineObject *obj)
 {
     if ( !m_pAmsPanel || !m_pAmsPanel->IsShown() )
@@ -2734,14 +2735,16 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
         return;
     }
 
-    if ( obj )
+    if ( !obj )
     {
-        m_pAmsPanel->SetEnable( true );
+        m_pAmsPanel->SetFilamentInputType( FilementInputType::Empty );
+        return;
     }
 
-    m_pAmsPanel->SetEnable( true );// force enable to test
+    m_pAmsPanel->SetFilamentInputType( (FilementInputType)ff );// force enable to test
     m_pAmsPanel->SetSlotState( 0, AMSSlotState::Loading );
     m_pAmsPanel->SetSlotState( 2, AMSSlotState::Loading );
+
 
 }
 
