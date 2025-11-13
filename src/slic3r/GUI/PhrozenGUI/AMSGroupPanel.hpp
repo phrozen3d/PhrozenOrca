@@ -12,22 +12,27 @@
 namespace Slic3r {
 namespace GUI {
 
-// AMS Slot State
-enum class AMSSlotState {
-    Empty,      // No filament installed
-    Installed,  // Filament installed (now no use)
-    Loading     // Currently loading
-};
-
 // AMS Slot Configuration
 struct AMSSlotConfig {
-    AMSSlotState state;
-    wxColour light_color;     // Color of the indicator light
-
-    AMSSlotConfig()
-        : state(AMSSlotState::Empty)
-        , light_color(wxColour(0x00, 0xFF, 0x00))
+    
+    AMSSlotConfig() {}
+    AMSSlotConfig( bool bIsEntry, bool bIsParking, bool bIsLoading )
+    : m_bIsEntry(bIsEntry)
+    , m_bIsParking(bIsParking)
+    , n_bIsLoading(bIsLoading)
     {}
+
+    bool IsEmpty() const { return !m_bIsEntry && !m_bIsParking && !n_bIsLoading; }
+    bool IsEntry() const { return m_bIsEntry; }
+    bool IsParking() const { return m_bIsParking; }
+    bool IsLoading()const { return n_bIsLoading; }
+
+    bool m_bIsEntry = false;
+    bool m_bIsParking = false;
+    bool n_bIsLoading = false;
+
+    wxColour light_color_entry{ wxColour(0x00, 0xFF, 0x00) };
+    wxColour light_color_error{ wxColour(0xFF, 0x00, 0x00) };
 };
 
 enum class FilamentInputType {
@@ -57,16 +62,15 @@ public:
 
     // Get selected slot
     int GetSelectedSlot() const { return m_selected_slot; }
-
-    // Set slot light color
-    void SetSlotLightColor(int slot_index, const wxColour& color);
-
-    // Set slot state
-    void SetSlotState(int slot_index, AMSSlotState state);
     
     void msw_rescale();
 
     void SetFilamentInputType( const FilamentInputType& eType );
+
+    // return true if any filament loaded from slot to nazzle
+    bool IsAnyFilamentLoading();
+
+    bool IsAMSEnabled(){ return m_eInputType == FilamentInputType::AMS; }
 
 protected:
     // Event handlers
@@ -77,10 +81,10 @@ protected:
     // Drawing functions
     void DrawPanel(wxGraphicsContext* gc);
     void DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double x_offset);
-    void DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, int slot_index, bool is_enabled );
-    void DrawSlotOutline(wxGraphicsContext* gc, double x, double y, bool is_selected, bool is_enabled);
-    void DrawSlotTitle(wxGraphicsContext* gc, double x, double y, int slot_number, bool is_enabled);
-    void DrawConnectionLine(wxGraphicsContext* gc, int slot_index, bool is_enabled, bool is_loading );
+    void DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, const AMSSlotConfig& config );
+    void DrawSlotOutline(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, bool is_selected );
+    void DrawSlotTitle(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, int slot_number );
+    void DrawConnectionLine(wxGraphicsContext* gc, int slot_index, const AMSSlotConfig& config );
     void DrawFeedPortRectangle(wxGraphicsContext* gc);
 
     // Helper functions
@@ -116,6 +120,7 @@ private:
     wxColour m_slot_outline_disabled;
     wxColour m_slot_outline_selected;
     wxColour m_line_color;
+    wxColour m_loading_line_color;
     wxColour m_feed_port_color;
 
     wxColour m_text_color;
