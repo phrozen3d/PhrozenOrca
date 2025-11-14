@@ -30,6 +30,7 @@ public:
     virtual int GetPhrozenNozzleTemperature_limit() override;
 
     // set command to machine
+    //control
     virtual void SetPhrozenCommand_bed_temp( int nTemp ) override;
     virtual void SetPhrozenCommand_nozzle_temp( int nTemp ) override;
     virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) override;
@@ -38,6 +39,11 @@ public:
     virtual void SetPhrozenCommand_print_speed( float fValue ) override;
     virtual void SetPhrozenCommand_nozzle_movement( std::string ,float fValue ) override;
     virtual void SetPhrozenCommand_nozzle_offset(float fValue ) override;
+    //ams
+    virtual void SetPhrozenCommand_load(int filament_id) override;
+    virtual void SetPhrozenCommand_unload(int filament_id) override;
+    virtual void SetPhrozenCommand_unload_all_slots() override;
+    virtual void SetPhrozenCommand_nozzle_filament_check() override;
 
     virtual bool IsPhrozenConnected() override;
     virtual bool IsPhrozenStartReceiving() override;

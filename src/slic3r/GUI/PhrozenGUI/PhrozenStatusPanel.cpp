@@ -1130,7 +1130,20 @@ void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
 
 void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& event)
 {
-
+    try {
+    #ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+    #endif
+        if (obj) {
+            obj->SetPhrozenCommand_unload_all_slots();
+        }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_unload_all: Exception occurred: " << e.what();
+    } catch (...) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_unload_all: Unknown exception occurred";
+    }
 }
 
 void PhrozenStatusBasePanel::handle_camera_source_change()
@@ -2752,13 +2765,61 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
     m_pAmsPanel->SetFilamentInputType( (FilamentInputType)ff );// force enable to test
 
     //Input: ( bool bIsEntry, bool bIsParking, bool bIsLoading )
-    m_pAmsPanel->SetSlotConfig( 0, AMSSlotConfig(1, 0, 0) );
-    m_pAmsPanel->SetSlotConfig( 1, AMSSlotConfig(1, 1, 0) );
-    m_pAmsPanel->SetSlotConfig( 2, AMSSlotConfig(1, 1, 1) );
-    m_pAmsPanel->SetSlotConfig( 3, AMSSlotConfig(0, 0, 0) );
+    //m_pAmsPanel->SetSlotConfig( 0, AMSSlotConfig(1, 0, 0) );
+    //m_pAmsPanel->SetSlotConfig( 1, AMSSlotConfig(1, 1, 0) );
+    //m_pAmsPanel->SetSlotConfig( 2, AMSSlotConfig(1, 1, 1) );
+    //m_pAmsPanel->SetSlotConfig( 3, AMSSlotConfig(0, 0, 0) );
+     
+    //check ams is connected or not
+    if(MonitorControl::IsConnectedToAMS()){
 
+        //enable ams ui
+        m_pAmsPanel->SetFilamentInputType( FilamentInputType::AMS );// force enable to test
 
+        const auto& ams_list = MonitorControl::GetAMSList();
+        const int slot_count = 4; // Fixed 4 slots
 
+        // Ensure we have data for all 4 slots
+        if (!ams_list.empty()) {
+            
+            for (int slot_index = 0; slot_index < slot_count; ++slot_index) {
+
+                // Determine state based on AMSInfo fields
+                // Detailed truth table for all possible state combinations
+                // ============================================================
+                // loading | entry | park  | Description
+                // --------|-------|-------|----------------------------------
+                // true    | true  | false | loading + entry
+                // true    | false | true  | loading + park
+                // false   | true  | true  | entry + park
+                // true    | true  | true  | All three conditions are true
+                // true    | false | false | Only loading
+                // false   | true  | false | Only entry
+                // false   | false | true  | Only park
+                // false   | false | false | All three conditions are false
+                // ============================================================
+                
+                if(ams_list[slot_index].isLoadingFinished() && !ams_list[slot_index].isNozzleCheck()){
+                    obj->SetPhrozenCommand_nozzle_filament_check();
+                    MonitorControl::m_kAMSList[slot_index].setNozzleCheck(true);
+                }
+                
+                m_pAmsPanel->SetSlotConfig( slot_index, AMSSlotConfig(ams_list[slot_index].getEntryState(), ams_list[slot_index].getParkState(), ams_list[slot_index].getLoadingState()) );
+            }
+        } else {
+            // If data is incomplete, set all slots to Empty
+            for (int slot_index = 0; slot_index < slot_count; ++slot_index) {
+                m_pAmsPanel->SetSlotConfig( slot_index, AMSSlotConfig(0, 0, 0) );
+            }
+        }
+    }
+    //else if (1) {
+    //    need to modify
+    //    m_pAmsPanel->SetFilamentInputType( FilamentInputType::Spool );
+    //}
+    //else{
+    //    m_pAmsPanel->SetFilamentInputType( FilamentInputType::Empty );
+    //}
 }
 
 void PhrozenStatusPanel::update_cali(MachineObject *obj)

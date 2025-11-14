@@ -430,6 +430,7 @@ public:
     virtual int GetPhrozenCoolingPower_limit() { return 100; }
 
     //set command to machine
+    //control
     virtual void SetPhrozenCommand_bed_temp( int nTemp ) {}
     virtual void SetPhrozenCommand_nozzle_temp( int nTemp ) {}
     virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) {}
@@ -438,6 +439,11 @@ public:
     virtual void SetPhrozenCommand_print_speed( float fValue ) {}
     virtual void SetPhrozenCommand_nozzle_movement(std::string ,float fValue ) {}
     virtual void SetPhrozenCommand_nozzle_offset(float fValue ) {}
+    //ams
+    virtual void SetPhrozenCommand_load(int filament_id) {};
+    virtual void SetPhrozenCommand_unload(int filament_id) {};
+    virtual void SetPhrozenCommand_unload_all_slots() {}
+    virtual void SetPhrozenCommand_nozzle_filament_check() {};
 
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }

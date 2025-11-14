@@ -45,6 +45,8 @@
 //#include "PhrozenStatusPanel.hpp"
 #include <curl/curl.h>
 #include <functional>
+#include <queue>
+#include <chrono>
 #include "slic3r/Utils/json_diff.hpp"
 
 typedef unsigned int GLuint;
@@ -75,13 +77,64 @@ struct PrintingHistoryInfo {
     GLuint image;
 };
 
+enum AMSCommandState
+{
+    NONE,
+    START,
+    FINISH
+};
+
+struct AMSPatterns
+{
+    // AMS pattern strings
+    const std::string AMS_connected = "\\u6709\\u51e0\\u53f0AMS\\u5df2\\u7ecf\\u6253\\u5f00\\u4e32\\u53e3='1'";
+    const std::string AMS_unconnect = "!! \\u6ca1\\u6709\\u8fde\\u63a5\\u4efb\\u4f55AMS\\u591a\\u8272\\uff0c\\u8fde\\u63a5AMS\\u5931\\u8d25";
+    const std::string AMS_load_single_start = "P1Tn:0";
+    const std::string AMS_load_single_end = "P1Tn:1";
+    const std::string AMS_unload_single_start = "P1Bn:0";
+    const std::string AMS_unload_single_end = "P1Bn:1";
+    const std::string AMS_unload_all_start = "P2A2:0";
+    const std::string AMS_unload_all_end = "P2A2:1";
+    
+    bool fila_exist = false;
+    bool do_filament_check = false;
+};
+
 struct AMSInfo {
     std::string filament = "";
     //ImColor color;
     int temperaure_max = 240, temperaure_min = 190;
     bool selected = false;
-    bool install = false;
+    bool entry = false;
+    bool park = false;
     bool loading = false;
+    bool nozzleCheck = false;
+    AMSCommandState unload_state = AMSCommandState::NONE;
+    AMSCommandState load_state = AMSCommandState::NONE;
+    
+    int getEntryState() const {
+        return static_cast<int>(entry);
+    }
+    
+    int getParkState() const {
+        return static_cast<int>(park);
+    }
+    
+    int getLoadingState() const {
+        return static_cast<int>(loading);
+    }
+    
+    bool isLoadingFinished() const {
+        return load_state == AMSCommandState::FINISH;
+    }
+    
+    bool isNozzleCheck() const {
+        return nozzleCheck;
+    }
+    
+    void setNozzleCheck(bool isCheckFinish) {
+        nozzleCheck = isCheckFinish;
+    }
 };
 
 struct HistoryInfo {
@@ -723,6 +776,33 @@ struct WebCamImageDataThreadHandler
     bool bNewImageAvailable = false;
 };
 
+struct HttpErrorInfo {
+    bool has_error = false;            // Whether an error occurred
+    int http_status_code = 0;          // HTTP status code (200, 400, 500, etc.)
+    int error_code = 0;                // Error code (from error.code)
+    std::string error_type;            // Error type (from inner error.error)
+    std::string error_message;         // User-friendly error message (prefer inner layer)
+    std::string raw_message;           // Raw error message (from outer error.message)
+    std::string traceback;             // Stack trace (optional, for debugging)
+    
+    // Get the best display message
+    std::string GetDisplayMessage() const {
+        if (!error_message.empty()) return error_message;
+        if (!raw_message.empty()) return raw_message;
+        return "Unknown error";
+    }
+    
+    // Clear all fields
+    void Clear() {
+        has_error = false;
+        http_status_code = 0;
+        error_code = 0;
+        error_type.clear();
+        error_message.clear();
+        raw_message.clear();
+        traceback.clear();
+    }
+};
 
 #pragma region PhrozenMonitorController
     CURLcode Initialconnect();
@@ -786,6 +866,7 @@ struct WebCamImageDataThreadHandler
     extern std::mutex m_kCommandMutex;
     extern bool m_bIsConnetedToAMS;
     extern WebCamImageDataThreadHandler WebCamDataHandler;
+    extern HttpErrorInfo error_info;
 
     size_t write_data(void* ptr, size_t size, size_t nmemb, void* stream);
 
@@ -822,13 +903,19 @@ struct WebCamImageDataThreadHandler
     int CURLDebug(CURL*, curl_infotype type, char* data, size_t size, void*);
     void GetPrinterInfo_websocket();
     CURLcode printfile(std::string filename);
+    HttpErrorInfo ParseHttpErrorResponse(const json& response_json, int http_status_code);
     bool doAction_http(std::string script, std::string  exected_payload, int timeout);
     CURLcode doAction(std::string method, std::string script, int id);
+    
+    CURLcode NozzleFilamentCheck();
+
     CURLcode printPause();
     
     CURLcode printResume();
     
     CURLcode printStop();
+
+    bool NozzleFilamentCheck_Http();
     
     bool printPause_http();
     
@@ -903,7 +990,8 @@ struct WebCamImageDataThreadHandler
     int GetMachineList();
     CURLcode GetLEDState();
 
-
+    const std::vector<AMSInfo>& GetAMSList();
+    const bool& IsConnectedToAMS();
 
 #pragma endregion //PhrozenMonitorController
 

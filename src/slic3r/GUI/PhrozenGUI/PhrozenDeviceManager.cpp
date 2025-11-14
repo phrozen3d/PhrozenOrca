@@ -418,6 +418,106 @@ void PhrozenMachineObject::SetPhrozenCommand_nozzle_offset( float fValue )
     }
 }
 
+void PhrozenMachineObject::SetPhrozenCommand_load(int filament_id)
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_load: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_load: filament id (" << filament_id << ")";
+    
+    try {
+        std::thread threadForload([filament_id](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::load(filament_id);
+        });
+        
+        threadForload.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_load: Failed to create thread: " << e.what();
+    }
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_unload(int filament_id)
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_unload: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_load: filament id (" << filament_id << ")";
+
+    try {
+        std::thread threadForUnload([filament_id](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::Unload(filament_id);
+        });
+        
+        threadForUnload.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_unload: Failed to create thread: " << e.what();
+    }
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_unload_all_slots()
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_unload_all_slots: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    try {
+        std::thread threadForUnloadAllSlots([](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::Uninstall_filament();
+        });
+        
+        threadForUnloadAllSlots.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_unload_all_slots: Failed to create thread: " << e.what();
+    }
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_nozzle_filament_check()
+{
+    //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_nozzle_filament_check: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    try {
+        std::thread threadForNozzleFilamentCheck([](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            
+            MonitorControl::NozzleFilamentCheck();
+        });
+        
+        threadForNozzleFilamentCheck.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_filament_check: Failed to create thread: " << e.what();
+    }
+}
+
 bool PhrozenMachineObject::IsPhrozenConnected() 
 {
     return MonitorControl::m_pCurl_websocket != nullptr;
