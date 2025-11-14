@@ -120,6 +120,7 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     WebCamImageDataThreadHandler WebCamDataHandler = {};
     HttpErrorInfo error_info = {};
     AMSPatterns amsPatterns = {};
+    NozzleInfo nozzleInfo = {};
 
     size_t fnWriteData(void* buffer, size_t size, size_t nmemb, void* lpVoid)
     {
@@ -630,13 +631,13 @@ CURLcode ReceiveResponse() {
                                         // Format: "PRZ_ADC:读取ADC值 ... fila_exist:True/False"
                                         if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
                                             // Extract fila_exist value
-                                            amsPatterns.fila_exist = false;
                                             if (params.find("fila_exist:True") != std::string::npos ||
                                                 params.find("fila_exist:true") != std::string::npos) {
-                                                amsPatterns.fila_exist = true;
+                                                nozzleInfo.fila_exist = true;
+                                            }else{
+                                                nozzleInfo.fila_exist = false;
                                             }
-                                            amsPatterns.do_filament_check = true;
-                                            BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (amsPatterns.fila_exist ? "true" : "false") << " ***";
+                                            BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (nozzleInfo.fila_exist ? "true" : "false") << " ***";
                                         }
                                     }
                                 } catch (const json::exception& e) {
@@ -862,8 +863,12 @@ CURLcode ReceiveResponse() {
                             for (size_t i = 0; i < m_kAMSList_temp.size(); i++) {
                                 m_kAMSList_temp[i].unload_state = new_state;
                                 
+                                if(pattern == amsPatterns.AMS_unload_all_start){
+                                    m_kAMSList_temp[i].unload_state = AMSCommandState::START;
+                                }
                                 if(pattern == amsPatterns.AMS_unload_all_end){
                                     m_kAMSList_temp[i].loading = false;
+                                    m_kAMSList_temp[i].unload_state = AMSCommandState::NONE;
                                 }
                             }
                             
@@ -894,17 +899,19 @@ CURLcode ReceiveResponse() {
                                     : m_kAMSList_temp[slot_index].unload_state;
                                 target_state = is_start ? AMSCommandState::START : AMSCommandState::FINISH;
                                 
-                                // Update related fields based on state
-                                //if (!is_start) {
-                                    //if (is_load) {
-                                        // load_state = START -> loading = true
-                                        //m_kAMSList_temp[slot_index].loading = true;
-                                    //}
-                                    //else {
-                                        // unload_state = finished -> reset all flags
-                                        //m_kAMSList_temp[slot_index].loading = false;
-                                    //}
-                                //}
+                                //Update related fields based on state
+                                if (!is_start) {
+                                    if (is_load) {
+                                        //load_state = START -> loading = true
+                                        m_kAMSList_temp[slot_index].loading = true;
+                                        m_kAMSList_temp[slot_index].load_state = AMSCommandState::NONE;
+                                    }
+                                    else {
+                                        //unload_state = finished -> loading = true
+                                        m_kAMSList_temp[slot_index].loading = false;
+                                        m_kAMSList_temp[slot_index].unload_state = AMSCommandState::NONE;
+                                    }
+                                }
                                 
                                 const char* state_name = is_start ? "START" : "FINISH";
                                 const char* cmd_type = is_load ? "load_single" : "unload_single";
@@ -963,6 +970,9 @@ CURLcode ReceiveResponse() {
                                 if (_entry_state > -1) {
                                     m_bIsConnetedToAMS = true;
                                 }
+                                else{
+                                    m_bIsConnetedToAMS = false;
+                                }
                                 
                                 //m_kAMSList_temp.clear();
                                 for (int i = 1; i <= 4; i++) {
@@ -1008,20 +1018,6 @@ CURLcode ReceiveResponse() {
                                         m_kAMSList_temp[i-1].entry = true;
                                     
                                     m_kAMSList_temp[i-1].selected = false;
-                                    
-                                    if(!m_kAMSList.empty() && m_kAMSList[i-1].nozzleCheck && amsPatterns.do_filament_check){
-                                        if(m_kAMSList_temp[i-1].load_state == AMSCommandState::FINISH && amsPatterns.fila_exist){
-                                            m_kAMSList_temp[i-1].loading = true;
-                                            m_kAMSList_temp[i-1].load_state = AMSCommandState::NONE;
-                                        }
-                                        else if(m_kAMSList_temp[i-1].load_state == AMSCommandState::FINISH && !amsPatterns.fila_exist){
-                                            m_kAMSList_temp[i-1].loading = false;
-                                            m_kAMSList_temp[i-1].load_state = AMSCommandState::NONE;
-                                        }
-                                        amsPatterns.fila_exist = false;
-                                        amsPatterns.do_filament_check = false;
-                                        m_kAMSList_temp[i-1].nozzleCheck = false;
-                                    }
                                     //m_kAMSList_temp.push_back(_AMSInfo);
                                 }
                                 m_kAMSList = m_kAMSList_temp;
@@ -1106,7 +1102,7 @@ CURLcode ReceiveResponse() {
             DebugOutput("Caught std::exception: ", e.what());
         }
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     
     m_pPrinterInfo->state = "offline";
@@ -2857,6 +2853,11 @@ bool TemperatureCalibration()
 const std::vector<AMSInfo>& GetAMSList()
 {
     return m_kAMSList;
+}
+
+const NozzleInfo& GetNozzleInfo()
+{
+    return nozzleInfo;
 }
 
 const bool& IsConnectedToAMS()

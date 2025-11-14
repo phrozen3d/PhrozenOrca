@@ -95,9 +95,14 @@ struct AMSPatterns
     const std::string AMS_unload_single_end = "P1Bn:1";
     const std::string AMS_unload_all_start = "P2A2:0";
     const std::string AMS_unload_all_end = "P2A2:1";
-    
+};
+
+struct NozzleInfo {
     bool fila_exist = false;
-    bool do_filament_check = false;
+    
+    bool isFilamentExisting() const {
+        return fila_exist;
+    }
 };
 
 struct AMSInfo {
@@ -108,32 +113,40 @@ struct AMSInfo {
     bool entry = false;
     bool park = false;
     bool loading = false;
-    bool nozzleCheck = false;
+    //bool unloading = false;
     AMSCommandState unload_state = AMSCommandState::NONE;
     AMSCommandState load_state = AMSCommandState::NONE;
     
-    int getEntryState() const {
-        return static_cast<int>(entry);
+    bool getEntryState() const {
+        return entry;
     }
     
-    int getParkState() const {
-        return static_cast<int>(park);
+    bool getParkState() const {
+        return park;
     }
     
-    int getLoadingState() const {
-        return static_cast<int>(loading);
+    bool getLoadingState() const {
+        return loading;
+    }
+    
+    //bool getUnloadingState() const {
+    //    return unloading;
+    //}
+    
+    bool isLoadingStart() const {
+        return load_state == AMSCommandState::START;
     }
     
     bool isLoadingFinished() const {
         return load_state == AMSCommandState::FINISH;
     }
     
-    bool isNozzleCheck() const {
-        return nozzleCheck;
+    bool isUnloadStart() const {
+        return unload_state == AMSCommandState::START;
     }
     
-    void setNozzleCheck(bool isCheckFinish) {
-        nozzleCheck = isCheckFinish;
+    bool isUnloadFinished() const {
+        return unload_state == AMSCommandState::FINISH;
     }
 };
 
@@ -992,6 +1005,7 @@ struct HttpErrorInfo {
 
     const std::vector<AMSInfo>& GetAMSList();
     const bool& IsConnectedToAMS();
+    const NozzleInfo& GetNozzleInfo();
 
 #pragma endregion //PhrozenMonitorController
 

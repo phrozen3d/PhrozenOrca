@@ -2769,16 +2769,46 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
     //m_pAmsPanel->SetSlotConfig( 1, AMSSlotConfig(1, 1, 0) );
     //m_pAmsPanel->SetSlotConfig( 2, AMSSlotConfig(1, 1, 1) );
     //m_pAmsPanel->SetSlotConfig( 3, AMSSlotConfig(0, 0, 0) );
+    
+    //┌─────────────────────────────────────────────────────┐
+    //│         update_ams() 函數中調用
+    //│
+    //│  MonitorControl::IsConnectedToAMS()
+    //│  └─> 返回 m_bIsConnetedToAMS -> bool
+    //│      └─> 機器是否連接AMS  返回 ture / false
+    //│
+    //│
+    //│  MonitorControl::GetNozzleInfo()
+    //│  └─> 返回 nozzleInfo (NozzleInfo)
+    //│          └─> 成員函數 (Member Functions)
+    //│              ├─> isFilamentExisting() -> bool
+    //│                  └─> 檢查線材是否存在於噴頭  返回 ture / false
+    //│
+    //│
+    //│  MonitorControl::GetAMSList()
+    //│  └─> 返回 m_kAMSList (vector<AMSInfo>)
+    //│      └─> ams_list[0-3] (AMSInfo)
+    //│          └─> 成員函數 (Member Functions)
+    //│              ├─> getEntryState() -> bool
+    //│              │   └─> 線材是否在AMS入口處  返回 entry 狀態 ture / false
+    //│              ├─> getParkState() -> bool
+    //│              │   └─> 線材是否在緩衝區位置  返回 park 狀態 ture / false
+    //│              ├─> getLoadingState() -> bool
+    //│              │   └─> 是否已進料  返回 loading 狀態 ture / false
+    //│              ├─> isLoadingStart() -> bool
+    //│              │   └─> 檢查進料是否開始  返回 ture / false
+    //│              ├─> isUnloadStart() -> bool
+    //│              │   └─> 檢查退料是否開始  返回 ture / false
+    //└─────────────────────────────────────────────────────┘
      
     //check ams is connected or not
     if(MonitorControl::IsConnectedToAMS()){
 
         //enable ams ui
         m_pAmsPanel->SetFilamentInputType( FilamentInputType::AMS );// force enable to test
-
+        
         const auto& ams_list = MonitorControl::GetAMSList();
         const int slot_count = 4; // Fixed 4 slots
-
         // Ensure we have data for all 4 slots
         if (!ams_list.empty()) {
             
@@ -2798,12 +2828,6 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
                 // false   | false | true  | Only park
                 // false   | false | false | All three conditions are false
                 // ============================================================
-                
-                if(ams_list[slot_index].isLoadingFinished() && !ams_list[slot_index].isNozzleCheck()){
-                    obj->SetPhrozenCommand_nozzle_filament_check();
-                    MonitorControl::m_kAMSList[slot_index].setNozzleCheck(true);
-                }
-                
                 m_pAmsPanel->SetSlotConfig( slot_index, AMSSlotConfig(ams_list[slot_index].getEntryState(), ams_list[slot_index].getParkState(), ams_list[slot_index].getLoadingState()) );
             }
         } else {
