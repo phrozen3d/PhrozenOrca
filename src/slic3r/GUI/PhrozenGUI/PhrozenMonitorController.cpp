@@ -2101,6 +2101,14 @@ void GetAllInfo_websocket()
     payload_AMS["method"] = "printer.gcode.script";
     payload_AMS["params"]["script"] = "P114";
     payload_AMS["id"] = printer_gcode_script;
+    
+    //Nozzle
+    //to check the filament is existing in the nozzle or not
+    json payload_Nozzle;
+    payload_Nozzle["jsonrpc"] = "2.0";
+    payload_Nozzle["method"] = "printer.gcode.script";
+    payload_Nozzle["params"]["script"] = "PRZ_ADC";
+    payload_Nozzle["id"] = printer_gcode_script;
 
     try {
         auto nowTime = std::chrono::steady_clock::now();
@@ -2119,6 +2127,7 @@ void GetAllInfo_websocket()
                 sendcnt++;
                 result = send_action_Command(payload_history.dump());
                 result = send_action_Command(payload_AMS.dump());
+                result = send_action_Command(payload_Nozzle.dump());
                 previousTime = std::chrono::steady_clock::now();
             }
         }
