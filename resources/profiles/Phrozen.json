@@ -25,6 +25,10 @@
         {
             "name": "0.20mm Ultra Fast @Phrozen Arco",
             "sub_path": "process/0.20mm Ultra Fast @Phrozen Arco 0.4 nozzle.json"
+        },
+        {
+            "name": "0.20mm Standard Polymaker @Phrozen Arco 0.4 nozzle",
+            "sub_path": "process/0.20mm Standard Polymaker @Phrozen Arco 0.4 nozzle.json"
         }
 		
     ],

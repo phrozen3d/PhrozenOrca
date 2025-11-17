@@ -1,0 +1,9 @@
+{
+    "type": "filament",
+	"setting_id": "PRZGFSA08",
+    "name": "Polymaker ABS @System",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Polymaker ABS @base",
+    "compatible_printers": []
+}

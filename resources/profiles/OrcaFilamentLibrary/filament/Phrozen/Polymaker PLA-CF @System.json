@@ -1,0 +1,9 @@
+{
+    "type": "filament",
+	"setting_id": "PRZGFSA06",
+    "name": "Polymaker PLA-CF @System",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Polymaker PLA-CF @base",
+    "compatible_printers": []
+}

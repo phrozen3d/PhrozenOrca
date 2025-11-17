@@ -2,7 +2,8 @@
     "type": "filament",
     "name": "Phrozen PLA HS Fast @base",
     "from": "system",
-    "filament_id": "PRZ001",
+	"setting_id": "PRZ001",
+    "filament_settings_id": "Phrozen PLA HS Fast",
     "instantiation": "false",
     "inherits": "fdm_filament_pla",
     "filament_vendor": [

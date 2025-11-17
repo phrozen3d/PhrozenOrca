@@ -1,0 +1,9 @@
+{
+    "type": "filament",
+	"setting_id": "PRZGFSA05",
+    "name": "Polymaker PETG @System",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Polymaker PETG @base",
+    "compatible_printers": []
+}

@@ -1003,6 +1003,38 @@
         {
             "name": "SpiderMaker PLA Matte @System",
             "sub_path": "filament/Phrozen/SpiderMaker PLA Matte @System.json"
+        },
+        {
+            "name": "Polymaker ABS @base",
+            "sub_path": "filament/Phrozen/Polymaker ABS @base.json"
+        },
+        {
+            "name": "Polymaker ABS @System",
+            "sub_path": "filament/Phrozen/Polymaker ABS @System.json"
+        },
+        {
+            "name": "Polymaker PA6-CF20 @base",
+            "sub_path": "filament/Phrozen/Polymaker PA6-CF20 @base.json"
+        },
+        {
+            "name": "Polymaker PA6-CF20 @System",
+            "sub_path": "filament/Phrozen/Polymaker PA6-CF20 @System.json"
+        },
+        {
+            "name": "Polymaker PETG @base",
+            "sub_path": "filament/Phrozen/Polymaker PETG @base.json"
+        },
+        {
+            "name": "Polymaker PETG @System",
+            "sub_path": "filament/Phrozen/Polymaker PETG @System.json"
+        },
+        {
+            "name": "Polymaker PLA-CF @base",
+            "sub_path": "filament/Phrozen/Polymaker PLA-CF @base.json"
+        },
+        {
+            "name": "Polymaker PLA-CF @System",
+            "sub_path": "filament/Phrozen/Polymaker PLA-CF @System.json"
         }
     ]
 }
