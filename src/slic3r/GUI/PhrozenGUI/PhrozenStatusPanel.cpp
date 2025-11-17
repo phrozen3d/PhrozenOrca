@@ -24,7 +24,7 @@
 #include <wx/zstream.h>
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
-#include "AMSGroupPanel.hpp"
+#include "PhrozenFilamentControl.hpp"
 
 #define HideOriginUiWidget 0
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
@@ -1071,36 +1071,13 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     tips_panel->SetSizer(tips_sizer);
     frame_sizer->Add(tips_panel, 0, wxALL, FromDIP(12));
 
-    // Create vertical layout for AMS panel and button
-    auto ams_vertical_sizer = new wxBoxSizer(wxVERTICAL);
-
-    m_pAmsPanel = new AMSGroupPanel(frame_panel, wxID_ANY);
-    ams_vertical_sizer->Add(m_pAmsPanel, 1, wxEXPAND | wxALL, FromDIP(0));
-
-    // Unload All Slots button
-    StateColor btn_bg(std::pair<wxColour, int>(wxColour(72, 79, 86), StateColor::Disabled),
-                      std::pair<wxColour, int>(wxColour(221, 80, 19), StateColor::Pressed),
-                      std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
-                      std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Normal));
-
-    m_ams_unload_all_btn = new Button(frame_panel, _L("Unload All Slots"));
-    m_ams_unload_all_btn->SetBackgroundColor(btn_bg);
-    m_ams_unload_all_btn->SetTextColor(*wxWHITE);
-    m_ams_unload_all_btn->SetFont(Label::Body_10);
-    m_ams_unload_all_btn->SetMinSize(wxSize(FromDIP(248), FromDIP(32)));
-    m_ams_unload_all_btn->SetCornerRadius(FromDIP(5));
+    m_pFilamentControlPanel = new PhrozenFilamentControl(frame_panel, wxID_ANY);
 
     // Bind button event
-    m_ams_unload_all_btn->Bind(wxEVT_BUTTON, &PhrozenStatusBasePanel::on_ams_unload_all, this);
+    //m_ams_unload_all_btn->Bind(wxEVT_BUTTON, &PhrozenStatusBasePanel::on_ams_unload_all, this);
 
-    // Add button to vertical layout with right alignment
-    auto button_sizer = new wxBoxSizer(wxHORIZONTAL);
-    button_sizer->AddStretchSpacer();
-    button_sizer->Add(m_ams_unload_all_btn, 0, wxALL, FromDIP(10));
 
-    ams_vertical_sizer->Add(button_sizer, 0, wxEXPAND);
-
-    frame_sizer->Add(ams_vertical_sizer, 1, wxEXPAND | wxALL, FromDIP(12));
+    frame_sizer->Add(m_pFilamentControlPanel, 1, wxEXPAND | wxALL, FromDIP(12));
     frame_panel->SetSizer(frame_sizer);
 
     // Main content sizer
@@ -1116,7 +1093,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
 
 void PhrozenStatusBasePanel::show_ams_group(bool show)
 {
-    m_pAmsPanel->Show(true);
+    m_pFilamentControlPanel->Show(true);
     if (m_show_ams_group != show) {
         Fit();
     }
@@ -2748,28 +2725,21 @@ void PhrozenStatusPanel::update_extruder_status(MachineObject* obj)
     }
 }
 
-int ff = 1;
 void PhrozenStatusPanel::update_ams(MachineObject *obj)
 {
-    if ( !m_pAmsPanel || !m_pAmsPanel->IsShown() )
+    if ( !m_pFilamentControlPanel || !m_pFilamentControlPanel->IsShown() )
     {
         return;
     }
 
+    FilamentSystemState kStatus;
     if ( !obj )
     {
-        m_pAmsPanel->SetFilamentInputType( FilamentInputType::Empty );
+        //initialize is disable all filament.
+        m_pFilamentControlPanel->UpdateFilamentState( kStatus );
         return;
     }
 
-    m_pAmsPanel->SetFilamentInputType( (FilamentInputType)ff );// force enable to test
-
-    //Input: ( bool bIsEntry, bool bIsParking, bool bIsLoading )
-    //m_pAmsPanel->SetSlotConfig( 0, AMSSlotConfig(1, 0, 0) );
-    //m_pAmsPanel->SetSlotConfig( 1, AMSSlotConfig(1, 1, 0) );
-    //m_pAmsPanel->SetSlotConfig( 2, AMSSlotConfig(1, 1, 1) );
-    //m_pAmsPanel->SetSlotConfig( 3, AMSSlotConfig(0, 0, 0) );
-    
     //┌─────────────────────────────────────────────────────┐
     //│         update_ams() 函數中調用
     //│
@@ -2800,50 +2770,27 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
     //│              ├─> isUnloadStart() -> bool
     //│              │   └─> 檢查退料是否開始  返回 ture / false
     //└─────────────────────────────────────────────────────┘
-     
-    //check ams is connected or not
-    if(MonitorControl::IsConnectedToAMS()){
-
-        //enable ams ui
-        m_pAmsPanel->SetFilamentInputType( FilamentInputType::AMS );// force enable to test
-        
-        const auto& ams_list = MonitorControl::GetAMSList();
-        const int slot_count = 4; // Fixed 4 slots
-        // Ensure we have data for all 4 slots
-        if (!ams_list.empty()) {
-            
-            for (int slot_index = 0; slot_index < slot_count; ++slot_index) {
-
-                // Determine state based on AMSInfo fields
-                // Detailed truth table for all possible state combinations
-                // ============================================================
-                // loading | entry | park  | Description
-                // --------|-------|-------|----------------------------------
-                // true    | true  | false | loading + entry
-                // true    | false | true  | loading + park
-                // false   | true  | true  | entry + park
-                // true    | true  | true  | All three conditions are true
-                // true    | false | false | Only loading
-                // false   | true  | false | Only entry
-                // false   | false | true  | Only park
-                // false   | false | false | All three conditions are false
-                // ============================================================
-                m_pAmsPanel->SetSlotConfig( slot_index, AMSSlotConfig(ams_list[slot_index].getEntryState(), ams_list[slot_index].getParkState(), ams_list[slot_index].getLoadingState()) );
-            }
-        } else {
-            // If data is incomplete, set all slots to Empty
-            for (int slot_index = 0; slot_index < slot_count; ++slot_index) {
-                m_pAmsPanel->SetSlotConfig( slot_index, AMSSlotConfig(0, 0, 0) );
-            }
+    
+    kStatus.SetNozzleFilamentDetected( MonitorControl::GetNozzleInfo().isFilamentExisting() );
+    if ( MonitorControl::IsConnectedToAMS() )
+    {
+        kStatus.SetAMSSystemDetected( MonitorControl::IsConnectedToAMS() );
+        auto& kAmsList = MonitorControl::GetAMSList();
+        //const std::vector<AMSInfo>& GetAMSList();
+        assert( kAmsList.size() == 4 && "ams slot list must be 4" );
+        for ( size_t nIndex = 0; nIndex < kAmsList.size(); ++nIndex )
+        {
+            kStatus.SetAMSSlotState( nIndex, kAmsList[nIndex].getEntryState(),
+                                             kAmsList[nIndex].getParkState(),
+                                             kAmsList[nIndex].getLoadingState(),
+                                             kAmsList[nIndex].isLoadingStart(),
+                                             kAmsList[nIndex].isUnloadStart() );
         }
     }
-    //else if (1) {
-    //    need to modify
-    //    m_pAmsPanel->SetFilamentInputType( FilamentInputType::Spool );
-    //}
-    //else{
-    //    m_pAmsPanel->SetFilamentInputType( FilamentInputType::Empty );
-    //}
+
+    m_pFilamentControlPanel->UpdateFilamentState( kStatus );
+    return;
+
 }
 
 void PhrozenStatusPanel::update_cali(MachineObject *obj)
@@ -3683,7 +3630,7 @@ void PhrozenStatusPanel::set_default()
     #endif
 
     reset_temp_misc_control();
-    m_pAmsPanel->Hide();
+    m_pFilamentControlPanel->Hide();
     error_info_reset();
     SetFocus();
 }
@@ -3766,7 +3713,7 @@ void PhrozenStatusPanel::on_sys_color_changed()
     m_bitmap_speed.msw_rescale();
     m_bitmap_speed_active.msw_rescale();
     m_switch_speed->SetImages(m_bitmap_speed, m_bitmap_speed);
-    m_pAmsPanel->msw_rescale();
+    m_pFilamentControlPanel->msw_rescale();
     if (m_print_error_dlg) { m_print_error_dlg->msw_rescale(); }
     rescale_camera_icons();
 }
@@ -3817,7 +3764,7 @@ void PhrozenStatusPanel::msw_rescale()
     m_switch_cham_fan->SetImages(m_bitmap_fan_on, m_bitmap_fan_off);
     m_switch_cham_fan->Rescale();
 
-    m_pAmsPanel->msw_rescale();
+    m_pFilamentControlPanel->msw_rescale();
 
     m_calibration_btn->SetMinSize(wxSize(-1, FromDIP(26)));
     m_calibration_btn->Rescale();

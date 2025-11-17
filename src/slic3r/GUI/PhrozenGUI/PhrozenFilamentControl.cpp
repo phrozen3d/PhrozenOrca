@@ -1,17 +1,20 @@
-#include "AMSGroupPanel.hpp"
+#include "PhrozenFilamentControl.hpp"
 #include <wx/dcbuffer.h>
+#include "../Widgets/Button.hpp"
+#include "../Widgets/Label.hpp"
+#include "../I18N.hpp"
 
 namespace Slic3r {
 namespace GUI {
 
-#pragma region AMSGroupPanel
-wxBEGIN_EVENT_TABLE(AMSGroupPanel, wxPanel)
-    EVT_PAINT(AMSGroupPanel::OnPaint)
-    EVT_LEFT_DOWN(AMSGroupPanel::OnLeftDown)
-    EVT_ERASE_BACKGROUND(AMSGroupPanel::OnEraseBackground)
+#pragma region FilamentStatusPanel
+wxBEGIN_EVENT_TABLE(FilamentStatusPanel, wxPanel)
+    EVT_PAINT(FilamentStatusPanel::OnPaint)
+    EVT_LEFT_DOWN(FilamentStatusPanel::OnLeftDown)
+    EVT_ERASE_BACKGROUND(FilamentStatusPanel::OnEraseBackground)
 wxEND_EVENT_TABLE()
 
-AMSGroupPanel::AMSGroupPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size)
+FilamentStatusPanel::FilamentStatusPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size)
     : wxPanel(parent, id, pos, size, wxTAB_TRAVERSAL)
     , m_selected_slot(-1)
     , m_panel_bg(0xEE, 0xEE, 0xEE)
@@ -23,76 +26,85 @@ AMSGroupPanel::AMSGroupPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos
     , m_eInputType( FilamentInputType::Empty )
     , m_text_color(0x82, 0x82, 0x80)
     , m_loading_line_color( 0xFF, 0x7C, 0x3F )
+    , light_color_entry( 0x00, 0xFF, 0x00 )
+    , light_color_error( 0xFF, 0x00, 0x00 )
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     // Inherit background color from parent
     if (parent) {
+        //SetBackgroundColour(wxColor(0x00, 0xFF, 0x00, 20));
         SetBackgroundColour(parent->GetBackgroundColour());
-        //SetBackgroundColour(wxColor(0xff, 0x00, 0x00)); //set red for check background area
     }
     SetMinSize(wxSize(375, 168));  // 76 (SpoolHolder) + 10 (gap) + 289 (original panel)
+}
 
-    // Initialize slot configurations
-    for (int i = 0; i < SLOT_COUNT; i++) {
-        m_slot_configs[i] = AMSSlotConfig();
+FilamentStatusPanel::~FilamentStatusPanel()
+{
+}
+
+void FilamentStatusPanel::UpdateFilamentState( const FilamentSystemState& kFilamentState )
+{ 
+    m_kFilamentState = kFilamentState; 
+
+    SetFilamentInputType( FilamentInputType::Empty );
+
+    if ( m_kFilamentState.IsAMSSystemDetected() ) {
+        SetFilamentInputType( FilamentInputType::AMS );
+    }
+    else if ( m_kFilamentState.IsNozzleFilamentDetected() ) {
+        SetFilamentInputType( FilamentInputType::Spool );
+    }
+
+    Refresh();
+}
+void FilamentStatusPanel::SetSlotConfig(int slot_index, const AMSSlotConfig& config)
+{
+    if (slot_index >= 0 && slot_index < m_kFilamentState.SLOT_COUNT) {
+        m_kFilamentState.m_slot_configs[slot_index] = config;
     }
 }
 
-AMSGroupPanel::~AMSGroupPanel()
+AMSSlotConfig FilamentStatusPanel::GetSlotConfig(int slot_index) const
 {
-}
-
-void AMSGroupPanel::SetSlotConfig(int slot_index, const AMSSlotConfig& config)
-{
-    if (slot_index >= 0 && slot_index < SLOT_COUNT) {
-        m_slot_configs[slot_index] = config;
-        Refresh();
-    }
-}
-
-AMSSlotConfig AMSGroupPanel::GetSlotConfig(int slot_index) const
-{
-    if (slot_index >= 0 && slot_index < SLOT_COUNT) {
-        return m_slot_configs[slot_index];
+    if (slot_index >= 0 && slot_index < m_kFilamentState.SLOT_COUNT) {
+        return m_kFilamentState.m_slot_configs[slot_index];
     }
     assert( 0 && "out of bound" );
     return AMSSlotConfig();
 }
 
-void AMSGroupPanel::SetSelectedSlot(int slot_index)
+void FilamentStatusPanel::SetSelectedSlot(int slot_index)
 {
-    if (slot_index >= -1 && slot_index < SLOT_COUNT) {
+    if (slot_index >= -1 && slot_index < m_kFilamentState.SLOT_COUNT) {
         m_selected_slot = slot_index;
-        Refresh();
     }
 }
 
-void AMSGroupPanel::msw_rescale() 
+void FilamentStatusPanel::msw_rescale()
 {
     Refresh();
 }
 
-void AMSGroupPanel::SetFilamentInputType( const FilamentInputType& eType )
+void FilamentStatusPanel::SetFilamentInputType( const FilamentInputType& eType )
 {
     m_eInputType = eType;
-    Refresh();
 }
 
-bool AMSGroupPanel::IsAnyFilamentLoading()
+bool FilamentStatusPanel::IsAnyAMSFilamentLoading()
 {
-    for ( auto& kInfo : m_slot_configs )
+    for ( auto& kInfo : m_kFilamentState.m_slot_configs )
     {
         if ( kInfo.IsLoading() ) return true;
     }
     return false;
 }
 
-void AMSGroupPanel::OnEraseBackground(wxEraseEvent& event)
+void FilamentStatusPanel::OnEraseBackground(wxEraseEvent& event)
 {
     // Do nothing to prevent flicker
 }
 
-void AMSGroupPanel::OnPaint(wxPaintEvent& event)
+void FilamentStatusPanel::OnPaint(wxPaintEvent& event)
 {
     wxAutoBufferedPaintDC dc(this);
 
@@ -113,7 +125,8 @@ void AMSGroupPanel::OnPaint(wxPaintEvent& event)
         double offset_x = (size.GetWidth() - PANEL_WIDTH * scale) / 2.0;
         double offset_y = (size.GetHeight() - PANEL_HEIGHT * scale) / 2.0;
 
-        gc->Translate(offset_x, offset_y);
+        int offset = FromDIP( 10 );
+        gc->Translate(offset_x, offset_y - offset);
         gc->Scale(scale, scale);
 
         DrawPanel(gc);
@@ -122,7 +135,7 @@ void AMSGroupPanel::OnPaint(wxPaintEvent& event)
     }
 }
 
-void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
+void FilamentStatusPanel::DrawPanel(wxGraphicsContext* gc)
 {
     // Draw SpoolHolder on the left side
     DrawSpoolHolder(gc);
@@ -147,8 +160,8 @@ void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
     // Draw all four slot groups
     std::vector< int > kLoadingSlotIds;
     kLoadingSlotIds.reserve(4);
-    for (int i = 0; i < SLOT_COUNT; i++) {
-        if ( m_slot_configs[ i ].IsLoading() )
+    for (int i = 0; i < m_kFilamentState.SLOT_COUNT; i++) {
+        if ( m_kFilamentState.m_slot_configs[ i ].IsLoading() )
         {
             //loading line need draw on the top, so paint it final
             kLoadingSlotIds.push_back( i );
@@ -172,7 +185,7 @@ void AMSGroupPanel::DrawPanel(wxGraphicsContext* gc)
     gc->PopState();
 }
 
-void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double x_offset)
+void FilamentStatusPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double x_offset)
 {
     double light_cx = x_offset + 26; // Center of light circle
     double light_cy = 18;
@@ -180,7 +193,7 @@ void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double 
     double outline_y = 32;
 
     bool bIsEnable = ( m_eInputType == FilamentInputType::AMS );
-    const AMSSlotConfig& config = m_slot_configs[slot_index]; 
+    const AMSSlotConfig& config = m_kFilamentState.m_slot_configs[slot_index]; 
 
     // Draw light circle (always draw, color determines state)
     DrawLightCircle(gc, light_cx, light_cy, config );
@@ -196,7 +209,7 @@ void AMSGroupPanel::DrawSlotGroup(wxGraphicsContext* gc, int slot_index, double 
     DrawConnectionLine(gc, slot_index, config );
 }
 
-void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, const AMSSlotConfig& config )
+void FilamentStatusPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy, const AMSSlotConfig& config )
 {
     if ( !IsAMSEnabled() || !config.IsEntry() ) {
         float fOpacity = 0.3;
@@ -212,7 +225,7 @@ void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy,
     gc->DrawEllipse(cx - 5.5, cy - 5.5, 11, 11);
 
     float fOpacity = 1.0;
-    auto kColor = config.light_color_entry;
+    auto kColor = light_color_entry;
     // <!-- light gradient --> Draw with blur effect (simulated with multiple semi-transparent circles)
     for (int i = 6; i >= 0; i--) {
         double radius = 3.0 + i * 0.9;
@@ -229,7 +242,7 @@ void AMSGroupPanel::DrawLightCircle(wxGraphicsContext* gc, double cx, double cy,
     gc->DrawEllipse(cx - 6, cy - 6, 12, 12);
 }
 
-void AMSGroupPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, bool is_selected )
+void FilamentStatusPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, bool is_selected )
 {
     
     wxGraphicsPath path = gc->CreatePath();
@@ -265,31 +278,9 @@ void AMSGroupPanel::DrawSlotOutline(wxGraphicsContext* gc, double x, double y, c
                               wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * fOpacity ), 
                               1.5, 3, 3);
     }
-
-
-    #if 0
-    if (!is_enabled) {
-        // <!-- outline --> Disabled slot with dashed line
-        // <rect stroke-dasharray="2.73 2.73"/>
-        // wxGraphicsContext doesn't support wxPen dashes, need to manually draw dashed outline
-        gc->SetPen(*wxTRANSPARENT_PEN);
-        //gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
-        gc->SetBrush(wxBrush(wxColour(m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity )));
-        
-        gc->FillPath(path);
-
-        // Draw dashed stroke manually
-        DrawDashedRoundedRect(gc, x, y, 52, 88, 10, m_slot_outline_disabled, 1.5, 3, 3);
-    } else {
-        // <!-- outline --> Enabled slot
-        gc->SetPen(wxPen(m_slot_outline_enabled, 1.5));
-        gc->SetBrush(wxBrush(wxColour(255, 255, 255, 25))); // white with 0.1 opacity
-        gc->DrawPath(path);
-    }
-    #endif
 }
 
-void AMSGroupPanel::DrawDashedRoundedRect(wxGraphicsContext* gc, double x, double y, double w, double h,
+void FilamentStatusPanel::DrawDashedRoundedRect(wxGraphicsContext* gc, double x, double y, double w, double h,
                                            double radius, const wxColour& color, double width,
                                            double dash_on, double dash_off)
 {
@@ -381,7 +372,7 @@ void AMSGroupPanel::DrawDashedRoundedRect(wxGraphicsContext* gc, double x, doubl
     gc->StrokePath(path);
 }
 
-void AMSGroupPanel::DrawSlotTitle(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, int slot_number )
+void FilamentStatusPanel::DrawSlotTitle(wxGraphicsContext* gc, double x, double y, const AMSSlotConfig& config, int slot_number )
 {
     // Set font for title - using Roboto font
     wxFont font(wxFontInfo(12).FaceName("Roboto"));
@@ -410,11 +401,8 @@ void AMSGroupPanel::DrawSlotTitle(wxGraphicsContext* gc, double x, double y, con
     gc->DrawText(title, text_x, text_y);
 }
 
-void AMSGroupPanel::DrawConnectionLine(wxGraphicsContext* gc, int slot_index, const AMSSlotConfig& config )
+void FilamentStatusPanel::DrawConnectionLine(wxGraphicsContext* gc, int slot_index, const AMSSlotConfig& config )
 {
-    double line_width_enable = 6.0;
-    double line_width_disable = 2.0;
-
     bool bHasFilamentInput = config.IsParking();
     auto line_width = (IsAMSEnabled() && bHasFilamentInput ) ? line_width_enable : line_width_disable;
 
@@ -497,7 +485,7 @@ void AMSGroupPanel::DrawConnectionLine(wxGraphicsContext* gc, int slot_index, co
     }
 }
 
-void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
+void FilamentStatusPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
 {
     // <!-- feed port rectangle -->
     // <rect x="37" y="138" width="24" height="12" rx="4" fill="#CFD2D3"/>
@@ -516,12 +504,14 @@ void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
     gc->FillPath(path);
     gc->StrokePath(path);
 
+
     bool bUsingAMS = m_eInputType == FilamentInputType::AMS;
+    bool bFilamentIsLoading = IsAnyAMSFilamentLoading();
     float fOpacity = bUsingAMS ? 1.0 : 0.3;
-    auto usingColor = ( bUsingAMS && IsAnyFilamentLoading() ) ? m_loading_line_color : m_line_color;
+    auto usingColor = ( bUsingAMS && bFilamentIsLoading ) ? m_loading_line_color : m_line_color;
     auto lineColor = wxColor( usingColor.Red(), usingColor.Green(), usingColor.Blue(), 255 * fOpacity );
 
-    auto fLineWidth = bUsingAMS && IsAnyFilamentLoading() ? line_width_enable : line_width_disable;
+    auto fLineWidth = bUsingAMS && bFilamentIsLoading ? line_width_enable : line_width_disable;
     wxPen pen(lineColor, fLineWidth);
     pen.SetCap(wxCAP_BUTT);
     gc->SetPen(pen);
@@ -529,41 +519,90 @@ void AMSGroupPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
     // move to rectangle's bottom
     start_x += width/2.0;
     start_y += height;
-    gc->StrokeLine(start_x, start_y, start_x, start_y + 20 );
-    start_y += 15;
+    gc->StrokeLine(start_x, start_y, start_x, start_y + 16 );
+    start_y += 16;
 
-#if 0
-    // draw line from feedPortRectangle to nozzle
-    //if (is_enabled) {
-    //    wxPen pen2(line_color, line_width_enable);
-    //    pen2.SetCap(wxCAP_ROUND);
-    //    gc->SetPen(pen2);
-    //}
+    auto pos_ams = wxPoint( start_x, start_y );
+    auto pos_spool = wxPoint( pos_ams.x - 100, pos_ams.y );
+    auto pos_nozzle = wxPoint( pos_ams.x - 25, pos_ams.y + 20 + 20 + 10 );
 
-    wxGraphicsPath path2 = gc->CreatePath();
-    path2.MoveToPoint(start_x, start_y);
-    // Curve to horizontal
-    path2.AddArc(start_x - 10, start_y, 10, 0, M_PI/2, true);
-    
-    // move to arc end
-    start_x -= 10;
-    start_y += 10;
-    path2.MoveToPoint(start_x, start_y);
-    
-    // add horizo
-    start_x -= 5;
-    path2.AddLineToPoint(start_x, start_y);
-    
-    // Curve down
-    path2.AddArc(start_x, start_y + 10, 10, M_PI * 1.5, M_PI, false); 
-    gc->StrokePath(path2);
-#endif
+    DrawFilamentToNozzle( gc, pos_spool, pos_ams, pos_nozzle  );
 
 }
 
-wxRect AMSGroupPanel::GetSlotRect(int slot_index) const
+void FilamentStatusPanel::DrawFilamentToNozzle( wxGraphicsContext* gc, const wxPoint& pos_spool, 
+                                                                 const wxPoint& pos_ams, 
+                                                                 const wxPoint& pos_nozzle  )
 {
-    if (slot_index < 0 || slot_index >= SLOT_COUNT)
+    bool bIsEnabled = m_eInputType != FilamentInputType::Empty;
+    if ( m_eInputType == FilamentInputType::Empty )
+    {
+        return;
+    }
+
+    auto fnDrawLine =[&] ( const wxPoint& begin, const wxPoint& end, const wxColor color, const float fLineWidth ) -> void
+    {
+        bool bOnTheRight = (end.x - begin.x ) > 0;
+
+        wxPen pen_butt(color, fLineWidth);
+        pen_butt.SetCap(wxCAP_BUTT);
+        gc->SetPen(pen_butt);
+
+        wxGraphicsPath path = gc->CreatePath();
+        int start_x = begin.x;
+        int start_y = begin.y;
+        path.MoveToPoint(start_x, start_y);
+
+        if ( bOnTheRight ) {
+            path.AddArc(start_x + 10, start_y, 10, M_PI, M_PI/2, false);
+            start_x += 10;
+            start_y += 10;
+
+            path.AddLineToPoint(start_x + 30, start_y);
+            start_x += 30;
+
+            path.AddArc(start_x, start_y + 10, 10, M_PI*1.5, 0, true);
+            start_x += 10;
+            start_y += 10;
+        }
+        else {
+            path.AddArc(start_x - 10, start_y, 10, 0, M_PI/2, true);
+            start_x -= 10;
+            start_y += 10;
+
+            path.AddLineToPoint(start_x - 30, start_y);
+            start_x -= 30;
+
+            path.AddArc(start_x, start_y + 10, 10, M_PI*1.5, M_PI, false);
+            start_x -= 10;
+            start_y += 10;
+        }
+
+        path.MoveToPoint(start_x, start_y);
+        path.AddLineToPoint( start_x, start_y + 30 );
+        gc->StrokePath(path);
+    };
+
+    auto lineColorOpacity = wxColor( m_line_color.Red(), m_line_color.Green(), m_line_color.Blue(), 255 * 0.3 );
+    if ( m_eInputType == FilamentInputType::Spool ){
+        //Ams
+        fnDrawLine( pos_ams, pos_nozzle, lineColorOpacity, line_width_disable );
+        //Spool(Loading)
+        fnDrawLine( pos_spool, pos_nozzle, m_loading_line_color, line_width_enable );
+    }
+    else{
+        //Spool
+        fnDrawLine( pos_spool, pos_nozzle, lineColorOpacity, line_width_disable );
+        //Ams(Loading)
+        auto lineColor = m_kFilamentState.IsNozzleFilamentDetected() ? m_loading_line_color : m_line_color;
+        auto lineWidth = m_kFilamentState.IsNozzleFilamentDetected() ? line_width_enable : line_width_disable;
+        fnDrawLine( pos_ams, pos_nozzle, lineColor, lineWidth );
+    }
+}
+
+wxRect FilamentStatusPanel::GetSlotRect(int slot_index) const
+{
+    if (slot_index < 0 || slot_index >= m_kFilamentState.SLOT_COUNT)
         return wxRect();
 
     // Calculate slot rectangle in client coordinates
@@ -589,9 +628,9 @@ wxRect AMSGroupPanel::GetSlotRect(int slot_index) const
     return wxRect(slot_x, slot_y, slot_w, slot_h);
 }
 
-int AMSGroupPanel::HitTestSlot(const wxPoint& pos) const
+int FilamentStatusPanel::HitTestSlot(const wxPoint& pos) const
 {
-    for (int i = 0; i < SLOT_COUNT; i++) {
+    for (int i = 0; i < m_kFilamentState.SLOT_COUNT; i++) {
         wxRect rect = GetSlotRect(i);
         if (rect.Contains(pos)) {
             return i;
@@ -600,7 +639,7 @@ int AMSGroupPanel::HitTestSlot(const wxPoint& pos) const
     return -1;
 }
 
-void AMSGroupPanel::DrawSpoolHolder(wxGraphicsContext* gc)
+void FilamentStatusPanel::DrawSpoolHolder(wxGraphicsContext* gc)
 {
     float fOpacity = m_eInputType == FilamentInputType::Spool ? 1.0 : 0.3;
     auto panel_bg_color = wxColor( m_panel_bg.Red(), m_panel_bg.Green(), m_panel_bg.Blue(), 255 * fOpacity );
@@ -648,7 +687,7 @@ void AMSGroupPanel::DrawSpoolHolder(wxGraphicsContext* gc)
     gc->PopState();
 }
 
-void AMSGroupPanel::OnLeftDown(wxMouseEvent& event)
+void FilamentStatusPanel::OnLeftDown(wxMouseEvent& event)
 {
     int slot_index = HitTestSlot(event.GetPosition());
     SetSelectedSlot(slot_index);
@@ -664,7 +703,152 @@ void AMSGroupPanel::OnLeftDown(wxMouseEvent& event)
 
     event.Skip();
 }
-#pragma endregion 
+#pragma endregion
+
+#pragma region PhrozenFilamentControl
+
+PhrozenFilamentControl::PhrozenFilamentControl(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size)
+    : wxPanel(parent, id, pos, size, wxTAB_TRAVERSAL)
+    , m_nMinWidth( FromDIP(375) ) //375
+    , m_nMinHeight( FromDIP(168) + FromDIP(32) + FromDIP(20) ) //168
+    , m_nButtonGroupMinWidth( FromDIP(200) )
+    , n_nButtonGroupMinHight( FromDIP(68) )
+    
+{
+    // Inherit background color from parent
+    if (parent) {
+        //SetBackgroundColour(wxColor(0xFF, 0x00, 0x00)); //for test area
+        SetBackgroundColour(parent->GetBackgroundColour());
+    }
+
+    // Create vertical sizer
+    auto main_sizer = new wxBoxSizer(wxVERTICAL);
+
+    // Create AMSGroupPanel
+    m_felament_status_panel = new FilamentStatusPanel(this, wxID_ANY);
+    main_sizer->Add(m_felament_status_panel, 3, wxEXPAND, FromDIP(0));
+
+
+    auto lower_sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto pNozzleImage = create_nozzle_image( this );
+    lower_sizer->Add(pNozzleImage, 1, wxEXPAND);
+    //lower_sizer->AddStretchSpacer(2);
+
+    auto pButtonGroup = create_ams_control_button( this );
+    lower_sizer->Add(pButtonGroup, 1, wxEXPAND);
+
+    main_sizer->Add(lower_sizer, 1, wxEXPAND, FromDIP(0));
+
+    
+
+    SetSizer(main_sizer);
+
+    // Update minimum size to include button
+    SetMinSize(wxSize(m_nMinWidth, m_nMinHeight));  // panel height + button height + margins
+}
+
+PhrozenFilamentControl::~PhrozenFilamentControl()
+{
+}
+
+
+wxSizer* PhrozenFilamentControl::create_ams_control_button( wxWindow* pParent )
+{
+    auto sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto box = new StaticBox(pParent);
+
+    StateColor box_colour(std::pair<wxColour, int>(pParent->GetBackgroundColour(), StateColor::Normal));
+
+    box->SetBackgroundColor(box_colour);
+    box->SetBorderWidth( 0 );
+    box->SetCornerRadius(FromDIP(0));
+
+    box->SetMinSize(wxSize(m_nButtonGroupMinWidth, n_nButtonGroupMinHight));
+
+
+    auto button_sizer = new wxBoxSizer(wxVERTICAL);
+    // Create button background colors
+    StateColor btn_bg(std::pair<wxColour, int>(wxColour(72, 79, 86), StateColor::Disabled),
+                      std::pair<wxColour, int>(wxColour(221, 80, 19), StateColor::Pressed),
+                      std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
+                      std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Normal));
+
+    // Create "Unload All Slots" button
+    m_ams_unload_all_btn = new Button(box, _L("Unload All Slots"));
+    m_ams_unload_all_btn->SetBackgroundColor(btn_bg);
+    m_ams_unload_all_btn->SetTextColor(*wxWHITE);
+    m_ams_unload_all_btn->SetFont(Label::Body_10);
+    m_ams_unload_all_btn->SetMinSize(wxSize(-1, FromDIP(30)));
+    m_ams_unload_all_btn->SetCornerRadius(FromDIP(5));
+
+    button_sizer->Add(m_ams_unload_all_btn, 1, wxALL | wxEXPAND, FromDIP(2));
+
+    // Create Load / UnLoad button
+    m_unload_button = new Button(box, _L("Unload"));
+    m_unload_button->SetBackgroundColor(btn_bg);
+    m_unload_button->SetTextColor(*wxWHITE);
+    m_unload_button->SetFont(Label::Body_10);
+    m_unload_button->SetMinSize(wxSize(FromDIP(100), FromDIP(30)));
+    m_unload_button->SetCornerRadius(FromDIP(5));
+
+    m_load_button = new Button(box, _L("Load"));
+    m_load_button->SetBackgroundColor(btn_bg);
+    m_load_button->SetTextColor(*wxWHITE);
+    m_load_button->SetFont(Label::Body_10);
+    m_load_button->SetMinSize(wxSize(FromDIP(100), FromDIP(30)));
+    m_load_button->SetCornerRadius(FromDIP(5));
+
+    // Add two buttons in horizontal layout with right alignment
+    auto lower_button_sizer = new wxBoxSizer(wxHORIZONTAL);
+    lower_button_sizer->Add(m_unload_button, 1, wxALL | wxEXPAND, FromDIP(2));
+    lower_button_sizer->Add(m_load_button, 1, wxALL | wxEXPAND, FromDIP(2));
+    button_sizer->Add(lower_button_sizer, 1, wxALL | wxEXPAND );
+
+    box->SetSizer( button_sizer );
+    sizer->Add(box, 0, wxEXPAND | wxALL, FromDIP(0));
+
+    return sizer;
+}
+
+wxSizer* PhrozenFilamentControl::create_nozzle_image( wxWindow* pParent )
+{
+    auto sizer = new wxBoxSizer(wxHORIZONTAL);
+    auto box = new StaticBox(pParent);
+    
+    StateColor box_colour(std::pair<wxColour, int>(*wxWHITE, StateColor::Normal));
+    
+    box->SetBackgroundColor(box_colour);
+    box->SetBorderWidth( 0 );
+    box->SetCornerRadius(FromDIP(0));
+
+    // FromDIP(5) let nozzle move to spool holder & ams group middle
+    box->SetMinSize(wxSize(m_nMinWidth - FromDIP(12) - m_nButtonGroupMinWidth, n_nButtonGroupMinHight ));
+
+    auto sizer_container = new wxBoxSizer(wxVERTICAL);
+    m_nozzle_staticBitmap = new wxStaticBitmap( box, wxID_ANY, create_scaled_bitmap("PhrozenImages/FilamentPanel_Nozzle", nullptr, FromDIP(40)) );
+    sizer_container->Add(m_nozzle_staticBitmap, 1, wxALIGN_CENTER | wxALL, FromDIP(0));
+    sizer_container->AddStretchSpacer();
+
+    box->SetSizer( sizer_container );
+    sizer->Add(box, 0, wxALIGN_CENTER | wxALL, FromDIP(0));
+
+    return sizer;
+}
+
+void PhrozenFilamentControl::msw_rescale()
+{
+    if ( m_felament_status_panel ) m_felament_status_panel->msw_rescale();
+    Refresh();
+}
+
+void PhrozenFilamentControl::UpdateFilamentState( const FilamentSystemState& kState )
+{
+    m_kFilamentState = kState;
+    if ( m_felament_status_panel ) m_felament_status_panel->UpdateFilamentState( m_kFilamentState );
+
+
+}
+#pragma endregion
 
 
 } // namespace GUI

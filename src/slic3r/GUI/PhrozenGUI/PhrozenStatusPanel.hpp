@@ -36,7 +36,7 @@
 
 namespace Slic3r {
 namespace GUI {
-class AMSGroupPanel;
+class PhrozenFilamentControl;
 
 enum class PhrozenParamControl : int32_t
 {
@@ -343,8 +343,7 @@ public:
     ScalableBitmap m_Control_z_nozzle;
 
     //AMS
-    AMSGroupPanel* m_pAmsPanel{nullptr};
-    Button* m_ams_unload_all_btn{nullptr};
+    PhrozenFilamentControl* m_pFilamentControlPanel{nullptr};
 
     //Temperature
     std::unique_ptr< wxStaticText > m_spTemp_nozzle;
