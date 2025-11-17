@@ -725,8 +725,8 @@ PhrozenFilamentControl::PhrozenFilamentControl(wxWindow* parent, wxWindowID id, 
     auto main_sizer = new wxBoxSizer(wxVERTICAL);
 
     // Create AMSGroupPanel
-    m_felament_status_panel = new FilamentStatusPanel(this, wxID_ANY);
-    main_sizer->Add(m_felament_status_panel, 3, wxEXPAND, FromDIP(0));
+    m_filament_status_panel = new FilamentStatusPanel(this, wxID_ANY);
+    main_sizer->Add(m_filament_status_panel, 3, wxEXPAND, FromDIP(0));
 
 
     auto lower_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -837,15 +837,27 @@ wxSizer* PhrozenFilamentControl::create_nozzle_image( wxWindow* pParent )
 
 void PhrozenFilamentControl::msw_rescale()
 {
-    if ( m_felament_status_panel ) m_felament_status_panel->msw_rescale();
+    if ( m_filament_status_panel ) m_filament_status_panel->msw_rescale();
     Refresh();
 }
 
 void PhrozenFilamentControl::UpdateFilamentState( const FilamentSystemState& kState )
 {
     m_kFilamentState = kState;
-    if ( m_felament_status_panel ) m_felament_status_panel->UpdateFilamentState( m_kFilamentState );
+    if ( m_filament_status_panel ) m_filament_status_panel->UpdateFilamentState( m_kFilamentState );
 
+
+}
+
+int PhrozenFilamentControl::GetSelectedAmsSlotIndex()
+{
+    if ( !m_filament_status_panel )
+    {
+        assert( 0 && "ams status panel not initialzie!" );
+        return -1;
+    }
+
+    return m_filament_status_panel->GetSelectedSlot();
 
 }
 #pragma endregion

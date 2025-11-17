@@ -1074,7 +1074,9 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     m_pFilamentControlPanel = new PhrozenFilamentControl(frame_panel, wxID_ANY);
 
     // Bind button event
-    //m_ams_unload_all_btn->Bind(wxEVT_BUTTON, &PhrozenStatusBasePanel::on_ams_unload_all, this);
+    m_pFilamentControlPanel->GetUnloadAllButton()->Bind(wxEVT_BUTTON,   &PhrozenStatusBasePanel::on_ams_unload_all, this);
+    m_pFilamentControlPanel->GetLoadButton()->Bind(wxEVT_BUTTON,        &PhrozenStatusBasePanel::on_ams_load_single_slot, this);
+    m_pFilamentControlPanel->GetUnloadButton()->Bind(wxEVT_BUTTON,      &PhrozenStatusBasePanel::on_ams_unload_single_slot, this);
 
 
     frame_sizer->Add(m_pFilamentControlPanel, 1, wxEXPAND | wxALL, FromDIP(12));
@@ -1105,7 +1107,7 @@ void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
     handle_camera_source_change();
 }
 
-void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& event)
+void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& WXUNUSED(event))
 {
     try {
     #ifdef __APPLE__
@@ -1120,6 +1122,24 @@ void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& event)
         BOOST_LOG_TRIVIAL(error) << "on_ams_unload_all: Exception occurred: " << e.what();
     } catch (...) {
         BOOST_LOG_TRIVIAL(error) << "on_ams_unload_all: Unknown exception occurred";
+    }
+}
+
+void PhrozenStatusBasePanel::on_ams_unload_single_slot(wxCommandEvent& WXUNUSED(event))
+{
+    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex();
+    if ( nSlotId < 0 )
+    {
+        return;
+    }
+}
+
+void PhrozenStatusBasePanel::on_ams_load_single_slot(wxCommandEvent& WXUNUSED(event))
+{
+    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex();
+    if ( nSlotId < 0 )
+    {
+        return;
     }
 }
 

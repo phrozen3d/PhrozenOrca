@@ -184,13 +184,15 @@ public:
 
     void UpdateFilamentState( const FilamentSystemState& kState );
 
+    int GetSelectedAmsSlotIndex();
+
 
 private:
     
     wxSizer* create_ams_control_button( wxWindow* pParent );
     wxSizer* create_nozzle_image( wxWindow* pParent );
     
-    FilamentStatusPanel* m_felament_status_panel{nullptr};
+    FilamentStatusPanel* m_filament_status_panel{nullptr};
     Button* m_ams_unload_all_btn{nullptr};
     Button* m_load_button{nullptr};
     Button* m_unload_button{nullptr};

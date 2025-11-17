@@ -279,6 +279,8 @@ public:
     virtual void on_axis_ctrl_e_up_10(wxCommandEvent &event) { event.Skip(); }
     virtual void on_axis_ctrl_e_down_10(wxCommandEvent &event) { event.Skip(); }
     void on_ams_unload_all(wxCommandEvent& event);
+    void on_ams_unload_single_slot(wxCommandEvent& event);
+    void on_ams_load_single_slot(wxCommandEvent& event);
     
 public:   
     void on_camera_source_change(wxCommandEvent& event);
