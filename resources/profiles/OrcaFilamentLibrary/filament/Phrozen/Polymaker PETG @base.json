@@ -1,0 +1,36 @@
+{
+	"type": "filament",
+	"name": "Polymaker PETG @base",
+	"inherits": "PolyLite PETG @System",
+	"from": "system",
+	"setting_id": "PRZ005",
+	"filament_settings_id": ["Polymaker PETG"],
+	"instantiation": "false",
+    "filament_vendor": [
+        "Phrozen"
+    ],	
+    "additional_cooling_fan_speed": [
+        "70"
+    ],
+    "enable_pressure_advance": [
+        "1"
+    ],
+    "fan_max_speed": [
+        "60"
+    ],
+    "filament_flow_ratio": [
+        "1.02"
+    ],
+    "filament_retract_lift_above": [
+        "0"
+    ],
+    "filament_retraction_length": [
+        "1.8"
+    ],
+    "filament_z_hop_types": [
+        "Normal Lift"
+    ],
+    "pressure_advance": [
+        "0.018"
+    ]
+}

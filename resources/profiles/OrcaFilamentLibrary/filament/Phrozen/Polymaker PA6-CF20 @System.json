@@ -1,0 +1,9 @@
+{
+    "type": "filament",
+	"setting_id": "PRZGFSA07",
+    "name": "Polymaker PA6-CF20 @System",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Polymaker PA6-CF20 @base",
+    "compatible_printers": []
+}

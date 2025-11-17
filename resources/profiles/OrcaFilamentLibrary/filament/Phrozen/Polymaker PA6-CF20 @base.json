@@ -1,0 +1,78 @@
+{
+	"type": "filament",
+	"name": "Polymaker PA6-CF20 @base",
+	"inherits": "Fiberon PA6-CF @System",
+	"from": "system",
+	"setting_id": "PRZ007",
+	"filament_settings_id": ["Polymaker PA6-CF20"],
+	"instantiation": "false",
+    "filament_vendor": [
+        "Phrozen"
+    ],
+    "cool_plate_temp": [
+        "50"
+    ],
+    "cool_plate_temp_initial_layer": [
+        "50"
+    ],
+    "enable_pressure_advance": [
+        "1"
+    ],
+    "eng_plate_temp": [
+        "50"
+    ],
+    "eng_plate_temp_initial_layer": [
+        "50"
+    ],
+    "fan_cooling_layer_time": [
+        "5"
+    ],
+    "fan_max_speed": [
+        "30"
+    ],
+    "fan_min_speed": [
+        "10"
+    ],
+    "filament_flow_ratio": [
+        "0.97"
+    ],
+    "filament_retraction_length": [
+        "3"
+    ],
+    "filament_z_hop_types": [
+        "Normal Lift"
+    ],
+    "hot_plate_temp": [
+        "50"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "50"
+    ],
+    "overhang_fan_speed": [
+        "80"
+    ],
+    "overhang_fan_threshold": [
+        "50%"
+    ],
+    "pressure_advance": [
+        "0.035"
+    ],
+    "supertack_plate_temp": [
+        "50"
+    ],
+    "supertack_plate_temp_initial_layer": [
+        "50"
+    ],
+    "textured_cool_plate_temp": [
+        "50"
+    ],
+    "textured_cool_plate_temp_initial_layer": [
+        "50"
+    ],
+    "textured_plate_temp": [
+        "50"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "50"
+    ]
+}
