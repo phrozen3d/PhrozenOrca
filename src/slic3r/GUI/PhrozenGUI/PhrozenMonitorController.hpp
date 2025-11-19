@@ -1,48 +1,6 @@
 #ifndef slic3r_PhrozenMonitorController_hpp_
 #define slic3r_PhrozenMonitorController_hpp_
 
-//#include <wx/notebook.h>
-//#include <wx/scrolwin.h>
-//#include <wx/sizer.h>
-//#include <wx/bmpcbox.h>
-//#include <wx/bmpbuttn.h>
-//#include <wx/treectrl.h>
-//#include <wx/imaglist.h>
-//#include <wx/artprov.h>
-//#include <wx/xrc/xmlres.h>
-//#include <wx/string.h>
-//#include <wx/stattext.h>
-//#include <wx/gdicmn.h>
-//#include <wx/font.h>
-//#include <wx/colour.h>
-//#include <wx/settings.h>
-//#include <wx/sizer.h>
-//#include <wx/grid.h>
-//#include <wx/dataview.h>
-//#include <wx/panel.h>
-//#include <wx/statline.h>
-//#include <wx/bitmap.h>
-//#include <wx/image.h>
-//#include <wx/icon.h>
-//#include <wx/bmpbuttn.h>
-//#include <wx/button.h>
-//#include <wx/gbsizer.h>
-//#include <wx/statbox.h>
-//#include <wx/tglbtn.h>
-//#include <wx/popupwin.h>
-//#include <wx/spinctrl.h>
-//#include <wx/artprov.h>
-//#include <wx/webrequest.h>
-//#include <map>
-//#include <vector>
-//#include <memory>
-//#include <curl/curl.h>
-//#include "../Event.hpp"
-//#include "libslic3r/ProjectTask.hpp"
-//#include "../wxExtensions.hpp"
-//#include "slic3r/GUI/MsgDialog.hpp"
-//#include "slic3r/GUI/DeviceManager.hpp"
-//#include "PhrozenStatusPanel.hpp"
 #include <curl/curl.h>
 #include <functional>
 #include <queue>
@@ -51,9 +9,6 @@
 
 typedef unsigned int GLuint;
 
-//namespace Slic3r {
-
-//namespace GUI {
 
 namespace MonitorControl{
 
@@ -1010,10 +965,6 @@ struct HttpErrorInfo {
 #pragma endregion //PhrozenMonitorController
 
 } //namespace MonitorControl{
-
-//} // namespace MonitorControl
-
-//} // namespace Slic3r
 
 
 #endif /* slic3r_PhrozenMonitorController_hpp_ */

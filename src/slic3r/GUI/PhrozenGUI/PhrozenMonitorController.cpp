@@ -22,31 +22,6 @@
 #include <windows.h>
 #endif
 
-//#include <wx/app.h>
-//#include <wx/button.h>
-//#include <wx/scrolwin.h>
-//#include <wx/sizer.h>
-//
-//#include <wx/bmpcbox.h>
-//#include <wx/bmpbuttn.h>
-//#include <wx/treectrl.h>
-//#include <wx/imaglist.h>
-//#include <wx/settings.h>
-//#include <wx/filedlg.h>
-//#include <wx/wupdlock.h>
-//#include <wx/dataview.h>
-//#include <wx/tglbtn.h>
-
-//#include "../wxExtensions.hpp"
-//#include "../GUI_App.hpp"
-//#include "../GUI_ObjectList.hpp"
-//#include "../Plater.hpp"
-//#include "../MainFrame.hpp"
-//#include "../Widgets/Label.hpp"
-//#include "../format.hpp"
-//#include "../MediaPlayCtrl.h"
-//#include "../MediaFilePanel.h"
-//#include "../BindDialog.hpp"
 
 //namespace Slic3r {
 //namespace GUI {
