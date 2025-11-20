@@ -7290,9 +7290,17 @@ void Plater::priv::on_action_send_to_multi_machine(SimpleEvent&)
 
 void Plater::priv::on_action_print_plate_from_sdcard(SimpleEvent&)
 {
+#ifdef _WIN32
+    // Windows platform
     auto result = MessageBox(q->GetHandle(),
                              wxString::Format(_L("Phrozen Orca not supply this action")),
                              _L("Phrozen Orca"), MB_OK | MB_ICONWARNING );
+#else
+    // Apple platform (macOS)
+    // TODO: Implement cross-platform message box for Apple platform, and wxMessageBox is used as a temporary solution
+    wxMessageBox(wxString::Format(_L("Phrozen Orca not supply this action")),
+                 _L("Phrozen Orca"), wxOK | wxICON_WARNING);
+#endif
     return;
 
     if (q != nullptr) {
