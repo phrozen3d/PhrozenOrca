@@ -6932,11 +6932,11 @@ void GUI_App::ProcessPhrozenConnector()
     MonitorControl::m_bStartReceiving = true;
     MonitorControl::m_bStartSending = true;
     
-    std::thread _threadReceiveMessage(RunReceiveMessage);
-    _threadReceiveMessage.detach();
-    
     std::thread _threadSendMessage(RunSendMessage);
     _threadSendMessage.detach();
+    
+    std::thread _threadReceiveMessage(RunReceiveMessage);
+    _threadReceiveMessage.detach();
 
     std::thread _threadReceiveWebCameraView(RunReceiveWebCameraView);
     _threadReceiveWebCameraView.detach();
@@ -6967,6 +6967,7 @@ void RunGetPrinterInfo( )
 
 void RunReceiveMessage( )
 {
+    BOOST_LOG_TRIVIAL(info) << "Using ReceiveResponse()";
     MonitorControl::ReceiveResponse();
 }
 

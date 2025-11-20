@@ -441,6 +441,539 @@ void HandlePauseCode(const std::string& pauseCode)
     }
 }
 
+// ============================================
+// ReceiveResponse() Processing Modules
+// ============================================
+
+// Frame processing module for WebSocket frame handling
+struct FrameProcessor {
+    static bool IsContinuationFrame(struct curl_ws_frame* meta) {
+        bool is_continuation_frame = false;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #elif defined(CURLWS_CONT)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #else
+        is_continuation_frame = ((meta->flags & 0x80) == 0);
+        #endif
+        return is_continuation_frame;
+    }
+    
+    static bool IsFinalFrame(struct curl_ws_frame* meta) {
+        bool is_final_frame = true;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
+        #elif defined(CURLWS_CONT)
+        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
+        #else
+        is_final_frame = ((meta->flags & 0x80) != 0);
+        #endif
+        return is_final_frame;
+    }
+    
+    static std::string CombineFrames(const std::string& frame_data, 
+                                     std::string& accumulated_buffer) {
+        std::string complete_message = accumulated_buffer.empty() 
+            ? frame_data 
+            : (accumulated_buffer + frame_data);
+        accumulated_buffer.clear();
+        return complete_message;
+    }
+    
+    static void UpdateSlidingWindow(std::string& sliding_window_buffer, 
+                                    const std::string& complete_message,
+                                    size_t max_size) {
+        sliding_window_buffer += complete_message;
+        if (sliding_window_buffer.size() > max_size) {
+            sliding_window_buffer = sliding_window_buffer.substr(
+                sliding_window_buffer.size() - max_size / 2
+            );
+        }
+    }
+};
+
+// Message processing module for message type detection and conversion
+struct MessageProcessor {
+    static bool ShouldSkipProcStat(const std::string& message) {
+        std::string skip_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_proc_stat_update\"";
+        return message.find(skip_message.c_str()) != std::string::npos;
+    }
+    
+    static std::wstring ConvertToWideString(const std::string& utf8_str) {
+        try {
+            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+            return converter.from_bytes(utf8_str);
+        } catch (const std::exception& e) {
+            BOOST_LOG_TRIVIAL(warning) << "UTF-8 to UTF-16 conversion failed: " << e.what();
+            return std::wstring(utf8_str.begin(), utf8_str.end());
+        }
+    }
+    
+    static void ProcessGcodeResponse(const std::string& message) {
+        std::string find_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_gcode_response\"";
+        size_t pos = message.find(find_message.c_str());
+        if (pos == std::string::npos) return;
+        
+        if (json::accept(message)) {
+            try {
+                json msg_json = json::parse(message);
+                if (!msg_json["params"].is_null()) {
+                    std::string params = msg_json["params"][0].get<std::string>();
+                    
+                    // Check for Unhandled exception
+                    size_t pos = params.find("Unhandled exception during run");
+                    if (pos != std::string::npos) {
+                        m_pPrinterInfo->error = msg_json["params"][0].get<std::string>();
+                    }
+                    
+                    // Check for PRZ_ADC response with fila_exist
+                    if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
+                        if (params.find("fila_exist:True") != std::string::npos ||
+                            params.find("fila_exist:true") != std::string::npos) {
+                            nozzleInfo.fila_exist = true;
+                        } else {
+                            nozzleInfo.fila_exist = false;
+                        }
+                        BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (nozzleInfo.fila_exist ? "true" : "false") << " ***";
+                    }
+                }
+            } catch (const json::exception& e) {
+                BOOST_LOG_TRIVIAL(warning) << "JSON parse error in gcode_response: " << e.what();
+            }
+        }
+    }
+    
+    static void ProcessHistoryInfo(const std::string& message,
+                                  std::string& historyBuffer,
+                                  bool& historyStart) {
+        std::string jobs_history = "\"jobs\":";
+        std::string id_history = "\"id\": 5656";
+        size_t pos_id_history = message.find(id_history.c_str());
+        size_t pos_history = message.find(jobs_history.c_str());
+        
+        if (pos_history != std::string::npos && !historyStart) {
+            historyBuffer = "";
+            historyStart = true;
+        }
+        if (historyStart) {
+            historyBuffer += message;
+        }
+        if (pos_id_history != std::string::npos) {
+            historyStart = false;
+        }
+        if (!historyBuffer.empty() && !historyStart) {
+            std::vector<HistoryInfo> _historyInfoList;
+            try {
+                json history_json;
+                if (json::accept(historyBuffer)) {
+                    history_json = json::parse(historyBuffer);
+                    if (history_json["result"]["jobs"].is_array()) {
+                        for (const auto& job : history_json["result"]["jobs"]) {
+                            HistoryInfo _historyInfo;
+                            std::string X = job["filename"].get<std::string>();
+                            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                            _historyInfo.gcode_name = converter.from_bytes(X);
+                            _historyInfo.status = job["status"].get<std::string>();
+                            _historyInfo.fliament_used = job["filament_used"];
+                            _historyInfo.total_duration = job["total_duration"];
+                            _historyInfoList.push_back(_historyInfo);
+                        }
+                        m_kHistoryInfoList = _historyInfoList;
+                    } else {
+                        m_kHistoryInfoList.clear();
+                        DebugOutput("Invalid JSON format or missing 'jobs' array.");
+                    }
+                }
+            } catch (const std::exception& e) {
+                DebugOutput("Parse error: ", e.what());
+            }
+        }
+    }
+    
+    static void ProcessPauseMessage(const std::string& message) {
+        
+        std::string pause_prefix = "+PAUSE:";
+        size_t pause_pos = message.find(pause_prefix);
+        if (pause_pos == std::string::npos) return;
+        
+        try {
+            std::tuple<std::string, std::string, std::string> pauseError = ParsePauseMessage(message);
+            std::string code = std::get<0>(pauseError);
+            std::string oldCh = std::get<1>(pauseError);
+            std::string newCh = std::get<2>(pauseError);
+            
+            std::cout << "Code: " << code << std::endl;
+            std::cout << "Old Channel: " << oldCh << std::endl;
+            std::cout << "New Channel: " << newCh << std::endl;
+            
+            HandlePauseCode(code);
+            
+            if (code == "4") {
+                m_kMonitorWindow.AMSselectedID = std::stoi(newCh);
+                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+            } else if (code == "8") {
+                m_kMonitorWindow.AMSselectedID = std::stoi(oldCh);
+                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+            }
+            
+            m_kMonitorWindow.error_code = "[" + code + "]";
+            
+            //only for test
+            if (!m_kMonitorWindow.amsReturnError.empty()) {
+                m_kMonitorWindow.amsReturnError.clear();
+            }
+        } catch (const std::invalid_argument& e) {
+            DebugOutput("Error (input1): ", e.what());
+        }
+    }
+};
+
+// Printer status extraction module
+struct PrinterStatusExtractor {
+    static void ExtractTemperatureInfo(const json& status) {
+        if (status.contains("extruder") && status["extruder"].contains("temperature")) {
+            m_pPrinterInfo->extruder_temperature = status["extruder"]["temperature"];
+        }
+        if (status.contains("extruder") && status["extruder"].contains("target")) {
+            m_pPrinterInfo->extruder_temperature_target = status["extruder"]["target"];
+        }
+        if (status.contains("heater_bed") && status["heater_bed"].contains("temperature")) {
+            m_pPrinterInfo->bed_temperature = status["heater_bed"]["temperature"];
+        }
+        if (status.contains("heater_bed") && status["heater_bed"].contains("target")) {
+            m_pPrinterInfo->bed_temperature_target = status["heater_bed"]["target"];
+        }
+        if (status.contains("temperature_sensor Chamber_sensor") &&
+            status["temperature_sensor Chamber_sensor"].contains("temperature") &&
+            status["temperature_sensor Chamber_sensor"]["temperature"].is_number()) {
+            m_pPrinterInfo->chamber_temperature = status["temperature_sensor Chamber_sensor"]["temperature"];
+        }
+    }
+    
+    static void ExtractFanSpeedInfo(const json& status) {
+        if (status.contains("output_pin fan_assist") &&
+            status["output_pin fan_assist"].contains("value") &&
+            status["output_pin fan_assist"]["value"].is_number()) {
+            m_pPrinterInfo->auxiliary_fan_speed = status["output_pin fan_assist"]["value"];
+        }
+        if (status.contains("fan_generic Chamber_fan") &&
+            status["fan_generic Chamber_fan"].contains("speed") &&
+            status["fan_generic Chamber_fan"]["speed"].is_number()) {
+            m_pPrinterInfo->shield_fan_speed = status["fan_generic Chamber_fan"]["speed"];
+        }
+        if (status.contains("fan_generic cooling_fan") &&
+            status["fan_generic cooling_fan"].contains("speed") &&
+            status["fan_generic cooling_fan"]["speed"].is_number()) {
+            m_pPrinterInfo->fan_speed = status["fan_generic cooling_fan"]["speed"];
+        }
+    }
+    
+    static void ExtractGcodeMoveInfo(const json& status) {
+        if (status.contains("gcode_move")) {
+            if (status["gcode_move"].contains("speed_factor")) {
+                m_pPrinterInfo->print_speed = status["gcode_move"]["speed_factor"];
+            }
+            if (status["gcode_move"].contains("homing_origin") &&
+                status["gcode_move"]["homing_origin"].is_array() &&
+                status["gcode_move"]["homing_origin"].size() > 2) {
+                m_pPrinterInfo->z_offsetValure = status["gcode_move"]["homing_origin"][2];
+            }
+        }
+    }
+    
+    static void ExtractToolheadInfo(const json& status) {
+        if (status.contains("toolhead")) {
+            if (status["toolhead"].contains("homed_axes")) {
+                m_pPrinterInfo->home_axes = status["toolhead"]["homed_axes"].get<std::string>();
+            }
+            if (status["toolhead"].contains("estimated_print_time")) {
+                m_pPrinterInfo->estimated_print_time = status["toolhead"]["estimated_print_time"];
+            }
+        }
+    }
+    
+    static void ExtractPrintStatusInfo(const json& status) {
+        if (status.contains("display_status") && status["display_status"].contains("progress")) {
+            m_pPrinterInfo->print_progress = status["display_status"]["progress"];
+        }
+        if (status.contains("pause_resume") && status["pause_resume"].contains("is_paused")) {
+            m_pPrinterInfo->is_paused = status["pause_resume"]["is_paused"];
+        }
+        if (status.contains("print_stats")) {
+            if (status["print_stats"].contains("state")) {
+                m_pPrinterInfo->state = status["print_stats"]["state"].get<std::string>();
+            }
+            if (status["print_stats"].contains("filename")) {
+                m_pPrinterInfo->print_file = status["print_stats"]["filename"].get<std::string>();
+            }
+            if (status["print_stats"].contains("print_duration")) {
+                m_pPrinterInfo->print_time = status["print_stats"]["print_duration"];
+            }
+            if (status["print_stats"].contains("total_duration")) {
+                m_pPrinterInfo->total_time = status["print_stats"]["total_duration"];
+            }
+            if (status["print_stats"].contains("filament_used")) {
+                m_pPrinterInfo->print_filament = status["print_stats"]["filament_used"];
+            }
+        }
+    }
+    
+    static void ProcessPrinterStatus(const std::string& message) {
+        std::string id = "\"id\": 7466";
+        std::string result = "result";
+        size_t pos = message.find(id.c_str());
+        size_t pos_result = message.find(result.c_str());
+        if (pos == std::string::npos || pos_result == std::string::npos) return;
+        
+        if (json::accept(message)) {
+            try {
+                m_pWebServiceInfo->jsonPrinterInfoData = json::parse(message);
+                if (!m_pWebServiceInfo->jsonPrinterInfoData["result"].is_null()) {
+                    if (!m_pWebServiceInfo->jsonPrinterInfoData["result"].is_object()) {
+                        std::string a = m_pWebServiceInfo->jsonPrinterInfoData["result"].get<std::string>();
+                        BOOST_LOG_TRIVIAL(info) << a << endl;
+                    } else if (!m_pWebServiceInfo->jsonPrinterInfoData["result"]["status"].is_null()) {
+                        json status = m_pWebServiceInfo->jsonPrinterInfoData["result"]["status"];
+                        
+                        ExtractTemperatureInfo(status);
+                        ExtractFanSpeedInfo(status);
+                        ExtractGcodeMoveInfo(status);
+                        ExtractToolheadInfo(status);
+                        ExtractPrintStatusInfo(status);
+                        
+                        m_pPrinterInfo->error = "";
+                    }
+                }
+            } catch (const json::exception& e) {
+                BOOST_LOG_TRIVIAL(warning) << "JSON parse error in printer status: " << e.what();
+            }
+        } else {
+            BOOST_LOG_TRIVIAL(info) << "JSON NOT ACCEPT" << endl;
+        }
+    }
+};
+
+// AMS processing module
+struct AMSProcessor {
+    static void ProcessAMSConnectionStatus(const std::string& search_text,
+                                          std::string& sliding_window_buffer) {
+        size_t ams_pos = search_text.find(amsPatterns.AMS_connected.c_str());
+        if (ams_pos != std::string::npos) {
+            m_bIsConnetedToAMS = true;
+            BOOST_LOG_TRIVIAL(info) << "AMS connected status detected";
+            if (ams_pos < sliding_window_buffer.size()) {
+                sliding_window_buffer = sliding_window_buffer.substr(
+                    ams_pos + amsPatterns.AMS_connected.length()
+                );
+            }
+        }
+        
+        ams_pos = search_text.find(amsPatterns.AMS_unconnect.c_str());
+        if (ams_pos != std::string::npos) {
+            m_bIsConnetedToAMS = false;
+            BOOST_LOG_TRIVIAL(info) << "AMS disconnected status detected";
+            if (ams_pos < sliding_window_buffer.size()) {
+                sliding_window_buffer = sliding_window_buffer.substr(
+                    ams_pos + amsPatterns.AMS_unconnect.length()
+                );
+            }
+        }
+    }
+    
+    static void ProcessAMSCommandStates(const std::string& search_text,
+                                       std::string& sliding_window_buffer) {
+        // Unified lambda with slot number parsing and state update
+        auto parseAMSCommandState = [&](const std::string& pattern, bool is_load = false, bool is_start = false) -> bool {
+            size_t pos = search_text.find(pattern);
+            if (pos == std::string::npos) return false;
+            
+            // Handle unload all patterns - update all slots
+            if (pattern == amsPatterns.AMS_unload_all_start || pattern == amsPatterns.AMS_unload_all_end) {
+                AMSCommandState new_state = (pattern == amsPatterns.AMS_unload_all_start) ? AMSCommandState::START : AMSCommandState::FINISH;
+                const char* state_name = (pattern == amsPatterns.AMS_unload_all_start) ? "START" : "FINISH";
+                
+                for (size_t i = 0; i < m_kAMSList.size(); i++) {
+                    m_kAMSList[i].unload_state = new_state;
+                    
+                    if(pattern == amsPatterns.AMS_unload_all_start){
+                        m_kAMSList[i].unload_state = AMSCommandState::START;
+                    }
+                    if(pattern == amsPatterns.AMS_unload_all_end){
+                        m_kAMSList[i].loading = false;
+                        m_kAMSList[i].unload_state = AMSCommandState::NONE;
+                    }
+                }
+                
+                BOOST_LOG_TRIVIAL(info) << "*** All AMS slots unload_state = " << state_name << " ***";
+                
+                // Clean up sliding window buffer
+                if (pos < sliding_window_buffer.size()) {
+                    sliding_window_buffer.erase(0, pos + pattern.length());
+                }
+                return true;
+            } else {
+                // Parse slot number after comma (e.g., P1Bn:0,2 -> extract 2)
+                int slot_number = -1;
+                size_t comma_pos = pos + pattern.length();
+                if (comma_pos < search_text.length() && search_text[comma_pos] == ',') {
+                    char* end_ptr;
+                    slot_number = static_cast<int>(std::strtol(search_text.c_str() + comma_pos + 1, &end_ptr, 10));
+                    if (end_ptr == search_text.c_str() + comma_pos + 1) slot_number = -1;
+                }
+                
+                // Update AMSInfo state based on slot number
+                const size_t max_slots = m_kAMSList.size();
+                if (slot_number > 0 && slot_number <= static_cast<int>(max_slots)) {
+                    size_t slot_index = static_cast<size_t>(slot_number - 1);
+                    AMSCommandState& target_state = is_load
+                        ? m_kAMSList[slot_index].load_state
+                        : m_kAMSList[slot_index].unload_state;
+                    target_state = is_start ? AMSCommandState::START : AMSCommandState::FINISH;
+                    
+                    //Update related fields based on state
+                    if (!is_start) {
+                        if (is_load) {
+                            //load_state = START -> loading = true
+                            m_kAMSList[slot_index].loading = true;
+                            m_kAMSList[slot_index].load_state = AMSCommandState::NONE;
+                        } else {
+                            //unload_state = finished -> loading = true
+                            m_kAMSList[slot_index].loading = false;
+                            m_kAMSList[slot_index].unload_state = AMSCommandState::NONE;
+                        }
+                    }
+                    
+                    const char* state_name = is_start ? "START" : "FINISH";
+                    const char* cmd_type = is_load ? "load_single" : "unload_single";
+                    BOOST_LOG_TRIVIAL(info) << "*** Slot " << slot_number << " " << cmd_type << " = " << state_name << " ***";
+                } else if (slot_number > 0) {
+                    BOOST_LOG_TRIVIAL(warning) << "*** Slot number " << slot_number << " out of range (max: " << max_slots << ") ***";
+                } else {
+                    BOOST_LOG_TRIVIAL(error) << "*** Pattern " << pattern << " found but no valid slot number ***";
+                }
+            }
+            
+            // Clean up sliding window buffer
+            if (pos < sliding_window_buffer.size()) {
+                sliding_window_buffer.erase(0, pos + pattern.length());
+            }
+            return true;
+        };
+        
+        // Parse unload all states (simple patterns, no slot number)
+        parseAMSCommandState(amsPatterns.AMS_unload_all_start);
+        parseAMSCommandState(amsPatterns.AMS_unload_all_end);
+        
+        // Parse load/unload single slot states: (pattern, is_load, is_start)
+        parseAMSCommandState(amsPatterns.AMS_load_single_start, true, true);     // P1Tn:0 -> load_single = START
+        parseAMSCommandState(amsPatterns.AMS_load_single_end, true, false);      // P1Tn:1 -> load_single = FINISH
+        parseAMSCommandState(amsPatterns.AMS_unload_single_start, false, true);  // P1Bn:0 -> unload_single = START
+        parseAMSCommandState(amsPatterns.AMS_unload_single_end, false, false);   // P1Bn:1 -> unload_single = FINISH
+    }
+    
+    static void ProcessAMSEntryParkState(const std::string& message)
+    {
+        //AMS1连接失败 unicode
+        std::string ams_disconnect_prefix = "AMS1\\u8fde\\u63a5\\u5931\\u8d25";
+        size_t ams_pos = message.find(ams_disconnect_prefix);
+        if (ams_pos != std::string::npos){
+            m_bIsConnetedToAMS = false;
+        }
+        else{
+            std::string ams_info = "entry_state";
+            size_t ams_pos = message.find(ams_info.c_str());
+            if (ams_pos == std::string::npos) return;
+            
+            json ams_json;
+            if (json::accept(message)) {
+                try {
+                    ams_json = json::parse(message);
+                    std::string entry_state = ams_json["params"][0].get<std::string>();
+                    entry_state = entry_state.substr(entry_state.find("{"));
+                    int _entry_state = 0;
+                    int _park_state = 0;
+                    
+                    if (json::accept(entry_state)) {
+                        json info_json = json::parse(entry_state);
+                        _entry_state = info_json["entry_state"];
+                        _park_state = info_json["park_state"];
+                    }
+                    
+                    if (_entry_state > -1) {
+                        m_bIsConnetedToAMS = true;
+                    } else {
+                        m_bIsConnetedToAMS = false;
+                    }
+                    
+                    // Initialize AMS list if empty
+                    if (m_kAMSList_temp.empty()) {
+                        for (int i = 1; i <= 4; i++) {
+                            AMSInfo _AMSInfo;
+                            m_kAMSList_temp.push_back(_AMSInfo);
+                        }
+                    }
+                    
+                    for (int i = 1; i <= 4; i++) {
+                        m_kAMSList_temp[i-1].filament = "";
+                        
+                        // Park state logic
+                        m_kAMSList_temp[i-1].park = false;
+                        if (i == 1 && (_park_state == 1 || _park_state == 3 || _park_state == 5 ||
+                                       _park_state == 9 || _park_state == 7 || _park_state == 11 ||
+                                       _park_state == 13 || _park_state == 15))
+                            m_kAMSList_temp[i-1].park = true;
+                        if (i == 2 && (_park_state == 2 || _park_state == 3 || _park_state == 6 ||
+                                       _park_state == 10 || _park_state == 7 || _park_state == 11 ||
+                                       _park_state == 14 || _park_state == 15))
+                            m_kAMSList_temp[i-1].park = true;
+                        if (i == 3 && (_park_state == 4 || _park_state == 5 || _park_state == 6 ||
+                                       _park_state == 12 || _park_state == 7 || _park_state == 13 ||
+                                       _park_state == 14 || _park_state == 15))
+                            m_kAMSList_temp[i-1].park = true;
+                        if (i == 4 && (_park_state == 8 || _park_state == 9 || _park_state == 10 ||
+                                       _park_state == 12 || _park_state == 11 || _park_state == 13 ||
+                                       _park_state == 14 || _park_state == 15))
+                            m_kAMSList_temp[i-1].park = true;
+                        
+                        // Entry state logic
+                        m_kAMSList_temp[i-1].entry = false;
+                        if (i == 1 && (_entry_state == 1 || _entry_state == 3 || _entry_state == 5 ||
+                                       _entry_state == 9 || _entry_state == 7 || _entry_state == 11 ||
+                                       _entry_state == 13 || _entry_state == 15))
+                            m_kAMSList_temp[i-1].entry = true;
+                        if (i == 2 && (_entry_state == 2 || _entry_state == 3 || _entry_state == 6 ||
+                                       _entry_state == 10 || _entry_state == 7 || _entry_state == 11 ||
+                                       _entry_state == 14 || _entry_state == 15))
+                            m_kAMSList_temp[i-1].entry = true;
+                        if (i == 3 && (_entry_state == 4 || _entry_state == 5 || _entry_state == 6 ||
+                                       _entry_state == 12 || _entry_state == 7 || _entry_state == 13 ||
+                                       _entry_state == 14 || _entry_state == 15))
+                            m_kAMSList_temp[i-1].entry = true;
+                        if (i == 4 && (_entry_state == 8 || _entry_state == 9 || _entry_state == 10 ||
+                                       _entry_state == 12 || _entry_state == 11 || _entry_state == 13 ||
+                                       _entry_state == 14 || _entry_state == 15))
+                            m_kAMSList_temp[i-1].entry = true;
+                        
+                        
+                        m_kAMSList_temp[i-1].selected = false;
+                        
+                        if(!m_kAMSList.empty()){
+                            m_kAMSList[i-1].park = m_kAMSList_temp[i-1].park;
+                            m_kAMSList[i-1].entry = m_kAMSList_temp[i-1].entry;
+                            m_kAMSList[i-1].selected = m_kAMSList_temp[i-1].selected;
+                        }
+                    }
+                    if(m_kAMSList.empty()){
+                        m_kAMSList = m_kAMSList_temp;
+                    }
+                } catch (const json::exception& e) {
+                    BOOST_LOG_TRIVIAL(warning) << "JSON parse error in AMS entry_state: " << e.what();
+                }
+            }
+        }
+    }
+};
+
 /**
  * Optimized ReceiveResponse() Function
  *
@@ -451,9 +984,16 @@ void HandlePauseCode(const std::string& pauseCode)
  * 3.   Using sliding window search for cross-frame pattern matching
  * 4.   Removing early continue to ensure all messages are processed
  * 5.   Adding comprehensive debug logging
+ *
+ * Refactored into modular structure for better readability and maintainability
  */
 
 CURLcode ReceiveResponse() {
+    // Log thread ID for Xcode console debugging
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::cout << "[ReceiveResponse] Thread started, Thread ID: " << thread_id << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "ReceiveResponse: Thread started, Thread ID: " << thread_id;
+    
     char buffer[500000];
     size_t rlen;
     CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
@@ -479,611 +1019,149 @@ CURLcode ReceiveResponse() {
     const size_t MAX_SLIDING_WINDOW_SIZE = 10000;  // Maximum size to prevent memory issues
     
     while (m_bStartReceiving) {
-        std::lock_guard<std::mutex> lock(m_kCurlMutex);
-        try {
-            double connectTime = 0;
-            curl_easy_getinfo(m_pCurl_websocket, CURLINFO_CONNECT_TIME, &connectTime);
-            
-            if (connectTime > 0) {
-                res = curl_ws_recv(m_pCurl_websocket, buffer, sizeof(buffer), &rlen, &meta);
+        // ⚠️ CRITICAL: libcurl easy handle is NOT thread-safe
+        // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+        // Operating the same curl handle from 2 threads may cause crash risk
+        if(!threadControl.first_time_to_send_query){
+            std::lock_guard<std::mutex> lock(m_kCurlMutex);
+            BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock acquired, Thread ID: " << thread_id;
+            try {
+                double connectTime = 0;
+                curl_easy_getinfo(m_pCurl_websocket, CURLINFO_CONNECT_TIME, &connectTime);
                 
-                if (res == CURLE_OK) {
-                    again = 0;
+                if (connectTime > 0) {
+                    res = curl_ws_recv(m_pCurl_websocket, buffer, sizeof(buffer), &rlen, &meta);
                     
-                    // Extract frame data
-                    std::string frame_data(&buffer[0], &buffer[rlen]);
-                    
-                    // Check WebSocket frame flags
-                    // Note: Some curl versions may not define CURLWS_FIN and CURLWS_CONT
-                    // We use a simpler approach: rely on sliding window for cross-frame patterns
-                    bool is_text_frame = (meta->flags & CURLWS_TEXT) != 0;
-                    bool is_binary_frame = (meta->flags & CURLWS_BINARY) != 0;
-                    
-                    // Try to detect continuation frames if constants are available
-                    // Otherwise, treat each frame as potentially complete
-                    bool is_continuation_frame = false;
-                    bool is_final_frame = true;  // Default: assume frame is final
-                    
-                    #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
-                    // Use curl-defined constants if available
-                    is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-                    is_final_frame = (meta->flags & CURLWS_FIN) != 0;
-                    #elif defined(CURLWS_CONT)
-                    // Only CURLWS_CONT is available
-                    is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-                    is_final_frame = !is_continuation_frame;
-                    #else
-                    // Neither constant is available - use WebSocket protocol bit checks
-                    // FIN bit (bit 7, 0x80) indicates final frame
-                    // If FIN bit is 0, it's a continuation frame
-                    is_final_frame = ((meta->flags & 0x80) != 0);
-                    is_continuation_frame = !is_final_frame;
-                    #endif
-                    
-                    // Debug logging for frame information
-                    BOOST_LOG_TRIVIAL(debug) << "WebSocket frame received: "
-                                             << "length=" << rlen
-                                             << ", flags=" << meta->flags
-                                             << ", text=" << is_text_frame
-                                             << ", continuation=" << is_continuation_frame
-                                             << ", final=" << is_final_frame
-                                             << ", content_preview=" << frame_data.substr(0, 100);
-                    
-                    // Handle frame fragmentation
-                    // If this is a continuation frame, accumulate it
-                    if (is_continuation_frame) {
-                        ams_message_buffer += frame_data;
-                        BOOST_LOG_TRIVIAL(debug) << "Accumulating continuation frame. "
-                                                 << "Buffer size: " << ams_message_buffer.size();
-                        
-                        // Prevent buffer from growing too large
-                        if (ams_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
-                            BOOST_LOG_TRIVIAL(warning) << "AMS message buffer exceeded max size, truncating";
-                            ams_message_buffer = ams_message_buffer.substr(ams_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
-                        }
-                        continue;  // Wait for more frames
-                    }
-                    
-                    // Final frame received - combine with accumulated buffer (if any)
-                    std::string complete_message = ams_message_buffer.empty() ? frame_data : (ams_message_buffer + frame_data);
-                    ams_message_buffer.clear();  // Clear buffer after combining
-                    
-                    // Update sliding window buffer for cross-frame pattern matching
-                    sliding_window_buffer += complete_message;
-                    if (sliding_window_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
-                        // Keep only the most recent portion
-                        sliding_window_buffer = sliding_window_buffer.substr(
-                            sliding_window_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2
-                        );
-                    }
-                    
-                    // Use complete message for processing
-                    std::string ws = complete_message;
-                    
-                    // Convert to wide string for m_strReceiveMessage
-                    try {
-                        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-                        m_strReceiveMessage = converter.from_bytes(ws);
-                    } catch (const std::exception& e) {
-                        BOOST_LOG_TRIVIAL(warning) << "UTF-8 to UTF-16 conversion failed: " << e.what();
-                        // Fallback: use original string
-                        m_strReceiveMessage = std::wstring(ws.begin(), ws.end());
-                    }
-                    
-                    // Check for skip message, but don't skip AMS pattern matching
-                    bool skip_proc_stat_processing = false;
-                    std::string skip_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_proc_stat_update\"";
-                    size_t pos = ws.find(skip_message.c_str());
-                    if (pos != std::string::npos) {
-                        skip_proc_stat_processing = true;
-                        BOOST_LOG_TRIVIAL(debug) << "Found notify_proc_stat_update, skipping proc_stat processing";
-                        // Don't continue here - continue processing AMS patterns
-                    }
-                    
-                    // Process printer info (only if not skipping)
-                    if (!skip_proc_stat_processing) {
-                        BOOST_LOG_TRIVIAL(info) << "receive: " << ws << endl;
-                        
-                        // Handle gcode response messages
-                        std::string find_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_gcode_response\"";
-                        pos = ws.find(find_message.c_str());
-                        if (pos != std::string::npos) {
-                            json msg_json;
-                            if (json::accept(ws)) {
-                                try {
-                                    msg_json = json::parse(ws);
-                                    if (!msg_json["params"].is_null()) {
-                                        std::string params = msg_json["params"][0].get<std::string>();
-                                        
-                                        // Check for Unhandled exception
-                                        size_t pos = params.find("Unhandled exception during run");
-                                        if (pos != std::string::npos) {
-                                            m_pPrinterInfo->error = msg_json["params"][0].get<std::string>();
-                                        }
-                                        
-                                        // Check for PRZ_ADC response with fila_exist
-                                        // Only process when we have the complete response containing fila_exist
-                                        // Format: "PRZ_ADC:读取ADC值 ... fila_exist:True/False"
-                                        if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
-                                            // Extract fila_exist value
-                                            if (params.find("fila_exist:True") != std::string::npos ||
-                                                params.find("fila_exist:true") != std::string::npos) {
-                                                nozzleInfo.fila_exist = true;
-                                            }else{
-                                                nozzleInfo.fila_exist = false;
-                                            }
-                                            BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (nozzleInfo.fila_exist ? "true" : "false") << " ***";
-                                        }
-                                    }
-                                } catch (const json::exception& e) {
-                                    BOOST_LOG_TRIVIAL(warning) << "JSON parse error in gcode_response: " << e.what();
-                                }
-                            }
-                        }
-                        
-                        // Process printer status info
-                        std::string id = "\"id\": 7466";
-                        std::string result = "result";
-                        pos = ws.find(id.c_str());
-                        size_t pos_result = ws.find(result.c_str());
-                        if (pos != std::string::npos && pos_result != std::string::npos) {
-                            if (json::accept(ws)) {
-                                try {
-                                    m_pWebServiceInfo->jsonPrinterInfoData = json::parse(ws);
-                                    if (!m_pWebServiceInfo->jsonPrinterInfoData["result"].is_null()) {
-                                        if (!m_pWebServiceInfo->jsonPrinterInfoData["result"].is_object()) {
-                                            std::string a = m_pWebServiceInfo->jsonPrinterInfoData["result"].get<std::string>();
-                                            BOOST_LOG_TRIVIAL(info) << a << endl;
-                                        }
-                                        else if (!m_pWebServiceInfo->jsonPrinterInfoData["result"]["status"].is_null()) {
-                                            json status = m_pWebServiceInfo->jsonPrinterInfoData["result"]["status"];
-                                            
-                                            // Safely extract printer status information
-                                            if (status.contains("extruder") && status["extruder"].contains("temperature")) {
-                                                m_pPrinterInfo->extruder_temperature = status["extruder"]["temperature"];
-                                            }
-                                            if (status.contains("extruder") && status["extruder"].contains("target")) {
-                                                m_pPrinterInfo->extruder_temperature_target = status["extruder"]["target"];
-                                            }
-                                            if (status.contains("heater_bed") && status["heater_bed"].contains("temperature")) {
-                                                m_pPrinterInfo->bed_temperature = status["heater_bed"]["temperature"];
-                                            }
-                                            if (status.contains("heater_bed") && status["heater_bed"].contains("target")) {
-                                                m_pPrinterInfo->bed_temperature_target = status["heater_bed"]["target"];
-                                            }
-                                            
-                                            // Chamber temperature with safe access
-                                            if (status.contains("temperature_sensor Chamber_sensor") &&
-                                                status["temperature_sensor Chamber_sensor"].contains("temperature") &&
-                                                status["temperature_sensor Chamber_sensor"]["temperature"].is_number()) {
-                                                m_pPrinterInfo->chamber_temperature = status["temperature_sensor Chamber_sensor"]["temperature"];
-                                            }
-                                            
-                                            // Fan speeds with safe access
-                                            if (status.contains("output_pin fan_assist") &&
-                                                status["output_pin fan_assist"].contains("value") &&
-                                                status["output_pin fan_assist"]["value"].is_number()) {
-                                                m_pPrinterInfo->auxiliary_fan_speed = status["output_pin fan_assist"]["value"];
-                                            }
-                                            
-                                            if (status.contains("fan_generic Chamber_fan") &&
-                                                status["fan_generic Chamber_fan"].contains("speed") &&
-                                                status["fan_generic Chamber_fan"]["speed"].is_number()) {
-                                                m_pPrinterInfo->shield_fan_speed = status["fan_generic Chamber_fan"]["speed"];
-                                            }
-                                            
-                                            if (status.contains("fan_generic cooling_fan") &&
-                                                status["fan_generic cooling_fan"].contains("speed") &&
-                                                status["fan_generic cooling_fan"]["speed"].is_number()) {
-                                                m_pPrinterInfo->fan_speed = status["fan_generic cooling_fan"]["speed"];
-                                            }
-                                            
-                                            // Other status fields
-                                            if (status.contains("gcode_move")) {
-                                                if (status["gcode_move"].contains("speed_factor")) {
-                                                    m_pPrinterInfo->print_speed = status["gcode_move"]["speed_factor"];
-                                                }
-                                                if (status["gcode_move"].contains("homing_origin") &&
-                                                    status["gcode_move"]["homing_origin"].is_array() &&
-                                                    status["gcode_move"]["homing_origin"].size() > 2) {
-                                                    m_pPrinterInfo->z_offsetValure = status["gcode_move"]["homing_origin"][2];
-                                                }
-                                            }
-                                            
-                                            if (status.contains("toolhead")) {
-                                                if (status["toolhead"].contains("homed_axes")) {
-                                                    m_pPrinterInfo->home_axes = status["toolhead"]["homed_axes"].get<std::string>();
-                                                }
-                                                if (status["toolhead"].contains("estimated_print_time")) {
-                                                    m_pPrinterInfo->estimated_print_time = status["toolhead"]["estimated_print_time"];
-                                                }
-                                            }
-                                            
-                                            if (status.contains("display_status") && status["display_status"].contains("progress")) {
-                                                m_pPrinterInfo->print_progress = status["display_status"]["progress"];
-                                            }
-                                            
-                                            if (status.contains("pause_resume") && status["pause_resume"].contains("is_paused")) {
-                                                m_pPrinterInfo->is_paused = status["pause_resume"]["is_paused"];
-                                            }
-                                            
-                                            if (status.contains("print_stats")) {
-                                                if (status["print_stats"].contains("state")) {
-                                                    m_pPrinterInfo->state = status["print_stats"]["state"].get<std::string>();
-                                                }
-                                                if (status["print_stats"].contains("filename")) {
-                                                    m_pPrinterInfo->print_file = status["print_stats"]["filename"].get<std::string>();
-                                                }
-                                                if (status["print_stats"].contains("print_duration")) {
-                                                    m_pPrinterInfo->print_time = status["print_stats"]["print_duration"];
-                                                }
-                                                if (status["print_stats"].contains("total_duration")) {
-                                                    m_pPrinterInfo->total_time = status["print_stats"]["total_duration"];
-                                                }
-                                                if (status["print_stats"].contains("filament_used")) {
-                                                    m_pPrinterInfo->print_filament = status["print_stats"]["filament_used"];
-                                                }
-                                            }
-                                            
-                                            m_pPrinterInfo->error = "";
-                                        }
-                                    }
-                                } catch (const json::exception& e) {
-                                    BOOST_LOG_TRIVIAL(warning) << "JSON parse error in printer status: " << e.what();
-                                }
-                            }
-                            else {
-                                BOOST_LOG_TRIVIAL(info) << "JSON NOT ACCEPT" << endl;
-                            }
-                        }
-                    }
-                    
-                    // History Info processing (existing logic, improved)
-                    std::string jobs_history = "\"jobs\":";
-                    std::string id_history = "\"id\": 5656";
-                    size_t pos_id_history = ws.find(id_history.c_str());
-                    size_t pos_history = ws.find(jobs_history.c_str());
-                    
-                    if (pos_history != std::string::npos && !historyStart) {
-                        historyInfo = "";
-                        historyStart = true;
-                    }
-                    if (historyStart) {
-                        historyInfo += ws;
-                    }
-                    if (pos_id_history != std::string::npos) {
-                        historyStart = false;
-                    }
-                    if (!historyInfo.empty() && !historyStart) {
-                        std::vector<HistoryInfo> _historyInfoList;
-                        try {
-                            json history_json;
-                            if (json::accept(historyInfo)) {
-                                history_json = json::parse(historyInfo);
-                                if (history_json["result"]["jobs"].is_array()) {
-                                    for (const auto& job : history_json["result"]["jobs"]) {
-                                        HistoryInfo _historyInfo;
-                                        std::string X = job["filename"].get<std::string>();
-                                        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-                                        _historyInfo.gcode_name = converter.from_bytes(X);
-                                        _historyInfo.status = job["status"].get<std::string>();
-                                        _historyInfo.fliament_used = job["filament_used"];
-                                        _historyInfo.total_duration = job["total_duration"];
-                                        _historyInfoList.push_back(_historyInfo);
-                                    }
-                                    m_kHistoryInfoList = _historyInfoList;
-                                }
-                                else {
-                                    m_kHistoryInfoList.clear();
-                                    DebugOutput("Invalid JSON format or missing 'jobs' array.");
-                                }
-                            }
-                        }
-                        catch (const std::exception& e) {
-                            DebugOutput("Parse error: ", e.what());
-                        }
-                    }
-                    
-                    // ============================================
-                    // OPTIMIZED AMS PATTERN MATCHING
-                    // ============================================
-                    // Search in both the current complete message and sliding window buffer
-                    // This ensures we catch patterns even if they span frame boundaries
-                    
-                    // Search in complete message first (most common case)
-                    std::string search_text = ws;
-                    
-                    // Also search in sliding window buffer for cross-frame patterns
-                    if (sliding_window_buffer.size() > ws.size()) {
-                        // Check if pattern might be in the sliding window
-                        search_text = sliding_window_buffer;
-                    }
-                    
-                    // AMS Connection Status
-                    size_t ams_pos = search_text.find(amsPatterns.AMS_connected.c_str());
-                    if (ams_pos != std::string::npos) {
-                        m_bIsConnetedToAMS = true;
-                        BOOST_LOG_TRIVIAL(info) << "AMS connected status detected";
-                        // Clear matched portion from sliding window to prevent duplicate matches
-                        if (ams_pos < sliding_window_buffer.size()) {
-                            sliding_window_buffer = sliding_window_buffer.substr(
-                                ams_pos + amsPatterns.AMS_connected.length()
-                            );
-                        }
-                    }
-                    
-                    ams_pos = search_text.find(amsPatterns.AMS_unconnect.c_str());
-                    if (ams_pos != std::string::npos) {
-                        m_bIsConnetedToAMS = false;
-                        BOOST_LOG_TRIVIAL(info) << "AMS disconnected status detected";
-                        if (ams_pos < sliding_window_buffer.size()) {
-                            sliding_window_buffer = sliding_window_buffer.substr(
-                                ams_pos + amsPatterns.AMS_unconnect.length()
-                            );
-                        }
-                    }
-                    
-                    // AMS Filament State Parse Process
-                    // Unified lambda with slot number parsing and state update
-                    auto parseAMSCommandState = [&](const std::string& pattern, bool is_load = false, bool is_start = false) -> bool
-                    {
-                        size_t pos = search_text.find(pattern);
-                        if (pos == std::string::npos) return false;
-                        
-                        // Handle unload all patterns - update all slots
-                        if (pattern == amsPatterns.AMS_unload_all_start || pattern == amsPatterns.AMS_unload_all_end) {
-                            AMSCommandState new_state = (pattern == amsPatterns.AMS_unload_all_start) ? AMSCommandState::START : AMSCommandState::FINISH;
-                            const char* state_name = (pattern == amsPatterns.AMS_unload_all_start) ? "START" : "FINISH";
-                            
-                            for (size_t i = 0; i < m_kAMSList_temp.size(); i++) {
-                                m_kAMSList_temp[i].unload_state = new_state;
-                                
-                                if(pattern == amsPatterns.AMS_unload_all_start){
-                                    m_kAMSList_temp[i].unload_state = AMSCommandState::START;
-                                }
-                                if(pattern == amsPatterns.AMS_unload_all_end){
-                                    m_kAMSList_temp[i].loading = false;
-                                    m_kAMSList_temp[i].unload_state = AMSCommandState::NONE;
-                                }
-                            }
-                            
-                            BOOST_LOG_TRIVIAL(info) << "*** All AMS slots unload_state = " << state_name << " ***";
-                            
-                            // Clean up sliding window buffer
-                            if (pos < sliding_window_buffer.size()) {
-                                sliding_window_buffer.erase(0, pos + pattern.length());
-                            }
-                            return true;
-                        }
-                        else {// If parse_slot is true, parse slot number and update state
-                            // Parse slot number after comma (e.g., P1Bn:0,2 -> extract 2)
-                            int slot_number = -1;
-                            size_t comma_pos = pos + pattern.length();
-                            if (comma_pos < search_text.length() && search_text[comma_pos] == ',') {
-                                char* end_ptr;
-                                slot_number = static_cast<int>(std::strtol(search_text.c_str() + comma_pos + 1, &end_ptr, 10));
-                                if (end_ptr == search_text.c_str() + comma_pos + 1) slot_number = -1;
-                            }
-                            
-                            // Update AMSInfo state based on slot number
-                            const size_t max_slots = m_kAMSList_temp.size();
-                            if (slot_number > 0 && slot_number <= static_cast<int>(max_slots)) {
-                                size_t slot_index = static_cast<size_t>(slot_number - 1);
-                                AMSCommandState& target_state = is_load
-                                    ? m_kAMSList_temp[slot_index].load_state
-                                    : m_kAMSList_temp[slot_index].unload_state;
-                                target_state = is_start ? AMSCommandState::START : AMSCommandState::FINISH;
-                                
-                                //Update related fields based on state
-                                if (!is_start) {
-                                    if (is_load) {
-                                        //load_state = START -> loading = true
-                                        m_kAMSList_temp[slot_index].loading = true;
-                                        m_kAMSList_temp[slot_index].load_state = AMSCommandState::NONE;
-                                    }
-                                    else {
-                                        //unload_state = finished -> loading = true
-                                        m_kAMSList_temp[slot_index].loading = false;
-                                        m_kAMSList_temp[slot_index].unload_state = AMSCommandState::NONE;
-                                    }
-                                }
-                                
-                                const char* state_name = is_start ? "START" : "FINISH";
-                                const char* cmd_type = is_load ? "load_single" : "unload_single";
-                                BOOST_LOG_TRIVIAL(info) << "*** Slot " << slot_number << " " << cmd_type << " = " << state_name << " ***";
-                            } else if (slot_number > 0) {
-                                BOOST_LOG_TRIVIAL(warning) << "*** Slot number " << slot_number << " out of range (max: " << max_slots << ") ***";
-                            } else {
-                                BOOST_LOG_TRIVIAL(error) << "*** Pattern " << pattern << " found but no valid slot number ***";
-                            }
-                        }
-                        
-                        // Clean up sliding window buffer
-                        if (pos < sliding_window_buffer.size()) {
-                            sliding_window_buffer.erase(0, pos + pattern.length());
-                        }
-                        return true;
-                    };
-
-                    // Initialize AMS list if empty
-                    if (m_kAMSList_temp.empty()) {
-                        for (int i = 1; i <= 4; i++) {
-                            AMSInfo _AMSInfo;
-                            m_kAMSList_temp.push_back(_AMSInfo);
-                        }
-                    }
-                    
-                    // Parse unload all states (simple patterns, no slot number)
-                    parseAMSCommandState(amsPatterns.AMS_unload_all_start);
-                    parseAMSCommandState(amsPatterns.AMS_unload_all_end);
-                    
-                    // Parse load/unload single slot states: (pattern, is_load, is_start)
-                    parseAMSCommandState(amsPatterns.AMS_load_single_start, true, true);     // P1Tn:0 -> load_single = START
-                    parseAMSCommandState(amsPatterns.AMS_load_single_end, true, false);      // P1Tn:1 -> load_single = FINISH
-                    parseAMSCommandState(amsPatterns.AMS_unload_single_start, false, true);  // P1Bn:0 -> unload_single = START
-                    parseAMSCommandState(amsPatterns.AMS_unload_single_end, false, false);   // P1Bn:1 -> unload_single = FINISH
-                    
-                    // AMS Entry/Park State Processing
-                    std::string ams_info = "entry_state";
-                    ams_pos = ws.find(ams_info.c_str());
-                    if (ams_pos != std::string::npos) {
-                        json ams_json;
-                        if (json::accept(ws)) {
-                            try {
-                                ams_json = json::parse(ws);
-                                std::string entry_state = ams_json["params"][0].get<std::string>();
-                                entry_state = entry_state.substr(entry_state.find("{"));
-                                int _entry_state = 0;
-                                int _park_state = 0;
-                                
-                                if (json::accept(entry_state)) {
-                                    json info_json = json::parse(entry_state);
-                                    _entry_state = info_json["entry_state"];
-                                    _park_state = info_json["park_state"];
-                                }
-                                
-                                if (_entry_state > -1) {
-                                    m_bIsConnetedToAMS = true;
-                                }
-                                else{
-                                    m_bIsConnetedToAMS = false;
-                                }
-                                
-                                //m_kAMSList_temp.clear();
-                                for (int i = 1; i <= 4; i++) {
-                                    //AMSInfo _AMSInfo;
-                                    m_kAMSList_temp[i-1].filament = "";
-                                    
-                                    // Park state logic
-                                    m_kAMSList_temp[i-1].park = false;
-                                    if (i == 1 && (_park_state == 1 || _park_state == 3 || _park_state == 5 ||
-                                                   _park_state == 9 || _park_state == 7 || _park_state == 11 ||
-                                                   _park_state == 13 || _park_state == 15))
-                                        m_kAMSList_temp[i-1].park = true;
-                                    if (i == 2 && (_park_state == 2 || _park_state == 3 || _park_state == 6 ||
-                                                   _park_state == 10 || _park_state == 7 || _park_state == 11 ||
-                                                   _park_state == 14 || _park_state == 15))
-                                        m_kAMSList_temp[i-1].park = true;
-                                    if (i == 3 && (_park_state == 4 || _park_state == 5 || _park_state == 6 ||
-                                                   _park_state == 12 || _park_state == 7 || _park_state == 13 ||
-                                                   _park_state == 14 || _park_state == 15))
-                                        m_kAMSList_temp[i-1].park = true;
-                                    if (i == 4 && (_park_state == 8 || _park_state == 9 || _park_state == 10 ||
-                                                   _park_state == 12 || _park_state == 11 || _park_state == 13 ||
-                                                   _park_state == 14 || _park_state == 15))
-                                        m_kAMSList_temp[i-1].park = true;
-                                    
-                                    // Entry state logic
-                                    m_kAMSList_temp[i-1].entry = false;
-                                    if (i == 1 && (_entry_state == 1 || _entry_state == 3 || _entry_state == 5 ||
-                                                   _entry_state == 9 || _entry_state == 7 || _entry_state == 11 ||
-                                                   _entry_state == 13 || _entry_state == 15))
-                                        m_kAMSList_temp[i-1].entry = true;
-                                    if (i == 2 && (_entry_state == 2 || _entry_state == 3 || _entry_state == 6 ||
-                                                   _entry_state == 10 || _entry_state == 7 || _entry_state == 11 ||
-                                                   _entry_state == 14 || _entry_state == 15))
-                                        m_kAMSList_temp[i-1].entry = true;
-                                    if (i == 3 && (_entry_state == 4 || _entry_state == 5 || _entry_state == 6 ||
-                                                   _entry_state == 12 || _entry_state == 7 || _entry_state == 13 ||
-                                                   _entry_state == 14 || _entry_state == 15))
-                                        m_kAMSList_temp[i-1].park = true;
-                                    if (i == 4 && (_entry_state == 8 || _entry_state == 9 || _entry_state == 10 ||
-                                                   _entry_state == 12 || _entry_state == 11 || _entry_state == 13 ||
-                                                   _entry_state == 14 || _entry_state == 15))
-                                        m_kAMSList_temp[i-1].entry = true;
-                                    
-                                    m_kAMSList_temp[i-1].selected = false;
-                                    //m_kAMSList_temp.push_back(_AMSInfo);
-                                }
-                                m_kAMSList = m_kAMSList_temp;
-                            } catch (const json::exception& e) {
-                                BOOST_LOG_TRIVIAL(warning) << "JSON parse error in AMS entry_state: " << e.what();
-                            }
-                        }
-                    }
-                    
-                    // Pause message processing
-                    //only for test
-                    if (!m_kMonitorWindow.amsReturnError.empty()) {
-                        ws = m_kMonitorWindow.amsReturnError;
-                    }
-                    
-                    std::string pause_prefix = "+PAUSE:";
-                    size_t pause_pos = ws.find(pause_prefix);
-                    if (pause_pos != std::string::npos) {
-                        try {
-                            std::tuple<std::string, std::string, std::string> pauseError = ParsePauseMessage(ws);
-                            std::string code = std::get<0>(pauseError);
-                            std::string oldCh = std::get<1>(pauseError);
-                            std::string newCh = std::get<2>(pauseError);
-                            
-                            std::cout << "Code: " << code << std::endl;
-                            std::cout << "Old Channel: " << oldCh << std::endl;
-                            std::cout << "New Channel: " << newCh << std::endl;
-                            
-                            HandlePauseCode(code);
-                            
-                            if (code == "4") {
-                                m_kMonitorWindow.AMSselectedID = std::stoi(newCh);
-                                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
-                            }
-                            else if (code == "8") {
-                                m_kMonitorWindow.AMSselectedID = std::stoi(oldCh);
-                                m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
-                            }
-                            
-                            m_kMonitorWindow.error_code = "[" + code + "]";
-                            
-                            //only for test
-                            if (!m_kMonitorWindow.amsReturnError.empty()) {
-                                m_kMonitorWindow.amsReturnError.clear();
-                            }
-                        }
-                        catch (const std::invalid_argument& e) {
-                            DebugOutput("Error (input1): ", e.what());
-                        }
-                    }
-                }
-                else if (res == CURLE_AGAIN) {
-                    again++;
-                    if (again > 30) {
+                    if (res == CURLE_OK) {
                         again = 0;
-                        BOOST_LOG_TRIVIAL(warning) << "Too many CURLE_AGAIN, reconnecting...";
+                        
+                        // ============================================
+                        // Frame Fragmentation Handling
+                        // ============================================
+                        std::string frame_data(&buffer[0], &buffer[rlen]);
+                        bool is_text_frame = (meta->flags & CURLWS_TEXT) != 0;
+                        bool is_binary_frame = (meta->flags & CURLWS_BINARY) != 0;
+                        bool is_continuation_frame = FrameProcessor::IsContinuationFrame(meta);
+                        bool is_final_frame = FrameProcessor::IsFinalFrame(meta);
+                        
+                        // Debug logging for frame information
+                        BOOST_LOG_TRIVIAL(debug) << "WebSocket frame received: "
+                        << "length=" << rlen
+                        << ", flags=" << meta->flags
+                        << ", text=" << is_text_frame
+                        << ", continuation=" << is_continuation_frame
+                        << ", final=" << is_final_frame
+                        << ", content_preview=" << frame_data.substr(0, 100);
+                        
+                        // If this is a continuation frame, accumulate it
+                        if (is_continuation_frame) {
+                            ams_message_buffer += frame_data;
+                            BOOST_LOG_TRIVIAL(debug) << "Accumulating continuation frame. "
+                            << "Buffer size: " << ams_message_buffer.size();
+                            
+                            // Prevent buffer from growing too large
+                            if (ams_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
+                                BOOST_LOG_TRIVIAL(warning) << "AMS message buffer exceeded max size, truncating";
+                                ams_message_buffer = ams_message_buffer.substr(ams_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
+                            }
+                            continue;  // Wait for more frames
+                        }
+                        
+                        // ============================================
+                        // Complete Message Combination
+                        // ============================================
+                        std::string complete_message = FrameProcessor::CombineFrames(frame_data, ams_message_buffer);
+                        FrameProcessor::UpdateSlidingWindow(sliding_window_buffer, complete_message, MAX_SLIDING_WINDOW_SIZE);
+                        
+                        // ============================================
+                        // Message Conversion
+                        // ============================================
+                        std::string ws = complete_message;
+                        m_strReceiveMessage = MessageProcessor::ConvertToWideString(ws);
+                        
+                        // ============================================
+                        // Message Type Detection
+                        // ============================================
+                        bool skip_proc_stat_processing = MessageProcessor::ShouldSkipProcStat(ws);
+                        if (skip_proc_stat_processing) {
+                            BOOST_LOG_TRIVIAL(debug) << "Found notify_proc_stat_update, skipping proc_stat processing";
+                            continue;
+                        }
+                        
+                        // ============================================
+                        // G-code Response and Printer Status Processing
+                        // ============================================
+                        if (!skip_proc_stat_processing) {
+                            BOOST_LOG_TRIVIAL(info) << "receive: " << ws << endl;
+                            MessageProcessor::ProcessGcodeResponse(ws);
+                            PrinterStatusExtractor::ProcessPrinterStatus(ws);
+                        }
+                        
+                        // ============================================
+                        // History Info Processing (independent of skip_proc_stat)
+                        // ============================================
+                        MessageProcessor::ProcessHistoryInfo(ws, historyInfo, historyStart);
+                        
+                        // ============================================
+                        // AMS Processing (independent of skip_proc_stat)
+                        // ============================================
+                        // Search in both the current complete message and sliding window buffer
+                        // This ensures we catch patterns even if they span frame boundaries
+                        std::string search_text = ws;
+                        if (sliding_window_buffer.size() > ws.size()) {
+                            search_text = sliding_window_buffer;
+                        }
+                        
+                        AMSProcessor::ProcessAMSConnectionStatus(search_text, sliding_window_buffer);
+                        AMSProcessor::ProcessAMSCommandStates(search_text, sliding_window_buffer);
+                        AMSProcessor::ProcessAMSEntryParkState(ws);
+                        
+                        // ============================================
+                        // Pause Message Processing
+                        // ============================================
+                        MessageProcessor::ProcessPauseMessage(ws);
+                    }
+                    else if (res == CURLE_AGAIN) {
+                        again++;
+                        // Log for macOS Xcode console
+                        BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: CURLE_AGAIN, Thread ID: " << thread_id << ", again count: " << again;
+                        
+                        if (again > 30) {
+                            // Log for macOS Xcode console (log before resetting again)
+                            BOOST_LOG_TRIVIAL(warning) << "Too many CURLE_AGAIN (count: " << again << ")";
+                            again = 0;
+                        }
+                    }
+                    else if (res == CURLE_RECV_ERROR) {
+                        BOOST_LOG_TRIVIAL(info) << "receive error: " << endl;
                         curl_easy_cleanup(m_pCurl_websocket);
                         curl_global_cleanup();
                         Initialconnect();
                     }
                 }
-                else if (res == CURLE_RECV_ERROR) {
-                    BOOST_LOG_TRIVIAL(info) << "receive error: " << endl;
-                    curl_easy_cleanup(m_pCurl_websocket);
-                    curl_global_cleanup();
-                    Initialconnect();
+                else {
+                    BOOST_LOG_TRIVIAL(info) << "connect failed " << endl;
+                    m_bStartReceiving = false;
+                    m_bStartSending = false;
                 }
             }
-            else {
-                BOOST_LOG_TRIVIAL(info) << "connect failed " << endl;
-                m_bStartReceiving = false;
-                m_bStartSending = false;
+            catch (const std::runtime_error& e) {
+                DebugOutput("Error: ", e.what());
             }
+            catch (const std::invalid_argument& e) {
+                DebugOutput("Caught std::invalid_argument: ", e.what());
+            }
+            catch (const std::exception& e) {
+                DebugOutput("Caught std::exception: ", e.what());
+            }
+            BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock released, Thread ID: " << thread_id;
         }
-        catch (const std::runtime_error& e) {
-            DebugOutput("Error: ", e.what());
-        }
-        catch (const std::invalid_argument& e) {
-            DebugOutput("Caught std::invalid_argument: ", e.what());
-        }
-        catch (const std::exception& e) {
-            DebugOutput("Caught std::exception: ", e.what());
-        }
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     
     m_pPrinterInfo->state = "offline";
     return res;
 }
-
 
 size_t WriteStreamCallback(void* contents, size_t size, size_t nmemb, void* userp) 
 {
@@ -2085,26 +2163,46 @@ void GetAllInfo_websocket()
     payload_Nozzle["params"]["script"] = "PRZ_ADC";
     payload_Nozzle["id"] = printer_gcode_script;
 
+    // Log thread ID for Xcode console debugging
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::cout << "[GetAllInfo_websocket] Thread started, Thread ID: " << thread_id << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "GetAllInfo_websocket: Thread started, Thread ID: " << thread_id;
+    
+    
     try {
         auto nowTime = std::chrono::steady_clock::now();
         auto previousTime = std::chrono::steady_clock::now();
-        int sendcnt = 0;
-        while (m_bStartSending) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            std::lock_guard<std::mutex> lock(m_kCurlMutex);
-            CURLcode result = send_action_Command(payload.dump());
-
-            nowTime = std::chrono::steady_clock::now();
-            long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
-
-            if (timeDiff > 5 && m_pPrinterInfo->state != "printing" || sendcnt < 3)
+        while (m_bStartSending)
+        {
             {
-                sendcnt++;
-                result = send_action_Command(payload_history.dump());
-                result = send_action_Command(payload_AMS.dump());
-                result = send_action_Command(payload_Nozzle.dump());
-                previousTime = std::chrono::steady_clock::now();
-            }
+                // ⚠️ CRITICAL: libcurl easy handle is NOT thread-safe
+                // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+                // Operating the same curl handle from 2 threads may cause crash risk
+                std::lock_guard<std::mutex> lock(m_kCurlMutex);
+                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock acquired, Thread ID: " << thread_id;
+                
+                CURLcode result = send_action_Command(payload.dump());
+                
+                nowTime = std::chrono::steady_clock::now();
+                long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
+                /*when re-connect after disconnect need to do one more time*/
+                //if (threadControl.first_time_to_send_query) {
+                    //no need to do repeat execution
+                //   result = send_action_Command(payload_AMS.dump());
+                //}
+                // TODO: Allow duplicate execution until we implement a better mechanism
+                // Temporarily allow repeated execution until better solution is found
+                if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                {
+                    result = send_action_Command(payload_AMS.dump());
+                    result = send_action_Command(payload_history.dump());
+                    result = send_action_Command(payload_Nozzle.dump());
+                    threadControl.first_time_to_send_query = false;
+                    previousTime = std::chrono::steady_clock::now();
+                }
+                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
+            }// ✅ Lock released from here before sleep to avoid blocking ReceiveResponse() thread
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
     } catch (const std::invalid_argument& e) {

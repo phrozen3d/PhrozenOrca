@@ -732,6 +732,7 @@ struct ThreadControl
     bool isGcodeLoadFinish = false;
     bool singlelayer = false;
     int isWide = false;
+    bool first_time_to_send_query = true;
 };
 
 struct WebCamImageDataThreadHandler

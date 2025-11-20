@@ -25,6 +25,7 @@
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
 #include "PhrozenFilamentControl.hpp"
+#include <iostream>
 
 #define HideOriginUiWidget 0
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
@@ -1127,19 +1128,57 @@ void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& WXUNUSED(event))
 
 void PhrozenStatusBasePanel::on_ams_unload_single_slot(wxCommandEvent& WXUNUSED(event))
 {
-    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex();
+    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex()+1;
+    // Log for macOS Xcode console and boost log
+    std::cout << "[AMS Unload] Selected slot ID: " << nSlotId << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "on_ams_unload_single_slot: Selected slot ID: " << nSlotId;
     if ( nSlotId < 0 )
     {
+        BOOST_LOG_TRIVIAL(warning) << "on_ams_unload_single_slot: Invalid slot ID (" << nSlotId << " < 0), returning";
         return;
+    }
+    
+    try {
+    #ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+    #endif
+        if (obj) {
+            obj->SetPhrozenCommand_unload(nSlotId);
+        }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_unload_single_slot: Exception occurred: " << e.what();
+    } catch (...) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_unload_single_slot: Unknown exception occurred";
     }
 }
 
 void PhrozenStatusBasePanel::on_ams_load_single_slot(wxCommandEvent& WXUNUSED(event))
 {
-    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex();
+    int nSlotId = m_pFilamentControlPanel->GetSelectedAmsSlotIndex()+1;
+    // Log for macOS Xcode console and boost log
+    std::cout << "[AMS Load] Selected slot ID: " << nSlotId << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "on_ams_load_single_slot: Selected slot ID: " << nSlotId;
     if ( nSlotId < 0 )
     {
+        BOOST_LOG_TRIVIAL(warning) << "on_ams_load_single_slot: Invalid slot ID (" << nSlotId << " < 0), returning";
         return;
+    }
+    
+    try {
+    #ifdef __APPLE__
+        if (!obj){
+            obj = wxGetApp().GetPhrozenMachineObject();
+        }
+    #endif
+        if (obj) {
+            obj->SetPhrozenCommand_load(nSlotId);
+        }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_load_single_slot: Exception occurred: " << e.what();
+    } catch (...) {
+        BOOST_LOG_TRIVIAL(error) << "on_ams_load_single_slot: Unknown exception occurred";
     }
 }
 
