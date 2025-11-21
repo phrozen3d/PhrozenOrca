@@ -728,6 +728,9 @@ void RunGetPrinterInfo( );
 void RunReceiveMessage( );
 void RunReceiveWebCameraView();
 void RunSendMessage( );
+
+// kResult{ machineIp, machineName }
+bool SearchPhrozenPrinter( std::unordered_map< std::string, std::string >& kResult );
 #pragma endregion
 
 DECLARE_APP(GUI_App)
