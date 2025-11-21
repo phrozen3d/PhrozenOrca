@@ -53,6 +53,370 @@ static wxString MACHINE_BED_TYPE_STRING[BED_TYPE_COUNT] = {
     _L("Bambu Smooth PEI Plate") + "/" + _L("High temperature Plate"),
     _L("Bambu Textured PEI Plate")};
 
+
+#pragma region PhrozenMaterialItem
+
+PhrozenMaterialItem::PhrozenMaterialItem(wxWindow *parent, wxColour mcolour, wxString mname)
+ : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL)
+ {
+    m_arraw_bitmap_gray =  ScalableBitmap(this, "drop_down", FromDIP(12));
+    m_arraw_bitmap_white =  ScalableBitmap(this, "topbar_dropdown", FromDIP(12));
+    m_transparent_mitem = ScalableBitmap(this, "transparent_material_item", FromDIP(32));
+
+    m_material_coloul = mcolour;
+    m_material_name = mname;
+    m_ams_coloul      = wxColour(0xEE,0xEE,0xEE);
+
+#ifdef __WINDOWS__
+    SetDoubleBuffered(true);
+#endif //__WINDOWS__
+
+    SetSize(MATERIAL_ITEM_SIZE);
+    SetMinSize(MATERIAL_ITEM_SIZE);
+    SetMaxSize(MATERIAL_ITEM_SIZE);
+    SetBackgroundColour(*wxWHITE);
+
+    Bind(wxEVT_PAINT, &PhrozenMaterialItem::paintEvent, this);
+    Bind(wxEVT_LEFT_DOWN, &PhrozenMaterialItem::on_left_down, this);
+    wxGetApp().UpdateDarkUI(this);
+ }
+
+ PhrozenMaterialItem::~PhrozenMaterialItem() {}
+
+void PhrozenMaterialItem::msw_rescale() {
+    m_arraw_bitmap_gray  = ScalableBitmap(this, "drop_down", FromDIP(12));
+    m_arraw_bitmap_white = ScalableBitmap(this, "topbar_dropdown", FromDIP(12));
+    m_transparent_mitem  = ScalableBitmap(this, "transparent_material_item", FromDIP(32));
+}
+
+void PhrozenMaterialItem::set_ams_info(wxColour col, wxString txt, int ctype, std::vector<wxColour> cols)
+{
+    // current not use here, because it handle by "show_ams_selection_menu"
+    return;
+
+    auto need_refresh = false;
+    if (m_ams_cols != cols) { m_ams_cols = cols; need_refresh = true; }
+    if (m_ams_ctype != ctype) { m_ams_ctype = ctype; need_refresh = true; }
+    if (m_ams_coloul != col) { m_ams_coloul = col; need_refresh = true;}
+    if (m_ams_slot_name != txt) { m_ams_slot_name = txt; need_refresh = true; }
+    if (need_refresh) { Refresh();}
+}
+
+void PhrozenMaterialItem::disable()
+{
+    if (IsEnabled()) {
+        this->Disable();
+        Refresh();
+    }
+}
+
+void PhrozenMaterialItem::enable()
+{
+    if (!IsEnabled()) {
+        this->Enable();
+        Refresh();
+    }
+}
+
+void PhrozenMaterialItem::on_selected()
+{
+    if (!m_selected) {
+        m_selected = true;
+        Refresh();
+    }
+}
+
+void PhrozenMaterialItem::on_warning()
+{
+    if (!m_warning) {
+        m_warning = true;
+        Refresh();
+    }
+}
+
+void PhrozenMaterialItem::on_normal()
+{
+    if (m_selected || m_warning) {
+        m_selected = false;
+        m_warning  = false;
+        Refresh();
+    }
+}
+
+
+void PhrozenMaterialItem::paintEvent(wxPaintEvent &evt) 
+{  
+    wxPaintDC dc(this);
+    render(dc);
+}
+
+void PhrozenMaterialItem::render(wxDC &dc) 
+{
+#ifdef __WXMSW__
+    wxSize     size = GetSize();
+    wxMemoryDC memdc;
+    wxBitmap   bmp(size.x, size.y);
+    memdc.SelectObject(bmp);
+    memdc.Blit({0, 0}, size, &dc, {0, 0});
+
+    {
+        wxGCDC dc2(memdc);
+        doRender(dc2);
+    }
+
+    memdc.SelectObject(wxNullBitmap);
+    dc.DrawBitmap(bmp, 0, 0);
+#else
+    doRender(dc);
+#endif
+
+    auto mcolor = m_material_coloul;
+    auto acolor = m_ams_coloul;
+    change_the_opacity(acolor);
+    if (!IsEnabled()) {
+        mcolor = wxColour(0x90, 0x90, 0x90);
+        acolor = wxColour(0x90, 0x90, 0x90);
+    }
+
+    // materials name
+    dc.SetFont(::Label::Body_13);
+
+    auto material_name_colour = mcolor.GetLuminance() < 0.6 ? *wxWHITE : wxColour(0x26, 0x2E, 0x30);
+    if (mcolor.Alpha() == 0) {material_name_colour = wxColour(0x26, 0x2E, 0x30);}
+    dc.SetTextForeground(material_name_colour);
+
+    if (dc.GetTextExtent(m_material_name).x > GetSize().x - 10) {
+        dc.SetFont(::Label::Body_10);
+    }
+
+    auto material_txt_size = dc.GetTextExtent(m_material_name);
+    dc.DrawText(m_material_name, wxPoint((MATERIAL_ITEM_SIZE.x - material_txt_size.x) / 2, (FromDIP(22) - material_txt_size.y) / 2));
+
+    // mapping num
+    dc.SetFont(::Label::Body_10);
+    dc.SetTextForeground(acolor.GetLuminance() < 0.6 ? *wxWHITE : wxColour(0x26, 0x2E, 0x30));
+    if (acolor.Alpha() == 0) {
+        dc.SetTextForeground(wxColour(0x26, 0x2E, 0x30));
+    }
+
+    wxString mapping_txt = wxEmptyString;
+    if (m_ams_slot_name.empty()) {
+        mapping_txt = "-";
+    } else {
+        mapping_txt = m_ams_slot_name;
+    }
+
+    auto mapping_txt_size = dc.GetTextExtent(mapping_txt);
+    dc.DrawText(mapping_txt, wxPoint((MATERIAL_ITEM_SIZE.x - mapping_txt_size.x) / 2, FromDIP(20) + (FromDIP(14) - mapping_txt_size.y) / 2));
+}
+
+void PhrozenMaterialItem::doRender(wxDC &dc) 
+{
+    wxSize size = GetSize();
+    auto mcolor = m_material_coloul;
+    auto acolor = m_ams_coloul;
+    change_the_opacity(acolor);
+
+    if (mcolor.Alpha() == 0 || acolor.Alpha() == 0) {
+        dc.DrawBitmap(m_transparent_mitem.bmp(), FromDIP(1), FromDIP(1));
+    }
+
+    if (!IsEnabled()) {
+        mcolor = wxColour(0x90, 0x90, 0x90);
+        acolor = wxColour(0x90, 0x90, 0x90);
+    }
+
+    //top
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(mcolor));
+    dc.DrawRoundedRectangle(FromDIP(1), FromDIP(1), MATERIAL_ITEM_REAL_SIZE.x, FromDIP(18), 5);
+    
+    //bottom
+    if (m_ams_cols.size() > 1) {
+        int left = FromDIP(1);
+        int gwidth = std::round(MATERIAL_ITEM_REAL_SIZE.x / (m_ams_cols.size() - 1));
+        //gradient
+        if (m_ams_ctype == 0) {
+            for (int i = 0; i < m_ams_cols.size() - 1; i++) {
+                auto rect = wxRect(left, FromDIP(18), MATERIAL_ITEM_REAL_SIZE.x, FromDIP(16));
+                dc.GradientFillLinear(rect, m_ams_cols[i], m_ams_cols[i + 1], wxEAST);
+                left += gwidth;
+            }
+        }
+        else {
+            int cols_size = m_ams_cols.size();
+            for (int i = 0; i < cols_size; i++) {
+                dc.SetBrush(wxBrush(m_ams_cols[i]));
+                float x = left + ((float)MATERIAL_ITEM_REAL_SIZE.x) * i / cols_size;
+                if (i != cols_size - 1) {
+                    dc.DrawRoundedRectangle(x, FromDIP(18), ((float)MATERIAL_ITEM_REAL_SIZE.x) / cols_size + FromDIP(3), FromDIP(16), 3);
+                }
+                else {
+                    dc.DrawRoundedRectangle(x, FromDIP(18), ((float)MATERIAL_ITEM_REAL_SIZE.x) / cols_size , FromDIP(16), 3);
+                }
+            }
+ 
+        }
+    }
+    else {
+        
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(wxColour(acolor)));
+        dc.DrawRoundedRectangle(FromDIP(1), FromDIP(18), MATERIAL_ITEM_REAL_SIZE.x, FromDIP(16), 5);
+        ////middle
+
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(acolor));
+        dc.DrawRectangle(FromDIP(1), FromDIP(18), MATERIAL_ITEM_REAL_SIZE.x, FromDIP(8));
+    }
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(mcolor));
+    dc.DrawRectangle(FromDIP(1), FromDIP(11), MATERIAL_ITEM_REAL_SIZE.x, FromDIP(8));
+
+
+
+    ////border
+#if __APPLE__
+    if (mcolor == *wxWHITE || acolor == *wxWHITE) {
+        dc.SetPen(wxColour(0xAC, 0xAC, 0xAC));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRoundedRectangle(1, 1, MATERIAL_ITEM_SIZE.x - 1, MATERIAL_ITEM_SIZE.y - 1, 5);
+    }
+
+    if (m_selected) {
+        dc.SetPen(AMS_CONTROL_BRAND_COLOUR); // ORCA Highlight color for selected AMS in send job dialog
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRoundedRectangle(1, 1, MATERIAL_ITEM_SIZE.x - 1, MATERIAL_ITEM_SIZE.y - 1, 5);
+    }
+#else
+    if (mcolor == *wxWHITE || acolor == *wxWHITE || acolor.Alpha() == 0) {
+        dc.SetPen(wxColour(0xAC, 0xAC, 0xAC));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRoundedRectangle(0, 0, MATERIAL_ITEM_SIZE.x, MATERIAL_ITEM_SIZE.y, 5);
+    }
+
+    if (m_selected) {
+        dc.SetPen(AMS_CONTROL_BRAND_COLOUR); // ORCA Highlight color for selected AMS in send job dialog
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRoundedRectangle(0, 0, MATERIAL_ITEM_SIZE.x, MATERIAL_ITEM_SIZE.y, 5);
+    }
+#endif
+    //arrow
+    if ( (acolor.Red() > 160 && acolor.Green() > 160 && acolor.Blue() > 160) &&
+        (acolor.Red() < 180 && acolor.Green() < 180 && acolor.Blue() < 180)) {
+        dc.DrawBitmap(m_arraw_bitmap_white.bmp(), size.x - m_arraw_bitmap_white.GetBmpSize().x - FromDIP(7), size.y - m_arraw_bitmap_white.GetBmpSize().y);
+    }
+    else {
+        dc.DrawBitmap(m_arraw_bitmap_gray.bmp(), size.x - m_arraw_bitmap_gray.GetBmpSize().x - FromDIP(7), size.y - m_arraw_bitmap_gray.GetBmpSize().y);
+    }
+
+
+}
+
+bool PhrozenMaterialItem::is_point_in_bottom_area(const wxPoint& pt)
+{
+    // 下半部區域：y 座標從 18px 開始到底部 (34px)
+    wxSize size = GetSize();
+    return (pt.y >= FromDIP(18) && pt.y <= size.y && pt.x >= 0 && pt.x <= size.x);
+}
+
+void PhrozenMaterialItem::on_left_down(wxMouseEvent& evt)
+{
+    wxPoint pos = evt.GetPosition();
+
+    wxLogMessage("PhrozenMaterialItem::on_left_down called at (%d, %d)", pos.x, pos.y);
+
+    // 檢查是否點擊在下半部區域
+    if (is_point_in_bottom_area(pos)) {
+        wxLogMessage("Click in bottom area, showing menu");
+        // 轉換為螢幕座標，讓選單顯示在點擊位置下方
+        wxPoint screen_pos = ClientToScreen(wxPoint(0, GetSize().y));
+        show_ams_selection_menu(screen_pos);
+    }
+
+    evt.Skip();
+}
+
+void PhrozenMaterialItem::show_ams_selection_menu(const wxPoint& pos)
+{
+    // 建立彈出選單
+    wxMenu menu;
+
+    // 添加四個選項 A1, A2, A3, A4
+    menu.Append(wxID_HIGHEST + 1, "A1");
+    menu.Append(wxID_HIGHEST + 2, "A2");
+    menu.Append(wxID_HIGHEST + 3, "A3");
+    menu.Append(wxID_HIGHEST + 4, "A4");
+
+    // 綁定選單項目事件
+    menu.Bind(wxEVT_COMMAND_MENU_SELECTED, [this](wxCommandEvent& evt) {
+        int id = evt.GetId();
+        wxString selection;
+
+        switch (id) {
+            case wxID_HIGHEST + 1: selection = "A1"; break;
+            case wxID_HIGHEST + 2: selection = "A2"; break;
+            case wxID_HIGHEST + 3: selection = "A3"; break;
+            case wxID_HIGHEST + 4: selection = "A4"; break;
+        }
+
+        if (!selection.IsEmpty()) {
+            on_ams_selection(selection);
+        }
+    });
+
+    // 在指定位置彈出選單
+    PopupMenu(&menu, ScreenToClient(pos));
+}
+
+void PhrozenMaterialItem::on_ams_selection(const wxString& selection)
+{
+    // 更新 AMS 名稱
+    m_ams_slot_name = selection;
+
+    // 重新繪製以顯示新的選擇
+    Refresh();
+}
+
+EPhrozenAmsSlot PhrozenMaterialItem::GetSelectedAmsSlot()
+{
+    static std::map< wxString, EPhrozenAmsSlot > kSlotNameToEnum = 
+    {
+        { "A1", EPhrozenAmsSlot::A1 },
+        { "A2", EPhrozenAmsSlot::A2 },
+        { "A3", EPhrozenAmsSlot::A3 },
+        { "A4", EPhrozenAmsSlot::A4 },
+    };
+    
+    auto kFounded = kSlotNameToEnum.find( m_ams_slot_name );
+    if ( kFounded == kSlotNameToEnum.end() )
+    {
+        return EPhrozenAmsSlot::None;
+    }
+    return kFounded->second;
+}
+
+void PhrozenMaterialItem::SetCurrentAmsSlotId( EPhrozenAmsSlot eSlot )
+{
+    static std::map< EPhrozenAmsSlot, wxString > kEnumToSlotName = 
+    {
+        { EPhrozenAmsSlot::A1, "A1" },
+        { EPhrozenAmsSlot::A2, "A2" },
+        { EPhrozenAmsSlot::A3, "A3" },
+        { EPhrozenAmsSlot::A4, "A4" },
+    };
+
+    auto kFounded = kEnumToSlotName.find( eSlot );
+    if ( kFounded == kEnumToSlotName.end() )
+    {
+        return;
+    }
+    m_ams_slot_name = kFounded->second;
+}
+#pragma endregion
+
+
+#pragma region PhrozenSelectMachineDialog
 void PhrozenSelectMachineDialog::stripWhiteSpace(std::string& str)
 {
     if (str == "") { return; }
@@ -436,20 +800,14 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
 
 
     m_sizer_options = new wxBoxSizer(wxHORIZONTAL);
-    select_bed     = create_item_checkbox(_L("Bed Leveling"), this, _L("Bed Leveling"), "bed_leveling");
-    select_flow    = create_item_checkbox(_L("Flow Dynamics Calibration"), this, _L("Flow Dynamics Calibration"), "flow_cali");
-    select_timelapse = create_item_checkbox(_L("Timelapse"), this, _L("Timelapse"), "timelapse");
-    select_use_ams = create_ams_checkbox(_L("Enable AMS"), this, _L("Enable AMS"));
+    m_auto_leveling     = create_item_checkbox(_L("Auto Leveling"), this, _L("Auto Leveling"), EPhrozenPrintOption::Auto_Leveling );
+    m_chroma_kit    = create_item_checkbox(_L("Chroma Kit"), this, _L("Chroma Kit"), EPhrozenPrintOption::Chroma_Kit );
 
-    m_sizer_options->Add(select_bed, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
-    m_sizer_options->Add(select_flow, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
-    m_sizer_options->Add(select_timelapse, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
-    m_sizer_options->Add(select_use_ams, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
+    m_sizer_options->Add(m_auto_leveling, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
+    m_sizer_options->Add(m_chroma_kit, 0, wxLEFT | wxRIGHT, PHROZEN_WRAP_GAP);
 
-    select_bed->Show(false);
-    select_flow->Show(false);
-    select_timelapse->Show(false);
-    select_use_ams->Show(false);
+    m_auto_leveling->Show(true);
+    m_chroma_kit->Show(true);
 
     m_sizer_options->Layout();
 
@@ -477,7 +835,7 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_button_ensure->SetMinSize(PHROZEN_SELECT_MACHINE_DIALOG_BUTTON_SIZE);
     m_button_ensure->SetMinSize(PHROZEN_SELECT_MACHINE_DIALOG_BUTTON_SIZE);
     m_button_ensure->SetCornerRadius(FromDIP(5));
-    m_button_ensure->Bind(wxEVT_BUTTON, &PhrozenSelectMachineDialog::on_ok_btn, this);
+    m_button_ensure->Bind(wxEVT_BUTTON, &PhrozenSelectMachineDialog::on_send_btn_pressed, this);
 
     m_sizer_pcont->Add(0, 0, 1, wxEXPAND, 0);
     m_sizer_pcont->Add(m_button_ensure, 0,wxRIGHT, 0);
@@ -637,7 +995,6 @@ void PhrozenSelectMachineDialog::init_bind()
     Bind(EVT_SHOW_ERROR_INFO, [this](auto& e) {show_print_failed_info(true);});
     Bind(EVT_UPDATE_USER_MACHINE_LIST, &PhrozenSelectMachineDialog::update_printer_combobox, this);
     Bind(EVT_PRINT_JOB_CANCEL, &PhrozenSelectMachineDialog::on_print_job_cancel, this);
-    Bind(EVT_SET_FINISH_MAPPING, &PhrozenSelectMachineDialog::on_set_finish_mapping, this);
     Bind(wxEVT_LEFT_DOWN, [this](auto& e) {check_fcous_state(this);e.Skip();});
     m_panel_prepare->Bind(wxEVT_LEFT_DOWN, [this](auto& e) {check_fcous_state(this);e.Skip();});
     m_basic_panel->Bind(wxEVT_LEFT_DOWN, [this](auto& e) {check_fcous_state(this);e.Skip();});
@@ -738,69 +1095,7 @@ void PhrozenSelectMachineDialog::popup_filament_backup()
     //}
 }
 
-wxWindow *PhrozenSelectMachineDialog::create_ams_checkbox(wxString title, wxWindow *parent, wxString tooltip)
-{
-    auto checkbox = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
-    checkbox->SetBackgroundColour(m_colour_def_color);
-
-    wxBoxSizer *sizer_checkbox = new wxBoxSizer(wxHORIZONTAL);
-    wxBoxSizer *sizer_check    = new wxBoxSizer(wxVERTICAL);
-
-    auto check = new ::CheckBox(checkbox);
-
-    sizer_check->Add(check, 0, wxBOTTOM | wxEXPAND | wxTOP, FromDIP(5));
-
-    sizer_checkbox->Add(sizer_check, 0, wxEXPAND, FromDIP(5));
-    sizer_checkbox->Add(0, 0, 0, wxEXPAND | wxLEFT, FromDIP(7));
-
-    auto text = new wxStaticText(checkbox, wxID_ANY, title, wxDefaultPosition, wxDefaultSize, 0);
-    text->SetFont(::Label::Body_12);
-    text->SetForegroundColour(StateColor::darkModeColorFor(wxColour("#323A3C")));
-    text->Wrap(-1);
-    sizer_checkbox->Add(text, 0, wxALIGN_CENTER, 0);
-
-    enable_ams       = new ScalableBitmap(this, "enable_ams", 16);
-    img_use_ams_tip = new wxStaticBitmap(checkbox, wxID_ANY, enable_ams->bmp(), wxDefaultPosition, wxSize(FromDIP(16), FromDIP(16)), 0);
-    sizer_checkbox->Add(img_use_ams_tip, 0, wxALIGN_CENTER | wxLEFT, FromDIP(5));
-
-    img_use_ams_tip->Bind(wxEVT_ENTER_WINDOW, [this](auto& e) {
-        wxPoint img_pos = img_use_ams_tip->ClientToScreen(wxPoint(0, 0));
-        wxPoint popup_pos(img_pos.x, img_pos.y + img_use_ams_tip->GetRect().height);
-        m_mapping_tip_popup.Position(popup_pos, wxSize(0, 0));
-        m_mapping_tip_popup.Popup();
-
-        if (m_mapping_tip_popup.ClientToScreen(wxPoint(0, 0)).y < img_pos.y) {
-            m_mapping_tip_popup.Dismiss();
-            popup_pos = wxPoint(img_pos.x, img_pos.y - m_mapping_tip_popup.GetRect().height);
-            m_mapping_tip_popup.Position(popup_pos, wxSize(0, 0));
-            m_mapping_tip_popup.Popup();
-        }
-    });
-
-    img_use_ams_tip->Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent& e) {
-        m_mapping_tip_popup.Dismiss();
-        });
-
-    checkbox->SetSizer(sizer_checkbox);
-    checkbox->Layout();
-    sizer_checkbox->Fit(checkbox);
-
-    checkbox->SetToolTip(tooltip);
-    text->SetToolTip(tooltip);
-
-    text->Bind(wxEVT_LEFT_DOWN, [this, check](wxMouseEvent& event) {
-        check->SetValue(check->GetValue() ? false : true);
-        });
-
-    checkbox->Bind(wxEVT_LEFT_DOWN, [this, check](wxMouseEvent& event) {
-        check->SetValue(check->GetValue() ? false : true);
-        });
-
-    m_checkbox_list["use_ams"] = check;
-    return checkbox;
-}
-
-wxWindow *PhrozenSelectMachineDialog::create_item_checkbox(wxString title, wxWindow *parent, wxString tooltip, std::string param)
+wxWindow *PhrozenSelectMachineDialog::create_item_checkbox(wxString title, wxWindow *parent, wxString tooltip, EPhrozenPrintOption eType )
 {
     auto checkbox = new wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     checkbox->SetBackgroundColour(m_colour_def_color);
@@ -832,71 +1127,20 @@ wxWindow *PhrozenSelectMachineDialog::create_item_checkbox(wxString title, wxWin
 
 
 
-    check->Bind(wxEVT_LEFT_DOWN, [this, check, param](wxMouseEvent &e) {
-        //if (!m_checkbox_state_list[param]) {return;}
-        AppConfig* config = wxGetApp().app_config;
-        if (config) {
-            if (check->GetValue())
-                config->set_str("print", param, "0");
-            else
-                config->set_str("print", param, "1");
-        }
+    check->Bind(wxEVT_LEFT_DOWN, [this, check](wxMouseEvent &e) {
         e.Skip();
     });
 
-    checkbox->Bind(wxEVT_LEFT_DOWN, [this, check, param](wxMouseEvent&) {
-        //if (!m_checkbox_state_list[param]) {return;}
+    checkbox->Bind(wxEVT_LEFT_DOWN, [this, check](wxMouseEvent&) {
         check->SetValue(check->GetValue() ? false : true);
-        AppConfig* config = wxGetApp().app_config;
-        if (config) {
-            if (check->GetValue())
-                config->set_str("print", param, "1");
-            else
-                config->set_str("print", param, "0");
-        }
-        });
-
-    text->Bind(wxEVT_LEFT_DOWN, [this, check, param](wxMouseEvent &) {
-        //if (!m_checkbox_state_list[param]) {return;}
-        check->SetValue(check->GetValue() ? false : true);
-        AppConfig* config = wxGetApp().app_config;
-        if (config) {
-            if (check->GetValue())
-                config->set_str("print", param, "1");
-            else
-                config->set_str("print", param, "0");
-        }
     });
 
-    //m_checkbox_state_list[param] = true;
-    m_checkbox_list[param] = check;
+    text->Bind(wxEVT_LEFT_DOWN, [this, check](wxMouseEvent &) {
+        check->SetValue(check->GetValue() ? false : true);
+    });
+
+    m_checkbox_list[eType] = check;
     return checkbox;
-}
-
-void PhrozenSelectMachineDialog::update_select_layout(MachineObject *obj)
-{
-    if (obj && obj->is_support_auto_flow_calibration) {
-        select_flow->Show();
-    } else {
-        select_flow->Hide();
-    }
-
-    if (obj && obj->is_support_auto_leveling) {
-        select_bed->Show();
-    } else {
-        select_bed->Hide();
-    }
-
-    if (obj && obj->is_support_timelapse && is_show_timelapse()) {
-        select_timelapse->Show();
-        update_timelapse_enable_status();
-    } else {
-        select_timelapse->Hide();
-    }
-
-    m_sizer_options->Layout();
-    Layout();
-    Fit();
 }
 
 void PhrozenSelectMachineDialog::prepare_mode(bool refresh_button)
@@ -927,7 +1171,7 @@ void PhrozenSelectMachineDialog::prepare_mode(bool refresh_button)
         m_print_page_mode = PhrozenPrintPageMode::PrintPageModePrepare;
         assert( 0 );
         for (auto it = m_materialList.begin(); it != m_materialList.end(); it++) {
-            it->second.item->enable();
+            it->second.slotMappingItem->enable();
         }
     }
 }
@@ -950,7 +1194,7 @@ void PhrozenSelectMachineDialog::sending_mode()
         m_print_page_mode = PhrozenPrintPageMode::PrintPageModeSending;
         assert( 0 );
         for (auto it = m_materialList.begin(); it != m_materialList.end(); it++) {
-            it->second.item->disable();
+            it->second.slotMappingItem->disable();
         }
     }
 }
@@ -964,61 +1208,6 @@ void PhrozenSelectMachineDialog::finish_mode()
     Fit();
 }
 
-
-void PhrozenSelectMachineDialog::sync_ams_mapping_result(std::vector<FilamentInfo> &result)
-{
-    assert( 0 );
-    if (result.empty()) {
-        BOOST_LOG_TRIVIAL(trace) << "ams_mapping result is empty";
-        for (auto it = m_materialList.begin(); it != m_materialList.end(); it++) {
-            wxString ams_id = "-";
-            wxColour ams_col = wxColour(0xCE, 0xCE, 0xCE);
-            it->second.item->set_ams_info(ams_col, ams_id);
-        }
-        return;
-    }
-
-    for (auto f = result.begin(); f != result.end(); f++) {
-        BOOST_LOG_TRIVIAL(trace) << "ams_mapping f id = " << f->id << ", tray_id = " << f->tray_id << ", color = " << f->color << ", type = " << f->type;
-
-        auto iter = m_materialList.begin();
-        while (iter != m_materialList.end()) {
-            int           id   = iter->second.id;
-            MaterialItem *m    = iter->second.item;
-
-            if (f->id == id) {
-                wxString ams_id;
-                wxColour ams_col;
-
-                if (f->tray_id >= 0) {
-                    ams_id = wxGetApp().transition_tridid(f->tray_id);
-                    //ams_id = wxString::Format("%02d", f->tray_id + 1);
-                } else {
-                    ams_id = "-";
-                }
-
-                if (!f->color.empty()) {
-                    ams_col = AmsTray::decode_color(f->color);
-                } else {
-                    // default color
-                    ams_col = wxColour(0xCE, 0xCE, 0xCE);
-                }
-                std::vector<wxColour> cols;
-                for (auto col : f->colors) {
-                    cols.push_back(AmsTray::decode_color(col));
-                }
-                m->set_ams_info(ams_col, ams_id,f->ctype, cols);
-                break;
-            }
-            iter++;
-        }
-    }
-    auto tab_index = (MainFrame::TabPosition) dynamic_cast<Notebook *>(wxGetApp().tab_panel())->GetSelection();
-    if (tab_index == MainFrame::TabPosition::tp3DEditor || tab_index == MainFrame::TabPosition::tpPreview) {
-        updata_thumbnail_data_after_connected_printer();
-    }
-}
-
 void phrozen_print_ams_mapping_result(std::vector<FilamentInfo>& result)
 {
     if (result.empty()) {
@@ -1030,45 +1219,6 @@ void phrozen_print_ams_mapping_result(std::vector<FilamentInfo>& result)
         ::sprintf(buffer, "print_ams_mapping: F(%02d) -> A(%02d)", result[i].id+1, result[i].tray_id+1);
         BOOST_LOG_TRIVIAL(info) << std::string(buffer);
     }
-}
-
-bool PhrozenSelectMachineDialog::do_ams_mapping(MachineObject *obj_)
-{
-    if (!obj_) return false;
-    obj_->get_ams_colors(m_cur_colors_in_thumbnail);
-    // try color and type mapping
-    int result = obj_->ams_filament_mapping(m_filaments, m_ams_mapping_result);
-    if (result == 0) {
-        phrozen_print_ams_mapping_result(m_ams_mapping_result);
-        std::string ams_array;
-        std::string ams_array2;
-        std::string mapping_info;
-        get_ams_mapping_result(ams_array, ams_array2, mapping_info);
-        if (ams_array.empty()) {
-            reset_ams_material();
-            BOOST_LOG_TRIVIAL(info) << "ams_mapping_array=[]";
-        } else {
-            sync_ams_mapping_result(m_ams_mapping_result);
-            BOOST_LOG_TRIVIAL(info) << "ams_mapping_array=" << ams_array;
-            BOOST_LOG_TRIVIAL(info) << "ams_mapping_array2=" << ams_array2;
-            BOOST_LOG_TRIVIAL(info) << "ams_mapping_info=" << mapping_info;
-        }
-        return obj_->is_valid_mapping_result(m_ams_mapping_result);
-    } else {
-        // do not support ams mapping try to use order mapping
-        bool is_valid = obj_->is_valid_mapping_result(m_ams_mapping_result);
-        if (result != 1 && !is_valid) {
-            //reset invalid result
-            for (int i = 0; i < m_ams_mapping_result.size(); i++) {
-                m_ams_mapping_result[i].tray_id = -1;
-                m_ams_mapping_result[i].distance = 99999;
-            }
-        }
-        sync_ams_mapping_result(m_ams_mapping_result);
-        return is_valid;
-    }
-
-    return true;
 }
 
 bool PhrozenSelectMachineDialog::get_ams_mapping_result(std::string &mapping_array_str, std::string& mapping_array_str2, std::string &ams_mapping_info)
@@ -1298,23 +1448,6 @@ void PhrozenSelectMachineDialog::update_print_error_info(int code, std::string m
     m_print_error_code  = code;
     m_print_error_msg   = msg;
     m_print_error_extra = extra;
-}
-
-bool PhrozenSelectMachineDialog::has_tips(MachineObject* obj)
-{
-    assert( 0 );
-    //if (!obj) return false;
-    //
-    //// must set to a status if return true
-    //if (select_timelapse->IsShown() &&
-    //    m_checkbox_list["timelapse"]->GetValue()) {
-    //    if (obj->get_sdcard_state() == MachineObject::SdcardState::NO_SDCARD) {
-    //        show_status(PhrozenPrintDialogStatus::PrintStatusTimelapseNoSdcard);
-    //        return true;
-    //    }
-    //}
-
-    return false;
 }
 
 void PhrozenSelectMachineDialog::show_status(PhrozenPrintDialogStatus status, std::vector<wxString> params)
@@ -1619,7 +1752,7 @@ bool PhrozenSelectMachineDialog::is_same_nozzle_type(const Extder& extruder, std
     auto preset_bundle = wxGetApp().preset_bundle;
     auto iter = m_materialList.begin();
     while (iter != m_materialList.end()) {
-        MaterialItem* m = iter->second.item;
+        PhrozenMaterialItem* m = iter->second.slotMappingItem;
         auto filament_nozzle_hrc = preset_bundle->get_required_hrc_by_filament_type(m->m_material_name.ToStdString());
 
         if (abs(filament_nozzle_hrc) > abs(printer_nozzle_hrc)) {
@@ -1678,7 +1811,7 @@ void PhrozenSelectMachineDialog::show_errors(wxString &info)
     confirm_dlg.on_show();
 }
 
-void PhrozenSelectMachineDialog::on_ok_btn(wxCommandEvent &event)
+void PhrozenSelectMachineDialog::on_send_btn_pressed(wxCommandEvent &event)
 {
 
     bool has_slice_warnings = false;
@@ -1739,10 +1872,7 @@ void PhrozenSelectMachineDialog::on_ok_btn(wxCommandEvent &event)
             }
         }
         else if (warning.msg == NOT_SUPPORT_TRADITIONAL_TIMELAPSE) {
-            if (obj_->get_printer_arch() == PrinterArch::ARCH_I3 && m_checkbox_list["timelapse"]->GetValue()) {
-                confirm_text.push_back(ConfirmBeforeSendInfo(Plater::get_slice_warning_string(warning)));
-                has_slice_warnings = true;
-            }
+            continue;
         }
         else if (warning.msg == NOT_GENERATE_TIMELAPSE) {
             continue;
@@ -1803,7 +1933,7 @@ void PhrozenSelectMachineDialog::on_ok_btn(wxCommandEvent &event)
         }
     }
 
-    if (has_prohibited_filament && obj_->has_ams() && m_checkbox_list["use_ams"]->GetValue()) {
+    if (has_prohibited_filament) {
         wxString tpu_tips = prohibited_error;
         show_errors(tpu_tips);
         return;
@@ -1855,29 +1985,6 @@ void PhrozenSelectMachineDialog::on_ok_btn(wxCommandEvent &event)
         else {
             confirm_text.push_back(ConfirmBeforeSendInfo(_L("Please click the confirm button if you still want to proceed with printing.")));
         }
-
-        confirm_dlg.Bind(EVT_SECONDARY_CHECK_CONFIRM, [this, &confirm_dlg](wxCommandEvent& e) {
-            confirm_dlg.on_hide();
-           /* if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
-                this->connect_printer_mqtt();
-            }
-            else {*/
-                this->on_send_print();
-            //}
-        });
-
-        //confirm_dlg.Bind(EVT_UPDATE_NOZZLE, [this, obj_, tag_nozzle_type, nozzle_diameter, &confirm_dlg](wxCommandEvent& e) {
-        //    if (obj_ && !tag_nozzle_type.empty() && !nozzle_diameter.empty()) {
-        //        try
-        //        {
-        //            float diameter = std::stof(nozzle_diameter);
-        //            diameter = round(diameter * 10) / 10;
-        //            obj_->command_set_printer_nozzle(tag_nozzle_type, diameter);
-        //        }
-        //        catch (...) {}
-        //    }
-        //    });
-
        
         wxString info_msg = wxEmptyString;
 
@@ -1897,12 +2004,9 @@ void PhrozenSelectMachineDialog::on_ok_btn(wxCommandEvent &event)
         confirm_dlg.on_show();
 
     } else {
-        /* if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
-             this->connect_printer_mqtt();
-         }
-         else {*/
-            this->on_send_print();
-        //}
+
+        this->on_send_print();
+
     }
 }
 
@@ -1930,27 +2034,6 @@ void PhrozenSelectMachineDialog::Enable_Auto_Refill(bool enable)
     m_ams_backup_tip->Refresh();
 }
 
-void PhrozenSelectMachineDialog::connect_printer_mqtt()
-{
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev) return;
-    MachineObject* obj_ = dev->get_selected_machine();
-
-    if (obj_->connection_type() == "cloud") {
-        show_status(PhrozenPrintDialogStatus::PrintStatusSending);
-        m_status_bar->disable_cancel_button();
-        m_status_bar->set_status_text(_L("Connecting to the printer. Unable to cancel during the connection process."));
-#if !BBL_RELEASE_TO_PUBLIC
-        obj_->connect(false, wxGetApp().app_config->get("enable_ssl_for_mqtt") == "true" ? true : false);
-#else
-        obj_->connect(false, obj_->local_use_ssl_for_mqtt);
-#endif
-    }
-    else {
-        on_send_print();
-    }
-}
-
 void PhrozenSelectMachineDialog::on_send_print()
 {
     BOOST_LOG_TRIVIAL(info) << "print_job: on_ok to send";
@@ -1971,6 +2054,17 @@ void PhrozenSelectMachineDialog::on_send_print()
     DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (!dev) return;
 
+    PhrozenMachineObject* obj = Slic3r::GUI::wxGetApp().GetPhrozenMachineObject();
+    //[TODO] not sure need connect machine object? or just call function to link?
+
+    //[TODO] ams mapping? spool holde using?
+    bool bIsAutoLeveling    = m_checkbox_list[ EPhrozenPrintOption::Auto_Leveling ]->GetValue();
+    bool bIsUseChroma_Kit   = m_checkbox_list[ EPhrozenPrintOption::Chroma_Kit ]->GetValue();
+
+
+    BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
+
+#if 0
     MachineObject* obj_ = dev->get_selected_machine();
     assert(obj_->dev_id == m_printer_last_select);
     if (obj_ == nullptr) {
@@ -2003,6 +2097,8 @@ void PhrozenSelectMachineDialog::on_send_print()
     std::string ams_mapping_array;
     std::string ams_mapping_array2;
     std::string ams_mapping_info;
+
+    //[TODO] check how to change to phrozen
     if (m_checkbox_list["use_ams"]->GetValue())
         get_ams_mapping_result(ams_mapping_array,ams_mapping_array2, ams_mapping_info);
     else {
@@ -2050,6 +2146,10 @@ void PhrozenSelectMachineDialog::on_send_print()
             m_status_bar->set_status_text(task_canceled_text);
             return;
         }
+    }
+    else {
+        ShowMessageNotSupportSdCardView();
+        return;
     }
 
     auto m_print_job = std::make_unique<PrintJob>(m_printer_last_select);
@@ -2113,7 +2213,7 @@ void PhrozenSelectMachineDialog::on_send_print()
     m_print_job->has_sdcard = obj_->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_NORMAL;
 
 
-    bool timelapse_option = select_timelapse->IsShown() ? m_checkbox_list["timelapse"]->GetValue() : true;
+    bool timelapse_option = false;
 
     m_print_job->set_print_config(
         PhrozenMachineBedTypeString[0],
@@ -2152,6 +2252,7 @@ void PhrozenSelectMachineDialog::on_send_print()
 
     //replace_job(*m_worker, std::move(m_print_job));
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
+ #endif
 }
 
 void PhrozenSelectMachineDialog::clear_ip_address_config(wxCommandEvent& e)
@@ -2161,31 +2262,11 @@ void PhrozenSelectMachineDialog::clear_ip_address_config(wxCommandEvent& e)
 
 void PhrozenSelectMachineDialog::update_user_machine_list()
 {
-    NetworkAgent* m_agent = wxGetApp().getAgent();
-    if (m_agent && m_agent->is_user_login()) {
-        boost::thread get_print_info_thread = Slic3r::create_thread([this, token = std::weak_ptr<int>(m_token)] {
-            NetworkAgent* agent = wxGetApp().getAgent();
-            unsigned int http_code;
-            std::string body;
-            int result = agent->get_user_print_info(&http_code, &body);
-            CallAfter([token, this, result, body] {
-                if (token.expired()) {return;}
-                if (result == 0) {
-                    m_print_info = body;
-                }
-                else {
-                    m_print_info = "";
-                }
-                wxCommandEvent event(EVT_UPDATE_USER_MACHINE_LIST);
-                event.SetEventObject(this);
-                wxPostEvent(this, event);
-            });
+    CallAfter([this] {
+            wxCommandEvent event(EVT_UPDATE_USER_MACHINE_LIST);
+            event.SetEventObject(this);
+            wxPostEvent(this, event);
         });
-    } else {
-        wxCommandEvent event(EVT_UPDATE_USER_MACHINE_LIST);
-        event.SetEventObject(this);
-        wxPostEvent(this, event);
-    }
 }
 
 void PhrozenSelectMachineDialog::on_refresh(wxCommandEvent &event)
@@ -2194,65 +2275,6 @@ void PhrozenSelectMachineDialog::on_refresh(wxCommandEvent &event)
     show_status(PhrozenPrintDialogStatus::PrintStatusRefreshingMachineList);
 
     update_user_machine_list();
-}
-
-void PhrozenSelectMachineDialog::on_set_finish_mapping(wxCommandEvent &evt)
-{
-    auto selection_data = evt.GetString();
-    auto selection_data_arr = wxSplit(selection_data.ToStdString(), '|');
-
-    BOOST_LOG_TRIVIAL(info) << "The ams mapping selection result: data is " << selection_data;
-
-    if (selection_data_arr.size() == 8) {
-        auto ams_colour      = wxColour(wxAtoi(selection_data_arr[0]), wxAtoi(selection_data_arr[1]), wxAtoi(selection_data_arr[2]), wxAtoi(selection_data_arr[3]));
-        int  old_filament_id = (int) wxAtoi(selection_data_arr[5]);
-        if (m_print_type == PhrozenPrintFromType::FROM_NORMAL) {//todo:support sd card
-            change_default_normal(old_filament_id, ams_colour);
-            final_deal_edge_pixels_data(m_preview_thumbnail_data);
-            set_default_normal(m_preview_thumbnail_data); // do't reset ams
-        }
-
-        int ctype = 0;
-        std::vector<wxColour> material_cols;
-        std::vector<std::string> tray_cols;
-        for (auto mapping_item : m_mapping_popup.m_mapping_item_list) {
-            if (mapping_item->m_tray_data.id == evt.GetInt()) {
-                ctype = mapping_item->m_tray_data.ctype;
-                material_cols = mapping_item->m_tray_data.material_cols;
-                for (auto col : mapping_item->m_tray_data.material_cols) {
-                    wxString color = wxString::Format("#%02X%02X%02X%02X", col.Red(), col.Green(), col.Blue(), col.Alpha());
-                    tray_cols.push_back(color.ToStdString());
-                }
-                break;
-            }
-        }
-
-        for (auto i = 0; i < m_ams_mapping_result.size(); i++) {
-            if (m_ams_mapping_result[i].id == wxAtoi(selection_data_arr[5])) {
-                m_ams_mapping_result[i].tray_id = evt.GetInt();
-                auto ams_colour = wxColour(wxAtoi(selection_data_arr[0]), wxAtoi(selection_data_arr[1]), wxAtoi(selection_data_arr[2]), wxAtoi(selection_data_arr[3]));
-                wxString color = wxString::Format("#%02X%02X%02X%02X", ams_colour.Red(), ams_colour.Green(), ams_colour.Blue(), ams_colour.Alpha());
-                m_ams_mapping_result[i].color = color.ToStdString();
-                m_ams_mapping_result[i].ctype = ctype;
-                m_ams_mapping_result[i].colors = tray_cols;
-
-                m_ams_mapping_result[i].ams_id = selection_data_arr[6].ToStdString();
-                m_ams_mapping_result[i].slot_id = selection_data_arr[7].ToStdString();
-            }
-            BOOST_LOG_TRIVIAL(trace) << "The ams mapping result: id is " << m_ams_mapping_result[i].id << "tray_id is " << m_ams_mapping_result[i].tray_id;
-        }
-
-        auto iter = m_materialList.begin();
-        while (iter != m_materialList.end()) {
-            auto id         = iter->second.id;
-            MaterialItem *m = iter->second.item;
-            if (id == m_current_filament_id) {
-                auto ams_colour = wxColour(wxAtoi(selection_data_arr[0]), wxAtoi(selection_data_arr[1]), wxAtoi(selection_data_arr[2]), wxAtoi(selection_data_arr[3]));
-                m->set_ams_info(ams_colour, selection_data_arr[4], ctype, material_cols);
-            }
-            iter++;
-        }
-    }
 }
 
 void PhrozenSelectMachineDialog::on_print_job_cancel(wxCommandEvent &evt)
@@ -2308,123 +2330,32 @@ void  PhrozenSelectMachineDialog::reset_timeout()
 
 void PhrozenSelectMachineDialog::update_user_printer()
 {
-    Slic3r::DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev) return;
-
-    // update user print info
-    if (!m_print_info.empty()) {
-        dev->parse_user_print_info(m_print_info);
-        m_print_info = "";
-    }
-
     // clear machine list
-    assert( 0 );//m_list.clear(); //(machineObject list)
     m_comboBox_printer->Clear();
-    std::vector<std::string>              machine_list;
-    wxArrayString                         machine_list_name;
-    std::map<std::string, MachineObject*> option_list;
+    m_printer_last_select = "";
+    wxArrayString                         machine_list_ip;
 
-    //user machine list
-    option_list = dev->get_my_machine_list();
-
-    // same machine only appear once
-    for (auto it = option_list.begin(); it != option_list.end(); it++) {
-        if (it->second && (it->second->is_online() || it->second->is_connected())) {
-            machine_list.push_back(it->second->dev_name);
-        }
+    wxBusyCursor kWaiting; // set mouse cursor show busy ico
+    std::unordered_map< std::string, std::string > kResult;
+    SearchPhrozenPrinter( kResult );
+    for ( auto& item : kResult )
+    {
+        machine_list_ip.push_back( item.first );
     }
 
-
-
-    //lan machine list
-    auto lan_option_list = dev->get_local_machine_list();
-
-    for (auto elem : lan_option_list) {
-        MachineObject* mobj = elem.second;
-
-        /* do not show printer bind state is empty */
-        if (!mobj->is_avaliable()) continue;
-        if (!mobj->is_online()) continue;
-        if (!mobj->is_lan_mode_printer()) continue;
-        /*if (mobj->is_in_printing()) {op->set_printer_state(PrinterState::BUSY);}*/
-
-        if (!mobj->has_access_right()) {
-            option_list[mobj->dev_name] = mobj;
-            machine_list.push_back(mobj->dev_name);
-        }
+    if ( !machine_list_ip.empty() )
+    {
+        m_comboBox_printer->Set(machine_list_ip);
+        m_comboBox_printer->SetSelection( 0 );
+        wxCommandEvent event(wxEVT_COMBOBOX);
+        event.SetEventObject(m_comboBox_printer);
+        wxPostEvent(m_comboBox_printer, event);
+        Enable_Send_Button(true);
     }
-
-    machine_list = sort_string(machine_list);
-    for (auto tt = machine_list.begin(); tt != machine_list.end(); tt++) {
-        for (auto it = option_list.begin(); it != option_list.end(); it++) {
-            if (it->second->dev_name == *tt) {
-                assert( 0 );//m_list.push_back(it->second); //(machineObject list)
-                wxString dev_name_text = from_u8(it->second->dev_name);
-                if (it->second->is_lan_mode_printer()) {
-                    dev_name_text += "(LAN)";
-                }
-                machine_list_name.Add(dev_name_text);
-                break;
-            }
-        }
-    }
-
-    m_comboBox_printer->Set(machine_list_name);
-
-    MachineObject* obj = dev->get_selected_machine();
-
-    if (obj) {
-        if (obj->is_lan_mode_printer() && !obj->has_access_right()) {
-            m_printer_last_select = "";
-        }
-        else {
-           m_printer_last_select = obj->dev_id;
-        }
-
-    } else {
-        m_printer_last_select = "";
-    }
-
-    assert( 0 && "todo select ip" );
-    if ( 0 ) {// m_list.size() > 0) {
-        // select a default machine
-
-        //if (m_printer_last_select.empty()) {
-        //    int def_selection = -1;
-        //    for (int i = 0; i < m_list.size(); i++) {
-        //        if (m_list[i]->is_lan_mode_printer() && !m_list[i]->has_access_right()) {
-        //            continue;
-        //        }
-        //        else {
-        //            def_selection = i;
-        //        }
-        //    }
-        //
-        //    if (def_selection >= 0) {
-        //        m_printer_last_select = m_list[def_selection]->dev_id;
-        //        m_comboBox_printer->SetSelection(def_selection);
-        //        wxCommandEvent event(wxEVT_COMBOBOX);
-        //        event.SetEventObject(m_comboBox_printer);
-        //        wxPostEvent(m_comboBox_printer, event);
-        //    }
-        //}
-        //
-        //for (auto i = 0; i < m_list.size(); i++) {
-        //    if (m_list[i]->dev_id == m_printer_last_select) {
-        //
-        //        if (obj && !obj->get_lan_mode_connection_state()) {
-        //            m_comboBox_printer->SetSelection(i);
-        //            wxCommandEvent event(wxEVT_COMBOBOX);
-        //            event.SetEventObject(m_comboBox_printer);
-        //            wxPostEvent(m_comboBox_printer, event);
-        //        }
-        //    }
-        //}
-    }
-    else {
-        m_printer_last_select = "";
-        update_select_layout(nullptr);
+    else
+    {
         m_comboBox_printer->SetTextLabel("");
+        Enable_Send_Button(false);
     }
 
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "for send task, current printer id =  " << m_printer_last_select << std::endl;
@@ -2532,31 +2463,8 @@ void PhrozenSelectMachineDialog::on_timer(wxTimerEvent &event)
     if(!dev) return;
     MachineObject* obj_ = dev->get_selected_machine();
     if(!obj_) return;
-
-    update_ams_check(obj_);
-    update_select_layout(obj_);
-    if (!obj_
-        || obj_->amsList.empty()
-        || obj_->ams_exist_bits == 0
-        || !obj_->is_support_filament_backup
-        || !obj_->is_support_show_filament_backup
-        || !obj_->ams_auto_switch_filament_flag
-        || !m_checkbox_list["use_ams"]->GetValue() ) {
-        if (m_ams_backup_tip->IsShown()) {
-            m_ams_backup_tip->Hide();
-            img_ams_backup->Hide();
-            Layout();
-            Fit();
-        }
-    }
-    else {
-        if (!m_ams_backup_tip->IsShown()) {
-            m_ams_backup_tip->Show();
-            img_ams_backup->Show();
-            Layout();
-            Fit();
-        }
-    }
+    
+    //[TODO] original here is update ams checked state, does it need set something for phrozen?
 }
 
 void PhrozenSelectMachineDialog::on_selection_changed(wxCommandEvent &event)
@@ -2632,31 +2540,6 @@ void PhrozenSelectMachineDialog::on_selection_changed(wxCommandEvent &event)
 #endif
 }
 
-void PhrozenSelectMachineDialog::update_flow_cali_check(MachineObject* obj)
-{
-    auto bed_type = m_plater->get_partplate_list().get_curr_plate()->get_bed_type(true);
-    auto show_cali_tips = true;
-
-    if (obj && obj->get_printer_arch() == PrinterArch::ARCH_I3) { show_cali_tips = false; }
-
-    set_flow_calibration_state(true, show_cali_tips);
-}
-
-void PhrozenSelectMachineDialog::update_ams_check(MachineObject* obj)
-{
-    if (obj && obj->has_ams()) {
-        select_use_ams->Show();
-        if (obj->get_printer_ams_type() == "generic") {
-            img_use_ams_tip->Show();
-        }
-        else {
-            img_use_ams_tip->Hide();
-        }
-    } else {
-        select_use_ams->Hide();
-    }
-}
-
 void PhrozenSelectMachineDialog::update_show_status()
 {
     // refreshing return
@@ -2669,14 +2552,6 @@ void PhrozenSelectMachineDialog::update_show_status()
     if (get_status() == PhrozenPrintDialogStatus::PrintStatusSendingCanceled)
         return;
 
-    NetworkAgent* agent = Slic3r::GUI::wxGetApp().getAgent();
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!agent) {
-        update_ams_check(nullptr);
-        return;
-    }
-    if (!dev) return;
-    dev->check_pushing();
     PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
 
     // blank plate has no valid gcode file
@@ -2686,20 +2561,8 @@ void PhrozenSelectMachineDialog::update_show_status()
             return;
         }
     }
-    MachineObject* obj_ = dev->get_my_machine(m_printer_last_select);
-    if (!obj_) {
-        update_ams_check(nullptr);
-        if (agent) {
-            if (agent->is_user_login()) {
-                show_status(PhrozenPrintDialogStatus::PrintStatusInvalidPrinter);
-            }
-            else {
-                show_status(PhrozenPrintDialogStatus::PrintStatusNoUserLogin);
-            }
-        }
-        return;
-    }
 
+#if 0 //[TODO] here is should be check print state or ams state, need think how to change to phrozen? or ignore?
     /* check cloud machine connections */
     if (!obj_->is_lan_mode_printer()) {
         if (!agent->is_server_connected()) {
@@ -2752,20 +2615,20 @@ void PhrozenSelectMachineDialog::update_show_status()
         sync_ams_mapping_result(m_ams_mapping_result);
     }
 
-#if 0
-    // reading done
-    if (wxGetApp().app_config && wxGetApp().app_config->get("internal_debug").empty()) {
-        if (obj_->upgrade_force_upgrade) {
-            show_status(PhrozenPrintDialogStatus::PrintStatusNeedForceUpgrading);
-            return;
-        }
 
-        if (obj_->upgrade_consistency_request) {
-            show_status(PrintStatusNeedConsistencyUpgrading);
-            return;
-        }
-    }
-#endif
+    // reading done
+    //if (wxGetApp().app_config && wxGetApp().app_config->get("internal_debug").empty()) {
+    //    if (obj_->upgrade_force_upgrade) {
+    //        show_status(PhrozenPrintDialogStatus::PrintStatusNeedForceUpgrading);
+    //        return;
+    //    }
+    //
+    //    if (obj_->upgrade_consistency_request) {
+    //        show_status(PrintStatusNeedConsistencyUpgrading);
+    //        return;
+    //    }
+    //}
+
 
     if (is_blocking_printing(obj_)) {
         show_status(PhrozenPrintDialogStatus::PrintStatusUnsupportedPrinter);
@@ -2889,91 +2752,8 @@ void PhrozenSelectMachineDialog::update_show_status()
             return;
         }
     } 
-}
+#endif
 
-bool PhrozenSelectMachineDialog::has_timelapse_warning()
-{
-    PartPlate *plate = m_plater->get_partplate_list().get_curr_plate();
-    for (auto warning : plate->get_slice_result()->warnings) {
-        if (warning.msg == NOT_GENERATE_TIMELAPSE) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void PhrozenSelectMachineDialog::update_timelapse_enable_status()
-{
-    AppConfig *config = wxGetApp().app_config;
-    if (!has_timelapse_warning()) {
-        if (!config || config->get("print", "timelapse") == "0")
-            m_checkbox_list["timelapse"]->SetValue(false);
-        else
-            m_checkbox_list["timelapse"]->SetValue(true);
-        select_timelapse->Enable(true);
-    } else {
-        m_checkbox_list["timelapse"]->SetValue(false);
-        select_timelapse->Enable(false);
-        if (config) { config->set_str("print", "timelapse", "0"); }
-    }
-}
-
-
-bool PhrozenSelectMachineDialog::is_show_timelapse()
-{
-    auto compare_version = [](const std::string &version1, const std::string &version2) -> bool {
-        int i = 0, j = 0;
-        int max_size = std::max(version1.size(), version2.size());
-        while (i < max_size || j < max_size) {
-            int v1 = 0, v2 = 0;
-            while (i < version1.size() && version1[i] != '.') v1 = 10 * v1 + (version1[i++] - '0');
-            while (j < version2.size() && version2[j] != '.') v2 = 10 * v2 + (version2[j++] - '0');
-            if (v1 > v2) return true;
-            if (v1 < v2) return false;
-            ++i;
-            ++j;
-        }
-        return false;
-    };
-
-    std::string standard_version = "2.2.0";
-    PartPlate *plate      = m_plater->get_partplate_list().get_curr_plate();
-    fs::path   gcode_path = plate->get_tmp_gcode_path();
-
-    std::string   line;
-    std::ifstream gcode_file;
-    gcode_file.open(gcode_path.string());
-    if (gcode_file.fail()) {
-    } else {
-        bool is_version = false;
-        while (gcode_file >> line) {
-            if (is_version) {
-                if (compare_version(standard_version, line)) {
-                    gcode_file.close();
-                    return false;
-                }
-                break;
-            }
-            if (line == "PhrozenOrca")
-                is_version = true;
-        }
-    }
-    gcode_file.close();
-    return true;
-}
-
-void PhrozenSelectMachineDialog::reset_ams_material()
-{
-    auto iter = m_materialList.begin();
-    while (iter != m_materialList.end()) {
-        int           id = iter->first;
-        MaterialItem* m = iter->second.item;
-        wxString ams_id = "-";
-        wxColour ams_col = wxColour(0xEE, 0xEE, 0xEE);
-        m->set_ams_info(ams_col, ams_id);
-        iter++;
-    }
 }
 
 void PhrozenSelectMachineDialog::Enable_Refresh_Button(bool en)
@@ -3034,7 +2814,7 @@ void PhrozenSelectMachineDialog::on_dpi_changed(const wxRect &suggested_rect)
     }
 
     for (auto material1 : m_materialList) {
-        material1.second.item->msw_rescale();
+        material1.second.slotMappingItem->msw_rescale();
     }
 
     Fit();
@@ -3054,44 +2834,10 @@ wxImage *PhrozenSelectMachineDialog::LoadImageFromBlob(const unsigned char *data
     return NULL;
 }
 
-void PhrozenSelectMachineDialog::set_flow_calibration_state(bool state, bool show_tips)
-{
-    if (!state) {
-        m_checkbox_list["flow_cali"]->SetValue(state);
-        auto tool_tip = _L("Caution to use! Flow calibration on Textured PEI Plate may fail due to the scattered surface.");
-        m_checkbox_list["flow_cali"]->SetToolTip(tool_tip);
-        m_checkbox_list["flow_cali"]->Enable();
-        for (auto win : select_flow->GetWindowChildren()) {
-            win->SetToolTip(tool_tip);
-        }
-        //select_flow->SetToolTip(tool_tip);
-    }
-    else {
-
-        AppConfig* config = wxGetApp().app_config;
-        if (config && config->get("print", "flow_cali") == "0") {
-            m_checkbox_list["flow_cali"]->SetValue(false);
-        }
-        else {
-            m_checkbox_list["flow_cali"]->SetValue(true);
-        }
-
-        m_checkbox_list["flow_cali"]->Enable();
-        for (auto win : select_flow->GetWindowChildren()) {
-            win->SetToolTip( _L("Automatic flow calibration using Micro Lidar"));
-        }
-    }
-
-    if (!show_tips) {
-        for (auto win : select_flow->GetWindowChildren()) {
-            win->SetToolTip(wxEmptyString);
-        }
-    }
-}
-
 void PhrozenSelectMachineDialog::set_default()
 {
     if (m_print_type == PhrozenPrintFromType::FROM_NORMAL) {
+        this->Enable( true );
         m_stext_printer_title->Show(true);
         m_comboBox_printer->Show(true);
         m_button_refresh->Show(true);
@@ -3099,11 +2845,9 @@ void PhrozenSelectMachineDialog::set_default()
         m_hyperlink->Show(true);
     }
     else if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
-        m_stext_printer_title->Show(false);
-        m_comboBox_printer->Show(false);
-        m_button_refresh->Show(false);
-        m_rename_normal_panel->Show(false);
-        m_hyperlink->Show(false);
+        ShowMessageNotSupportSdCardView();
+        this->Enable( false );
+        return;
     }
 
     //project name
@@ -3164,45 +2908,13 @@ void PhrozenSelectMachineDialog::set_default()
             show_status(PhrozenPrintDialogStatus::PrintStatusNoUserLogin);
         }
     }
-    select_bed->Show();
-    select_flow->Show();
-
-    //reset checkbox
-    select_bed->Show(false);
-    select_flow->Show(false);
-    select_timelapse->Show(false);
-    select_use_ams->Show(false);
-
-    // load checkbox values from app config
-    AppConfig* config = wxGetApp().app_config;
-    if (config && config->get("print", "bed_leveling") == "0") {
-        m_checkbox_list["bed_leveling"]->SetValue(false);
-    }
-    else {
-        m_checkbox_list["bed_leveling"]->SetValue(true);
-    }
-    if (config && config->get("print", "flow_cali") == "0") {
-        m_checkbox_list["flow_cali"]->SetValue(false);
-    }
-    else {
-        m_checkbox_list["flow_cali"]->SetValue(true);
-    }
-    if (config && config->get("print", "timelapse") == "0") {
-        m_checkbox_list["timelapse"]->SetValue(false);
-    }
-    else {
-        m_checkbox_list["timelapse"]->SetValue(true);
-    }
-
-    m_checkbox_list["use_ams"]->SetValue(true);
 
     if (m_print_type == PhrozenPrintFromType::FROM_NORMAL) {
         reset_and_sync_ams_list();
         set_default_normal(m_plater->get_partplate_list().get_curr_plate()->thumbnail_data);
     }
     else if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
-        update_page_turn_state(true);
-        set_default_from_sdcard();
+        ShowMessageNotSupportSdCardView();
     }
 
     Layout();
@@ -3242,14 +2954,15 @@ void PhrozenSelectMachineDialog::reset_and_sync_ams_list()
         }
     }
 
+    
     auto           extruders = wxGetApp().plater()->get_partplate_list().get_curr_plate()->get_used_extruders();
     BitmapCache    bmcache;
     auto iter = m_materialList.begin();
     while (iter != m_materialList.end()) {
         int       id   = iter->first;
-        if ( iter->second.item )
+        if ( iter->second.slotMappingItem )
         {
-            iter->second.item->Destroy();
+            iter->second.slotMappingItem->Destroy();
         }
         iter++;
     }
@@ -3267,15 +2980,18 @@ void PhrozenSelectMachineDialog::reset_and_sync_ams_list()
         auto colour_rgb = wxColour((int) rgb[0], (int) rgb[1], (int) rgb[2], (int) rgb[3]);
         if (extruder >= materials.size() || extruder < 0 || extruder >= display_materials.size()) continue;
 
-        MaterialItem *item = new MaterialItem(m_filament_panel, colour_rgb, _L(display_materials[extruder]));
+        PhrozenMaterialItem *item = new PhrozenMaterialItem(m_filament_panel, colour_rgb, _L(display_materials[extruder]));
+        item->SetCurrentAmsSlotId( (EPhrozenAmsSlot)extruder );
         m_sizer_ams_mapping->Add(item, 0, wxALL, FromDIP(5));
 
         item->Bind(wxEVT_LEFT_UP, [this, item, materials, extruder](wxMouseEvent &e) {});
         item->Bind(wxEVT_LEFT_DOWN, [this, item, materials, extruder](wxMouseEvent &e) {
+
+            //clean all filament item focus
             auto iter = m_materialList.begin();
             while (iter != m_materialList.end()) {
                 int           id   = iter->first;
-                MaterialItem *m    = iter->second.item;
+                PhrozenMaterialItem *m    = iter->second.slotMappingItem;
                 m->on_normal();
                 iter++;
             }
@@ -3283,33 +2999,13 @@ void PhrozenSelectMachineDialog::reset_and_sync_ams_list()
             m_current_filament_id = extruder;
             item->on_selected();
 
-            auto    mouse_pos = ClientToScreen(e.GetPosition());
-            wxPoint rect      = item->ClientToScreen(wxPoint(0, 0));
-
-            // update ams data
-            DeviceManager *dev_manager = Slic3r::GUI::wxGetApp().getDeviceManager();
-            if (!dev_manager) return;
-            MachineObject *obj_ = dev_manager->get_selected_machine();
-
-            if (obj_ && obj_->is_support_ams_mapping()) {
-                if (m_mapping_popup.IsShown()) return;
-                wxPoint pos = item->ClientToScreen(wxPoint(0, 0));
-                pos.y += item->GetRect().height;
-                m_mapping_popup.Move(pos);
-
-                if (obj_ && obj_->has_ams() && m_checkbox_list["use_ams"]->GetValue() && obj_->dev_id == m_printer_last_select) {
-                    m_mapping_popup.set_parent_item(item);
-                    m_mapping_popup.set_current_filament_id(extruder);
-                    m_mapping_popup.set_tag_texture(materials[extruder]);
-                    m_mapping_popup.update_ams_data(obj_->amsList);
-                    m_mapping_popup.Popup();
-                }
-            }
+            // 讓事件繼續傳遞到 PhrozenMaterialItem 內部的事件處理函數，進行料槽的選用
+            e.Skip();
         });
 
         PhrozenMaterial material_item;;
-        material_item.id       = extruder;
-        material_item.item     = item;
+        material_item.extruderId          = extruder;
+        material_item.slotMappingItem     = item;
         m_materialList[i]       = material_item;
 
         // build for ams mapping
@@ -3324,87 +3020,10 @@ void PhrozenSelectMachineDialog::reset_and_sync_ams_list()
         }
     }
 
-    /*if (extruders.size() <= 10) {
-        m_sizer_ams_mapping->SetCols(extruders.size());
-    }
-    else {
-        m_sizer_ams_mapping->SetCols(10);
-    }*/
-
-    m_sizer_ams_mapping->SetCols(8);
+    m_sizer_ams_mapping->SetCols(4);
     m_sizer_ams_mapping->Layout();
     m_filament_panel_sizer->Layout();
-    // reset_ams_material();//show "-"
-}
 
-void PhrozenSelectMachineDialog::clone_thumbnail_data() {
-    //record preview_colors
-    auto iter                                 = m_materialList.begin();
-    if (m_preview_colors_in_thumbnail.size() != m_materialList.size()) {
-        m_preview_colors_in_thumbnail.resize(m_materialList.size());
-    }
-    while (iter != m_materialList.end()) {
-        int           id   = iter->first;
-        MaterialItem *m    = iter->second.item;
-        m_preview_colors_in_thumbnail[id] = m->m_material_coloul;
-        if (iter->second.id < m_cur_colors_in_thumbnail.size()) {
-            m_cur_colors_in_thumbnail[iter->second.id] = m->m_ams_coloul;
-        }
-        else {//exist empty or unrecognized type ams in machine
-            m_cur_colors_in_thumbnail.resize(iter->second.id + 1);
-            m_cur_colors_in_thumbnail[iter->second.id] = m->m_ams_coloul;
-        }
-        iter++;
-    }
-    //copy data
-    auto &data   = m_cur_input_thumbnail_data;
-    m_preview_thumbnail_data.reset();
-    m_preview_thumbnail_data.set(data.width, data.height);
-    if (data.width > 0 && data.height > 0) {
-        for (unsigned int r = 0; r < data.height; ++r) {
-            unsigned int rr = (data.height - 1 - r) * data.width;
-            for (unsigned int c = 0; c < data.width; ++c) {
-                unsigned char *origin_px   = (unsigned char *) data.pixels.data() + 4 * (rr + c);
-                unsigned char *new_px      = (unsigned char *) m_preview_thumbnail_data.pixels.data() + 4 * (rr + c);
-                for (size_t i = 0; i < 4; i++) {
-                    new_px[i] = origin_px[i];
-                }
-            }
-        }
-    }
-    //record_edge_pixels_data
-    record_edge_pixels_data();
-}
-
-void PhrozenSelectMachineDialog::record_edge_pixels_data()
-{
-    auto is_not_in_preview_colors = [this](unsigned char r, unsigned char g , unsigned char b , unsigned char a) {
-        for (size_t i = 0; i < m_preview_colors_in_thumbnail.size(); i++) {
-            wxColour  render_color  = adjust_color_for_render(m_preview_colors_in_thumbnail[i]);
-            if (render_color.Red() == r && render_color.Green() == g && render_color.Blue() == b /*&& render_color.Alpha() == a*/) {
-                return false;
-            }
-        }
-        return true;
-    };
-    ThumbnailData &data = m_cur_no_light_thumbnail_data;
-    ThumbnailData &origin_data = m_cur_input_thumbnail_data;
-    if (data.width > 0 && data.height > 0) {
-        m_edge_pixels.resize(data.width * data.height);
-        for (unsigned int r = 0; r < data.height; ++r) {
-            unsigned int rr        = (data.height - 1 - r) * data.width;
-            for (unsigned int c = 0; c < data.width; ++c) {
-                unsigned char *no_light_px = (unsigned char *) data.pixels.data() + 4 * (rr + c);
-                unsigned char *origin_px          = (unsigned char *) origin_data.pixels.data() + 4 * (rr + c);
-                m_edge_pixels[r * data.width + c] = false;
-                if (origin_px[3] > 0) {
-                    if (is_not_in_preview_colors(no_light_px[0], no_light_px[1], no_light_px[2], origin_px[3])) {
-                        m_edge_pixels[r * data.width + c] = true;
-                    }
-                }
-            }
-        }
-    }
 }
 
 wxColour PhrozenSelectMachineDialog::adjust_color_for_render(const wxColour &color)
@@ -3414,178 +3033,6 @@ wxColour PhrozenSelectMachineDialog::adjust_color_for_render(const wxColour &col
     wxColour             render_color((int) (_temp_color_color_[0] * 255.0f), (int) (_temp_color_color_[1] * 255.0f), (int) (_temp_color_color_[2] * 255.0f),
                           (int) (_temp_color_color_[3] * 255.0f));
     return render_color;
-}
-
-void PhrozenSelectMachineDialog::final_deal_edge_pixels_data(ThumbnailData &data)
-{
-    if (data.width > 0 && data.height > 0 && m_edge_pixels.size() >0 ) {
-        for (unsigned int r = 0; r < data.height; ++r) {
-             unsigned int rr            = (data.height - 1 - r) * data.width;
-             bool         exist_rr_up   = r >= 1 ? true : false;
-             bool         exist_rr_down = r <= data.height - 2 ? true : false;
-             unsigned int rr_up         = exist_rr_up ? (data.height - 1 - (r - 1)) * data.width : 0;
-             unsigned int rr_down       = exist_rr_down ? (data.height - 1 - (r + 1)) * data.width : 0;
-             for (unsigned int c = 0; c < data.width; ++c) {
-                  bool         exist_c_left  = c >= 1 ? true : false;
-                  bool         exist_c_right = c <= data.width - 2 ? true : false;
-                  unsigned int c_left        = exist_c_left ? c - 1 : 0;
-                  unsigned int c_right       = exist_c_right ? c + 1 : 0;
-                  unsigned char *cur_px   = (unsigned char *) data.pixels.data() + 4 * (rr + c);
-                  unsigned char *relational_pxs[8] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
-                  if (exist_rr_up && exist_c_left) { relational_pxs[0] = (unsigned char *) data.pixels.data() + 4 * (rr_up + c_left); }
-                  if (exist_rr_up) { relational_pxs[1] = (unsigned char *) data.pixels.data() + 4 * (rr_up + c); }
-                  if (exist_rr_up && exist_c_right) { relational_pxs[2] = (unsigned char *) data.pixels.data() + 4 * (rr_up + c_right); }
-                  if (exist_c_left) { relational_pxs[3] = (unsigned char *) data.pixels.data() + 4 * (rr + c_left); }
-                  if (exist_c_right) { relational_pxs[4] = (unsigned char *) data.pixels.data() + 4 * (rr + c_right); }
-                  if (exist_rr_down && exist_c_left) { relational_pxs[5] = (unsigned char *) data.pixels.data() + 4 * (rr_down + c_left); }
-                  if (exist_rr_down) { relational_pxs[6] = (unsigned char *) data.pixels.data() + 4 * (rr_down + c); }
-                  if (exist_rr_down && exist_c_right) { relational_pxs[7] = (unsigned char *) data.pixels.data() + 4 * (rr_down + c_right); }
-                  if (cur_px[3] > 0 && m_edge_pixels[r * data.width + c]) {
-                       int rgba_sum[4] = {0, 0, 0, 0};
-                       int valid_count = 0;
-                       for (size_t k = 0; k < 8; k++) {
-                           if (relational_pxs[k]) {
-                               if (k == 0 && m_edge_pixels[(r - 1) * data.width + c_left]) {
-                                    continue;
-                                }
-                               if (k == 1 && m_edge_pixels[(r - 1) * data.width + c]) {
-                                    continue;
-                                }
-                                if (k == 2 && m_edge_pixels[(r - 1) * data.width + c_right]) {
-                                    continue;
-                                }
-                                if (k == 3 && m_edge_pixels[r * data.width + c_left]) {
-                                    continue;
-                                }
-                                if (k == 4 && m_edge_pixels[r * data.width + c_right]) {
-                                    continue;
-                                }
-                                if (k == 5 && m_edge_pixels[(r + 1) * data.width + c_left]) {
-                                    continue;
-                                }
-                                if (k == 6 && m_edge_pixels[(r + 1) * data.width + c]) {
-                                    continue;
-                                }
-                                if (k == 7 && m_edge_pixels[(r + 1) * data.width + c_right]) {
-                                    continue;
-                                }
-                                for (size_t m = 0; m < 4; m++) {
-                                    rgba_sum[m] += relational_pxs[k][m];
-                                }
-                                valid_count++;
-                           }
-                       }
-                       if (valid_count > 0) {
-                            for (size_t m = 0; m < 4; m++) {
-                                cur_px[m] = std::clamp(int(rgba_sum[m] / (float)valid_count), 0, 255);
-                            }
-                       }
-                  }
-             }
-        }
-    }
-}
-
-void PhrozenSelectMachineDialog::updata_thumbnail_data_after_connected_printer()
-{
-    // change thumbnail_data
-    ThumbnailData &input_data          = m_plater->get_partplate_list().get_curr_plate()->thumbnail_data;
-    ThumbnailData &no_light_data = m_plater->get_partplate_list().get_curr_plate()->no_light_thumbnail_data;
-    if (input_data.width == 0 || input_data.height == 0 || no_light_data.width == 0 || no_light_data.height == 0) {
-        wxGetApp().plater()->update_all_plate_thumbnails(false);
-    }
-    unify_deal_thumbnail_data(input_data, no_light_data);
-}
-
-void PhrozenSelectMachineDialog::unify_deal_thumbnail_data(ThumbnailData &input_data, ThumbnailData &no_light_data) {
-    if (input_data.width == 0 || input_data.height == 0 || no_light_data.width == 0 || no_light_data.height == 0) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenSelectMachineDialog::no_light_data is empty,error";
-        return;
-    }
-    m_cur_input_thumbnail_data    = input_data;
-    m_cur_no_light_thumbnail_data = no_light_data;
-    clone_thumbnail_data();
-    auto iter               = m_materialList.begin();
-    bool                   is_connect_printer = true;
-    while (iter != m_materialList.end()) {
-        int           id   = iter->first;
-        MaterialItem *m    = iter->second.item;
-        if (m->m_ams_name == "-") {
-            is_connect_printer = false;
-            break;
-        }
-        iter++;
-    }
-    if (is_connect_printer) {
-        change_default_normal(-1, wxColour());
-        final_deal_edge_pixels_data(m_preview_thumbnail_data);
-        set_default_normal(m_preview_thumbnail_data);
-    }
-}
-
-void PhrozenSelectMachineDialog::change_default_normal(int old_filament_id, wxColour temp_ams_color)
-{
-    if (m_cur_colors_in_thumbnail.size() == 0) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenSelectMachineDialog::change_default_normal:error:m_cur_colors_in_thumbnail.size() == 0";
-        return;
-    }
-    if (old_filament_id >= 0) {
-        if (old_filament_id < m_cur_colors_in_thumbnail.size()) {
-            m_cur_colors_in_thumbnail[old_filament_id] = temp_ams_color;
-        }
-        else {
-            BOOST_LOG_TRIVIAL(error) << "PhrozenSelectMachineDialog::change_default_normal:error:old_filament_id > m_cur_colors_in_thumbnail.size()";
-            return;
-        }
-    }
-    ThumbnailData& data = m_cur_input_thumbnail_data;
-    ThumbnailData& no_light_data = m_cur_no_light_thumbnail_data;
-    if (data.width > 0 && data.height > 0 && data.width == no_light_data.width && data.height == no_light_data.height) {
-        for (unsigned int r = 0; r < data.height; ++r) {
-            unsigned int rr = (data.height - 1 - r) * data.width;
-            for (unsigned int c = 0; c < data.width; ++c) {
-                unsigned char *no_light_px   = (unsigned char *) no_light_data.pixels.data() + 4 * (rr + c);
-                unsigned char *origin_px = (unsigned char *) data.pixels.data() + 4 * (rr + c);
-                unsigned char *new_px        = (unsigned char *) m_preview_thumbnail_data.pixels.data() + 4 * (rr + c);
-                if (origin_px[3]  > 0 && m_edge_pixels[r * data.width + c] == false) {
-                    auto filament_id = 255 - no_light_px[3];
-                    if (filament_id >= m_cur_colors_in_thumbnail.size()) {
-                        continue;
-                    }
-                    wxColour temp_ams_color_in_loop = m_cur_colors_in_thumbnail[filament_id];
-                    wxColour ams_color              = adjust_color_for_render(temp_ams_color_in_loop);
-                    //change color
-                    new_px[3] = origin_px[3]; // alpha
-                    int origin_rgb = origin_px[0] + origin_px[1] + origin_px[2];
-                    int no_light_px_rgb   = no_light_px[0] + no_light_px[1] + no_light_px[2];
-                    unsigned char i               = 0;
-                    if (origin_rgb >= no_light_px_rgb) {//Brighten up
-                        unsigned char cur_single_color = ams_color.Red();
-                        new_px[i]                      = std::clamp(cur_single_color + (origin_px[i] - no_light_px[i]), 0, 255);
-                        i++;
-                        cur_single_color = ams_color.Green();
-                        new_px[i]                      = std::clamp(cur_single_color + (origin_px[i] - no_light_px[i]), 0, 255);
-                        i++;
-                        cur_single_color =  ams_color.Blue();
-                        new_px[i]                      = std::clamp(cur_single_color + (origin_px[i] - no_light_px[i]), 0, 255);
-                    } else {//Dimming
-                        float         ratio            = origin_rgb / (float) no_light_px_rgb;
-                        unsigned char cur_single_color = ams_color.Red();
-                        new_px[i]                      = std::clamp((int)(cur_single_color * ratio), 0, 255);
-                        i++;
-                        cur_single_color = ams_color.Green();
-                        new_px[i]        = std::clamp((int) (cur_single_color * ratio), 0, 255);
-                        i++;
-                        cur_single_color = ams_color.Blue();
-                        new_px[i]        = std::clamp((int) (cur_single_color * ratio), 0, 255);
-                    }
-                }
-            }
-        }
-    }
-    else {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenSelectMachineDialog::change_defa:no_light_data is empty,error";
-    }
 }
 
 void PhrozenSelectMachineDialog::set_default_normal(const ThumbnailData &data)
@@ -3612,8 +3059,6 @@ void PhrozenSelectMachineDialog::set_default_normal(const ThumbnailData &data)
     // disable pei bed
     DeviceManager *dev_manager = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (!dev_manager) return;
-    MachineObject *obj_       = dev_manager->get_selected_machine();
-    update_flow_cali_check(obj_);
     wxSize         screenSize = wxGetDisplaySize();
     auto           dialogSize = this->GetSize();
 
@@ -3685,7 +3130,7 @@ void PhrozenSelectMachineDialog::set_default_from_sdcard()
     for (auto i = 0; i < m_required_data_plate_data_list[m_print_plate_idx]->slice_filaments_info.size(); i++) {
         FilamentInfo fo = m_required_data_plate_data_list[m_print_plate_idx]->slice_filaments_info[i];
 
-        MaterialItem* item = new MaterialItem(m_filament_panel,  wxColour(fo.color), fo.type);
+        PhrozenMaterialItem* item = new PhrozenMaterialItem(m_filament_panel,  wxColour(fo.color), fo.type);
         m_sizer_ams_mapping->Add(item, 0, wxALL, FromDIP(5));
 
         item->Bind(wxEVT_LEFT_UP, [this, item, materials](wxMouseEvent& e) {});
@@ -3694,7 +3139,7 @@ void PhrozenSelectMachineDialog::set_default_from_sdcard()
             while (iter != m_materialList.end()) {
                 int           id = iter->first;
                 Material* item = iter->second;
-                MaterialItem* m = item->item;
+                PhrozenMaterialItem* m = item->item;
                 m->on_normal();
                 iter++;
             }
@@ -3731,6 +3176,9 @@ void PhrozenSelectMachineDialog::set_default_from_sdcard()
                     m_mapping_popup.Popup();
                 }
             }
+
+            // 讓事件繼續傳遞到 PhrozenMaterialItem 內部的事件處理函數
+            e.Skip();
             });
 
         Material* material_item = new Material();
@@ -3881,6 +3329,18 @@ void PhrozenSelectMachineDialog::update_lan_machine_list()
     BOOST_LOG_TRIVIAL(trace) << "PhrozenSelectMachineDialog update_lan_devices end";
 }
 
+void PhrozenSelectMachineDialog::ShowMessageNotSupportSdCardView()
+{
+    MessageDialog msg_wingow(nullptr, "not support this mode: \"FROM_SDCARD_VIEW\"", "", wxICON_WARNING | wxOK );
+    msg_wingow.ShowModal();
+}
+
+void PhrozenSelectMachineDialog::ShowMessage( const std::string& strMsg )
+{
+    MessageDialog msg_wingow(nullptr, "strMsg", "", wxICON_WARNING | wxOK );
+    msg_wingow.ShowModal();
+}
+
 
 std::string PhrozenSelectMachineDialog::get_print_status_info(PhrozenPrintDialogStatus status)
 {
@@ -3914,7 +3374,9 @@ std::string PhrozenSelectMachineDialog::get_print_status_info(PhrozenPrintDialog
     return "unknown";
 }
 
+#pragma endregion
 
+#pragma region PhrozenThumbnailPanel
  PhrozenThumbnailPanel::PhrozenThumbnailPanel(wxWindow *parent, wxWindowID winid, const wxPoint &pos, const wxSize &size)
      : wxPanel(parent, winid, pos, size)
  {
@@ -3973,6 +3435,6 @@ std::string PhrozenSelectMachineDialog::get_print_status_info(PhrozenPrintDialog
 
  PhrozenThumbnailPanel::~PhrozenThumbnailPanel() {}
 
-
+ #pragma endregion
 
  }} // namespace Slic3r::GUI

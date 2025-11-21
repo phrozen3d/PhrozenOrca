@@ -76,11 +76,12 @@ static int phrozen_get_brightness_value(wxImage image) {
     return totalLuminance / num_none_transparent;
 }
 
+class PhrozenMaterialItem;
 class PhrozenMaterial
 {
 public:
-    int           id;
-    MaterialItem *item;
+    int                  extruderId;
+    PhrozenMaterialItem *slotMappingItem;
 };
 
 enum class PhrozenPrintPageMode : int32_t
@@ -131,6 +132,65 @@ enum class PhrozenPrintFromType  : int32_t
     FROM_SDCARD_VIEW,
 };
 
+enum class EPhrozenPrintOption : int32_t 
+{
+    Auto_Leveling,
+    Chroma_Kit
+};
+
+enum class EPhrozenAmsSlot : int32_t 
+{
+    None = -1,
+    A1 = 0,
+    A2 = 1,
+    A3 = 2,
+    A4 = 3
+};
+
+class PhrozenMaterialItem: public wxPanel
+{
+public:
+    PhrozenMaterialItem(wxWindow *parent,wxColour mcolour, wxString mname);
+    ~PhrozenMaterialItem();
+
+    wxPanel*    m_main_panel;
+    wxColour    m_material_coloul;
+    wxString    m_material_name;
+
+    wxColour m_ams_coloul;
+    wxString m_ams_slot_name;
+    int      m_ams_ctype = 0;
+    std::vector<wxColour> m_ams_cols = std::vector<wxColour>();
+
+    ScalableBitmap m_arraw_bitmap_gray;
+    ScalableBitmap m_arraw_bitmap_white;
+    ScalableBitmap m_transparent_mitem;
+
+    bool m_selected {false};
+    bool m_warning{false};
+
+    void msw_rescale();
+    void set_ams_info(wxColour col, wxString txt, int ctype=0, std::vector<wxColour> cols= std::vector<wxColour>());
+
+    void disable();
+    void enable();
+    void on_normal();
+    void on_selected();
+    void on_warning();
+
+    void on_left_down(wxMouseEvent &evt);
+    void paintEvent(wxPaintEvent &evt);
+    void render(wxDC &dc);
+    void doRender(wxDC &dc);
+    EPhrozenAmsSlot GetSelectedAmsSlot();
+    void SetCurrentAmsSlotId( EPhrozenAmsSlot eSlot );
+
+private:
+    void show_ams_selection_menu(const wxPoint& pos);
+    void on_ams_selection(const wxString& selection);
+    bool is_point_in_bottom_area(const wxPoint& pt);
+};
+
 class PhrozenThumbnailPanel : public wxPanel
 {
 public:
@@ -179,13 +239,18 @@ private:
     Label* m_text_bed_type;
     
     std::shared_ptr<int>                m_token = std::make_shared<int>(0);
-    std::map<std::string, CheckBox *>   m_checkbox_list;
+    std::map< EPhrozenPrintOption, CheckBox *>   m_checkbox_list;
     std::shared_ptr<BBLStatusBarSend>   m_status_bar;
     PhrozenPrintPageMode                m_print_page_mode{PhrozenPrintPageMode::PrintPageModePrepare};
     PhrozenPrintDialogStatus            m_print_status { PhrozenPrintDialogStatus::PrintStatusInit };
     PhrozenPrintFromType                m_print_type{PhrozenPrintFromType::FROM_NORMAL};
+
+    
     std::vector<FilamentInfo>           m_filaments;
     std::vector<FilamentInfo>           m_ams_mapping_result;
+
+    // int:             order for get data from m_filaments
+    // PhrozenMaterial: nozzle id & it slot mapping widget
     std::unordered_map< int, PhrozenMaterial > m_materialList;
 
     std::string                         m_required_data_file_name;
@@ -216,10 +281,10 @@ protected:
     wxStaticBitmap*                     m_bitmap_next_plate{ nullptr };
     wxStaticBitmap*                     img_amsmapping_tip{nullptr};
     PhrozenThumbnailPanel*              m_thumbnailPanel{ nullptr };
-    wxWindow*                           select_bed{ nullptr };
-    wxWindow*                           select_flow{ nullptr };
-    wxWindow*                           select_timelapse{ nullptr };
-    wxWindow*                           select_use_ams{ nullptr };
+
+    wxWindow*                           m_auto_leveling{ nullptr };
+    wxWindow*                           m_chroma_kit{ nullptr };
+
     wxPanel*                            m_panel_status{ nullptr };
     wxPanel*                            m_basic_panel;
     wxPanel*                            m_rename_normal_panel{nullptr};
@@ -257,12 +322,6 @@ protected:
     wxStaticBitmap *                    img_use_ams_tip{nullptr};
     wxStaticBitmap *                    img_ams_backup{nullptr};
     ScalableBitmap *                    enable_ams{nullptr};
-    ThumbnailData                       m_cur_input_thumbnail_data;
-    ThumbnailData                       m_cur_no_light_thumbnail_data;
-    ThumbnailData                       m_preview_thumbnail_data;//when ams map change
-    std::vector<wxColour>               m_preview_colors_in_thumbnail;
-    std::vector<wxColour>               m_cur_colors_in_thumbnail;
-    std::vector<bool>                   m_edge_pixels;
 
     wxPanel*                            m_filament_panel;
     wxPanel*                            m_filament_left_panel;
@@ -287,47 +346,34 @@ public:
     void show_print_failed_info(bool show, int code = 0, wxString description = wxEmptyString, wxString extra = wxEmptyString);
     void check_fcous_state(wxWindow* window);
     void popup_filament_backup();
-    void update_select_layout(MachineObject *obj);
     void prepare_mode(bool refresh_button = true);
     void sending_mode();
     void finish_mode();
-	void sync_ams_mapping_result(std::vector<FilamentInfo>& result);
     void prepare(int print_plate_idx);
     void show_status(PhrozenPrintDialogStatus status, std::vector<wxString> params = std::vector<wxString>());
     void sys_color_changed();
     void reset_timeout();
     void update_user_printer();
-    void reset_ams_material();
     void update_show_status();
-    void update_ams_check(MachineObject* obj);
     void on_rename_click(wxMouseEvent& event);
     void on_rename_enter();
     void update_printer_combobox(wxCommandEvent& event);
     void on_cancel(wxCloseEvent& event);
     void show_errors(wxString& info);
-    void on_ok_btn(wxCommandEvent& event);
-    void Enable_Auto_Refill(bool enable);
-    void connect_printer_mqtt();
+    void on_send_btn_pressed(wxCommandEvent& event);
     void on_send_print();
+    void Enable_Auto_Refill(bool enable);
     void clear_ip_address_config(wxCommandEvent& e);
     void on_refresh(wxCommandEvent& event);
-    void on_set_finish_mapping(wxCommandEvent& evt);
     void on_print_job_cancel(wxCommandEvent& evt);
     void set_default();
     void reset_and_sync_ams_list();
-    void clone_thumbnail_data();
-    void record_edge_pixels_data();
     wxColour adjust_color_for_render(const wxColour& color);
-    void final_deal_edge_pixels_data(ThumbnailData& data);
-    void updata_thumbnail_data_after_connected_printer();
-    void unify_deal_thumbnail_data(ThumbnailData &input_data, ThumbnailData &no_light_data);
-    void change_default_normal(int old_filament_id, wxColour temp_ams_color);
     void set_default_normal(const ThumbnailData&);
     void set_default_from_sdcard();
     void update_page_turn_state(bool show);
     void on_timer(wxTimerEvent& event);
     void on_selection_changed(wxCommandEvent& event);
-    void update_flow_cali_check(MachineObject* obj);
     void Enable_Refresh_Button(bool en);
     void Enable_Send_Button(bool en);
     void on_dpi_changed(const wxRect& suggested_rect) override;
@@ -338,30 +384,26 @@ public:
     void update_priner_status_msg(wxString msg, bool is_warning = false);
     void update_print_status_msg(wxString msg, bool is_warning = false, bool is_printer = true);
     void update_print_error_info(int code, std::string msg, std::string extra);
-    void set_flow_calibration_state(bool state, bool show_tips = true);
-    bool is_show_timelapse();
-    bool has_timelapse_warning();
-    void update_timelapse_enable_status();
     bool is_same_printer_model();
     bool is_blocking_printing(MachineObject* obj_);
     bool is_same_nozzle_diameters(float& tag_nozzle_diameter) const;
     bool is_same_nozzle_type(const Extder& extruder, std::string& filament_type) const;
-    bool has_tips(MachineObject* obj);
     bool is_timeout();
     int  update_print_required_data(Slic3r::DynamicPrintConfig config, Slic3r::Model model, Slic3r::PlateDataPtrs plate_data_list, std::string file_name, std::string file_path);
     void set_print_type(PhrozenPrintFromType type) {m_print_type = type;};
     bool Show(bool show);
-    bool do_ams_mapping(MachineObject* obj_);
     bool get_ams_mapping_result(std::string& mapping_array_str, std::string& mapping_array_str2, std::string& ams_mapping_info);
     bool build_nozzles_info(std::string& nozzles_info);
+
+    void ShowMessageNotSupportSdCardView();
+    void ShowMessage( const std::string& strMsg );
 
     std::string get_print_status_info(PhrozenPrintDialogStatus status);
 
     PhrozenPrintFromType get_print_type() {return m_print_type;};
     wxString    format_steel_name(NozzleType type);
     wxString    format_text(wxString &m_msg);
-    wxWindow*   create_ams_checkbox(wxString title, wxWindow* parent, wxString tooltip);
-    wxWindow*   create_item_checkbox(wxString title, wxWindow* parent, wxString tooltip, std::string param);
+    wxWindow*   create_item_checkbox(wxString title, wxWindow* parent, wxString tooltip, EPhrozenPrintOption eType );
     wxImage *   LoadImageFromBlob(const unsigned char *data, int size);
     PhrozenPrintDialogStatus  get_status() { return m_print_status; }
     std::vector<std::string> sort_string(std::vector<std::string> strArray);
