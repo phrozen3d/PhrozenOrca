@@ -447,6 +447,32 @@ void HandlePauseCode(const std::string& pauseCode)
 
 // Frame processing module for WebSocket frame handling
 struct FrameProcessor {
+
+#ifndef __APPLE__
+    static bool IsContinuationFrame(const struct curl_ws_frame* meta) {
+        bool is_continuation_frame = false;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #elif defined(CURLWS_CONT)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #else
+        is_continuation_frame = ((meta->flags & 0x80) == 0);
+        #endif
+        return is_continuation_frame;
+    }
+    
+    static bool IsFinalFrame(const struct curl_ws_frame* meta) {
+        bool is_final_frame = true;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
+        #elif defined(CURLWS_CONT)
+        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
+        #else
+        is_final_frame = ((meta->flags & 0x80) != 0);
+        #endif
+        return is_final_frame;
+    }
+#else
     static bool IsContinuationFrame(struct curl_ws_frame* meta) {
         bool is_continuation_frame = false;
         #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
@@ -470,6 +496,8 @@ struct FrameProcessor {
         #endif
         return is_final_frame;
     }
+#endif
+
     
     static std::string CombineFrames(const std::string& frame_data, 
                                      std::string& accumulated_buffer) {
