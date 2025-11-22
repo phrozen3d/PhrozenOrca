@@ -132,6 +132,688 @@ static wxColour PHROZEN_TEXT_LIGHT_FONT_COL  = wxColour(107, 107, 107);
 #define EXTRUDER_IMAGE_SIZE (wxSize(FromDIP(48), FromDIP(76)))
 #pragma endregion
 
+#pragma region PhrozenPrintingTaskPanel
+
+
+PhrozenPrintingTaskPanel::PhrozenPrintingTaskPanel(wxWindow* parent, PhrozenPrintingTaskType type)
+    : wxPanel(parent, wxID_ANY,wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL)
+{
+    m_type = type;
+    create_panel(this);
+    SetBackgroundColour(*wxWHITE);
+    m_bitmap_background = ScalableBitmap(this, "thumbnail_grid", m_bitmap_thumbnail->GetSize().y);
+
+    m_bitmap_thumbnail->Bind(wxEVT_PAINT, &PhrozenPrintingTaskPanel::paint, this);
+}
+
+PhrozenPrintingTaskPanel::~PhrozenPrintingTaskPanel()
+{
+}
+
+void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
+{
+    wxBoxSizer *sizer                 = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *bSizer_printing_title = new wxBoxSizer(wxHORIZONTAL);
+
+    m_panel_printing_title = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(-1, PAGE_TITLE_HEIGHT), wxTAB_TRAVERSAL);
+    m_panel_printing_title->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
+
+    m_staticText_printing = new wxStaticText(m_panel_printing_title, wxID_ANY ,_L("Printing Progress"));
+    m_staticText_printing->Wrap(-1);
+    //m_staticText_printing->SetFont(PAGE_TITLE_FONT);
+    m_staticText_printing->SetForegroundColour(PHROZEN_PAGE_TITLE_FONT_COL);
+
+    bSizer_printing_title->Add(m_staticText_printing, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, PAGE_TITLE_LEFT_MARGIN);
+    bSizer_printing_title->Add(0, 0, 1, wxEXPAND, 0);
+
+    m_panel_printing_title->SetSizer(bSizer_printing_title);
+    m_panel_printing_title->Layout();
+    bSizer_printing_title->Fit(m_panel_printing_title);
+
+    m_bitmap_thumbnail = new wxStaticBitmap(parent, wxID_ANY, m_thumbnail_placeholder.bmp(), wxDefaultPosition, TASK_THUMBNAIL_SIZE, 0);
+    m_bitmap_thumbnail->SetMaxSize(TASK_THUMBNAIL_SIZE);
+    m_bitmap_thumbnail->SetMinSize(TASK_THUMBNAIL_SIZE);
+
+    wxBoxSizer *bSizer_subtask_info = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *bSizer_task_name = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *bSizer_task_name_hor = new wxBoxSizer(wxHORIZONTAL);
+    wxPanel*    task_name_panel      = new wxPanel(parent);
+
+    m_staticText_subtask_value = new wxStaticText(task_name_panel, wxID_ANY, _L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
+    m_staticText_subtask_value->SetMaxSize(wxSize(FromDIP(600), -1));
+    m_staticText_subtask_value->Wrap(-1);
+    #ifdef __WXOSX_MAC__
+    m_staticText_subtask_value->SetFont(::Label::Body_13);
+    #else
+    m_staticText_subtask_value->SetFont(wxFont(13, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    #endif
+    m_staticText_subtask_value->SetForegroundColour(wxColour(44, 44, 46));
+
+    m_bitmap_static_use_time = new wxStaticBitmap(task_name_panel, wxID_ANY, m_bitmap_use_time.bmp(), wxDefaultPosition, wxSize(FromDIP(16), FromDIP(16)));
+
+    m_staticText_consumption_of_time = new wxStaticText(task_name_panel, wxID_ANY, "0m", wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_consumption_of_time->SetFont(::Label::Body_12);
+    m_staticText_consumption_of_time->SetForegroundColour(wxColour(0x68, 0x68, 0x68));
+    m_staticText_consumption_of_time->Wrap(-1);
+
+
+    m_bitmap_static_use_weight = new wxStaticBitmap(task_name_panel, wxID_ANY, m_bitmap_use_weight.bmp(), wxDefaultPosition, wxSize(FromDIP(16), FromDIP(16)));
+
+
+    m_staticText_consumption_of_weight = new wxStaticText(task_name_panel, wxID_ANY, "0g", wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_consumption_of_weight->SetFont(::Label::Body_12);
+    m_staticText_consumption_of_weight->SetForegroundColour(wxColour(0x68, 0x68, 0x68));
+    m_staticText_consumption_of_weight->Wrap(-1);
+
+    bSizer_task_name_hor->Add(m_staticText_subtask_value, 1, wxALL | wxEXPAND, 0);
+    bSizer_task_name_hor->Add(m_bitmap_static_use_time, 0, wxALIGN_CENTER_VERTICAL, 0);
+    bSizer_task_name_hor->Add(m_staticText_consumption_of_time, 0, wxALIGN_CENTER_VERTICAL|wxLEFT, FromDIP(3));
+    bSizer_task_name_hor->Add(0, 0, 0, wxLEFT, FromDIP(10));
+    bSizer_task_name_hor->Add(m_bitmap_static_use_weight, 0, wxALIGN_CENTER_VERTICAL, 0);
+    bSizer_task_name_hor->Add(m_staticText_consumption_of_weight, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(3));
+    bSizer_task_name_hor->Add(0, 0, 0, wxRIGHT, FromDIP(10));
+
+
+    task_name_panel->SetSizer(bSizer_task_name_hor);
+    task_name_panel->Layout();
+    task_name_panel->Fit();
+
+    bSizer_task_name->Add(task_name_panel, 0, wxEXPAND, FromDIP(5));
+
+
+   /* wxFlexGridSizer *fgSizer_task = new wxFlexGridSizer(2, 2, 0, 0);
+     fgSizer_task->AddGrowableCol(0);
+     fgSizer_task->SetFlexibleDirection(wxVERTICAL);
+     fgSizer_task->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);*/
+
+    m_printing_stage_value = new wxStaticText(parent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
+    m_printing_stage_value->Wrap(-1);
+    m_printing_stage_value->SetMaxSize(wxSize(FromDIP(800),-1));
+    #ifdef __WXOSX_MAC__
+    m_printing_stage_value->SetFont(::Label::Body_11);
+    #else
+    m_printing_stage_value->SetFont(wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    #endif
+
+    m_printing_stage_value->SetForegroundColour(PHROZEN_STAGE_TEXT_COL);
+
+
+    m_staticText_profile_value = new wxStaticText(parent, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
+    m_staticText_profile_value->Wrap(-1);
+#ifdef __WXOSX_MAC__
+    m_staticText_profile_value->SetFont(::Label::Body_11);
+#else
+    m_staticText_profile_value->SetFont(wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+#endif
+
+    m_staticText_profile_value->SetForegroundColour(0x6B6B6B);
+
+
+    auto m_panel_progress = new wxPanel(parent, wxID_ANY);
+    m_panel_progress->SetBackgroundColour(*wxWHITE);
+    auto m_sizer_progressbar = new wxBoxSizer(wxHORIZONTAL);
+    m_gauge_progress = new ProgressBar(m_panel_progress, wxID_ANY, 100, wxDefaultPosition, wxDefaultSize);
+    m_gauge_progress->SetValue(0);
+    m_gauge_progress->SetHeight(PROGRESSBAR_HEIGHT);
+    m_gauge_progress->SetMaxSize(wxSize(FromDIP(600), -1));
+    m_panel_progress->SetSizer(m_sizer_progressbar);
+    m_panel_progress->Layout();
+    m_panel_progress->SetSize(wxSize(-1, FromDIP(24)));
+    m_panel_progress->SetMaxSize(wxSize(-1, FromDIP(24)));
+
+    wxBoxSizer *bSizer_task_btn = new wxBoxSizer(wxHORIZONTAL);
+
+    bSizer_task_btn->Add(FromDIP(10), 0, 0);
+
+    m_button_pause_resume = new ScalableButton(m_panel_progress, wxID_ANY, "print_control_pause", wxEmptyString, wxDefaultSize, wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER,true);
+
+    m_button_pause_resume->Bind(wxEVT_ENTER_WINDOW, [this](auto &e) {
+        if (m_button_pause_resume->GetToolTipText() == _L("Pause")) {
+            m_button_pause_resume->SetBitmap_("print_control_pause_hover");
+        }
+
+        if (m_button_pause_resume->GetToolTipText() == _L("Resume")) {
+            m_button_pause_resume->SetBitmap_("print_control_resume_hover");
+        }
+    });
+
+    m_button_pause_resume->Bind(wxEVT_LEAVE_WINDOW, [this](auto &e) {
+        auto        buf = m_button_pause_resume->GetClientData();
+        if (m_button_pause_resume->GetToolTipText() == _L("Pause")) {
+            m_button_pause_resume->SetBitmap_("print_control_pause");
+        }
+
+        if (m_button_pause_resume->GetToolTipText() == _L("Resume")) {
+            m_button_pause_resume->SetBitmap_("print_control_resume");
+        }
+    });
+
+    m_button_abort = new ScalableButton(m_panel_progress, wxID_ANY, "print_control_stop", wxEmptyString, wxDefaultSize, wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER, true);
+    m_button_abort->SetToolTip(_L("Stop"));
+
+    m_button_abort->Bind(wxEVT_ENTER_WINDOW, [this](auto &e) {
+        m_button_abort->SetBitmap_("print_control_stop_hover");
+    });
+
+    m_button_abort->Bind(wxEVT_LEAVE_WINDOW, [this](auto &e) {
+        m_button_abort->SetBitmap_("print_control_stop"); }
+    );
+
+    m_sizer_progressbar->Add(m_gauge_progress, 1, wxALIGN_CENTER_VERTICAL, 0);
+    m_sizer_progressbar->Add(0, 0, 0, wxEXPAND|wxLEFT, FromDIP(18));
+    m_sizer_progressbar->Add(m_button_pause_resume, 0, wxALL, FromDIP(5));
+    m_sizer_progressbar->Add(0, 0, 0, wxEXPAND|wxLEFT, FromDIP(18));
+    m_sizer_progressbar->Add(m_button_abort, 0, wxALL, FromDIP(5));
+
+    wxBoxSizer *bSizer_buttons = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer *bSizer_text = new wxBoxSizer(wxHORIZONTAL);
+    wxPanel* penel_bottons = new wxPanel(parent);
+    wxPanel* penel_text = new wxPanel(penel_bottons);
+
+    penel_text->SetBackgroundColour(*wxWHITE);
+    penel_bottons->SetBackgroundColour(*wxWHITE);
+
+    wxBoxSizer *sizer_percent = new wxBoxSizer(wxVERTICAL);
+    sizer_percent->Add(0, 0, 1, wxEXPAND, 0);
+
+    wxBoxSizer *sizer_percent_icon  = new wxBoxSizer(wxVERTICAL);
+    sizer_percent_icon->Add(0, 0, 1, wxEXPAND, 0);
+
+
+    m_staticText_progress_percent = new wxStaticText(penel_text, wxID_ANY, "0", wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_progress_percent->SetFont(::Label::Head_18);
+    m_staticText_progress_percent->SetMaxSize(wxSize(-1, FromDIP(20)));
+    m_staticText_progress_percent->SetForegroundColour(wxColour(255, 124, 63));
+
+    m_staticText_progress_percent_icon = new wxStaticText(penel_text, wxID_ANY, "%", wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_progress_percent_icon->SetFont(::Label::Body_11);
+    m_staticText_progress_percent_icon->SetMaxSize(wxSize(-1, FromDIP(13)));
+    m_staticText_progress_percent_icon->SetForegroundColour(wxColour(255, 124, 63));
+
+    sizer_percent->Add(m_staticText_progress_percent, 0, 0, 0);
+
+    #ifdef __WXOSX_MAC__
+    sizer_percent_icon->Add(m_staticText_progress_percent_icon, 0, wxBOTTOM, FromDIP(2));
+    #else
+    sizer_percent_icon->Add(m_staticText_progress_percent_icon, 0, 0, 0);
+    #endif
+
+
+    m_staticText_progress_left = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_progress_left->Wrap(-1);
+    m_staticText_progress_left->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_progress_left->SetForegroundColour(wxColour(146, 146, 146));
+
+    // Orca: display the end time of the print
+    m_staticText_progress_end = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_progress_end->Wrap(-1);
+    m_staticText_progress_end->SetFont(
+        wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_progress_end->SetForegroundColour(wxColour(146, 146, 146));
+
+    //fgSizer_task->Add(bSizer_buttons, 0, wxEXPAND, 0);
+    //fgSizer_task->Add(0, 0, 0, wxEXPAND, FromDIP(5));
+
+    wxPanel* panel_button_block = new wxPanel(penel_bottons, wxID_ANY);
+    panel_button_block->SetMinSize(wxSize(TASK_BUTTON_SIZE.x * 2 + FromDIP(5) * 4, -1));
+    panel_button_block->SetMinSize(wxSize(TASK_BUTTON_SIZE.x * 2 + FromDIP(5) * 4, -1));
+    panel_button_block->SetSize(wxSize(TASK_BUTTON_SIZE.x * 2 + FromDIP(5) * 2, -1));
+    panel_button_block->SetBackgroundColour(*wxWHITE);
+
+    m_staticText_layers = new wxStaticText(penel_text, wxID_ANY, _L("Layer: N/A"));
+    m_staticText_layers->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_layers->SetForegroundColour(wxColour(146, 146, 146));
+    m_staticText_layers->Hide();
+
+    //bSizer_text->Add(m_staticText_progress_percent, 0,  wxALL, 0);
+    bSizer_text->Add(sizer_percent, 0, wxEXPAND, 0);
+    bSizer_text->Add(sizer_percent_icon, 0, wxEXPAND, 0);
+    bSizer_text->Add(0, 0, 1, wxEXPAND, 0);
+    bSizer_text->Add(m_staticText_layers, 0, wxALIGN_CENTER | wxALL, 0);
+    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(20));
+    bSizer_text->Add(m_staticText_progress_left, 0, wxALIGN_CENTER | wxALL, 0);
+    // Orca: display the end time of the print
+    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(8));
+    bSizer_text->Add(m_staticText_progress_end, 0, wxALIGN_CENTER | wxALL, 0);
+
+    penel_text->SetMaxSize(wxSize(FromDIP(600), -1));
+    penel_text->SetSizer(bSizer_text);
+    penel_text->Layout();
+
+    bSizer_buttons->Add(penel_text, 1, wxEXPAND | wxALL, 0);
+    bSizer_buttons->Add(panel_button_block, 0, wxALIGN_CENTER | wxALL, 0);
+
+    penel_bottons->SetSizer(bSizer_buttons);
+    penel_bottons->Layout();
+
+    bSizer_subtask_info->Add(0, 0, 0, wxEXPAND | wxTOP, FromDIP(14));
+    bSizer_subtask_info->Add(bSizer_task_name, 0, wxEXPAND|wxRIGHT, FromDIP(18));
+    bSizer_subtask_info->Add(m_staticText_profile_value, 0, wxEXPAND | wxTOP, FromDIP(5));
+    bSizer_subtask_info->Add(m_printing_stage_value, 0, wxEXPAND | wxTOP, FromDIP(5));
+    bSizer_subtask_info->Add(penel_bottons, 0, wxEXPAND | wxTOP, FromDIP(10));
+    bSizer_subtask_info->Add(m_panel_progress, 0, wxEXPAND|wxRIGHT, FromDIP(25));
+
+
+    m_printing_sizer = new wxBoxSizer(wxHORIZONTAL);
+    m_printing_sizer->SetMinSize(wxSize(PAGE_MIN_WIDTH, -1));
+    m_printing_sizer->Add(m_bitmap_thumbnail, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxLEFT, FromDIP(12));
+    m_printing_sizer->Add(FromDIP(8), 0, 0, wxEXPAND, 0);
+    m_printing_sizer->Add(bSizer_subtask_info, 1, wxALL | wxEXPAND, 0);
+
+
+    m_staticline = new wxPanel( parent, wxID_ANY);
+    m_staticline->SetBackgroundColour(wxColour(238,238,238));
+    m_staticline->Layout();
+    m_staticline->Hide();
+
+    m_panel_error_txt = new wxPanel(parent, wxID_ANY);
+    m_panel_error_txt->SetBackgroundColour(*wxWHITE);
+
+    wxBoxSizer *static_text_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+    m_error_text = new Label(m_panel_error_txt, "", LB_AUTO_WRAP);
+    m_error_text->SetForegroundColour(wxColour(255, 0, 0));
+    static_text_sizer->Add(m_error_text, 1, wxEXPAND | wxLEFT, FromDIP(17));
+
+    m_button_clean = new Button(m_panel_error_txt, _L("Clear"));
+    StateColor clean_bg(std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Disabled), std::pair<wxColour, int>(wxColour(206, 206, 206), StateColor::Pressed),
+                        std::pair<wxColour, int>(wxColour(238, 238, 238), StateColor::Hovered), std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Enabled),
+                        std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Normal));
+    StateColor clean_bd(std::pair<wxColour, int>(wxColour(144, 144, 144), StateColor::Disabled), std::pair<wxColour, int>(wxColour(38, 46, 48), StateColor::Enabled));
+    StateColor clean_text(std::pair<wxColour, int>(wxColour(144, 144, 144), StateColor::Disabled), std::pair<wxColour, int>(wxColour(38, 46, 48), StateColor::Enabled));
+
+
+    m_button_clean->SetBackgroundColor(clean_bg);
+    m_button_clean->SetBorderColor(clean_bd);
+    m_button_clean->SetTextColor(clean_text);
+    m_button_clean->SetFont(Label::Body_10);
+    m_button_clean->SetMinSize(TASK_BUTTON_SIZE2);
+
+    static_text_sizer->Add( FromDIP(10), 0, 0, 0, 0 );
+    static_text_sizer->Add(m_button_clean, 0, wxALIGN_CENTRE_VERTICAL|wxRIGHT, FromDIP(5));
+
+    m_panel_error_txt->SetSizer(static_text_sizer);
+    m_panel_error_txt->Hide();
+
+    sizer->Add(m_panel_printing_title, 0, wxEXPAND | wxALL, 0);
+    sizer->Add(0, FromDIP(12), 0);
+    sizer->Add(m_printing_sizer, 0, wxEXPAND | wxALL, 0);
+    sizer->Add(0, 0, 0, wxTOP, FromDIP(15));
+    sizer->Add(m_staticline, 0, wxEXPAND | wxALL, FromDIP(10));
+    sizer->Add(m_panel_error_txt, 0, wxEXPAND | wxALL, 0);
+    sizer->Add(0, FromDIP(12), 0);
+
+    m_score_staticline = new wxPanel(parent, wxID_ANY);
+    m_score_staticline->SetBackgroundColour(wxColour(238, 238, 238));
+    m_score_staticline->Layout();
+    m_score_staticline->Hide();
+    sizer->Add(0, 0, 0, wxTOP, FromDIP(15));
+    sizer->Add(m_score_staticline, 0, wxEXPAND | wxALL, FromDIP(10));
+    m_request_failed_panel    = new wxPanel(parent, wxID_ANY);
+    m_request_failed_panel->SetBackgroundColour(*wxWHITE);
+    wxBoxSizer *static_request_failed_panel_sizer = new wxBoxSizer(wxHORIZONTAL);
+    m_request_failed_info = new wxStaticText(m_request_failed_panel, wxID_ANY, _L("You have completed printing the mall model, \nbut the synchronization of rating information has failed."), wxDefaultPosition, wxDefaultSize, 0);
+    m_request_failed_info->Wrap(-1);
+    m_request_failed_info->SetForegroundColour(*wxRED);
+    m_request_failed_info->SetFont(::Label::Body_10);
+    static_request_failed_panel_sizer->Add(m_request_failed_info, 0, wxEXPAND | wxALL, FromDIP(10));
+    StateColor btn_bg_green(std::pair<wxColour, int>(AMS_CONTROL_DISABLE_COLOUR, StateColor::Disabled), std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
+                            std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered), std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
+    StateColor btn_bd_green(std::pair<wxColour, int>(AMS_CONTROL_WHITE_COLOUR, StateColor::Disabled), std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Enabled));
+    m_button_market_retry = new Button(m_request_failed_panel, _L("Retry"));
+    m_button_market_retry->SetBackgroundColor(btn_bg_green);
+    m_button_market_retry->SetBorderColor(btn_bd_green);
+    m_button_market_retry->SetTextColor(wxColour("#FFFFFE"));
+    m_button_market_retry->SetSize(wxSize(FromDIP(128), FromDIP(26)));
+    m_button_market_retry->SetMinSize(wxSize(-1, FromDIP(26)));
+    m_button_market_retry->SetCornerRadius(FromDIP(13));
+    static_request_failed_panel_sizer->Add(0, 0, 1, wxEXPAND, 0);
+    static_request_failed_panel_sizer->Add(m_button_market_retry, 0, wxEXPAND | wxALL, FromDIP(10));
+    m_request_failed_panel->SetSizer(static_request_failed_panel_sizer);
+    m_request_failed_panel->Hide();
+    sizer->Add(m_request_failed_panel, 0, wxEXPAND | wxALL, FromDIP(10));
+
+
+    m_score_subtask_info = new wxPanel(parent, wxID_ANY);
+    m_score_subtask_info->SetBackgroundColour(*wxWHITE);
+
+    wxBoxSizer *  static_score_sizer = new wxBoxSizer(wxVERTICAL);
+    wxStaticText *static_score_text  = new wxStaticText(m_score_subtask_info, wxID_ANY, _L("How do you like this printing file?"), wxDefaultPosition, wxDefaultSize, 0);
+    static_score_text->Wrap(-1);
+    static_score_sizer->Add(static_score_text, 1, wxEXPAND | wxALL, FromDIP(10));
+    m_has_rated_prompt = new wxStaticText(m_score_subtask_info, wxID_ANY, _L("(The model has already been rated. Your rating will overwrite the previous rating.)"), wxDefaultPosition, wxDefaultSize, 0);
+    m_has_rated_prompt->Wrap(-1);
+    m_has_rated_prompt->SetForegroundColour(*wxBLACK);
+    m_has_rated_prompt->SetFont(::Label::Body_10);
+    m_has_rated_prompt->Hide();
+
+    m_star_count                        = 0;
+    wxBoxSizer *static_score_star_sizer = new wxBoxSizer(wxHORIZONTAL);
+    m_score_star.resize(5);
+    for (int i = 0; i < m_score_star.size(); ++i) {
+        m_score_star[i] = new ScalableButton(m_score_subtask_info, wxID_ANY, "score_star_dark", wxEmptyString, wxSize(FromDIP(26), FromDIP(26)), wxDefaultPosition,
+                                             wxBU_EXACTFIT | wxNO_BORDER, true, 26);
+        m_score_star[i]->Bind(wxEVT_LEFT_DOWN, [this, i](auto &e) {
+            for (int j = 0; j < m_score_star.size(); ++j) {
+                ScalableBitmap light_star = ScalableBitmap(nullptr, "score_star_light", 26);
+                m_score_star[j]->SetBitmap(light_star.bmp());
+                if (m_score_star[j] == m_score_star[i]) {
+                    m_star_count = j + 1;
+                    break;
+                }
+            }
+            for (int k = m_star_count; k < m_score_star.size(); ++k) {
+                ScalableBitmap dark_star = ScalableBitmap(nullptr, "score_star_dark", 26);
+                m_score_star[k]->SetBitmap(dark_star.bmp());
+            }
+            m_star_count_dirty = true;
+            m_button_market_scoring->Enable(true);
+        });
+        static_score_star_sizer->Add(m_score_star[i], 0, wxEXPAND | wxLEFT, FromDIP(10));
+    }
+
+    m_button_market_scoring = new Button(m_score_subtask_info, _L("Rate"));
+    m_button_market_scoring->SetBackgroundColor(btn_bg_green);
+    m_button_market_scoring->SetBorderColor(btn_bd_green);
+    m_button_market_scoring->SetTextColor(wxColour("#FFFFFE"));
+    m_button_market_scoring->SetSize(wxSize(FromDIP(128), FromDIP(26)));
+    m_button_market_scoring->SetMinSize(wxSize(-1, FromDIP(26)));
+    m_button_market_scoring->SetCornerRadius(FromDIP(13));
+    m_button_market_scoring->Enable(false);
+
+    static_score_star_sizer->Add(0, 0, 1, wxEXPAND, 0);
+    static_score_star_sizer->Add(m_button_market_scoring, 0, wxEXPAND | wxRIGHT, FromDIP(10));
+    static_score_sizer->Add(static_score_star_sizer, 0, wxEXPAND, FromDIP(10));
+    static_score_sizer->Add(m_has_rated_prompt, 1, wxEXPAND | wxALL, FromDIP(10));
+
+    m_score_subtask_info->SetSizer(static_score_sizer);
+    m_score_subtask_info->Layout();
+    m_score_subtask_info->Hide();
+
+    sizer->Add(m_score_subtask_info, 0, wxEXPAND | wxALL, 0);
+    sizer->Add(0, FromDIP(12), 0);
+
+    if (m_type == PhrozenPrintingTaskType::CALIBRATION) {
+        m_panel_printing_title->Hide();
+        m_bitmap_thumbnail->Hide();
+        task_name_panel->Hide();
+        m_staticText_profile_value->Hide();
+    }
+
+    parent->SetSizer(sizer);
+    parent->Layout();
+    parent->Fit();
+}
+
+void PhrozenPrintingTaskPanel::paint(wxPaintEvent&)
+{
+    wxPaintDC dc(m_bitmap_thumbnail);
+    if (wxGetApp().dark_mode()) {
+        if (m_brightness_value > 0 && m_brightness_value < SHOW_BACKGROUND_BITMAP_PIXEL_THRESHOLD) {
+            dc.DrawBitmap(m_bitmap_background.bmp(), 0, 0);
+            dc.SetTextForeground(*wxBLACK);
+        }
+        else
+            dc.SetTextForeground(*wxWHITE);
+    }
+    else
+        dc.SetTextForeground(*wxBLACK);
+    dc.DrawBitmap(m_thumbnail_bmp_display, wxPoint(0, 0));
+    dc.SetFont(Label::Body_12);
+    
+    if (m_plate_index >= 0) {
+        wxString plate_id_str = wxString::Format("%d", m_plate_index);
+        dc.DrawText(plate_id_str, wxPoint(4, 4));
+    }
+}
+
+void PhrozenPrintingTaskPanel::set_has_reted_text(bool has_rated)
+{
+    if (has_rated) {
+        m_has_rated_prompt->Show();
+    } else {
+        m_has_rated_prompt->Hide();
+    }
+    Layout();
+    Fit();
+}
+
+void PhrozenPrintingTaskPanel::msw_rescale()
+{
+    m_panel_printing_title->SetSize(wxSize(-1, FromDIP(PAGE_TITLE_HEIGHT)));
+    m_printing_sizer->SetMinSize(wxSize(PAGE_MIN_WIDTH, -1));
+    //m_staticText_printing->SetMinSize(wxSize(PAGE_TITLE_TEXT_WIDTH, PAGE_TITLE_HEIGHT));
+    m_gauge_progress->SetHeight(PROGRESSBAR_HEIGHT);
+    m_gauge_progress->Rescale();
+    m_button_abort->msw_rescale();
+    m_bitmap_thumbnail->SetSize(TASK_THUMBNAIL_SIZE);
+}
+
+void PhrozenPrintingTaskPanel::init_bitmaps()
+{
+    m_thumbnail_placeholder     = ScalableBitmap(this, "monitor_placeholder", 120);
+    m_bitmap_use_time           = ScalableBitmap(this, "print_info_time", 16);
+    m_bitmap_use_weight         = ScalableBitmap(this, "print_info_weight", 16);
+}
+
+void PhrozenPrintingTaskPanel::init_scaled_buttons()
+{
+    m_button_clean->SetMinSize(wxSize(FromDIP(48), FromDIP(24)));
+    m_button_clean->SetCornerRadius(FromDIP(12));
+}
+
+void PhrozenPrintingTaskPanel::error_info_reset()
+{
+    if (m_panel_error_txt->IsShown()) {
+        m_staticline->Hide();
+        m_panel_error_txt->Hide();
+        m_panel_error_txt->GetParent()->Layout();
+        m_error_text->SetLabel(wxEmptyString);
+    }
+}
+
+void PhrozenPrintingTaskPanel::show_error_msg(wxString msg)
+{
+    m_staticline->Show();
+    m_panel_error_txt->Show();
+    m_error_text->SetLabel(msg);
+}
+
+void PhrozenPrintingTaskPanel::reset_printing_value()
+{
+    this->set_thumbnail_img(m_thumbnail_placeholder.bmp());
+    this->set_plate_index(-1);
+}
+
+void PhrozenPrintingTaskPanel::enable_pause_resume_button(bool enable, std::string type)
+{
+    if (!enable) {
+        m_button_pause_resume->Enable(false);
+
+        if (type == "pause_disable") {
+            m_button_pause_resume->SetBitmap_("print_control_pause_disable");
+        }
+        else if (type == "resume_disable") {
+            m_button_pause_resume->SetBitmap_("print_control_resume_disable");
+        }
+    }
+    else {
+        m_button_pause_resume->Enable(true);
+        if (type == "resume") {
+        m_button_pause_resume->SetBitmap_("print_control_resume");
+        if (m_button_pause_resume->GetToolTipText() != _L("Resume")) { m_button_pause_resume->SetToolTip(_L("Resume")); }
+        }
+        else if (type == "pause") {
+        m_button_pause_resume->SetBitmap_("print_control_pause");
+        if (m_button_pause_resume->GetToolTipText() != _L("Pause")) { m_button_pause_resume->SetToolTip(_L("Pause")); }
+        }
+    }
+}
+
+void PhrozenPrintingTaskPanel::enable_abort_button(bool enable)
+{
+    if (!enable) {
+        m_button_abort->Enable(false);
+        m_button_abort->SetBitmap_("print_control_stop_disable");
+    }
+    else {
+        m_button_abort->Enable(true);
+        m_button_abort->SetBitmap_("print_control_stop");
+    }
+}
+
+void PhrozenPrintingTaskPanel::update_subtask_name(wxString name)
+{
+    m_staticText_subtask_value->SetLabelText(name);
+}
+
+void PhrozenPrintingTaskPanel::update_stage_value(wxString stage, int val)
+{
+    m_printing_stage_value->SetLabelText(stage);
+    m_gauge_progress->SetValue(val);
+}
+
+void PhrozenPrintingTaskPanel::update_progress_percent(wxString percent, wxString icon)
+{
+    m_staticText_progress_percent->SetLabelText(percent);
+    m_staticText_progress_percent_icon->SetLabelText(icon);
+}
+
+void PhrozenPrintingTaskPanel::update_left_time(wxString time)
+{
+    m_staticText_progress_left->SetLabelText(time);
+}
+
+void PhrozenPrintingTaskPanel::update_left_time(int mc_left_time)
+{
+    // update gcode progress
+    std::string left_time;
+    wxString    left_time_text = PHROZEN_NA_STR;
+
+    try {
+        left_time = get_bbl_monitor_time_dhm(mc_left_time);
+    }
+    catch (...) {
+        ;
+    }
+
+    if (!left_time.empty()) left_time_text = wxString::Format("-%s", left_time);
+    update_left_time(left_time_text);
+
+    //Update end time
+    std::string end_time;
+    wxString    end_time_text = PHROZEN_NA_STR;
+    try {
+        end_time = get_bbl_monitor_end_time_dhm(mc_left_time);
+    } catch (...) {
+        ;
+    }
+    if (!end_time.empty())
+        end_time_text = wxString::Format("%s", end_time);
+    else
+        end_time_text = PHROZEN_NA_STR;
+
+    m_staticText_progress_end->SetLabelText(end_time_text);
+
+}
+
+void PhrozenPrintingTaskPanel::update_layers_num(bool show, wxString num)
+{
+    if (show) {
+        m_staticText_layers->Show(true);
+        m_staticText_layers->SetLabelText(num);
+    }
+    else {
+        m_staticText_layers->Show(false);
+        m_staticText_layers->SetLabelText(num);
+    }
+}
+
+void PhrozenPrintingTaskPanel::show_priting_use_info(bool show, wxString time /*= wxEmptyString*/, wxString weight /*= wxEmptyString*/)
+{
+    if (show) {
+        if (!m_staticText_consumption_of_time->IsShown()) {
+            m_bitmap_static_use_time->Show();
+            m_staticText_consumption_of_time->Show();
+        }
+
+        if (!m_staticText_consumption_of_weight->IsShown()) {
+            m_bitmap_static_use_weight->Show();
+            m_staticText_consumption_of_weight->Show();
+        }
+
+        m_staticText_consumption_of_time->SetLabelText(time);
+        m_staticText_consumption_of_weight->SetLabelText(weight);
+    }
+    else {
+        m_staticText_consumption_of_time->SetLabelText("0m");
+        m_staticText_consumption_of_weight->SetLabelText("0g");
+        if (m_staticText_consumption_of_time->IsShown()) {
+            m_bitmap_static_use_time->Hide();
+            m_staticText_consumption_of_time->Hide();
+        }
+
+        if (m_staticText_consumption_of_weight->IsShown()) {
+            m_bitmap_static_use_weight->Hide();
+            m_staticText_consumption_of_weight->Hide();
+        }    }
+}
+
+
+void PhrozenPrintingTaskPanel::show_profile_info(bool show, wxString profile /*= wxEmptyString*/)
+{
+    if (show) {
+        if (!m_staticText_profile_value->IsShown()) { m_staticText_profile_value->Show(); }
+        m_staticText_profile_value->SetLabelText(profile);
+    }
+    else {
+        m_staticText_profile_value->SetLabelText(wxEmptyString);
+        m_staticText_profile_value->Hide();
+    }
+}
+
+void PhrozenPrintingTaskPanel::set_thumbnail_img(const wxBitmap& bmp)
+{
+    m_thumbnail_bmp_display = bmp;
+}
+
+void PhrozenPrintingTaskPanel::set_plate_index(int plate_idx)
+{
+    m_plate_index = plate_idx;
+}
+
+void PhrozenPrintingTaskPanel::market_scoring_show()
+{ 
+    m_score_staticline->Show();
+    m_score_subtask_info->Show();
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " show market scoring page";
+}
+
+void PhrozenPrintingTaskPanel::market_scoring_hide()
+{
+    m_score_staticline->Hide();
+    m_score_subtask_info->Hide();
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << " hide market scoring page";
+}
+
+void PhrozenPrintingTaskPanel::set_star_count(int star_count)
+{
+    m_star_count = star_count;
+
+    for (int i = 0; i < m_score_star.size(); ++i) {
+        if (i < star_count) {
+            ScalableBitmap light_star = ScalableBitmap(nullptr, "score_star_light", 26);
+            m_score_star[i]->SetBitmap(light_star.bmp());
+        } else {
+            ScalableBitmap dark_star = ScalableBitmap(nullptr, "score_star_dark", 26);
+            m_score_star[i]->SetBitmap(dark_star.bmp());
+        }
+    }
+}
+
+#pragma endregion
+
+
 #pragma region PhrozenStatusBasePanel
 PhrozenStatusBasePanel::PhrozenStatusBasePanel(
     wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style, const wxString& name)
@@ -190,7 +872,7 @@ void PhrozenStatusBasePanel::Initizlize()
     m_panel_separotor1->SetMaxSize(wxSize(-1, PAGE_SPACING));
     m_monitoring_sizer->Add(m_panel_separotor1, 0, wxEXPAND, 0);
 
-    m_project_task_panel = new PrintingTaskPanel(this, PrintingTaskType::PRINGINT);
+    m_project_task_panel = new PhrozenPrintingTaskPanel(this, PhrozenPrintingTaskType::PRINGINT);
     m_project_task_panel->init_bitmaps();
     m_monitoring_sizer->Add(m_project_task_panel, 0, wxALL | wxEXPAND , 0);
 

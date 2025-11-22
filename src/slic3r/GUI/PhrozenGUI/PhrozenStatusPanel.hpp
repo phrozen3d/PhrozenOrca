@@ -85,6 +85,113 @@ enum class PhrozenMovement : int32_t
     Nozzle_Offset_Negative,
 };
 
+enum class PhrozenPrintingTaskType : int32_t {
+    PRINGINT,
+    CALIBRATION,
+    NOT_CLEAR
+};
+
+
+
+class PhrozenPrintingTaskPanel : public wxPanel
+{
+public:
+    PhrozenPrintingTaskPanel(wxWindow* parent, PhrozenPrintingTaskType type);
+    ~PhrozenPrintingTaskPanel();
+    void create_panel(wxWindow* parent);
+    
+
+private:
+    MachineObject*  m_obj;
+    ScalableBitmap  m_thumbnail_placeholder;
+    wxBitmap        m_thumbnail_bmp_display;
+    ScalableBitmap  m_bitmap_use_time;
+    ScalableBitmap  m_bitmap_use_weight;
+    ScalableBitmap  m_bitmap_background;
+
+    wxPanel *       m_panel_printing_title;
+    wxPanel*        m_staticline;
+    wxPanel*        m_panel_error_txt;
+
+    wxBoxSizer*     m_printing_sizer;
+    wxStaticText *  m_staticText_printing;
+    wxStaticText*   m_staticText_subtask_value;
+    wxStaticText*   m_staticText_consumption_of_time;
+    wxStaticText*   m_staticText_consumption_of_weight;
+    wxStaticText*   m_printing_stage_value;
+    wxStaticText*   m_staticText_profile_value;
+    wxStaticText*   m_staticText_progress_percent;
+    wxStaticText*   m_staticText_progress_percent_icon;
+    wxStaticText*   m_staticText_progress_left;
+    // Orca: show print end time
+    wxStaticText * m_staticText_progress_end;
+    wxStaticText*   m_staticText_layers;
+    wxStaticText *  m_has_rated_prompt;
+    wxStaticText *  m_request_failed_info;
+    wxStaticBitmap* m_bitmap_thumbnail;
+    int             m_plate_index { -1 };
+    wxStaticBitmap* m_bitmap_static_use_time;
+    wxStaticBitmap* m_bitmap_static_use_weight;
+    ScalableButton* m_button_pause_resume;
+    ScalableButton* m_button_abort;
+    Button*         m_button_market_scoring;
+    Button*         m_button_clean;
+    Button *                      m_button_market_retry;
+    wxPanel *                     m_score_subtask_info;
+    wxPanel *                     m_score_staticline;
+    wxPanel *                     m_request_failed_panel;
+    // score page
+    int                           m_star_count;
+    std::vector<ScalableButton *> m_score_star;
+    bool                          m_star_count_dirty = false;
+
+    ProgressBar*    m_gauge_progress;
+    Label* m_error_text;
+    PhrozenPrintingTaskType m_type;
+    int m_brightness_value{ -1 };
+
+public:
+    void init_bitmaps();
+    void init_scaled_buttons();
+    void error_info_reset();
+    void show_error_msg(wxString msg);
+    void reset_printing_value();
+    void msw_rescale();
+
+public:
+    void enable_pause_resume_button(bool enable, std::string type);
+    void enable_abort_button(bool enable);
+    void update_subtask_name(wxString name);
+    void update_stage_value(wxString stage, int val);
+    void update_progress_percent(wxString percent, wxString icon);
+    void update_left_time(wxString time);
+    void update_left_time(int mc_left_time);
+    void update_layers_num(bool show, wxString num = wxEmptyString);
+    void show_priting_use_info(bool show, wxString time = wxEmptyString, wxString weight = wxEmptyString);
+    void show_profile_info(bool show, wxString profile = wxEmptyString);
+    void set_thumbnail_img(const wxBitmap& bmp);
+    void set_brightness_value(int value) { m_brightness_value = value; }
+    void set_plate_index(int plate_idx = -1);
+    void market_scoring_show();
+    void market_scoring_hide();
+    
+public:
+    ScalableButton* get_abort_button() {return m_button_abort;};
+    ScalableButton* get_pause_resume_button() {return m_button_pause_resume;};
+    Button* get_market_scoring_button() {return m_button_market_scoring;};
+    Button * get_market_retry_buttom() { return m_button_market_retry; };
+    Button* get_clean_button() {return m_button_clean;};
+    wxStaticBitmap* get_bitmap_thumbnail() {return m_bitmap_thumbnail;};
+    wxPanel *  get_request_failed_panel() { return m_request_failed_panel; }
+    int get_star_count() { return m_star_count; }
+    void set_star_count(int star_count);
+    std::vector<ScalableButton *> &get_score_star() { return m_score_star; }
+    bool get_star_count_dirty() { return m_star_count_dirty; }
+    void set_star_count_dirty(bool dirty) { m_star_count_dirty = dirty; }
+    void                           set_has_reted_text(bool has_rated);
+    void paint(wxPaintEvent&);
+};
+
 class PhrozenStatusBasePanel : public wxScrolledWindow//StatusBasePanel
 {
 public:
@@ -136,10 +243,6 @@ public:
     wxBitmap m_bitmap_extruder_filled_load;
     wxBitmap m_bitmap_extruder_empty_unload;
     wxBitmap m_bitmap_extruder_filled_unload;
-
-    CameraRecordingStatus m_state_recording{CameraRecordingStatus::RECORDING_NONE};
-    CameraTimelapseStatus m_state_timelapse{CameraTimelapseStatus::TIMELAPSE_NONE};
-
 
     CameraItem *m_setting_button;
 
@@ -260,7 +363,7 @@ public:
     StepIndicator*  m_calibration_flow;
 
     wxPanel *       m_machine_ctrl_panel;
-    PrintingTaskPanel *       m_project_task_panel;
+    PhrozenPrintingTaskPanel *       m_project_task_panel;
 
     // Virtual event handlers, override them in your derived class
     virtual void on_subtask_pause_resume(wxCommandEvent &event) { event.Skip(); }
