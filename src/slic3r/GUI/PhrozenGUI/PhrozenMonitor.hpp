@@ -42,6 +42,7 @@
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "PhrozenStatusPanel.hpp"
+#include "PhrozenSideTools.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -56,7 +57,7 @@ private:
     std::shared_ptr< wxPanel > m_spPrintHistoryPanel{ nullptr };
 
 	/* side tools */
-    SideTools*      m_side_tools{nullptr};
+    PhrozenSideTools*      m_side_tools{nullptr};
     wxStaticBitmap* m_bitmap_printer_type;
     wxStaticBitmap* m_bitmap_arrow;
     wxStaticText*   m_staticText_printer_name;

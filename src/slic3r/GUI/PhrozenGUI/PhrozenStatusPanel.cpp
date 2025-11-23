@@ -4,7 +4,7 @@
 #include "../Widgets/Label.hpp"
 #include "../Widgets/Button.hpp"
 #include "../Widgets/StepCtrl.hpp"
-#include "../Widgets/SideTools.hpp"
+#include "PhrozenSideTools.hpp"
 #include "../Widgets/WebView.hpp"
 
 #include "../BitmapCache.hpp"

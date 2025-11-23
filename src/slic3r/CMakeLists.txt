@@ -605,6 +605,10 @@ set(SLIC3R_GUI_SOURCES
     GUI/PhrozenGUI/PhrozenFilamentControl.cpp
 	GUI/PhrozenGUI/PhrozenSelectMachine.hpp
     GUI/PhrozenGUI/PhrozenSelectMachine.cpp
+	GUI/PhrozenGUI/PhrozenSideTools.hpp
+    GUI/PhrozenGUI/PhrozenSideTools.cpp
+	GUI/PhrozenGUI/PhrozenSelectMachinePopup.hpp
+    GUI/PhrozenGUI/PhrozenSelectMachinePopup.cpp
     GUI/Widgets/PhrozenTempInput.hpp
     GUI/Widgets/PhrozenTempInput.cpp
 

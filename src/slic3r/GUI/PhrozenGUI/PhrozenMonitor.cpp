@@ -28,6 +28,7 @@
 #include "../BindDialog.hpp"
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
+#include "PhrozenSideTools.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -96,7 +97,7 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
 
   void PhrozenMonitorPanel::init_tabpanel()
 {
-    m_side_tools = new SideTools(this, wxID_ANY);
+    m_side_tools = new PhrozenSideTools(this, wxID_ANY);
     wxBoxSizer* sizer_side_tools = new wxBoxSizer(wxVERTICAL);
     sizer_side_tools->Add(m_side_tools, 1, wxEXPAND, 0);
     m_tabpanel = new Tabbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer_side_tools, wxNB_LEFT | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
@@ -305,6 +306,7 @@ void PhrozenMonitorPanel::show_status(int status)
 Freeze();
     // update panels
     m_status_info_panel->show_status(status);
+    if ( m_side_tools ) { m_side_tools->show_status(status); }
 
     if ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0) 
     {
