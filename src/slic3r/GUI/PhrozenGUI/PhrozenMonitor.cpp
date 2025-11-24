@@ -29,6 +29,7 @@
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
 #include "PhrozenSideTools.hpp"
+#include "PhrozenSelectMachinePopup.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -38,7 +39,7 @@ namespace GUI {
 #pragma region PhrozenMonitorPanel
  PhrozenMonitorPanel::PhrozenMonitorPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
     : wxPanel(parent, id, pos, size, style),
-      m_select_machine(SelectMachinePopup(this))
+      m_select_machine(new PhrozenSelectMachinePopup(this))
 {
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
@@ -179,15 +180,15 @@ void PhrozenMonitorPanel::on_printer_clicked(wxMouseEvent &event)
         wxPoint pos = m_side_tools->ClientToScreen(wxPoint(0, 0));
         pos.y += m_side_tools->GetRect().height;
         //pos.x = pos.x < 0? 0:pos.x;
-        m_select_machine.Move(pos);
+        m_select_machine->Move(pos);
 
 #ifdef __linux__
-        m_select_machine.SetSize(wxSize(m_side_tools->GetSize().x, -1));
-        m_select_machine.SetMaxSize(wxSize(m_side_tools->GetSize().x, -1));
-        m_select_machine.SetMinSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine->SetSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine->SetMaxSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine->SetMinSize(wxSize(m_side_tools->GetSize().x, -1));
 #endif
 
-        m_select_machine.Popup();
+        m_select_machine->Popup();
     }
 }
 

@@ -24,7 +24,7 @@
 #include <wx/wrapsizer.h>
 #include <wx/srchctrl.h>
 
-#include "../ReleaseNote.hpp"
+//#include "../ReleaseNote.hpp"
 #include "../GUI_Utils.hpp"
 #include "../wxExtensions.hpp"
 #include "../DeviceManager.hpp"
@@ -62,14 +62,6 @@ enum class PhrozenPinCodePanelType : int32_t {
     BindWithIP
 };
 
-//wxDECLARE_EVENT(EVT_PHROZEN_WILL_DISMISS_MACHINE_LIST, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_UPDATE_WINDOWS_POSITION, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_DISSMISS_MACHINE_LIST, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_CONNECT_LAN_PRINT, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_EDIT_PRINT_NAME, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_UNBIND_MACHINE, wxCommandEvent);
-//wxDECLARE_EVENT(EVT_PHROZEN_BIND_MACHINE, wxCommandEvent);
-
 #define PHROZEN_SELECT_MACHINE_POPUP_SIZE wxSize(FromDIP(216), FromDIP(364))
 #define PHROZEN_SELECT_MACHINE_LIST_SIZE wxSize(FromDIP(212), FromDIP(360))
 #define PHROZEN_SELECT_MACHINE_ITEM_SIZE wxSize(FromDIP(190), FromDIP(35))
@@ -79,6 +71,85 @@ enum class PhrozenPinCodePanelType : int32_t {
 #define PHROZEN_SELECT_MACHINE_BRAND wxColour(255, 124, 63)
 #define PHROZEN_SELECT_MACHINE_REMIND wxColour(255, 111, 0)
 #define PHROZEN_SELECT_MACHINE_LIGHT_GREEN wxColour(219, 253, 231)
+
+#pragma region PhrozenInputIpAddressDialog
+class PhrozenInputIpAddressDialog : public DPIDialog
+{
+public:
+    wxString comfirm_before_enter_text;
+    wxString comfirm_after_enter_text;
+    wxString comfirm_last_enter_text;
+
+    boost::thread* m_thread{nullptr};
+
+    std::string m_ip;
+    Label* m_tip1{ nullptr };
+    Label* m_tip2{ nullptr };
+    Label* m_tip4{ nullptr };
+    PhrozenInputIpAddressDialog(wxWindow* parent = nullptr);
+    ~PhrozenInputIpAddressDialog();
+
+    wxPanel * ip_input_top_panel{ nullptr };
+    Button* m_button_ok{ nullptr };
+    Label* m_tips_ip{ nullptr };
+    Label* m_test_right_msg{ nullptr };
+    Label* m_test_wrong_msg{ nullptr };
+    TextInput* m_input_ip{ nullptr };
+    wxStaticBitmap* m_img_help{ nullptr };
+    wxStaticBitmap* m_img_step1{ nullptr };
+    wxStaticBitmap* m_img_step2{ nullptr };
+    wxHyperlinkCtrl* m_trouble_shoot{ nullptr };
+    int    m_result;
+
+    void on_cancel();
+    void update_title(wxString title);
+    void update_test_msg(wxString msg, bool connected);
+    bool isIp(std::string ipstr);
+    void on_ok(wxMouseEvent& evt);
+    void update_test_msg_event(wxCommandEvent &evt);
+    void post_update_test_msg(wxString text, bool beconnect);
+    void on_text(wxCommandEvent& evt);
+    void on_dpi_changed(const wxRect& suggested_rect) override;
+};
+#pragma endregion
+
+wxDECLARE_EVENT(EVT_CLOSE_IPADDRESS_DLG, wxCommandEvent);
+wxDECLARE_EVENT(EVT_CHECKBOX_CHANGE, wxCommandEvent);
+wxDECLARE_EVENT(EVT_ENTER_IP_ADDRESS, wxCommandEvent);
+wxDECLARE_EVENT(EVT_CHECK_IP_ADDRESS_LAYOUT, wxCommandEvent);
+
+#pragma region  PhrozenIpConnectDialog
+class PhrozenIpConnectDialog : public DPIDialog
+{
+public:
+    PhrozenIpConnectDialog(wxWindow* parent = nullptr);
+    ~PhrozenIpConnectDialog();
+
+    void set_ip_address(const std::string& ip);
+    int ShowModal() wxOVERRIDE;
+    bool IsConnectSuccess() { return m_bSuccess; }
+
+private:
+    void start_connect();
+    boost::thread* m_thread{nullptr};
+    std::string m_ip_address;
+
+    Label* m_test_msg{ nullptr };
+    wxTimer* closeTimer{ nullptr };
+    int closeCount{3};
+    std::shared_ptr<BBLStatusBarSend> m_status_bar;
+    bool m_bSuccess = false;
+
+    void on_cancel();
+    void post_update_msg(wxString text, bool is_error);
+    void update_msg_event(wxCommandEvent& evt);
+    void workerConnectThreadFunc(std::string str_ip);
+    void OnTimer(wxTimerEvent& event);
+    void on_dpi_changed(const wxRect& suggested_rect) override;
+};
+
+wxDECLARE_EVENT(EVT_UPDATE_CONNECT_MSG, wxCommandEvent);
+#pragma endregion 
 
 class PhrozenMachineObjectPanel : public wxPanel
 {
@@ -140,19 +211,17 @@ public:
     PhrozenMachineObjectPanel *mPanel;
 };
 
-class PhrozenPinCodePanel : public wxPanel
+class PhrozenIpKeyInButton : public wxPanel
 {
 public:
-    PhrozenPinCodePanel(wxWindow* parent,
-        int type,
+    PhrozenIpKeyInButton(wxWindow* parent,
         wxWindowID      winid = wxID_ANY,
         const wxPoint& pos = wxDefaultPosition,
         const wxSize& size = wxDefaultSize);
-    ~PhrozenPinCodePanel() {};
+    ~PhrozenIpKeyInButton() {};
 
     ScalableBitmap       m_bitmap;
     bool           m_hover{false};
-    PhrozenPinCodePanelType            m_type{PhrozenPinCodePanelType::BindWithIP};
 
     void OnPaint(wxPaintEvent& event);
     void render(wxDC& dc);
@@ -182,8 +251,7 @@ public:
 private:
     int                               m_my_devices_count{0};
     int                               m_other_devices_count{0};
-    PhrozenPinCodePanel*              m_panel_ping_code{nullptr};
-    PhrozenPinCodePanel*              m_panel_direct_connection{nullptr};
+    PhrozenIpKeyInButton*             m_panel_direct_connection{nullptr};
     wxWindow*                         m_placeholder_panel{nullptr};
     wxHyperlinkCtrl*                  m_hyperlink{nullptr};
     Label*                            m_ping_code_text{nullptr};

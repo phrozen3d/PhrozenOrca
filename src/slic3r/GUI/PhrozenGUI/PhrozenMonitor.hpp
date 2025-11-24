@@ -46,6 +46,7 @@
 
 namespace Slic3r {
 namespace GUI {
+class PhrozenSelectMachinePopup;
 
 class PhrozenMonitorPanel : public wxPanel
 {
@@ -63,7 +64,8 @@ private:
     wxStaticText*   m_staticText_printer_name;
     wxStaticBitmap* m_bitmap_wifi_signal;
     wxBoxSizer *    m_side_tools_sizer;
-    SelectMachinePopup m_select_machine;
+    //SelectMachinePopup m_select_machine;
+    PhrozenSelectMachinePopup* m_select_machine{nullptr};
       
 	/* images */
     wxBitmap m_signal_strong_img;
