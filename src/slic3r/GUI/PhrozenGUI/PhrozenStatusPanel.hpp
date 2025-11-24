@@ -270,11 +270,6 @@ public:
     wxStaticText *  m_staticText_timelapse;
     SwitchButton *  m_bmToggleBtn_timelapse;
 
-    wxStaticBitmap *m_bitmap_camera_img;
-    wxStaticBitmap *m_bitmap_recording_img;
-    wxStaticBitmap *m_bitmap_timelapse_img;
-    wxStaticBitmap* m_bitmap_vcamera_img;
-    wxStaticBitmap *m_bitmap_sdcard_img;
     wxStaticBitmap *m_bitmap_static_use_time;
     wxStaticBitmap *m_bitmap_static_use_weight;
     wxStaticBitmap* m_camera_switch_button;

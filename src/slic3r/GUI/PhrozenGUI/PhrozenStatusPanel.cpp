@@ -954,25 +954,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     });
 #endif
 
-    //m_bitmap_camera_img = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, m_bitmap_camera , wxDefaultPosition, wxSize(FromDIP(32), FromDIP(18)), 0);
-    //m_bitmap_camera_img->SetMinSize(wxSize(FromDIP(32), FromDIP(18)));
-    //bSizer_monitoring_title->Add(m_bitmap_camera_img, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-
-    m_bitmap_sdcard_img = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
-    m_bitmap_sdcard_img->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-
-    m_bitmap_timelapse_img = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
-    m_bitmap_timelapse_img->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    m_bitmap_timelapse_img->Hide();
-
-    m_bitmap_recording_img = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
-    m_bitmap_recording_img->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    m_bitmap_timelapse_img->Hide();
-
-    m_bitmap_vcamera_img = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
-    m_bitmap_vcamera_img->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    m_bitmap_vcamera_img->Hide();
-
     m_setting_button = new CameraItem(m_panel_monitoring_title, "camera_setting", "camera_setting_hover");
     m_setting_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
     m_setting_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
@@ -988,20 +969,12 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
         )";
         //m_custom_camera_view->RunScript(js_request_pip);
     });
-    m_camera_switch_button->Hide();
+    //m_camera_switch_button->Hide();
 
-    m_bitmap_sdcard_img->SetToolTip(_L("Storage"));
-    m_bitmap_timelapse_img->SetToolTip(_L("Timelapse"));
-    m_bitmap_recording_img->SetToolTip(_L("Video"));
-    m_bitmap_vcamera_img->SetToolTip(_L("Go Live"));
     m_setting_button->SetToolTip(_L("Camera Setting"));
     m_camera_switch_button->SetToolTip(_L("Switch Camera View"));
 
     bSizer_monitoring_title->Add(m_camera_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-    bSizer_monitoring_title->Add(m_bitmap_sdcard_img, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-    bSizer_monitoring_title->Add(m_bitmap_timelapse_img, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-    bSizer_monitoring_title->Add(m_bitmap_recording_img, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-    bSizer_monitoring_title->Add(m_bitmap_vcamera_img, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
     bSizer_monitoring_title->Add(m_setting_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
 
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0);
@@ -2364,17 +2337,9 @@ void PhrozenStatusPanel::update_camera_state(MachineObject* obj)
     // sdcard
     if (m_last_sdcard != (int) obj->get_sdcard_state()) {
         if (obj->get_sdcard_state() == MachineObject::SdcardState::NO_SDCARD) {
-            m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_no.bmp());
-            m_bitmap_sdcard_img->SetToolTip(_L("No Storage"));
         } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_NORMAL) {
-            m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_normal.bmp());
-            m_bitmap_sdcard_img->SetToolTip(_L("Storage"));
         } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_ABNORMAL) {
-            m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_abnormal.bmp());
-            m_bitmap_sdcard_img->SetToolTip(_L("Storage Abnormal"));
         } else {
-            m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_normal.bmp());
-            m_bitmap_sdcard_img->SetToolTip(_L("Storage"));
         }
         m_last_sdcard = (int) obj->get_sdcard_state();
     }
@@ -2382,50 +2347,32 @@ void PhrozenStatusPanel::update_camera_state(MachineObject* obj)
     // recording
     if (m_last_recording != (obj->is_recording() ? 1 : 0)) {
         if (obj->is_recording()) {
-            m_bitmap_recording_img->SetBitmap(m_bitmap_recording_on.bmp());
         } else {
-            m_bitmap_recording_img->SetBitmap(m_bitmap_recording_off.bmp());
         }
         m_last_recording = obj->is_recording() ? 1 : 0;
     }
-    if (!m_bitmap_recording_img->IsShown())
-        m_bitmap_recording_img->Show();
 
-    /*if (m_bitmap_recording_img->IsShown())
-        m_bitmap_recording_img->Hide();*/
 
     // timelapse
     if (obj->is_support_timelapse) {
         if (m_last_timelapse != (obj->is_timelapse() ? 1 : 0)) {
             if (obj->is_timelapse()) {
-                m_bitmap_timelapse_img->SetBitmap(m_bitmap_timelapse_on.bmp());
             } else {
-                m_bitmap_timelapse_img->SetBitmap(m_bitmap_timelapse_off.bmp());
             }
             m_last_timelapse = obj->is_timelapse() ? 1 : 0;
         }
-        if (!m_bitmap_timelapse_img->IsShown())
-            m_bitmap_timelapse_img->Show();
     } else {
-        if (m_bitmap_timelapse_img->IsShown())
-            m_bitmap_timelapse_img->Hide();
     }
 
     // vcamera
     //if (obj->virtual_camera) {
     //    if (m_last_vcamera != (m_media_play_ctrl->IsStreaming() ? 1 : 0)) {
     //        if (m_media_play_ctrl->IsStreaming()) {
-    //            m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
     //        } else {
-    //            m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
     //        }
     //        m_last_vcamera = m_media_play_ctrl->IsStreaming() ? 1 : 0;
     //    }
-    //    if (!m_bitmap_vcamera_img->IsShown())
-    //        m_bitmap_vcamera_img->Show();
     //} else {
-    //    if (m_bitmap_vcamera_img->IsShown())
-    //        m_bitmap_vcamera_img->Hide();
     //}
 
     // camera setting
@@ -4362,9 +4309,6 @@ void PhrozenStatusPanel::set_default()
     m_show_ams_group = false;
     reset_printing_values();
 
-    m_bitmap_timelapse_img->Hide();
-    m_bitmap_recording_img->Hide();
-    m_bitmap_vcamera_img->Hide();
     #if HideOriginUiWidget
     m_setting_button->Show();
     m_tempCtrl_chamber->Show();
@@ -4417,34 +4361,24 @@ void PhrozenStatusPanel::rescale_camera_icons()
     m_bitmap_vcamera_off = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_vcamera_off_dark":"monitor_vcamera_off", 20);
 
     //if (m_media_play_ctrl->IsStreaming()) {
-    //    m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_on.bmp());
     //}
     //else {
-    //    m_bitmap_vcamera_img->SetBitmap(m_bitmap_vcamera_off.bmp());
     //}
 
     if (!obj) return;
 
     if (obj->get_sdcard_state() == MachineObject::SdcardState::NO_SDCARD) {
-        m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_no.bmp());
     } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_NORMAL) {
-        m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_normal.bmp());
     } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_ABNORMAL) {
-        m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_abnormal.bmp());
     } else {
-        m_bitmap_sdcard_img->SetBitmap(m_bitmap_sdcard_state_normal.bmp());
     }
 
     if (obj->is_recording()) {
-        m_bitmap_recording_img->SetBitmap(m_bitmap_recording_on.bmp());
     } else {
-        m_bitmap_recording_img->SetBitmap(m_bitmap_recording_off.bmp());
     }
 
     if (obj->is_timelapse()) {
-        m_bitmap_timelapse_img->SetBitmap(m_bitmap_timelapse_on.bmp());
     } else {
-        m_bitmap_timelapse_img->SetBitmap(m_bitmap_timelapse_off.bmp());
     }
 }
 
