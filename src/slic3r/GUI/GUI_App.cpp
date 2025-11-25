@@ -6907,7 +6907,9 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
 {
     MonitorControl::SetIp( strIp );
     CURLcode kResult = MonitorControl::Initialconnect();
-
+    //trigger ams update query command after connect to speicified IP address (Printer)
+    MonitorControl::threadControl.first_time_to_send_query = true;
+    
     if ( kResult != CURLcode::CURLE_OK )
     {
         MonitorControl::m_pWebServiceInfo->ip = "";

@@ -28,7 +28,20 @@ public:
     virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) override;
     virtual int GetPhrozenBedTemperature_limit() override;
     virtual int GetPhrozenNozzleTemperature_limit() override;
+    // print states
+    virtual std::string GetPhrozenPrintStatus() override;
+    virtual std::string GetPhrozenPrintFile() override;
+    virtual std::string GetPhrozenThumbnailPath() override;
+    virtual void GetPhrozenThumbnailInfo(std::string) override;
+    virtual void GetPhrozenThumbnailImage(std::string) override;
+    virtual bool GetPhrozenThumbnailAsBitmap(const std::string& gcodeName, wxBitmap& thumbnailBitmap) override;
+    virtual float GetPhrozenPrintProgress() override;
+    virtual float GetPhrozenPrintTime() override;
+    virtual float GetPhrozenTotalTime() override;
+    virtual float GetPhrozenPrintFilamentAmount() override;
+    virtual bool IsPrintPaused() override;
 
+    
     // set command to machine
     //control
     virtual void SetPhrozenCommand_bed_temp( int nTemp ) override;
@@ -44,6 +57,10 @@ public:
     virtual void SetPhrozenCommand_unload(int filament_id) override;
     virtual void SetPhrozenCommand_unload_all_slots() override;
     virtual void SetPhrozenCommand_nozzle_filament_check() override;
+    //print control pause, resume,abort
+    virtual bool SetPhrozenCommand_pause() override;
+    virtual bool SetPhrozenCommand_resume() override;
+    virtual bool SetPhrozenCommand_abort() override;
 
     virtual bool IsPhrozenConnected() override;
     virtual bool IsPhrozenStartReceiving() override;

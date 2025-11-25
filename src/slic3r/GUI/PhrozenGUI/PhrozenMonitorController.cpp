@@ -3,6 +3,9 @@
 #include <codecvt>
 #include <cctype>
 #include <iostream>
+#include <sstream>
+#include <boost/beast/core/detail/base64.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #ifdef __APPLE__
 #include <thread>
 #include <chrono>
@@ -2358,34 +2361,103 @@ void GetThumbnailInfo(std::string gcode)
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5);
 
+        BOOST_LOG_TRIVIAL(info) << "GetThumbnailInfo: Requesting thumbnail info from URL: " << url;
         result = curl_easy_perform(curl);
 
         if (result == CURLE_OK)
         {
-            m_pWebServiceInfo->jsonThumbnailsInfoData = json::parse(*m_pWebServiceInfo->responseData.get());
+            // Log the raw response for debugging
+            std::string raw_response = *m_pWebServiceInfo->responseData.get();
+            std::cout << "[GetThumbnailInfo] Raw JSON response (full): " << raw_response << std::endl;
+            BOOST_LOG_TRIVIAL(debug) << "GetThumbnailInfo: Raw response: " << raw_response;
+            
+            m_pWebServiceInfo->jsonThumbnailsInfoData = json::parse(raw_response);
             json j = m_pWebServiceInfo->jsonThumbnailsInfoData;
 
-            if (j["result"].is_array()) {
-                for (const auto& result : j["result"]) {
-
-                    std::string image = result["thumbnail_path"].get<std::string>();
-                    m_pPrinterInfo->thumbnail_path = result["thumbnail_path"].get<std::string>();
+            if (j["result"].is_array() && !j["result"].empty()) {
+                // Find the largest thumbnail (prefer larger sizes for better quality)
+                std::string largest_thumbnail_path;
+                int largest_size = 0;
+                
+                for (const auto& result_item : j["result"]) {
+                    if (result_item.contains("thumbnail_path")) {
+                        std::string thumbnail_path = result_item["thumbnail_path"].get<std::string>();
+                        
+                        // Try to extract size from path (e.g., "thumbnails/TEST.gcode.32x30.png")
+                        int size = 0;
+                        if (result_item.contains("width") && result_item.contains("height")) {
+                            int width = result_item["width"].get<int>();
+                            int height = result_item["height"].get<int>();
+                            size = width * height;  // Use area as size metric
+                        } else {
+                            // If no size info, estimate from filename
+                            size_t pos = thumbnail_path.find_last_of('.');
+                            if (pos != std::string::npos) {
+                                std::string base = thumbnail_path.substr(0, pos);
+                                size_t x_pos = base.find_last_of('x');
+                                if (x_pos != std::string::npos) {
+                                    try {
+                                        int w = std::stoi(base.substr(base.find_last_not_of("0123456789x", x_pos) + 1, x_pos));
+                                        int h = std::stoi(base.substr(x_pos + 1));
+                                        size = w * h;
+                                    } catch (...) {
+                                        size = 0;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        std::cout << "[GetThumbnailInfo] Found thumbnail_path: \"" << thumbnail_path 
+                                  << "\" (estimated size: " << size << ")" << std::endl;
+                        
+                        if (size > largest_size) {
+                            largest_size = size;
+                            largest_thumbnail_path = thumbnail_path;
+                        }
+                    }
+                }
+                
+                if (!largest_thumbnail_path.empty()) {
+                    m_pPrinterInfo->thumbnail_path = largest_thumbnail_path;
+                    std::cout << "[GetThumbnailInfo] Selected largest thumbnail: \"" << largest_thumbnail_path 
+                              << "\" (size: " << largest_size << ")" << std::endl;
+                    BOOST_LOG_TRIVIAL(info) << "GetThumbnailInfo: Selected largest thumbnail_path: \"" << largest_thumbnail_path << "\"";
+                } else {
+                    // Fallback: use first thumbnail if no size info available
+                    for (const auto& result_item : j["result"]) {
+                        if (result_item.contains("thumbnail_path")) {
+                            m_pPrinterInfo->thumbnail_path = result_item["thumbnail_path"].get<std::string>();
+                            std::cout << "[GetThumbnailInfo] Using first thumbnail (no size info): \"" 
+                                      << m_pPrinterInfo->thumbnail_path << "\"" << std::endl;
+                            BOOST_LOG_TRIVIAL(info) << "GetThumbnailInfo: Found thumbnail_path: \"" << m_pPrinterInfo->thumbnail_path << "\"";
+                            break;
+                        }
+                    }
+                }
+                
+                // If no thumbnail_path found in array, log warning
+                if (m_pPrinterInfo->thumbnail_path.empty()) {
+                    BOOST_LOG_TRIVIAL(warning) << "GetThumbnailInfo: No thumbnail_path found in result array for gcode: \"" << gcode << "\"";
+                    BOOST_LOG_TRIVIAL(debug) << "GetThumbnailInfo: Full JSON response: " << j.dump(2);
                 }
             }
             else {
-                DebugOutput( "Invalid JSON format or missing 'jobs' array."  );
+                BOOST_LOG_TRIVIAL(warning) << "GetThumbnailInfo: Invalid JSON format or empty result array for gcode: \"" << gcode << "\"";
+                BOOST_LOG_TRIVIAL(debug) << "GetThumbnailInfo: Full JSON response: " << j.dump(2);
+                DebugOutput("Invalid JSON format or missing 'result' array.");
             }
-            //inputFile.close();
+        }
+        else {
+            BOOST_LOG_TRIVIAL(error) << "GetThumbnailInfo: CURL request failed: " << curl_easy_strerror(result);
         }
     }
     else {
-        //return CURLE_FAILED_INIT;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailInfo: Failed to initialize CURL";
     }
 
     //6. finish and close curl         
     curl_easy_cleanup(curl);
     curl_global_cleanup();
-    //return result;
 }
 
 bool GetThumbnailImage(std::string printingfile)
@@ -2447,6 +2519,257 @@ bool GetThumbnailImage(std::string printingfile)
         fclose(fp);
     }
     return res;
+}
+
+// Memory write callback for thumbnail download
+static size_t WriteThumbnailMemoryCallback(void* contents, size_t size, size_t nmemb, void* userp)
+{
+    size_t realsize = size * nmemb;
+    std::vector<unsigned char>* mem = static_cast<std::vector<unsigned char>*>(userp);
+    
+    if (mem == nullptr) {
+        return 0;
+    }
+    
+    // Append data to vector
+    const unsigned char* data = static_cast<const unsigned char*>(contents);
+    mem->insert(mem->end(), data, data + realsize);
+    
+    return realsize;
+}
+
+bool GetThumbnailImageInMemory(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data)
+{
+    thumbnail_data.clear();
+    
+    // ============================================
+    // Step 1: Get thumbnail path information
+    // ============================================
+    try {
+        GetThumbnailInfo(gcodeName);
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailImageInMemory: "
+                                 << "Failed to get thumbnail info for gcode: " 
+                                 << gcodeName << ", error: " << e.what();
+        return false;
+    }
+    
+    // Check if thumbnail path was successfully retrieved
+    std::string thumbnail_path = m_pPrinterInfo->thumbnail_path;
+    if (thumbnail_path.empty()) {
+        BOOST_LOG_TRIVIAL(warning) << "GetThumbnailImageInMemory: "
+                                    << "Thumbnail path is empty for gcode: " << gcodeName;
+        return false;
+    }
+    
+    // ============================================
+    // Step 2: Download thumbnail image to memory
+    // ============================================
+    CURL* curl = nullptr;
+    CURLcode result = CURLE_FAILED_INIT;
+    
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    
+    if (!curl) {
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailImageInMemory: Failed to initialize CURL";
+        curl_global_cleanup();
+        return false;
+    }
+    
+    // Build download URL
+    std::string url = "http://" + m_pWebServiceInfo->ip 
+                     + m_pWebServiceInfo->port_device 
+                     + "/server/files/gcodes/" + thumbnail_path;
+    
+    // Set CURL options
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteThumbnailMemoryCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &thumbnail_data);  // Write to memory
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+    
+    std::cout << "[GetThumbnailImageInMemory] Downloading thumbnail from: " << url << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "GetThumbnailImageInMemory: Downloading from " << url;
+    
+    result = curl_easy_perform(curl);
+    
+    bool download_success = false;
+    if (result == CURLE_OK) {
+        if (!thumbnail_data.empty()) {
+            download_success = true;
+            std::cout << "[GetThumbnailImageInMemory] Successfully downloaded " << thumbnail_data.size() 
+                      << " bytes for gcode: " << gcodeName << std::endl;
+            BOOST_LOG_TRIVIAL(info) << "GetThumbnailImageInMemory: "
+                                    << "Successfully downloaded " << thumbnail_data.size() 
+                                    << " bytes for gcode: " << gcodeName;
+        } else {
+            BOOST_LOG_TRIVIAL(warning) << "GetThumbnailImageInMemory: "
+                                       << "Downloaded data is empty";
+        }
+    } else {
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailImageInMemory: "
+                                 << "CURL error: " << curl_easy_strerror(result);
+    }
+    
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    
+    return download_success;
+}
+
+// Extract thumbnail from GCode file (higher resolution)
+bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data)
+{
+    thumbnail_data.clear();
+    
+    std::cout << "[GetThumbnailFromGCodeFile] Attempting to extract thumbnail from GCode file: \"" << gcodeName << "\"" << std::endl;
+    
+    // ============================================
+    // Step 1: Download GCode file to memory
+    // ============================================
+    std::vector<unsigned char> gcode_data;
+    CURL* curl = nullptr;
+    CURLcode result = CURLE_FAILED_INIT;
+    
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    
+    if (!curl) {
+        std::cout << "[GetThumbnailFromGCodeFile] ERROR - Failed to initialize CURL" << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailFromGCodeFile: Failed to initialize CURL";
+        curl_global_cleanup();
+        return false;
+    }
+    
+    // Build GCode file download URL
+    std::string url = "http://" + m_pWebServiceInfo->ip 
+                     + m_pWebServiceInfo->port_device 
+                     + "/server/files/gcodes/" + gcodeName;
+    
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteThumbnailMemoryCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gcode_data);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Longer timeout for GCode file
+    
+    std::cout << "[GetThumbnailFromGCodeFile] Downloading GCode file from: " << url << std::endl;
+    result = curl_easy_perform(curl);
+    
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    
+    if (result != CURLE_OK || gcode_data.empty()) {
+        std::cout << "[GetThumbnailFromGCodeFile] ERROR - Failed to download GCode file: " 
+                  << (result != CURLE_OK ? curl_easy_strerror(result) : "empty data") << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailFromGCodeFile: Failed to download GCode file";
+        return false;
+    }
+    
+    std::cout << "[GetThumbnailFromGCodeFile] Downloaded " << gcode_data.size() << " bytes of GCode data" << std::endl;
+    
+    // ============================================
+    // Step 2: Parse GCode file and extract thumbnail
+    // ============================================
+    const std::string BEGIN_MASK = "; thumbnail begin";
+    const std::string END_MASK = "; thumbnail end";
+    
+    // Convert vector to string for parsing
+    std::string gcode_content(reinterpret_cast<const char*>(gcode_data.data()), gcode_data.size());
+    std::istringstream gcode_stream(gcode_content);
+    std::string line;
+    
+    bool reading_thumbnail = false;
+    std::string thumbnail_base64;
+    unsigned int thumbnail_width = 0;
+    unsigned int thumbnail_height = 0;
+    int largest_size = 0;
+    std::string largest_thumbnail_base64;
+    unsigned int largest_width = 0;
+    unsigned int largest_height = 0;
+    
+    while (std::getline(gcode_stream, line)) {
+        if (boost::starts_with(line, BEGIN_MASK)) {
+            // Extract dimensions from line like "; thumbnail begin 240x224 12880"
+            std::string dims_line = line.substr(BEGIN_MASK.length() + 1);
+            std::istringstream dims_stream(dims_line);
+            std::string dims_str;
+            dims_stream >> dims_str;  // Get "240x224"
+            
+            size_t x_pos = dims_str.find('x');
+            if (x_pos != std::string::npos) {
+                try {
+                    unsigned int width = std::stoi(dims_str.substr(0, x_pos));
+                    unsigned int height = std::stoi(dims_str.substr(x_pos + 1));
+                    int size = width * height;
+                    
+                    std::cout << "[GetThumbnailFromGCodeFile] Found thumbnail in GCode: " 
+                              << width << "x" << height << " (size: " << size << ")" << std::endl;
+                    
+                    // Keep track of largest thumbnail
+                    if (size > largest_size) {
+                        largest_size = size;
+                        largest_width = width;
+                        largest_height = height;
+                        largest_thumbnail_base64.clear();
+                        reading_thumbnail = true;
+                    } else {
+                        reading_thumbnail = false;
+                    }
+                } catch (...) {
+                    reading_thumbnail = false;
+                }
+            }
+        } else if (reading_thumbnail && boost::starts_with(line, END_MASK)) {
+            reading_thumbnail = false;
+        } else if (reading_thumbnail && line.length() > 2 && line[0] == ';' && line[1] == ' ') {
+            // Append base64 data (skip "; " prefix)
+            largest_thumbnail_base64 += line.substr(2);
+        }
+    }
+    
+    if (largest_thumbnail_base64.empty()) {
+        std::cout << "[GetThumbnailFromGCodeFile] WARNING - No thumbnail found in GCode file" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "GetThumbnailFromGCodeFile: No thumbnail found in GCode file";
+        return false;
+    }
+    
+    std::cout << "[GetThumbnailFromGCodeFile] Extracted largest thumbnail: " 
+              << largest_width << "x" << largest_height 
+              << " (base64 length: " << largest_thumbnail_base64.length() << ")" << std::endl;
+    
+    // ============================================
+    // Step 3: Decode base64 to binary
+    // ============================================
+    try {
+        thumbnail_data.resize(boost::beast::detail::base64::decoded_size(largest_thumbnail_base64.size()));
+        auto decode_result = boost::beast::detail::base64::decode(
+            thumbnail_data.data(), 
+            largest_thumbnail_base64.data(), 
+            largest_thumbnail_base64.size()
+        );
+        thumbnail_data.resize(decode_result.first);
+        
+        std::cout << "[GetThumbnailFromGCodeFile] Successfully decoded thumbnail: " 
+                  << largest_width << "x" << largest_height 
+                  << " (" << thumbnail_data.size() << " bytes)" << std::endl;
+        BOOST_LOG_TRIVIAL(info) << "GetThumbnailFromGCodeFile: Successfully extracted thumbnail " 
+                                 << largest_width << "x" << largest_height 
+                                 << " from GCode file";
+        return true;
+    } catch (const std::exception& e) {
+        std::cout << "[GetThumbnailFromGCodeFile] ERROR - Failed to decode base64: " << e.what() << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailFromGCodeFile: Failed to decode base64: " << e.what();
+        return false;
+    }
 }
 
 int GetMachineList()

@@ -7,6 +7,9 @@
 #include "PhrozenMonitorController.hpp"
 #include <algorithm>
 #include <cmath>
+#include <wx/image.h>
+#include <wx/mstream.h>
+#include <boost/log/trivial.hpp>
 //#include "GUI_App.hpp"
 //#include "MsgDialog.hpp"
 //#include "Plater.hpp"
@@ -110,6 +113,158 @@ int PhrozenMachineObject::GetPhrozenNozzleTemperature_limit()
 {
     //todo get from machine?
     return 300;
+}
+
+std::string PhrozenMachineObject::GetPhrozenPrintStatus()
+{
+    return MonitorControl::m_pPrinterInfo->state;
+}
+
+std::string PhrozenMachineObject::GetPhrozenPrintFile()
+{
+    return MonitorControl::m_pPrinterInfo->print_file;
+}
+
+std::string PhrozenMachineObject::GetPhrozenThumbnailPath()
+{
+    return MonitorControl::m_pPrinterInfo->thumbnail_path;
+}
+
+void PhrozenMachineObject::GetPhrozenThumbnailInfo(std::string gcodeName)
+{
+    //get gcode path of printer storage by gcode name
+    MonitorControl::GetThumbnailInfo(gcodeName);
+}
+
+void PhrozenMachineObject::GetPhrozenThumbnailImage(std::string thumbnailPath)
+{
+    //generate thumbnail image of local folder by gcode path
+    MonitorControl::GetThumbnailImage(thumbnailPath);
+}
+
+bool PhrozenMachineObject::GetPhrozenThumbnailAsBitmap(const std::string& gcodeName, wxBitmap& thumbnailBitmap)
+{
+    // ============================================
+    // Step 1: Try to get thumbnail from GCode file first
+    // ============================================
+    std::vector<unsigned char> thumbnail_data;
+    bool download_success = MonitorControl::GetThumbnailFromGCodeFile(gcodeName, thumbnail_data);
+    
+    // ============================================
+    // Step 2: If failed, try to get thumbnail image via HTTP API (fallback)
+    // ============================================
+    // 因為先採用直接解析Gcode內容的縮圖資料來生成UI想要顯示的縮圖圖片檔案，所以暫時先不多執行這一個動作，但先保留，之後如果有需要可以
+    //if (!download_success || thumbnail_data.empty()) {
+    //    std::cout << "[GetPhrozenThumbnailAsBitmap] Failed to get thumbnail from GCode, trying HTTP API fallback..." << std::endl;
+        //download_success = MonitorControl::GetThumbnailImageInMemory(gcodeName, thumbnail_data);
+    //}
+    
+    if (!download_success || thumbnail_data.empty()) {
+        std::cout << "[GetPhrozenThumbnailAsBitmap] ERROR - Failed to get thumbnail for gcode: " << gcodeName << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetPhrozenThumbnailAsBitmap: "
+                                 << "Failed to download thumbnail image (both GCode extraction and HTTP API failed) for gcode: " << gcodeName;
+        return false;
+    }
+    
+    // ============================================
+    // Step 2: Convert memory data to wxBitmap with highest quality
+    // ============================================
+    try {
+        // Create memory input stream from vector data
+        wxMemoryInputStream mem_stream(thumbnail_data.data(), thumbnail_data.size());
+        
+        std::cout << "[GetPhrozenThumbnailAsBitmap] Loading image from memory, data size: " 
+                  << thumbnail_data.size() << " bytes" << std::endl;
+        
+        // Load image from memory stream (try PNG first as it's usually highest quality)
+        wxImage thumbnail_image;
+        bool load_success = false;
+        
+        // Try PNG first (usually highest quality, lossless)
+        mem_stream.SeekI(0);
+        load_success = thumbnail_image.LoadFile(mem_stream, wxBITMAP_TYPE_PNG);
+        
+        if (!load_success) {
+            // Try JPEG
+            mem_stream.SeekI(0);
+            load_success = thumbnail_image.LoadFile(mem_stream, wxBITMAP_TYPE_JPEG);
+        }
+        
+        if (!load_success) {
+            // Try auto-detect
+            mem_stream.SeekI(0);
+            load_success = thumbnail_image.LoadFile(mem_stream);
+        }
+        
+        if (!load_success) {
+            // Try BMP as last resort
+            mem_stream.SeekI(0);
+            load_success = thumbnail_image.LoadFile(mem_stream, wxBITMAP_TYPE_BMP);
+        }
+        
+        if (load_success && thumbnail_image.IsOk()) {
+            // Ensure image has alpha channel if original had it (preserve transparency)
+            if (!thumbnail_image.HasAlpha() && thumbnail_image.HasMask()) {
+                thumbnail_image.InitAlpha();
+            }
+            
+            // Log image properties for debugging
+            std::cout << "[GetPhrozenThumbnailAsBitmap] Image loaded successfully: " 
+                      << thumbnail_image.GetWidth() << "x" << thumbnail_image.GetHeight()
+                      << ", HasAlpha: " << (thumbnail_image.HasAlpha() ? "yes" : "no")
+                      << ", HasMask: " << (thumbnail_image.HasMask() ? "yes" : "no") << std::endl;
+            
+            // Convert wxImage to wxBitmap with highest quality
+            // On macOS, use scale factor to preserve quality for Retina displays
+            #ifdef __APPLE__
+            thumbnailBitmap = wxBitmap(thumbnail_image, -1, 1.0);  // Use scale factor 1.0 to preserve original quality
+            #else
+            thumbnailBitmap = wxBitmap(thumbnail_image);
+            #endif
+            
+            std::cout << "[GetPhrozenThumbnailAsBitmap] Successfully converted to wxBitmap: " 
+                      << thumbnail_image.GetWidth() << "x" << thumbnail_image.GetHeight() 
+                      << " (data size: " << thumbnail_data.size() << " bytes)" << std::endl;
+            BOOST_LOG_TRIVIAL(info) << "GetPhrozenThumbnailAsBitmap: "
+                                    << "Successfully converted to wxBitmap: " 
+                                    << thumbnail_image.GetWidth() << "x" 
+                                    << thumbnail_image.GetHeight();
+            return true;
+        } else {
+            BOOST_LOG_TRIVIAL(error) << "GetPhrozenThumbnailAsBitmap: "
+                                     << "Failed to load image from memory data";
+            return false;
+        }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "GetPhrozenThumbnailAsBitmap: "
+                                 << "Exception during image conversion: " << e.what();
+        return false;
+    }
+}
+
+float PhrozenMachineObject::GetPhrozenPrintProgress()
+{
+    return MonitorControl::m_pPrinterInfo->print_progress;
+}
+
+float PhrozenMachineObject::GetPhrozenPrintTime()
+{
+    return MonitorControl::m_pPrinterInfo->print_time;
+}
+
+float PhrozenMachineObject::GetPhrozenTotalTime()
+{
+    return MonitorControl::m_pPrinterInfo->total_time;
+}
+
+float PhrozenMachineObject::GetPhrozenPrintFilamentAmount()
+{
+    return MonitorControl::m_pPrinterInfo->print_filament;
+}
+
+bool PhrozenMachineObject::IsPrintPaused()
+{
+    return MonitorControl::m_pPrinterInfo->is_paused;
 }
 
 void PhrozenMachineObject::SetPhrozenCommand_bed_temp( int nTemp ) 
@@ -515,6 +670,84 @@ void PhrozenMachineObject::SetPhrozenCommand_nozzle_filament_check()
     }
     catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_filament_check: Failed to create thread: " << e.what();
+    }
+}
+
+bool PhrozenMachineObject::SetPhrozenCommand_pause()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_pause: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_pause: Pausing print task";
+    
+    try {
+        std::thread threadForPause([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::printPause_http();
+        });
+        
+        threadForPause.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_pause: Failed to create thread: " << e.what();
+        return false;
+    }
+}
+
+bool PhrozenMachineObject::SetPhrozenCommand_resume()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_resume: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_resume: Resuming print task";
+    
+    try {
+        std::thread threadForResume([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::printResume_http();
+        });
+        
+        threadForResume.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_resume: Failed to create thread: " << e.what();
+        return false;
+    }
+}
+
+bool PhrozenMachineObject::SetPhrozenCommand_abort()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_abort: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_abort: Aborting print task";
+    
+    try {
+        std::thread threadForAbort([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::printStop_http();
+        });
+        
+        threadForAbort.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_abort: Failed to create thread: " << e.what();
+        return false;
     }
 }
 

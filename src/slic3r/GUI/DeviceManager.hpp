@@ -17,6 +17,10 @@
 #include "CameraPopup.hpp"
 #include "libslic3r/calib.hpp"
 #include "libslic3r/Utils.hpp"
+
+// Forward declaration for wxBitmap & GetPhrozenThumbnailAsBitmap 虛擬函式用
+class wxBitmap;
+
 #define USE_LOCAL_SOCKET_BIND 0
 
 #define DISCONNECT_TIMEOUT      30000.f     // milliseconds
@@ -428,6 +432,20 @@ public:
     virtual int GetPhrozenBedTemperature_limit() { return 300; }
     virtual int GetPhrozenNozzleTemperature_limit() { return 300; }
     virtual int GetPhrozenCoolingPower_limit() { return 100; }
+    // print states
+    virtual std::string GetPhrozenPrintStatus() { return ""; }
+    virtual std::string GetPhrozenPrintFile() { return ""; }
+    virtual std::string GetPhrozenThumbnailPath() { return ""; }
+    virtual void GetPhrozenThumbnailInfo(std::string) {  }
+    virtual void GetPhrozenThumbnailImage(std::string) {  }
+    // 透過前向宣告 class wxBitmap; 
+    // 這裡只需要宣告函數原型，編譯器就會知道 wxBitmap 是一個類別名稱
+    virtual bool GetPhrozenThumbnailAsBitmap(const std::string& gcodeName, wxBitmap& thumbnailBitmap) { return false; }
+    virtual float GetPhrozenPrintProgress() { return 0.0f; }
+    virtual float GetPhrozenPrintTime() { return 0.0f; }
+    virtual float GetPhrozenTotalTime() { return 0.0f; }
+    virtual float GetPhrozenPrintFilamentAmount() { return 0.0f; }
+    virtual bool IsPrintPaused() { return false; }
 
     //set command to machine
     //control
@@ -444,7 +462,11 @@ public:
     virtual void SetPhrozenCommand_unload(int filament_id) {};
     virtual void SetPhrozenCommand_unload_all_slots() {}
     virtual void SetPhrozenCommand_nozzle_filament_check() {};
-
+    //print control pause, resume,abort
+    virtual bool SetPhrozenCommand_pause()  {return false;};
+    virtual bool SetPhrozenCommand_resume()  {return false;};
+    virtual bool SetPhrozenCommand_abort()  {return false;};
+    
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }
 #pragma endregion

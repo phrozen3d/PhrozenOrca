@@ -956,6 +956,8 @@ struct HttpErrorInfo {
     void GetHistoryInfo_websocket();
     void GetThumbnailInfo(std::string gcode);
     bool GetThumbnailImage(std::string printingfile);
+    bool GetThumbnailImageInMemory(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data);
+    bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data);
     int GetMachineList();
     CURLcode GetLEDState();
 

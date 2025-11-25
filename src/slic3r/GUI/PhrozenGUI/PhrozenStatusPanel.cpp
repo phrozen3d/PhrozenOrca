@@ -26,6 +26,9 @@
 #include "PhrozenDeviceManager.hpp"
 #include "PhrozenFilamentControl.hpp"
 #include <iostream>
+#include <algorithm>
+#include <cctype>
+#include <cstring>
 
 #define HideOriginUiWidget 0
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
@@ -2701,37 +2704,165 @@ void PhrozenStatusPanel::on_market_retry(wxCommandEvent &event)
 
 void PhrozenStatusPanel::on_subtask_pause_resume(wxCommandEvent &event)
 {
-    if (obj) {
-        if (obj->can_resume()) {
-            BOOST_LOG_TRIVIAL(info) << "monitor: resume current print task dev_id =" << obj->dev_id;
-            obj->command_task_resume();
-        }  
-        else {
-            BOOST_LOG_TRIVIAL(info) << "monitor: pause current print task dev_id =" << obj->dev_id;
-            obj->command_task_pause();
-        } 
-        if (m_print_error_dlg) {
-            m_print_error_dlg->on_hide();
-        }if (m_print_error_dlg_no_action) {
-            m_print_error_dlg_no_action->on_hide();
-        }
-
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+#ifdef __APPLE__
+    if (!obj){
+        obj = wxGetApp().GetPhrozenMachineObject();
     }
+#endif
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::on_subtask_pause_resume: obj is nullptr, operation ignored";
+        return;
+    }
+    
+    // ============================================
+    // 獲取當前列印狀態並執行對應操作
+    // ============================================
+    bool is_paused = obj->IsPrintPaused();
+    
+    if (is_paused) {
+        // ============================================
+        // 執行續印操作
+        // ============================================
+        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::on_subtask_pause_resume: "
+                                << "Resuming print task, dev_id=" << obj->dev_id;
+        
+        bool result = obj->SetPhrozenCommand_resume();
+        if (!result) {
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::on_subtask_pause_resume: "
+                                     << "Failed to execute resume command, dev_id=" << obj->dev_id;
+        }
+    }
+    else {
+        // ============================================
+        // 執行暫停操作
+        // ============================================
+        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::on_subtask_pause_resume: "
+                                << "Pausing print task, dev_id=" << obj->dev_id;
+        
+        bool result = obj->SetPhrozenCommand_pause();
+        if (!result) {
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::on_subtask_pause_resume: "
+                                     << "Failed to execute pause command, dev_id=" << obj->dev_id;
+        }
+    }
+    
+    // ============================================
+    // TODO: 錯誤對話框處理邏輯
+    // 需要進一步確認用法與整合可行性
+    // ============================================
+    // 這段代碼的作用是在暫停/續印時隱藏錯誤對話框，但需要確認：
+    // 1. 是否應該在暫停/續印時自動隱藏錯誤對話框？
+    // 2. 錯誤對話框可能包含重要信息或操作按鈕，隱藏後用戶可能無法操作
+    // 3. 與 on_subtask_abort() 中的處理邏輯是否應該保持一致？
+    // 4. 是否應該根據錯誤類型或對話框狀態來決定是否隱藏？
+    /*
+    if (m_print_error_dlg) {
+        m_print_error_dlg->on_hide();
+    }
+    if (m_print_error_dlg_no_action) {
+        m_print_error_dlg_no_action->on_hide();
+    }
+    */
 }
 
 void PhrozenStatusPanel::on_subtask_abort(wxCommandEvent &event)
 {
+    // ============================================
+    // 防呆檢查：確保父視窗有效，保留原本的orca設計不動，但補上註解
+    // ============================================
+    // 為什麼需要這個檢查？
+    // 1. wxWidgets 對話框必須有一個有效的父視窗才能正確顯示和定位
+    // 2. 如果父視窗為 nullptr，創建對話框會導致程序崩潰或對話框無法正確顯示
+    // 3. 雖然在正常情況下 PhrozenStatusPanel 應該總是有父視窗，但在以下情況可能為 nullptr：
+    //    - 視窗正在銷毀過程中
+    //    - 視窗創建失敗或異常狀態
+    //    - 測試環境或特殊場景
+    // 4. 這是防禦性編程的最佳實踐，可以避免程序崩潰並提供清晰的錯誤日誌
+    wxWindow* parent = this->GetParent();
+    if (!parent) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::on_subtask_abort: "
+                                 << "Parent window is nullptr, cannot create abort dialog";
+        return;
+    }
+    
+    // ============================================
+    // 創建或獲取取消列印確認對話框（單例模式），保留原本的orca設計不動，但補上註解
+    // ============================================
+    // 為什麼需要檢查 abort_dlg == nullptr？
+    // 1. 單例模式：確保對話框只創建一次，避免重複創建造成資源浪費
+    // 2. 避免內存洩漏：如果每次點擊都創建新對話框而不刪除舊的，會導致內存洩漏
+    // 3. 避免多個對話框同時顯示：如果對話框已存在，應該復用現有實例而不是創建新的
+    // 4. 保持對話框狀態：復用現有對話框可以保留之前的配置和狀態
+    // 5. 性能考量：創建對話框是相對成本較高的操作，重復使用可以提升性能
     if (abort_dlg == nullptr) {
-        abort_dlg = new SecondaryCheckDialog(this->GetParent(), wxID_ANY, _L("Cancel print"));
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::on_subtask_abort: "
+                                 << "Creating new abort confirmation dialog";
+        
+        abort_dlg = new SecondaryCheckDialog(parent, wxID_ANY, _L("Cancel print"));
+        
+        // ============================================
+        // 綁定確認事件：執行取消列印操作，保留原本的orca設計不動，但補上註解
+        // ============================================
+        // 為什麼事件綁定只在創建時執行一次？
+        // 1. 避免重複綁定：如果每次創建都綁定，會導致同一個事件被多次處理
+        // 2. 事件處理器會累積：重複綁定會導致回調函數被多次調用，造成重複執行命令
+        // 3. 內存管理：每次綁定都會增加引用計數，重複綁定可能導致內存無法釋放
         abort_dlg->Bind(EVT_SECONDARY_CHECK_CONFIRM, [this](wxCommandEvent &e) {
-            if (obj) {
-                BOOST_LOG_TRIVIAL(info) << "monitor: stop current print task dev_id =" << obj->dev_id;
-                obj->command_task_abort(); 
+            // ============================================
+            // 防呆檢查：確保物件有效（在回調函數中）
+            // ============================================
+            // 為什麼在回調函數中還需要檢查 obj？
+            // 1. 異步執行：回調函數可能在按鈕點擊後延遲執行，此時 obj 可能已被清空或改變
+            // 2. 視窗生命週期：如果 PhrozenStatusPanel 正在銷毀，obj 可能已被設為 nullptr
+            // 3. 設備斷線：如果設備斷線，obj 可能被清空
+            // 4. 狀態變化：在用戶點擊確認和回調執行之間，obj 可能因為其他操作而改變
+            // 5. 防禦性編程：即使對話框是模態的，這個檢查也能防止潛在的崩潰
+            // 6. 與其他代碼保持一致：代碼庫中其他類似回調（如 show_error_message）也檢查 obj
+#ifdef __APPLE__
+            if (!obj){
+                obj = wxGetApp().GetPhrozenMachineObject();
+            }
+#endif
+            if (!obj) {
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::on_subtask_abort: "
+                                           << "obj is nullptr in confirmation callback, operation ignored";
+                return;
+            }
+            
+            BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::on_subtask_abort: "
+                                    << "User confirmed abort, executing stop command, dev_id=" << obj->dev_id;
+            
+            // ============================================
+            // 執行取消列印命令並檢查結果
+            // ============================================
+            // 為什麼需要檢查命令執行結果？
+            // 1. 錯誤處理：如果命令執行失敗，需要記錄錯誤日誌以便調試
+            // 2. 用戶反饋：雖然這裡沒有直接顯示錯誤給用戶，但日誌可以幫助後續改進
+            // 3. 狀態追蹤：了解命令執行成功率，有助於發現系統問題
+            bool result = obj->SetPhrozenCommand_abort();
+            if (!result) {
+                BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::on_subtask_abort: "
+                                         << "Failed to execute abort command, dev_id=" << obj->dev_id;
             }
         });
     }
+    
+    // ============================================
+    // 更新對話框文字並顯示
+    // ============================================
+    // 為什麼每次都要更新文字和顯示？
+    // 1. 確保文字是最新的：對話框文字可能需要根據當前狀態更新
+    // 2. 確保對話框可見：如果對話框之前被隱藏，需要重新顯示
+    // 3. 重置對話框狀態：確保對話框處於正確的初始狀態
+    // 4. 用戶體驗：即使對話框已存在，也要確保它正確顯示給用戶
     abort_dlg->update_text(_L("Are you sure you want to cancel this print?"));
     abort_dlg->on_show();
+    
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::on_subtask_abort: "
+                             << "Abort confirmation dialog shown";
 }
 
 void PhrozenStatusPanel::error_info_reset()
@@ -2754,33 +2885,33 @@ void PhrozenStatusPanel::on_webrequest_state(wxWebRequestEvent &evt)
 {
     BOOST_LOG_TRIVIAL(trace) << "monitor: monitor_panel web request state = " << evt.GetState();
     switch (evt.GetState()) {
-    case wxWebRequest::State_Completed: {
-        if (m_current_print_mode != PrintingTaskType::CALIBRATION ||(m_calib_mode == CalibMode::Calib_Flow_Rate && m_calib_method == CalibrationMethod::CALI_METHOD_MANUAL)) {
-            wxImage img(*evt.GetResponse().GetStream());
-            img_list.insert(std::make_pair(m_request_url, img));
-            wxImage resize_img = img.Scale(m_project_task_panel->get_bitmap_thumbnail()->GetSize().x, m_project_task_panel->get_bitmap_thumbnail()->GetSize().y, wxIMAGE_QUALITY_HIGH);
-            m_project_task_panel->set_thumbnail_img(resize_img);
-            m_project_task_panel->set_brightness_value(get_brightness_value(resize_img));
+        case wxWebRequest::State_Completed: {
+            if (m_current_print_mode != PrintingTaskType::CALIBRATION ||(m_calib_mode == CalibMode::Calib_Flow_Rate && m_calib_method == CalibrationMethod::CALI_METHOD_MANUAL)) {
+                wxImage img(*evt.GetResponse().GetStream());
+                img_list.insert(std::make_pair(m_request_url, img));
+                wxImage resize_img = img.Scale(m_project_task_panel->get_bitmap_thumbnail()->GetSize().x, m_project_task_panel->get_bitmap_thumbnail()->GetSize().y, wxIMAGE_QUALITY_HIGH);
+                m_project_task_panel->set_thumbnail_img(resize_img);
+                m_project_task_panel->set_brightness_value(get_brightness_value(resize_img));
+            }
+            if (obj) {
+                m_project_task_panel->set_plate_index(obj->m_plate_index);
+            } else {
+                m_project_task_panel->set_plate_index(-1);
+            }
+            task_thumbnail_state = ThumbnailState::TASK_THUMBNAIL;
+            break;
         }
-        if (obj) {
-            m_project_task_panel->set_plate_index(obj->m_plate_index);
-        } else {
+        case wxWebRequest::State_Failed:
+        case wxWebRequest::State_Cancelled:
+        case wxWebRequest::State_Unauthorized: {
+            m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
             m_project_task_panel->set_plate_index(-1);
+            task_thumbnail_state = ThumbnailState::BROKEN_IMG;
+            break;
         }
-        task_thumbnail_state = ThumbnailState::TASK_THUMBNAIL;
-        break;
-    }
-    case wxWebRequest::State_Failed:
-    case wxWebRequest::State_Cancelled:
-    case wxWebRequest::State_Unauthorized: {
-        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-        m_project_task_panel->set_plate_index(-1);
-        task_thumbnail_state = ThumbnailState::BROKEN_IMG;
-        break;
-    }
-    case wxWebRequest::State_Active:
-    case wxWebRequest::State_Idle: break;
-    default: break;
+        case wxWebRequest::State_Active:
+        case wxWebRequest::State_Idle: break;
+        default: break;
     }
 }
 
@@ -2813,6 +2944,10 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     if (!obj) return;
     m_project_task_panel->Freeze();
     //update_subtask(obj);
+    // ======================== //
+    // 更新各項列印相關資訊與狀態入口
+    // ======================== //
+    update_print_states(obj);
     m_project_task_panel->Thaw();
 
 #if !BBL_RELEASE_TO_PUBLIC
@@ -3742,6 +3877,784 @@ void PhrozenStatusPanel::update_subtask(MachineObject *obj)
     }
 
     Layout();
+}
+
+void PhrozenStatusPanel::update_print_states(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: obj is nullptr";
+        return;
+    }
+    
+    update_print_status(obj);
+    update_print_progress(obj);
+    update_print_file(obj);
+    update_print_time(obj);
+    update_print_stage(obj);
+    update_print_filament(obj);
+    update_thumbnail(obj);
+}
+
+void PhrozenStatusPanel::update_print_status(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_status: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取列印狀態
+    // ============================================
+    std::string print_status = obj->GetPhrozenPrintStatus();
+    
+    // 防呆檢查：確保狀態不為空
+    if (print_status.empty()) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: print_status is empty";
+        print_status = "offline";  // 使用預設狀態
+    }
+    
+    // ============================================
+    // 查找表：狀態字串對應按鈕配置
+    // 格式：<按鈕類型字串, 是否啟用停止按鈕>
+    // ============================================
+    const std::unordered_map<std::string, std::pair<const char*, bool>> status_config_map = {
+        // 列印中：顯示暫停按鈕和停止按鈕
+        {"printing", {"pause", true}},
+        
+        // 已暫停：顯示續印按鈕和停止按鈕
+        {"paused", {"resume", true}},
+        
+        // 完成：禁用所有按鈕（顯示灰色續印按鈕）
+        {"complete", {"resume_disable", false}},
+        
+        // 已取消：禁用所有按鈕（顯示灰色續印按鈕）
+        {"cancelled", {"resume_disable", false}},
+        
+        // 離線：禁用所有按鈕（顯示灰色暫停按鈕）
+        {"offline", {"pause_disable", false}},
+        
+        // 待機：禁用所有按鈕（顯示灰色暫停按鈕）
+        {"standby", {"pause_disable", false}}
+    };
+    
+    // ============================================
+    // 根據狀態查找配置並更新按鈕
+    // ============================================
+    auto it = status_config_map.find(print_status);
+    
+    if (it != status_config_map.end()) {
+        // 找到配置：使用查找表的配置
+        const char* button_type = it->second.first;
+        bool enable_abort = it->second.second;
+        bool enable_pause_resume = (enable_abort == true);  // pause 和 resume 為啟用，其他為禁用
+        
+        m_project_task_panel->enable_pause_resume_button(enable_pause_resume, button_type);
+        m_project_task_panel->enable_abort_button(enable_abort);
+    } else {
+        // 未找到：使用預設配置（防呆設計）
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: "
+                                    << "Unknown print status: \"" << print_status 
+                                    << "\", using default safe configuration (pause_disable, abort disabled)";
+        m_project_task_panel->enable_pause_resume_button(false, "pause_disable");
+        m_project_task_panel->enable_abort_button(false);
+    }
+    
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_status: status=" << print_status;
+}
+
+void PhrozenStatusPanel::update_print_progress(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_progress: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_progress: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取列印進度
+    // ============================================
+    float print_progress = obj->GetPhrozenPrintProgress();
+    
+    // ============================================
+    // 驗證進度值範圍並更新 UI
+    // 進度值範圍：0.0 ~ 1.0（0% ~ 100%）
+    // ============================================
+    if (print_progress >= 0.0f && print_progress <= 1.0f) {
+        // 有效進度值：轉換為百分比並更新 UI
+        // print_progress 在 0.0-1.0 範圍內，progress_percent 必然在 0-100 範圍內
+        int progress_percent = static_cast<int>(print_progress * 100.0f);
+        
+        // 確保百分比在有效範圍內（0-100）
+        // 由於 print_progress 已經在 0.0-1.0 範圍內，progress_percent 理論上應該在 0-100 範圍內
+        // 但為了防呆，仍然進行邊界檢查（處理浮點數精度問題）
+        if (progress_percent < 0) {
+            progress_percent = 0;
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_progress: "
+                                       << "Progress percent < 0, clamped to 0. Original value: " << print_progress;
+        } else if (progress_percent > 100) {
+            progress_percent = 100;
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_progress: "
+                                       << "Progress percent > 100, clamped to 100. Original value: " << print_progress;
+        }
+        
+        m_project_task_panel->update_progress_percent(
+            wxString::Format("%d", progress_percent), "%");
+    } else {
+        // 無效進度值：顯示為 N/A
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_progress: "
+                                    << "Invalid progress value: " << print_progress 
+                                    << " (expected range: 0.0 ~ 1.0), displaying N/A";
+        m_project_task_panel->update_progress_percent(PHROZEN_NA_STR, wxEmptyString);
+    }
+    
+    // ============================================
+    // 調試日誌
+    // ============================================
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_progress: progress=" << print_progress;
+}
+
+void PhrozenStatusPanel::update_print_file(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_file: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_file: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取列印文件名
+    // ============================================
+    std::string print_file = obj->GetPhrozenPrintFile();
+    
+    // ============================================
+    // 驗證文件名並更新 UI
+    // ============================================
+    if (!print_file.empty()) {
+        // 有效文件名：轉換並更新 UI
+        try {
+            wxString file_name = GUI::from_u8(print_file);
+            
+            // 驗證轉換後的字串是否有效
+            if (file_name.IsEmpty()) {
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_file: "
+                                           << "File name conversion resulted in empty string. Original: \"" 
+                                           << print_file << "\", displaying N/A";
+                m_project_task_panel->update_subtask_name(PHROZEN_NA_STR);
+            } else {
+                m_project_task_panel->update_subtask_name(wxString::Format("%s", file_name));
+            }
+        } catch (const std::exception& e) {
+            // 字串轉換異常：記錄錯誤並顯示 N/A
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_file: "
+                                     << "Exception during file name conversion: " << e.what()
+                                     << ", Original: \"" << print_file << "\", displaying N/A";
+            m_project_task_panel->update_subtask_name(PHROZEN_NA_STR);
+        } catch (...) {
+            // 未知異常：記錄錯誤並顯示 N/A
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_file: "
+                                     << "Unknown exception during file name conversion. Original: \"" 
+                                     << print_file << "\", displaying N/A";
+            m_project_task_panel->update_subtask_name(PHROZEN_NA_STR);
+        }
+    } else {
+        // 文件名為空：顯示 N/A
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_file: "
+                                    << "Print file name is empty, displaying N/A";
+        m_project_task_panel->update_subtask_name(PHROZEN_NA_STR);
+    }
+    
+    // ============================================
+    // 調試日誌
+    // ============================================
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_file: file=\"" << print_file << "\"";
+}
+
+void PhrozenStatusPanel::update_print_time(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_time: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取列印時間資訊
+    // ============================================
+    // print time
+    float print_time = obj->GetPhrozenPrintTime();
+    // total process time = pre-process time + print time + end time
+    float total_time = obj->GetPhrozenTotalTime();
+    
+    // ============================================
+    // 更新已列印時間（已耗費時間）
+    // ============================================
+    if (print_time >= 0.0f) {
+        // 有效列印時間：轉換為秒數
+        int print_time_seconds = static_cast<int>(print_time);
+        
+        // 確保秒數為非負數（防呆設計）
+        if (print_time_seconds < 0) {
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                       << "Print time seconds < 0, clamping to 0. "
+                                       << "print_time=" << print_time;
+            print_time_seconds = 0;
+        }
+        
+        // TODO: 顯示已列印時間（已耗費時間）
+        // 例如：將 print_time_seconds 格式化為 "時:分:秒" 或 "X小時Y分鐘" 格式
+        // 然後更新到 UI 控件（需要確認 PrintingTaskPanel 是否有對應的 API）
+        // 例如：m_project_task_panel->update_elapsed_time(print_time_seconds);
+        // 或：m_project_task_panel->update_elapsed_time(format_time_string(print_time_seconds));
+        
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Elapsed time: " << print_time_seconds << " seconds";
+    } else {
+        // 無效列印時間：記錄警告
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                    << "Invalid print_time: " << print_time 
+                                    << ", skipping elapsed time update";
+    }
+    
+    // ============================================
+    // 驗證時間值並計算剩餘時間
+    // ============================================
+    if (total_time > 0.0f && print_time >= 0.0f) {
+        // 有效時間值：計算剩餘時間
+        float left_time = total_time - print_time;
+        
+        if (left_time > 0.0f) {
+            // 剩餘時間為正：轉換為秒數並更新 UI
+            int left_time_seconds = static_cast<int>(print_time);
+            
+            // 確保秒數為非負數（防呆設計）
+            if (left_time_seconds < 0) {
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                           << "Left time seconds < 0, clamping to 0. "
+                                           << "print_time=" << print_time 
+                                           << ", total_time=" << total_time
+                                           << ", left_time=" << left_time;
+                left_time_seconds = 0;
+            }
+            
+            m_project_task_panel->update_left_time(left_time_seconds);
+        } else {
+            // 剩餘時間為負或零：顯示 N/A
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                       << "Left time <= 0, displaying N/A. "
+                                       << "print_time=" << print_time 
+                                       << ", total_time=" << total_time
+                                       << ", left_time=" << left_time;
+            m_project_task_panel->update_left_time(PHROZEN_NA_STR);
+        }
+    } else {
+        // 無效時間值：顯示 N/A
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                    << "Invalid time values, displaying N/A. "
+                                    << "print_time=" << print_time 
+                                    << ", total_time=" << total_time;
+        m_project_task_panel->update_left_time(PHROZEN_NA_STR);
+    }
+    
+    // ============================================
+    // 調試日誌
+    // ============================================
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                             << "print_time=" << print_time 
+                             << ", total_time=" << total_time;
+}
+
+void PhrozenStatusPanel::update_print_stage(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_stage: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_stage: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取列印狀態和進度
+    // ============================================
+    std::string print_status = obj->GetPhrozenPrintStatus();
+    float print_progress = obj->GetPhrozenPrintProgress();
+    
+    // 防呆檢查：確保狀態不為空
+    if (print_status.empty()) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_stage: print_status is empty";
+        print_status = "offline";  // 使用預設狀態
+    }
+    
+    // ============================================
+    // 根據列印狀態顯示對應的文字
+    // ============================================
+    wxString stage_text;
+    if (print_status == "printing") {
+        stage_text = _L("Printing...");
+    }
+    else if (print_status == "paused") {
+        stage_text = _L("Paused");
+    }
+    else if (print_status == "complete") {
+        stage_text = _L("Print Complete");
+    }
+    else if (print_status == "cancelled") {
+        stage_text = _L("Print Cancelled");
+    }
+    else if (print_status == "error") {
+        stage_text = _L("Print Error");
+    }
+    else if (print_status == "offline") {
+        stage_text = _L("Offline");
+    }
+    else if (print_status == "standby") {
+        stage_text = _L("Standby");
+    }
+    else {
+        // 未知狀態：不顯示文字
+        stage_text = wxEmptyString;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_stage: "
+                                    << "Unknown print status: \"" << print_status 
+                                    << "\", displaying empty stage text";
+    }
+    
+    // ============================================
+    // 更新階段狀態文字和進度值
+    // ============================================
+    if (!stage_text.IsEmpty()) {
+        // 計算進度百分比值
+        int progress_val = 0;
+        if (print_progress >= 0.0f && print_progress <= 1.0f) {
+            progress_val = static_cast<int>(print_progress * 100.0f);
+            
+            // 確保進度值在有效範圍內（0-100）
+            if (progress_val < 0) {
+                progress_val = 0;
+            } else if (progress_val > 100) {
+                progress_val = 100;
+            }
+        } else {
+            // 無效進度值：使用 0
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_stage: "
+                                       << "Invalid print_progress: " << print_progress 
+                                       << ", using 0 for progress value";
+            progress_val = 0;
+        }
+        
+        m_project_task_panel->update_stage_value(stage_text, progress_val);
+    } else {
+        // 階段文字為空：顯示空文字和 0 進度
+        m_project_task_panel->update_stage_value(wxEmptyString, 0);
+    }
+    
+    // ============================================
+    // 調試日誌
+    // ============================================
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_stage: "
+                             << "status=" << print_status 
+                             << ", progress=" << print_progress
+                             << ", stage_text=\"" << stage_text << "\"";
+}
+
+void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
+{
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Function called" << std::endl;
+    
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - obj is nullptr" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - m_project_task_panel is nullptr" << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取當前打印的 GCode 文件名
+    // ============================================
+    std::string gcode_name = obj->GetPhrozenPrintFile();
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: GCode name = \"" << gcode_name << "\"" << std::endl;
+    
+    if (gcode_name.empty()) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - GCode file name is empty" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                    << "GCode file name is empty, skipping thumbnail update";
+        return;
+    }
+    
+    // ============================================
+    // 檢查緩存：如果已經有相同的縮略圖，直接使用
+    // ============================================
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Checking cache, cached_gcode_name = \"" 
+              << m_cached_gcode_name << "\"" << std::endl;
+    
+    if (gcode_name == m_cached_gcode_name) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache match found, checking cache entry..." << std::endl;
+        auto cache_it = m_thumbnail_cache.find(gcode_name);
+        if (cache_it != m_thumbnail_cache.end() && cache_it->second.IsOk()) {
+            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache hit! Using cached thumbnail" << std::endl;
+            // 緩存命中：直接使用緩存的縮略圖
+            try {
+                wxSize thumbnail_size = m_project_task_panel->get_bitmap_thumbnail()->GetSize();
+                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Target thumbnail size = " 
+                          << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
+                
+                if (thumbnail_size.x > 0 && thumbnail_size.y > 0) {
+                    // 從緩存獲取原始縮略圖
+                    wxBitmap cached_bmp = cache_it->second;
+                    wxImage cached_img = cached_bmp.ConvertToImage();
+                    
+                    if (cached_img.IsOk()) {
+                        wxImage display_img = cached_img;
+                        
+                        // 記錄原始尺寸和目標尺寸，用於診斷
+                        int orig_width = cached_img.GetWidth();
+                        int orig_height = cached_img.GetHeight();
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cached thumbnail size = " 
+                                  << orig_width << "x" << orig_height << ", target = " 
+                                  << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
+                        
+                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                << "Cached thumbnail original size: " << orig_width << "x" << orig_height
+                                                << ", target size: " << thumbnail_size.x << "x" << thumbnail_size.y;
+                        
+                        // 檢查是否需要縮放
+                        // 如果原始圖片尺寸與控件尺寸相同，直接使用原始圖片
+                        // 否則使用改進的超採樣技術：根據原始圖片大小動態調整策略
+                        if (orig_width != thumbnail_size.x || orig_height != thumbnail_size.y) {
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Scaling cached thumbnail from " 
+                                      << orig_width << "x" << orig_height << " to " 
+                                      << thumbnail_size.x << "x" << thumbnail_size.y 
+                                      << " (using improved supersampling)" << std::endl;
+                            
+                            // 改進的超採樣策略：
+                            // 如果原始圖片比目標大，使用更大的超採樣因子（3x 或 4x）
+                            // 這樣可以更好地保留細節
+                            float scale_ratio_x = float(orig_width) / float(thumbnail_size.x);
+                            float scale_ratio_y = float(orig_height) / float(thumbnail_size.y);
+                            float scale_ratio = std::max(scale_ratio_x, scale_ratio_y);
+                            
+                            int supersample_factor = 2;
+                            if (scale_ratio > 1.5f) {
+                                // 原始圖片明顯大於目標，使用更大的超採樣因子
+                                supersample_factor = 3;
+                            }
+                            if (scale_ratio > 2.0f) {
+                                // 原始圖片遠大於目標，使用最大超採樣因子
+                                supersample_factor = 4;
+                            }
+                            
+                            int intermediate_width = thumbnail_size.x * supersample_factor;
+                            int intermediate_height = thumbnail_size.y * supersample_factor;
+                            
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using supersample factor " 
+                                      << supersample_factor << " (scale ratio: " << scale_ratio << ")" << std::endl;
+                            
+                            // 使用 ResampleBicubic 進行更高質量的縮放（類似 GLTexture 中的方法）
+                            // ResampleBicubic 提供比 Scale 更好的質量，特別適合縮小操作
+                            // 第一步：放大到中間尺寸（使用雙三次插值）
+                            wxImage intermediate_img = cached_img.ResampleBicubic(
+                                intermediate_width, 
+                                intermediate_height
+                            );
+                            
+                            // 第二步：縮小到目標尺寸（使用雙三次插值）
+                            display_img = intermediate_img.ResampleBicubic(
+                                thumbnail_size.x, 
+                                thumbnail_size.y
+                            );
+                            
+                            BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                     << "Rescaled cached thumbnail from " 
+                                                     << orig_width << "x" << orig_height
+                                                     << " to " << thumbnail_size.x << "x" << thumbnail_size.y;
+                        } else {
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using original cached thumbnail size (exact match)" << std::endl;
+                            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                     << "Using original cached thumbnail size (exact match)";
+                        }
+                        
+                        // 直接傳入 wxImage，與 on_webrequest_state 和 update_cloud_subtask 一致
+                        m_project_task_panel->set_thumbnail_img(display_img);
+                        m_project_task_panel->set_brightness_value(get_brightness_value(display_img));
+                        
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Successfully updated UI with cached thumbnail" << std::endl;
+                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                 << "Using cached thumbnail for GCode: \"" << gcode_name << "\"";
+                        return;  // 成功使用緩存，直接返回
+                    } else {
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - Cached image is not OK" << std::endl;
+                    }
+                } else {
+                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - Invalid thumbnail size: " 
+                              << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
+                }
+            } catch (const std::exception& e) {
+                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: EXCEPTION while using cached thumbnail: " 
+                          << e.what() << std::endl;
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                           << "Exception while using cached thumbnail: " << e.what()
+                                           << ", will fetch new thumbnail";
+                // 緩存使用失敗，繼續獲取新的縮略圖
+            }
+        } else {
+            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache entry not found or invalid" << std::endl;
+        }
+    } else {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache miss (different GCode name)" << std::endl;
+    }
+    
+    // ============================================
+    // 緩存未命中或失效：使用記憶體版本獲取縮略圖
+    // ============================================
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Fetching new thumbnail from network..." << std::endl;
+    wxBitmap thumbnail_bmp;
+    bool success = obj->GetPhrozenThumbnailAsBitmap(gcode_name, thumbnail_bmp);
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: GetPhrozenThumbnailAsBitmap result: " 
+              << (success ? "SUCCESS" : "FAILED") << std::endl;
+    
+    if (success && thumbnail_bmp.IsOk()) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Thumbnail bitmap is OK, processing..." << std::endl;
+        // 縮略圖獲取成功：保存到緩存並更新 UI
+        try {
+            wxSize thumbnail_size = m_project_task_panel->get_bitmap_thumbnail()->GetSize();
+            
+            // 驗證縮略圖控件尺寸是否有效
+            if (thumbnail_size.x > 0 && thumbnail_size.y > 0) {
+                // 將 wxBitmap 轉換為 wxImage 以便縮放
+                wxImage thumbnail_img = thumbnail_bmp.ConvertToImage();
+                
+                if (thumbnail_img.IsOk()) {
+                    // 保存原始縮略圖到緩存（不縮放，保持原始清晰度）
+                    m_thumbnail_cache[gcode_name] = thumbnail_bmp;
+                    m_cached_gcode_name = gcode_name;
+                    
+                    wxImage display_img = thumbnail_img;
+                    
+                    // 記錄原始尺寸和目標尺寸，用於診斷
+                    int orig_width = thumbnail_img.GetWidth();
+                    int orig_height = thumbnail_img.GetHeight();
+                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: New thumbnail size = " 
+                              << orig_width << "x" << orig_height << ", target = " 
+                              << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
+                    
+                    BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                            << "Thumbnail original size: " << orig_width << "x" << orig_height
+                                            << ", target size: " << thumbnail_size.x << "x" << thumbnail_size.y;
+                    
+                    // 檢查是否需要縮放
+                    // 如果原始圖片尺寸與控件尺寸相同，直接使用原始圖片
+                    // 否則使用改進的超採樣技術：根據原始圖片大小動態調整策略
+                    if (orig_width != thumbnail_size.x || orig_height != thumbnail_size.y) {
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Scaling thumbnail from " 
+                                  << orig_width << "x" << orig_height << " to " 
+                                  << thumbnail_size.x << "x" << thumbnail_size.y 
+                                  << " (using improved supersampling)" << std::endl;
+                        
+                        // 改進的超採樣策略：
+                        // 如果原始圖片比目標大，使用更大的超採樣因子（3x 或 4x）
+                        // 這樣可以更好地保留細節
+                        float scale_ratio_x = float(orig_width) / float(thumbnail_size.x);
+                        float scale_ratio_y = float(orig_height) / float(thumbnail_size.y);
+                        float scale_ratio = std::max(scale_ratio_x, scale_ratio_y);
+                        
+                        int supersample_factor = 2;
+                        if (scale_ratio > 1.5f) {
+                            // 原始圖片明顯大於目標，使用更大的超採樣因子
+                            supersample_factor = 3;
+                        }
+                        if (scale_ratio > 2.0f) {
+                            // 原始圖片遠大於目標，使用最大超採樣因子
+                            supersample_factor = 4;
+                        }
+                        
+                        int intermediate_width = thumbnail_size.x * supersample_factor;
+                        int intermediate_height = thumbnail_size.y * supersample_factor;
+                        
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using supersample factor " 
+                                  << supersample_factor << " (scale ratio: " << scale_ratio << ")" << std::endl;
+                        
+                        // 使用 ResampleBicubic 進行更高質量的縮放（類似 GLTexture 中的方法）
+                        // ResampleBicubic 提供比 Scale 更好的質量，特別適合縮小操作
+                        // 第一步：放大到中間尺寸（使用雙三次插值）
+                        wxImage intermediate_img = thumbnail_img.ResampleBicubic(
+                            intermediate_width, 
+                            intermediate_height
+                        );
+                        
+                        // 第二步：縮小到目標尺寸（使用雙三次插值）
+                        display_img = intermediate_img.ResampleBicubic(
+                            thumbnail_size.x, 
+                            thumbnail_size.y
+                        );
+                        
+                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                 << "Rescaled thumbnail from " 
+                                                 << orig_width << "x" << orig_height
+                                                 << " to " << thumbnail_size.x << "x" << thumbnail_size.y;
+                    } else {
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using original thumbnail size (exact match)" << std::endl;
+                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                 << "Using original thumbnail size (exact match)";
+                    }
+                    
+                    // 直接傳入 wxImage，與 on_webrequest_state 和 update_cloud_subtask 一致
+                    m_project_task_panel->set_thumbnail_img(display_img);
+                    
+                    // 設置亮度值（用於暗色模式顯示）
+                    m_project_task_panel->set_brightness_value(get_brightness_value(display_img));
+                    
+                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Successfully loaded and cached thumbnail for GCode: \"" 
+                              << gcode_name << "\"" << std::endl;
+                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                             << "Thumbnail loaded and cached successfully. "
+                                             << "GCode: \"" << gcode_name << "\"";
+                } else {
+                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Failed to convert bitmap to image for GCode: \"" 
+                              << gcode_name << "\", displaying broken image" << std::endl;
+                    BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                             << "Failed to convert bitmap to image for GCode: \"" 
+                                             << gcode_name << "\", displaying broken image";
+                    m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+                }
+            } else {
+                // 縮略圖控件尺寸無效：記錄錯誤
+                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Invalid thumbnail size: " 
+                          << thumbnail_size.x << "x" << thumbnail_size.y << ", GCode: \"" << gcode_name << "\"" << std::endl;
+                BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                         << "Invalid thumbnail size: " << thumbnail_size.x 
+                                         << "x" << thumbnail_size.y 
+                                         << ", GCode: \"" << gcode_name << "\"";
+                m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+            }
+        } catch (const std::exception& e) {
+            // 處理過程發生異常：顯示破損圖片
+            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: EXCEPTION during thumbnail processing: " 
+                      << e.what() << ", GCode: \"" << gcode_name << "\"" << std::endl;
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                     << "Exception during thumbnail processing: " << e.what()
+                                     << ", GCode: \"" << gcode_name << "\", displaying broken image";
+            m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+        } catch (...) {
+            // 未知異常：顯示破損圖片
+            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: UNKNOWN EXCEPTION during thumbnail processing, GCode: \"" 
+                      << gcode_name << "\"" << std::endl;
+            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                     << "Unknown exception during thumbnail processing. "
+                                     << "GCode: \"" << gcode_name << "\", displaying broken image";
+            m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+        }
+    } else {
+        // 縮略圖獲取失敗：顯示破損圖片
+        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Failed to get thumbnail bitmap for GCode: \"" 
+                  << gcode_name << "\", displaying broken image" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                    << "Failed to get thumbnail bitmap for GCode: \"" 
+                                    << gcode_name << "\", displaying broken image";
+        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+    }
+    
+    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Function completed for GCode=\"" << gcode_name << "\"" << std::endl;
+}
+
+void PhrozenStatusPanel::update_print_filament(MachineObject *obj)
+{
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_filament: obj is nullptr";
+        return;
+    }
+    
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_print_filament: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // ============================================
+    // 獲取線材使用量
+    // ============================================
+    float print_filament = obj->GetPhrozenPrintFilamentAmount();
+    
+    // ============================================
+    // 驗證耗材使用量並更新 UI
+    // ============================================
+    if (print_filament >= 0.0f) {
+        // 有效耗材使用量：更新 UI
+        // 注意：耗材使用量更新邏輯可以根據需要實作
+        // 目前保留為預留功能，待後續實作
+        
+        // 驗證耗材使用量是否在合理範圍內（例如：0-10000mm）
+        const float MAX_FILAMENT_AMOUNT = 10000.0f;
+        if (print_filament > MAX_FILAMENT_AMOUNT) {
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_filament: "
+                                       << "Filament amount exceeds maximum (" << MAX_FILAMENT_AMOUNT 
+                                       << " mm), value: " << print_filament << " mm";
+        }
+        
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_filament: "
+                                 << "Filament amount: " << print_filament << " mm";
+        
+        // TODO: 實作耗材使用量顯示邏輯
+        // if (m_project_task_panel->update_filament_used) {
+        //     m_project_task_panel->update_filament_used(
+        //         wxString::Format("%.2f mm", print_filament));
+        // }
+    } else {
+        // 無效耗材使用量：記錄警告
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_filament: "
+                                    << "Invalid filament amount: " << print_filament 
+                                    << " mm (expected >= 0), skipping update";
+    }
+    
+    // ============================================
+    // 調試日誌
+    // ============================================
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_filament: amount=" << print_filament << " mm";
 }
 
 void PhrozenStatusPanel::update_cloud_subtask(MachineObject *obj)

@@ -551,6 +551,9 @@ protected:
     bool m_show_mode_changed = false;
     std::map<wxString, wxImage> img_list; // key: url, value: wxBitmap png Image
     std::map<std::string, std::string> m_print_connect_types;
+    // Thumbnail cache: key is gcode filename, value is the original wxBitmap (before scaling)
+    std::map<std::string, wxBitmap> m_thumbnail_cache;
+    std::string m_cached_gcode_name; // Track the last gcode name to avoid unnecessary updates
     std::vector<Button *>       m_buttons;
     int last_status;
     ScoreData *m_score_data;
@@ -620,6 +623,14 @@ protected:
     void update_basic_print_data(bool def = false);
     void update_model_info();
     void update_subtask(MachineObject* obj);
+    void update_print_states(MachineObject* obj);
+    void update_print_status(MachineObject* obj);
+    void update_print_progress(MachineObject* obj);
+    void update_print_file(MachineObject* obj);
+    void update_print_time(MachineObject* obj);
+    void update_print_stage(MachineObject* obj);
+    void update_print_filament(MachineObject *obj);
+    void update_thumbnail(MachineObject *obj);
     void update_cloud_subtask(MachineObject *obj);
     void update_sdcard_subtask(MachineObject *obj);
     void update_temp_ctrl(MachineObject *obj);
