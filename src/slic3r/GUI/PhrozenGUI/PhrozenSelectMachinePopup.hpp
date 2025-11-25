@@ -161,7 +161,7 @@ private:
     bool        m_is_macos_special_version{false};
 
 
-    PhrozenPrinterBindState   m_bind_state;
+    PhrozenPrinterBindState   m_bind_state{PhrozenPrinterBindState::ALLOW_UNBIND};
     PhrozenPrinterState       m_state;
 
     ScalableBitmap m_unbind_img;
@@ -173,8 +173,8 @@ private:
     ScalableBitmap m_printer_status_idle;
     ScalableBitmap m_printer_status_lock;
     ScalableBitmap m_printer_in_lan;
-
-    MachineObject *m_info;
+    std::string m_strIp;
+    //MachineObject *m_info;
 
 protected:
     wxStaticBitmap *m_bitmap_info;
@@ -190,11 +190,11 @@ public:
 
     ~PhrozenMachineObjectPanel();
 
-    void show_bind_dialog();
     void set_printer_state(PhrozenPrinterState state);
     void show_printer_bind(bool show, PhrozenPrinterBindState state);
     void show_edit_printer_name(bool show);
     void update_machine_info(MachineObject *info, bool is_my_devices = false);
+    void set_maching_ip( std::string strIp ){ m_strIp = strIp; }
 protected:
     void OnPaint(wxPaintEvent &event);
     void render(wxDC &dc);
@@ -207,7 +207,7 @@ protected:
 class PhrozenMachinePanel
 {
 public:
-    wxString mIndex;
+    std::string mStrIp;
     PhrozenMachineObjectPanel *mPanel;
 };
 
@@ -264,22 +264,21 @@ private:
     wxScrolledWindow *                m_scrolledWindow{nullptr};
     wxWindow *                        m_panel_body{nullptr};
     wxTimer *                         m_refresh_timer{nullptr};
-    std::vector<PhrozenMachinePanel*> m_user_list_machine_panel;
-    std::vector<PhrozenMachinePanel*> m_other_list_machine_panel;
     boost::thread*                    get_print_info_thread{ nullptr };
     std::shared_ptr<int>              m_token = std::make_shared<int>(0);
-    std::string                       m_print_info = "";
     bool                              m_dismiss { false };
+    bool                              m_bFirstUpdating{ false };
 
-    std::map<std::string, MachineObject*> m_bind_machine_list;
-    std::map<std::string, MachineObject*> m_free_machine_list;
+
+    std::unordered_map< std::string, std::string > m_lan_machine_ip_list; //{ machineIp, machineName }
+    std::unordered_map< std::string, PhrozenMachineObjectPanel* > m_lan_machine_ip_panels;
 
 private:
     void OnLeftUp(wxMouseEvent &event);
     void on_timer(wxTimerEvent &event);
 
 	void      update_other_devices();
-    void      update_user_devices();
+    void      update_lan_devices();
     bool      search_for_printer(MachineObject* obj);
     void      on_dissmiss_win(wxCommandEvent &event);
     wxWindow *create_title_panel(wxString text);
