@@ -64,6 +64,8 @@ public:
 
     virtual bool IsPhrozenConnected() override;
     virtual bool IsPhrozenStartReceiving() override;
+
+    virtual std::string GetPhrozenConnectedMachineIp() override;
 };
 
 } // namespace Slic3r

@@ -775,6 +775,7 @@ struct HttpErrorInfo {
 
 #pragma region PhrozenMonitorController
     CURLcode Initialconnect();
+    void CleanupWebSocketConnection();
     void SetIp( const std::string& strIp );
     bool CheckArpEntryExists(const std::string& target_ip);
     bool WaitForArpResolution(const std::string& target_ip, int max_wait_ms = 1000);
@@ -784,8 +785,13 @@ struct HttpErrorInfo {
     extern bool m_bUdp_ing;
     extern bool m_bStartlistening;
     extern bool m_bDoingAction;
-    extern bool m_bStartReceiving;
-    extern bool m_bStartSending;
+    extern std::atomic<bool> m_bStartReceiving;
+    extern std::atomic<bool> m_bStartSending;
+    void SetStartSending( bool bStart );
+    bool IsStartSending();
+    void SetStartReceiving( bool bStart );
+    bool IsStartReceiving();
+
     extern CURL* m_pCurl;
     extern CURL* m_pCurl_websocket;
 

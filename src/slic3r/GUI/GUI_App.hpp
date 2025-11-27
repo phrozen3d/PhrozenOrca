@@ -686,8 +686,10 @@ public:
 #pragma region Phrozen
     bool InitPhrozenConnector( const std::string& strIp );
     void ProcessPhrozenConnector();
+    void ProcessPhrozenDisconnect();
     std::shared_ptr< PhrozenMachineObject > pPhrozenMachineObject = nullptr;
     PhrozenMachineObject* GetPhrozenMachineObject();
+    void GetCurrentConnectedMachineIp( std::string& strIp );
 #pragma endregion
 
 

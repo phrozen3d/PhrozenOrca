@@ -758,7 +758,12 @@ bool PhrozenMachineObject::IsPhrozenConnected()
 
 bool PhrozenMachineObject::IsPhrozenStartReceiving() 
 {
-    return MonitorControl::m_bStartReceiving;
+    return MonitorControl::IsStartReceiving();
+}
+
+std::string PhrozenMachineObject::GetPhrozenConnectedMachineIp()
+{
+    return dev_ip;
 }
 
 

@@ -6915,8 +6915,8 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
         MonitorControl::m_pWebServiceInfo->ip = "";
         MonitorControl::m_kMonitorWindow.connectedMachineName = "";
         MonitorControl::m_kMonitorWindow.isShownIPConnectNotification = true;
-        MonitorControl::m_bStartReceiving = false;
-        MonitorControl::m_bStartSending = false;
+        MonitorControl::SetStartReceiving(false);
+        MonitorControl::SetStartSending(false);
     
     }
     else
@@ -6931,8 +6931,8 @@ void GUI_App::ProcessPhrozenConnector()
     MonitorControl::m_kHistoryInfoList.clear();
     MonitorControl::m_kMonitorWindow.selectMachineWindowShow = false;
     MonitorControl::m_kMonitorWindow.selectMachineWindowShow_preview = false;
-    MonitorControl::m_bStartReceiving = true;
-    MonitorControl::m_bStartSending = true;
+    MonitorControl::SetStartReceiving( true );
+    MonitorControl::SetStartSending( true );
     
     std::thread _threadSendMessage(RunSendMessage);
     _threadSendMessage.detach();
@@ -6944,9 +6944,25 @@ void GUI_App::ProcessPhrozenConnector()
     _threadReceiveWebCameraView.detach();
 }
 
+void GUI_App::ProcessPhrozenDisconnect()
+{
+    MonitorControl::SetStartReceiving( false );
+    MonitorControl::SetStartSending( false );
+}
+
 PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()
 {
     return pPhrozenMachineObject? pPhrozenMachineObject.get() : nullptr;
+}
+
+void GUI_App::GetCurrentConnectedMachineIp( std::string& strIp )
+{
+    if ( !pPhrozenMachineObject || !pPhrozenMachineObject->IsPhrozenConnected() )
+    {
+        strIp = "";
+        return; 
+    }
+    strIp = pPhrozenMachineObject->GetPhrozenConnectedMachineIp();
 }
 
 void RunGetPrinterInfo( )

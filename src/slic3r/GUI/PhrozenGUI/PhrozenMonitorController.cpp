@@ -49,8 +49,35 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     bool m_bUdp_ing = false;
     bool m_bStartlistening = false;
     bool m_bDoingAction = false;
-    bool m_bStartReceiving = false;
-    bool m_bStartSending = false;
+    //bool m_bStartReceiving = false;
+    //bool m_bStartSending = false;
+    std::atomic<bool> m_bStartSending{false};
+    std::atomic<bool> m_bStartReceiving{false};
+    
+
+    void SetStartSending( bool bStart )
+    {
+        if ( bStart ) { m_bStartSending.store(true, std::memory_order_relaxed); }
+        else          { m_bStartSending.store(false, std::memory_order_relaxed); }
+    }
+    bool IsStartSending()
+    {
+        return m_bStartSending.load(std::memory_order_relaxed);
+    }
+
+    void SetStartReceiving( bool bStart )
+    {
+        if ( bStart ) { m_bStartReceiving.store(true, std::memory_order_relaxed); }
+        else          { m_bStartReceiving.store(false, std::memory_order_relaxed); }
+    }
+    bool IsStartReceiving()
+    {
+        return m_bStartReceiving.load(std::memory_order_relaxed);
+    }
+
+
+    
+
     CURL* m_pCurl = nullptr;
     CURL* m_pCurl_websocket = nullptr;
 
@@ -301,6 +328,7 @@ CURLcode Initialconnect()
         return res; // Protocol not supported
     }
 
+    CleanupWebSocketConnection();
     m_pCurl_websocket = curl_easy_init();
 
     if (m_pCurl_websocket) {
@@ -360,10 +388,9 @@ CURLcode Initialconnect()
             printf("HTTP response code: %ld\n", response_code);
 
             curl_easy_cleanup(m_pCurl_websocket);
-            curl_global_cleanup();
             m_pCurl_websocket = nullptr;
-            m_bStartReceiving = false;
-            m_bStartSending = false;
+            SetStartReceiving( false );
+            SetStartSending( false );
 
             return res; // Return CURL error code
         }
@@ -385,12 +412,25 @@ CURLcode Initialconnect()
     else {
         printf("Failed to initialize CURL handle\n");
         m_pCurl_websocket = nullptr;
-        m_bStartReceiving = false;
-        m_bStartSending = false;
+        SetStartReceiving( false );
+        SetStartSending( false );
         return res; // CURL init failed
     }
 
     return res;
+}
+
+void CleanupWebSocketConnection()
+{
+    if (m_pCurl_websocket != nullptr) {
+        //close websocket while it linking.
+        size_t sent;
+        curl_ws_send(m_pCurl_websocket, "", 0, &sent, 0, CURLWS_CLOSE);
+        
+        //release memory
+        curl_easy_cleanup(m_pCurl_websocket);
+        m_pCurl_websocket = nullptr;
+    }
 }
 
 void SetIp( const std::string& strIp ) { m_pWebServiceInfo->ip = strIp; }
@@ -1049,7 +1089,7 @@ CURLcode ReceiveResponse() {
     std::string sliding_window_buffer;
     const size_t MAX_SLIDING_WINDOW_SIZE = 10000;  // Maximum size to prevent memory issues
     
-    while (m_bStartReceiving) {
+    while (IsStartReceiving()) {
         // ⚠️ CRITICAL: libcurl easy handle is NOT thread-safe
         // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
         // Operating the same curl handle from 2 threads may cause crash risk
@@ -1172,8 +1212,8 @@ CURLcode ReceiveResponse() {
                 }
                 else {
                     BOOST_LOG_TRIVIAL(info) << "connect failed " << endl;
-                    m_bStartReceiving = false;
-                    m_bStartSending = false;
+                    SetStartReceiving(false);
+                    SetStartSending(false);
                 }
             }
             catch (const std::runtime_error& e) {
@@ -1207,9 +1247,8 @@ CURLcode ReceiveWebCameraView( const std::string & url )
     auto lastCaptureTime = std::chrono::steady_clock::now();
     auto lastPipeTime = std::chrono::steady_clock::now();
     CURLcode res = CURLE_FAILED_INIT;
-    while (!MonitorControl::m_bClose) {
+    while ( !MonitorControl::m_bClose && IsStartReceiving() ) {
 
-        
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCaptureTime).count();
 
@@ -2203,7 +2242,7 @@ void GetAllInfo_websocket()
     try {
         auto nowTime = std::chrono::steady_clock::now();
         auto previousTime = std::chrono::steady_clock::now();
-        while (m_bStartSending)
+        while ( IsStartSending() )
         {
             {
                 // ⚠️ CRITICAL: libcurl easy handle is NOT thread-safe

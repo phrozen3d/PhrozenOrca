@@ -469,6 +469,7 @@ public:
     
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }
+    virtual std::string GetPhrozenConnectedMachineIp() { return ""; }
 #pragma endregion
 
 public:
