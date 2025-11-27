@@ -61,6 +61,9 @@ namespace GUI {
     
     Bind(wxEVT_TIMER, &PhrozenMonitorPanel::on_timer, this);
     Bind(wxEVT_SIZE, &PhrozenMonitorPanel::on_size, this);
+    m_select_machine->Bind(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, &PhrozenMonitorPanel::OnConnectMachineByIp, this );
+    m_select_machine->Bind(EVT_PHROZEN_DISCONNECT_MACHINE, &PhrozenMonitorPanel::OnDisconnectMachine, this );
+    
     //Bind(wxEVT_COMMAND_CHOICE_SELECTED, &MonitorPanel::on_select_printer, this);
 
  }
@@ -202,10 +205,16 @@ void PhrozenMonitorPanel::update_all()
 {
     //Debug
     show_status(MONITOR_NORMAL);
-    if (m_status_info_panel->IsShown() && MonitorControl::m_bStartReceiving ) {
-        m_status_info_panel->SetMachineObject( obj );
-        m_status_info_panel->update( wxGetApp().GetPhrozenMachineObject() );
-        
+    if (m_status_info_panel->IsShown() && MonitorControl::IsStartReceiving() ) 
+    {
+        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
+        m_status_info_panel->update( pPhrozenMachineObj );
+        m_side_tools->set_current_printer_name( pPhrozenMachineObj->dev_ip );
+    }
+    else
+    {
+        m_side_tools->set_none_printer_mode();
     }
     return;
 
@@ -329,6 +338,22 @@ Freeze();
     }
     Layout();
 Thaw();
+}
+
+void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
+{
+    if ( event.GetString().IsEmpty() )
+    {
+        return;
+    }
+    PhrozenIpConnectDialog kDlg( this );
+    kDlg.set_ip_address( event.GetString().ToStdString() );
+    kDlg.ShowModal();
+}
+
+void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )
+{
+    wxGetApp().ProcessPhrozenDisconnect();
 }
 
 #pragma endregion

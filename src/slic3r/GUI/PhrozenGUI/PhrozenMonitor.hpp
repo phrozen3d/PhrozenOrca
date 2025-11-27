@@ -132,6 +132,10 @@ public:
     void stop_update() {update_flag = false;};
     void start_update() {update_flag = true;};
 
+    //event
+    void OnConnectMachineByIp( wxCommandEvent& event );
+    void OnDisconnectMachine( wxCommandEvent& event );
+
     //void jump_to_HMS(wxCommandEvent& e);
 };
 

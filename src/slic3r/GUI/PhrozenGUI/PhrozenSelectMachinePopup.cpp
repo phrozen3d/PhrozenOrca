@@ -33,6 +33,9 @@ namespace Slic3r { namespace GUI {
 
 wxDEFINE_EVENT(EVT_PHROZEN_UPDATE_USER_MACHINE_LIST, wxCommandEvent);
 wxDEFINE_EVENT(EVT_UPDATE_CONNECT_MSG, wxCommandEvent);
+wxDEFINE_EVENT(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, wxCommandEvent);
+wxDEFINE_EVENT(EVT_PHROZEN_DISCONNECT_MACHINE, wxCommandEvent);
+wxDEFINE_EVENT(EVT_PHROZEN_UPDATE_MACHINE_TITLE, wxCommandEvent);
 
 
 #define INITIAL_NUMBER_OF_MACHINES 0
@@ -571,7 +574,7 @@ PhrozenMachineObjectPanel::PhrozenMachineObjectPanel(wxWindow *parent, wxWindowI
 
     SetBackgroundColour(StateColor::darkModeColorFor(*wxWHITE));
 
-    m_unbind_img        = ScalableBitmap(this, "unbind", 18);
+    m_unbind_img        = ScalableBitmap(this, "PhrozenImages/MachineObjectPanel_Unbind", 18);
     m_edit_name_img     = ScalableBitmap(this, "edit_button", 18);
     m_select_unbind_img = ScalableBitmap(this, "unbind_selected", 18);
 
@@ -669,13 +672,6 @@ void PhrozenMachineObjectPanel::doRender(wxDC &dc)
     dc.SetTextForeground(StateColor::darkModeColorFor(PHROZEN_SELECT_MACHINE_GREY900));
     wxString dev_name = m_strIp;
 
-    //if (m_info) {
-    //    dev_name = from_u8(m_info->dev_name);
-    //
-    //     if (m_state == PhrozenPrinterState::IN_LAN) {
-    //         dev_name += _L("(LAN)");
-    //     }
-    //}
     auto        sizet        = dc.GetTextExtent(dev_name);
     auto        text_end     = 0;
 
@@ -727,7 +723,6 @@ void PhrozenMachineObjectPanel::doRender(wxDC &dc)
 void PhrozenMachineObjectPanel::update_machine_info(MachineObject *info, bool is_my_devices)
 {
     //m_info = info;
-    m_is_my_devices = is_my_devices;
     Refresh();
 }
 
@@ -745,68 +740,45 @@ void PhrozenMachineObjectPanel::on_mouse_leave(wxMouseEvent &evt)
 
 void PhrozenMachineObjectPanel::on_mouse_left_up(wxMouseEvent &evt)
 {
-    if (m_is_my_devices) {
-        // show edit
-        if (m_show_edit) {
-            auto edit_left   = GetSize().x - m_unbind_img.GetBmpSize().x - 6 - m_edit_name_img.GetBmpSize().x - 6;
-            auto edit_right  = edit_left + m_edit_name_img.GetBmpSize().x;
-            auto edit_top    = (GetSize().y - m_edit_name_img.GetBmpSize().y) / 2;
-            auto edit_bottom = (GetSize().y - m_edit_name_img.GetBmpSize().y) / 2 + m_edit_name_img.GetBmpSize().y;
-            if ((evt.GetPosition().x >= edit_left && evt.GetPosition().x <= edit_right) && evt.GetPosition().y >= edit_top && evt.GetPosition().y <= edit_bottom) {
-                wxCommandEvent event(EVT_EDIT_PRINT_NAME);
-                event.SetEventObject(this);
-                wxPostEvent(this, event);
-                return;
-            }
-        }
-        if (m_show_bind) {
-            auto left   = GetSize().x - m_unbind_img.GetBmpSize().x - 6;
-            auto right  = left + m_unbind_img.GetBmpSize().x;
-            auto top    = (GetSize().y - m_unbind_img.GetBmpSize().y) / 2;
-            auto bottom = (GetSize().y - m_unbind_img.GetBmpSize().y) / 2 + m_unbind_img.GetBmpSize().y;
-
-            if ((evt.GetPosition().x >= left && evt.GetPosition().x <= right) && evt.GetPosition().y >= top && evt.GetPosition().y <= bottom) {
-                wxCommandEvent event(EVT_UNBIND_MACHINE, GetId());
-                event.SetEventObject(this);
-                GetEventHandler()->ProcessEvent(event);
-            } else {
-                //if (m_info) {
-                //    wxGetApp().mainframe->jump_to_monitor(m_info->dev_id);
-                //}
-                //wxGetApp().mainframe->SetFocus();
-                wxCommandEvent event(EVT_DISSMISS_MACHINE_LIST);
-                event.SetEventObject(this->GetParent());
-                wxPostEvent(this->GetParent(), event);
-            }
+    // show edit
+    if (m_show_edit) {
+        auto edit_left   = GetSize().x - m_unbind_img.GetBmpSize().x - 6 - m_edit_name_img.GetBmpSize().x - 6;
+        auto edit_right  = edit_left + m_edit_name_img.GetBmpSize().x;
+        auto edit_top    = (GetSize().y - m_edit_name_img.GetBmpSize().y) / 2;
+        auto edit_bottom = (GetSize().y - m_edit_name_img.GetBmpSize().y) / 2 + m_edit_name_img.GetBmpSize().y;
+        if ((evt.GetPosition().x >= edit_left && evt.GetPosition().x <= edit_right) && evt.GetPosition().y >= edit_top && evt.GetPosition().y <= edit_bottom) {
+            wxCommandEvent event(EVT_EDIT_PRINT_NAME);
+            event.SetEventObject(this);
+            wxPostEvent(this, event);
             return;
         }
-        //if (m_info && m_info->is_lan_mode_printer()) {
-        //    if (m_info->has_access_right() && m_info->is_avaliable()) {
-        //        wxGetApp().mainframe->jump_to_monitor(m_info->dev_id);
-        //    } else {
-        //        wxCommandEvent event(EVT_CONNECT_LAN_PRINT);
-        //        event.SetEventObject(this);
-        //        wxPostEvent(this, event);
-        //    }
-        //} 
-        //else {
-        //    wxGetApp().mainframe->jump_to_monitor(m_info->dev_id);
-        //}
-        int aa = 0;
-        aa = 1;
-    } else {
-        //if (m_info && m_info->is_lan_mode_printer()) {
-        //    wxCommandEvent event(EVT_CONNECT_LAN_PRINT);
-        //    event.SetEventObject(this);
-        //    wxPostEvent(this, event);
-        //} else {
-        //    wxCommandEvent event(EVT_BIND_MACHINE);
-        //    event.SetEventObject(this);
-        //    wxPostEvent(this, event);
-        //}
-        int bb = 0;
-        bb = 1;
     }
+
+    std::string strIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strIp );
+    bool bIsCurrentConnected = strIp == m_strIp;
+
+    if (m_show_bind) {
+        auto left   = GetSize().x - m_unbind_img.GetBmpSize().x - 6;
+        auto right  = left + m_unbind_img.GetBmpSize().x;
+        auto top    = (GetSize().y - m_unbind_img.GetBmpSize().y) / 2;
+        auto bottom = (GetSize().y - m_unbind_img.GetBmpSize().y) / 2 + m_unbind_img.GetBmpSize().y;
+        bool bUnBindButtonAreaPressed = (evt.GetPosition().x >= left && evt.GetPosition().x <= right) && evt.GetPosition().y >= top && evt.GetPosition().y <= bottom;
+        if ( bIsCurrentConnected && bUnBindButtonAreaPressed ) {
+            wxCommandEvent event(EVT_PHROZEN_DISCONNECT_MACHINE, GetId());
+            event.SetEventObject(this);
+            GetEventHandler()->ProcessEvent(event);
+        } else {
+            wxCommandEvent event(EVT_PHROZEN_CONNECT_MACHINE_BY_IP);
+            event.SetEventObject(this);
+            event.SetString(m_strIp);
+            wxPostEvent(this, event);
+        }
+        return;
+    }
+
+
+
 
 }
 
@@ -1120,6 +1092,9 @@ void PhrozenSelectMachinePopup::update_lan_devices()
     this->Freeze();
     m_scrolledWindow->Freeze();
 
+    std::string strConnectedIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+
     std::unordered_map< std::string, std::string > kMachineForAdd = m_lan_machine_ip_list;
     std::vector< std::string > kMachineForRemove;
     for ( auto& kMachinePanelItem : m_lan_machine_ip_panels )
@@ -1137,6 +1112,15 @@ void PhrozenSelectMachinePopup::update_lan_devices()
             if ( !m_bFirstUpdating )
             {
                 kMachinePanelItem.second->Show();
+                if ( strIp == strConnectedIp )
+                {
+                    kMachinePanelItem.second->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND );
+                }
+                else
+                {
+                    kMachinePanelItem.second->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
+                }
+
             }
             //todo update maching state
             
@@ -1149,6 +1133,14 @@ void PhrozenSelectMachinePopup::update_lan_devices()
         auto strIp = kIter.first;
         auto  op = new PhrozenMachineObjectPanel(m_scrolledWindow, wxID_ANY);
         op->set_maching_ip( strIp );
+        if ( strIp == strConnectedIp )
+        {
+            op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND );
+        }
+        else
+        {
+            op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
+        }
 
         //op->Bind(EVT_CONNECT_LAN_PRINT, [this, mobj](wxCommandEvent &e) {
         //    if (mobj) {
@@ -1255,17 +1247,6 @@ void PhrozenSelectMachinePopup::OnLeftUp(wxMouseEvent &event)
             }
         }
 
-        //for (PhrozenMachinePanel* p : m_other_list_machine_panel) {
-        //    auto p_rect = p->mPanel->ClientToScreen(wxPoint(0, 0));
-        //    if (mouse_pos.x > p_rect.x && mouse_pos.y > p_rect.y && mouse_pos.x < (p_rect.x + p->mPanel->GetSize().x) && mouse_pos.y < (p_rect.y + p->mPanel->GetSize().y)) {
-        //        wxMouseEvent event(wxEVT_LEFT_UP);
-        //        auto         tag_pos = p->mPanel->ScreenToClient(mouse_pos);
-        //        event.SetPosition(tag_pos);
-        //        event.SetEventObject(p->mPanel);
-        //        wxPostEvent(p->mPanel, event);
-        //    }
-        //}
-
         //bind with access code
         auto dc_rect = m_panel_direct_connection->ClientToScreen(wxPoint(0, 0));
         if (mouse_pos.x > dc_rect.x && mouse_pos.y > dc_rect.y && mouse_pos.x < (dc_rect.x + m_panel_direct_connection->GetSize().x) && mouse_pos.y < (dc_rect.y + m_panel_direct_connection->GetSize().y)) {
@@ -1284,6 +1265,7 @@ void PhrozenSelectMachinePopup::OnLeftUp(wxMouseEvent &event)
 #pragma endregion
 
 
+#pragma region PhrozenEditDevNameDialog
 PhrozenEditDevNameDialog::PhrozenEditDevNameDialog(Plater *plater /*= nullptr*/)
     : DPIDialog(static_cast<wxWindow *>(wxGetApp().mainframe), wxID_ANY, _L("Modifying the device name"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX)
 {
@@ -1395,7 +1377,9 @@ void PhrozenEditDevNameDialog::on_edit_name(wxCommandEvent &e)
         DPIDialog::EndModal(wxID_CLOSE);
     }
 }
+#pragma endregion
 
+#pragma region PhrozenIpKeyInButton
 PhrozenIpKeyInButton::PhrozenIpKeyInButton(wxWindow* parent, wxWindowID winid /*= wxID_ANY*/, const wxPoint& pos /*= wxDefaultPosition*/, const wxSize& size /*= wxDefaultSize*/)
  {
      wxPanel::Create(parent, winid, pos);
@@ -1438,6 +1422,7 @@ PhrozenIpKeyInButton::PhrozenIpKeyInButton(wxWindow* parent, wxWindowID winid /*
 #endif
  }
 
+
  void PhrozenIpKeyInButton::doRender(wxDC& dc)
  {
      auto size = GetSize();
@@ -1473,5 +1458,6 @@ PhrozenIpKeyInButton::PhrozenIpKeyInButton(wxWindow* parent, wxWindowID winid /*
      PhrozenInputIpAddressDialog dlgo;
      dlgo.ShowModal();
  }
+ #pragma endregion
 
  }} // namespace Slic3r::GUI

@@ -56,11 +56,12 @@ enum class PhrozenPrinterBindState : int32_t {
     ALLOW_UNBIND
 };
 
-enum class PhrozenPinCodePanelType : int32_t {
-    BindWithPinCode,
-    BindWithAccessCode,
-    BindWithIP
-};
+wxDECLARE_EVENT(EVT_CLOSE_IPADDRESS_DLG, wxCommandEvent);
+wxDECLARE_EVENT(EVT_CHECKBOX_CHANGE, wxCommandEvent);
+wxDECLARE_EVENT(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, wxCommandEvent);
+wxDECLARE_EVENT(EVT_PHROZEN_DISCONNECT_MACHINE, wxCommandEvent);
+wxDECLARE_EVENT(EVT_PHROZEN_UPDATE_MACHINE_TITLE, wxCommandEvent);
+
 
 #define PHROZEN_SELECT_MACHINE_POPUP_SIZE wxSize(FromDIP(216), FromDIP(364))
 #define PHROZEN_SELECT_MACHINE_LIST_SIZE wxSize(FromDIP(212), FromDIP(360))
@@ -113,11 +114,6 @@ public:
 };
 #pragma endregion
 
-wxDECLARE_EVENT(EVT_CLOSE_IPADDRESS_DLG, wxCommandEvent);
-wxDECLARE_EVENT(EVT_CHECKBOX_CHANGE, wxCommandEvent);
-wxDECLARE_EVENT(EVT_ENTER_IP_ADDRESS, wxCommandEvent);
-wxDECLARE_EVENT(EVT_CHECK_IP_ADDRESS_LAYOUT, wxCommandEvent);
-
 #pragma region  PhrozenIpConnectDialog
 class PhrozenIpConnectDialog : public DPIDialog
 {
@@ -154,14 +150,13 @@ wxDECLARE_EVENT(EVT_UPDATE_CONNECT_MSG, wxCommandEvent);
 class PhrozenMachineObjectPanel : public wxPanel
 {
 private:
-    bool        m_is_my_devices {false};
     bool        m_show_edit{false};
     bool        m_show_bind{false};
     bool        m_hover {false};
     bool        m_is_macos_special_version{false};
 
 
-    PhrozenPrinterBindState   m_bind_state{PhrozenPrinterBindState::ALLOW_UNBIND};
+    PhrozenPrinterBindState   m_bind_state{PhrozenPrinterBindState::NONE};
     PhrozenPrinterState       m_state;
 
     ScalableBitmap m_unbind_img;
@@ -202,13 +197,6 @@ protected:
     void on_mouse_enter(wxMouseEvent &evt);
     void on_mouse_leave(wxMouseEvent &evt);
     void on_mouse_left_up(wxMouseEvent &evt);
-};
-
-class PhrozenMachinePanel
-{
-public:
-    std::string mStrIp;
-    PhrozenMachineObjectPanel *mPanel;
 };
 
 class PhrozenIpKeyInButton : public wxPanel
