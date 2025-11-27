@@ -1176,7 +1176,13 @@ void PhrozenSelectMachinePopup::update_lan_devices()
     //remove
     for ( auto& strIp : kMachineForRemove )
     {
+        // Platform-specific iterator binding: MSVC allows binding temporary iterator to non-const reference,
+        // while Clang (macOS) strictly requires value copy for temporary objects per C++ standard
+#ifdef _WIN32
         auto& kIter = m_lan_machine_ip_panels.find( strIp );
+#else
+        auto kIter = m_lan_machine_ip_panels.find( strIp );
+#endif
         if ( kIter == m_lan_machine_ip_panels.end() )
         {
             continue;
