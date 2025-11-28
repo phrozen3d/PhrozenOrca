@@ -520,13 +520,9 @@ void PhrozenIpConnectDialog::workerConnectThreadFunc(std::string str_ip)
 
         post_update_msg(wxString::Format(_L("Connecting to printer success... The dialog will close later"), closeCount), false);
 
-#ifdef __APPLE__
-        wxCommandEvent event(EVT_PHROZEN_IP_CONNECT_SUCCESS);
-        wxPostEvent(this, event);
-#else
+        // Cross-platform support: use the same close flow for all platforms
         closeCount = 1;
         m_kSuccessCloseTimer->Start(1000);
-#endif
     });
 }
 
@@ -1242,10 +1238,11 @@ void PhrozenSelectMachinePopup::OnLeftUp(wxMouseEvent &event)
         }
 
         //hyper link
-        auto h_rect = m_hyperlink->ClientToScreen(wxPoint(0, 0));
-        if (mouse_pos.x > h_rect.x && mouse_pos.y > h_rect.y && mouse_pos.x < (h_rect.x + m_hyperlink->GetSize().x) && mouse_pos.y < (h_rect.y + m_hyperlink->GetSize().y)) {
-          wxLaunchDefaultBrowser(wxT("https://wiki.bambulab.com/en/software/bambu-studio/failed-to-connect-printer"));
-        }
+        // Commented out: The new connection close dialog flow causes crashes on macOS platform
+        //auto h_rect = m_hyperlink->ClientToScreen(wxPoint(0, 0));
+        //if (mouse_pos.x > h_rect.x && mouse_pos.y > h_rect.y && mouse_pos.x < (h_rect.x + m_hyperlink->GetSize().x) && mouse_pos.y < (h_rect.y + m_hyperlink->GetSize().y)) {
+        //  wxLaunchDefaultBrowser(wxT("https://wiki.bambulab.com/en/software/bambu-studio/failed-to-connect-printer"));
+        //}
     }
 }
 
