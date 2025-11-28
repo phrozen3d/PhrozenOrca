@@ -446,6 +446,8 @@ public:
     virtual float GetPhrozenTotalTime() { return 0.0f; }
     virtual float GetPhrozenPrintFilamentAmount() { return 0.0f; }
     virtual bool IsPrintPaused() { return false; }
+    
+    virtual double GetPhrozenSendFileProgress() { return 0.0; }
 
     //set command to machine
     //control
@@ -466,7 +468,8 @@ public:
     virtual bool SetPhrozenCommand_pause()  {return false;};
     virtual bool SetPhrozenCommand_resume()  {return false;};
     virtual bool SetPhrozenCommand_abort()  {return false;};
-    
+    virtual bool SetPhrozenCommand_sendandprint(std::string) { return false; };
+
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }
     virtual std::string GetPhrozenConnectedMachineIp() { return ""; }

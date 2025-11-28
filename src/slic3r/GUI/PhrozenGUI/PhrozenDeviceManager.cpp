@@ -267,6 +267,12 @@ bool PhrozenMachineObject::IsPrintPaused()
     return MonitorControl::m_pPrinterInfo->is_paused;
 }
 
+double PhrozenMachineObject::GetPhrozenSendFileProgress()
+{
+    // Return value range: 0.0 ~ 100.0
+    return MonitorControl::m_fProgressValue;
+}
+
 void PhrozenMachineObject::SetPhrozenCommand_bed_temp( int nTemp ) 
 {
     //完整的程式碼註解，請參閱void PhrozenMachineObject::SetPhrozenCommand_nozzle_temp( int nTemp )
@@ -747,6 +753,36 @@ bool PhrozenMachineObject::SetPhrozenCommand_abort()
     }
     catch (const std::exception& e) {
         BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_abort: Failed to create thread: " << e.what();
+        return false;
+    }
+}
+
+bool PhrozenMachineObject::SetPhrozenCommand_sendandprint(std::string filePath)
+{
+    // Example file path: 
+    // Absolute path - Windows: "C:/Users/phrozenmac/Desktop/SendFileAndPrint_TEST.gcode"
+    // Absolute path - macOS: "/Users/phrozenmac/Desktop/SendFileAndPrint_TEST.gcode"
+    // Relative path: "./SendFileAndPrint_TEST.gcode"
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_sendandprint: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_sendandprint: Sending and printing file: " << filePath;
+    
+    try {
+        std::thread threadForSendAndPrint([filePath](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::printfile(filePath);
+        });
+        
+        threadForSendAndPrint.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_sendandprint: Failed to create thread: " << e.what();
         return false;
     }
 }
