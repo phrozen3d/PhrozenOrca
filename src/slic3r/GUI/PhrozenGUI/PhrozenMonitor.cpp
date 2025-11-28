@@ -346,9 +346,9 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
     {
         return;
     }
-    PhrozenIpConnectDialog kDlg( this );
-    kDlg.set_ip_address( event.GetString().ToStdString() );
-    kDlg.ShowModal();
+    PhrozenIpConnectDialog kConnect( this );
+    kConnect.set_ip_address( event.GetString().ToStdString() );
+    kConnect.ShowModal();
 }
 
 void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )

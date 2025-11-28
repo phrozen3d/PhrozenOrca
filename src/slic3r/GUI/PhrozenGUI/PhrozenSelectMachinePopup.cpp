@@ -31,11 +31,15 @@
 namespace Slic3r { namespace GUI {
 
 
+
 wxDEFINE_EVENT(EVT_PHROZEN_UPDATE_USER_MACHINE_LIST, wxCommandEvent);
-wxDEFINE_EVENT(EVT_UPDATE_CONNECT_MSG, wxCommandEvent);
 wxDEFINE_EVENT(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, wxCommandEvent);
 wxDEFINE_EVENT(EVT_PHROZEN_DISCONNECT_MACHINE, wxCommandEvent);
 wxDEFINE_EVENT(EVT_PHROZEN_UPDATE_MACHINE_TITLE, wxCommandEvent);
+
+//PhrozenIpConnectDialog
+wxDEFINE_EVENT(EVT_PHROZEN_UPDATE_CONNECT_MSG, wxCommandEvent);
+wxDEFINE_EVENT(EVT_PHROZEN_IP_CONNECT_SUCCESS, wxCommandEvent);
 
 
 #define INITIAL_NUMBER_OF_MACHINES 0
@@ -221,8 +225,6 @@ PhrozenInputIpAddressDialog::PhrozenInputIpAddressDialog(wxWindow *parent)
     CentreOnParent(wxBOTH);
     Move(wxPoint(GetScreenPosition().x, GetScreenPosition().y - FromDIP(50)));
     wxGetApp().UpdateDlgDarkUI(this);
-
-    Bind(EVT_UPDATE_TEXT_MSG, &PhrozenInputIpAddressDialog::update_test_msg_event, this);
 }
 
 void PhrozenInputIpAddressDialog::on_cancel()
@@ -304,8 +306,8 @@ void PhrozenInputIpAddressDialog::on_ok(wxMouseEvent& evt)
     PhrozenIpConnectDialog kConnect(this);
     kConnect.set_ip_address( str_ip );
     kConnect.Show();
-    kConnect.ShowModal();
-    if ( kConnect.IsConnectSuccess() )
+    //auto kState = kConnect.ShowModal();
+    if (  kConnect.ShowModal() == wxID_YES  )//( kConnect.IsConnectSuccess() )
     {
         on_cancel();
     }
@@ -331,24 +333,6 @@ void PhrozenInputIpAddressDialog::on_ok(wxMouseEvent& evt)
     }
 
     //m_thread = new boost::thread(boost::bind(&PhrozenInputIpAddressDialog::workerPhrozenMonitorThreadFunc, this, str_ip));
-}
-
-void PhrozenInputIpAddressDialog::update_test_msg_event(wxCommandEvent& evt)
-{
-    wxString text = evt.GetString();
-    bool beconnect = evt.GetInt();
-    update_test_msg(text, beconnect);
-    Layout();
-    Fit();
-}
-
-void PhrozenInputIpAddressDialog::post_update_test_msg(wxString text, bool beconnect)
-{
-    wxCommandEvent event(EVT_UPDATE_TEXT_MSG);
-    event.SetEventObject(this);
-    event.SetString(text);
-    event.SetInt(beconnect);
-    wxPostEvent(this, event);
 }
 
 void PhrozenInputIpAddressDialog::on_text(wxCommandEvent &evt)
@@ -427,21 +411,23 @@ PhrozenIpConnectDialog::PhrozenIpConnectDialog(wxWindow *parent)
     CentreOnParent(wxBOTH);
     wxGetApp().UpdateDlgDarkUI(this);
 
-    closeTimer = new wxTimer();
-    closeTimer->SetOwner(this);
+    m_kSuccessCloseTimer = new wxTimer();
+    m_kSuccessCloseTimer->SetOwner(this);
     Bind(wxEVT_TIMER, &PhrozenIpConnectDialog::OnTimer, this);
 
-    Bind(EVT_CLOSE_IPADDRESS_DLG, [this](auto& e) {
+    Bind(EVT_PHROZEN_IP_CONNECT_SUCCESS, [this](auto& e) {
+        m_bSuccess = true;
         m_status_bar->reset();
         EndModal(wxID_YES);
     });
 
     Bind(wxEVT_CLOSE_WINDOW, [this](auto& e) {
         on_cancel();
-        closeTimer->Stop();
+        m_kSuccessCloseTimer->Stop();
     });
 
-    Bind(EVT_UPDATE_CONNECT_MSG, &PhrozenIpConnectDialog::update_msg_event, this);
+    Bind(EVT_PHROZEN_UPDATE_CONNECT_MSG, &PhrozenIpConnectDialog::update_msg_event, this);
+
 }
 
 PhrozenIpConnectDialog::~PhrozenIpConnectDialog()
@@ -490,7 +476,7 @@ void PhrozenIpConnectDialog::on_cancel()
 
 void PhrozenIpConnectDialog::post_update_msg(wxString text, bool is_error)
 {
-    wxCommandEvent event(EVT_UPDATE_CONNECT_MSG);
+    wxCommandEvent event(EVT_PHROZEN_UPDATE_CONNECT_MSG);
     event.SetEventObject(this);
     event.SetString(text);
     event.SetInt(is_error ? 1 : 0);
@@ -530,15 +516,16 @@ void PhrozenIpConnectDialog::workerConnectThreadFunc(std::string str_ip)
 
     CallAfter([this]() {
         wxGetApp().ProcessPhrozenConnector();
-        closeCount = 2;
+        
 
         post_update_msg(wxString::Format(_L("Connecting to printer success... The dialog will close later"), closeCount), false);
 
 #ifdef __APPLE__
-        wxCommandEvent event(EVT_CLOSE_IPADDRESS_DLG);
+        wxCommandEvent event(EVT_PHROZEN_IP_CONNECT_SUCCESS);
         wxPostEvent(this, event);
 #else
-        closeTimer->Start(1000);
+        closeCount = 1;
+        m_kSuccessCloseTimer->Start(1000);
 #endif
     });
 }
@@ -549,9 +536,9 @@ void PhrozenIpConnectDialog::OnTimer(wxTimerEvent& event)
         closeCount--;
     }
     else {
-        closeTimer->Stop();
-        m_bSuccess = true;
-        EndModal(wxID_CLOSE);
+        m_kSuccessCloseTimer->Stop();
+        wxCommandEvent event(EVT_PHROZEN_IP_CONNECT_SUCCESS);
+        wxPostEvent(this, event);
     }
 }
 

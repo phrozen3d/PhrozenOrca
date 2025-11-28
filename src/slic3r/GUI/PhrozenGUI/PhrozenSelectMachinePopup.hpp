@@ -56,12 +56,15 @@ enum class PhrozenPrinterBindState : int32_t {
     ALLOW_UNBIND
 };
 
-wxDECLARE_EVENT(EVT_CLOSE_IPADDRESS_DLG, wxCommandEvent);
+
 wxDECLARE_EVENT(EVT_CHECKBOX_CHANGE, wxCommandEvent);
 wxDECLARE_EVENT(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, wxCommandEvent);
 wxDECLARE_EVENT(EVT_PHROZEN_DISCONNECT_MACHINE, wxCommandEvent);
 wxDECLARE_EVENT(EVT_PHROZEN_UPDATE_MACHINE_TITLE, wxCommandEvent);
 
+//PhrozenIpConnectDialog
+wxDECLARE_EVENT(EVT_PHROZEN_UPDATE_CONNECT_MSG, wxCommandEvent);
+wxDECLARE_EVENT(EVT_PHROZEN_IP_CONNECT_SUCCESS, wxCommandEvent);
 
 #define PHROZEN_SELECT_MACHINE_POPUP_SIZE wxSize(FromDIP(216), FromDIP(364))
 #define PHROZEN_SELECT_MACHINE_LIST_SIZE wxSize(FromDIP(212), FromDIP(360))
@@ -107,14 +110,13 @@ public:
     void update_test_msg(wxString msg, bool connected);
     bool isIp(std::string ipstr);
     void on_ok(wxMouseEvent& evt);
-    void update_test_msg_event(wxCommandEvent &evt);
-    void post_update_test_msg(wxString text, bool beconnect);
     void on_text(wxCommandEvent& evt);
     void on_dpi_changed(const wxRect& suggested_rect) override;
 };
 #pragma endregion
 
 #pragma region  PhrozenIpConnectDialog
+
 class PhrozenIpConnectDialog : public DPIDialog
 {
 public:
@@ -131,7 +133,7 @@ private:
     std::string m_ip_address;
 
     Label* m_test_msg{ nullptr };
-    wxTimer* closeTimer{ nullptr };
+    wxTimer* m_kSuccessCloseTimer{ nullptr };
     int closeCount{3};
     std::shared_ptr<BBLStatusBarSend> m_status_bar;
     bool m_bSuccess = false;
@@ -143,8 +145,6 @@ private:
     void OnTimer(wxTimerEvent& event);
     void on_dpi_changed(const wxRect& suggested_rect) override;
 };
-
-wxDECLARE_EVENT(EVT_UPDATE_CONNECT_MSG, wxCommandEvent);
 #pragma endregion 
 
 class PhrozenMachineObjectPanel : public wxPanel
