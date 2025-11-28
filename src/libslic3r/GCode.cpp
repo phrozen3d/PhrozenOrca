@@ -748,13 +748,23 @@ static std::vector<Vec2d> get_path_of_change_filament(const Print& print)
             // FIXME: It would be better if the wipe tower set the force_travel flag for all toolchanges,
             // then we could simplify the condition and make it more readable.
             gcode += gcodegen.retract();
-            if (!is_ramming || !needs_toolchange || gcodegen.m_need_change_layer_lift_z) {
                 gcodegen.m_avoid_crossing_perimeters.use_external_mp_once();
                 gcode += gcodegen.travel_to(wipe_tower_point_to_object_point(gcodegen, start_pos + plate_origin_2d), erMixed,
                                             "Travel to a Wipe Tower");
-                gcode += gcodegen.unretract();
-            } else
-                gcodegen.unretract();
+                if (!is_ramming || !needs_toolchange || gcodegen.m_need_change_layer_lift_z)
+                    gcode += gcodegen.unretract();
+                else {
+                    // claude: erase travel (G1 X Y), keep lift z
+                    auto pos = gcode.rfind("G1 X");
+                    gcode.erase(pos);
+                    auto unretract_buf = gcodegen.unretract();
+                    const std::string CHANGE_FILAMENT_GCODE     = "[change_filament_gcode]";
+                    auto              change_filament_gcode_pos = tcr_rotated_gcode.find(CHANGE_FILAMENT_GCODE);
+                    if (change_filament_gcode_pos != std::string::npos) {
+                        change_filament_gcode_pos += CHANGE_FILAMENT_GCODE.size() + 1;
+                        tcr_rotated_gcode.insert(change_filament_gcode_pos, unretract_buf);
+                    }
+                }
         } else {
             // When this is multiextruder printer without any ramming, we can just change
             // the tool without travelling to the tower.
