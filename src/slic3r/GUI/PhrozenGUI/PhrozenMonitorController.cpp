@@ -4,6 +4,7 @@
 #include <cctype>
 #include <iostream>
 #include <sstream>
+#include <atomic>
 #include <boost/beast/core/detail/base64.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #ifdef __APPLE__
@@ -122,6 +123,9 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     std::mutex m_kCurlMutex;
     std::mutex m_kCommandMutex;
     bool m_bIsConnetedToAMS = false;
+    std::atomic<bool> m_bDoThumbnailCheck{false};
+    std::string prev_state = "";
+    bool isReadFromGcodeFinished = true;
     WebCamImageDataThreadHandler WebCamDataHandler = {};
     HttpErrorInfo error_info = {};
     AMSPatterns amsPatterns = {};
@@ -396,6 +400,14 @@ CURLcode Initialconnect()
         }
         else {
             printf("WebSocket connection established successfully\n");
+            
+            if(m_pWebServiceInfo->ip == m_pPrinterInfo->pre_printerIP){
+                m_pPrinterInfo->isSameIP = true;
+            }
+            else{
+                m_pPrinterInfo->isSameIP = false;
+                m_pPrinterInfo->pre_printerIP = m_pWebServiceInfo->ip;
+            }
 
             // Get connection info
             long response_code;
@@ -764,6 +776,8 @@ struct PrinterStatusExtractor {
     }
     
     static void ExtractPrintStatusInfo(const json& status) {
+        // Static variables to track previous values for change detection
+        
         if (status.contains("display_status") && status["display_status"].contains("progress")) {
             m_pPrinterInfo->print_progress = status["display_status"]["progress"];
         }
@@ -771,11 +785,15 @@ struct PrinterStatusExtractor {
             m_pPrinterInfo->is_paused = status["pause_resume"]["is_paused"];
         }
         if (status.contains("print_stats")) {
+            std::string new_state;
+            std::string new_print_file;
+            
             if (status["print_stats"].contains("state")) {
-                m_pPrinterInfo->state = status["print_stats"]["state"].get<std::string>();
+                new_state = status["print_stats"]["state"].get<std::string>();
+                m_pPrinterInfo->state = new_state;
             }
             if (status["print_stats"].contains("filename")) {
-                m_pPrinterInfo->print_file = status["print_stats"]["filename"].get<std::string>();
+                m_pPrinterInfo->print_file = status["print_stats"]["filename"];
             }
             if (status["print_stats"].contains("print_duration")) {
                 m_pPrinterInfo->print_time = status["print_stats"]["print_duration"];
@@ -785,6 +803,33 @@ struct PrinterStatusExtractor {
             }
             if (status["print_stats"].contains("filament_used")) {
                 m_pPrinterInfo->print_filament = status["print_stats"]["filament_used"];
+            }
+            
+            // Detect state change to trigger thumbnail check
+            if(m_pPrinterInfo->isSameIP){
+                if ( (prev_state == "standby" || prev_state == "offline" ||
+                      prev_state == "paused" || prev_state == "cancelled" || prev_state.empty()) &&
+                         (new_state == "printing" || new_state == "complete" )) {
+                    SetThumbnailChecking(true);
+                    BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: Print state changed from \""
+                                            << prev_state << "\" to \"" << new_state << "\"";
+                    // Update previous values
+                    prev_state = new_state;
+                }else{
+                    prev_state = new_state;
+                }
+            }
+            else{
+                if ( (new_state == "paused" || new_state == "complete" ||
+                      new_state == "cancelled" || new_state == "printing" ||
+                      new_state == "complete" )) {
+                    SetThumbnailChecking(true);
+                    BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: Print state changed from \""
+                                            << prev_state << "\" to \"" << new_state << "\"";
+                    // Update previous values
+                    prev_state = new_state;
+                    m_pPrinterInfo->isSameIP = true;
+                }
             }
         }
     }
@@ -2388,7 +2433,19 @@ void GetThumbnailInfo(std::string gcode)
 
         //2. set url basic info, must use c_str()
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-        std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/server/files/thumbnails?filename=" + gcode;
+        
+        // URL encode the filename for query parameter
+        char* encoded_gcode = curl_easy_escape(curl, gcode.c_str(), gcode.length());
+        if (!encoded_gcode) {
+            BOOST_LOG_TRIVIAL(error) << "GetThumbnailInfo: Failed to URL encode filename: " << gcode;
+            curl_easy_cleanup(curl);
+            curl_global_cleanup();
+            return;
+        }
+        
+        std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/server/files/thumbnails?filename=" + std::string(encoded_gcode);
+        curl_free(encoded_gcode);  // Free the memory allocated by curl_easy_escape
+        
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
@@ -2512,7 +2569,19 @@ bool GetThumbnailImage(std::string printingfile)
     if (curl) {
         //2. set url basic info, must use c_str()
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-        std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/server/files/gcodes/" + m_pPrinterInfo->thumbnail_path;
+        
+        // URL encode the thumbnail path to handle special characters
+        char* encoded_path = curl_easy_escape(curl, m_pPrinterInfo->thumbnail_path.c_str(), m_pPrinterInfo->thumbnail_path.length());
+        if (!encoded_path) {
+            BOOST_LOG_TRIVIAL(error) << "GetThumbnailImage: Failed to URL encode thumbnail path: " << m_pPrinterInfo->thumbnail_path;
+            curl_easy_cleanup(curl);
+            curl_global_cleanup();
+            return false;
+        }
+        
+        std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/server/files/gcodes/" + std::string(encoded_path);
+        curl_free(encoded_path);  // Free the memory allocated by curl_easy_escape
+        
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
@@ -2616,10 +2685,21 @@ bool GetThumbnailImageInMemory(const std::string& gcodeName, std::vector<unsigne
         return false;
     }
     
-    // Build download URL
+    // Build download URL with URL-encoded thumbnail path
+    // URL encode the thumbnail path to handle special characters like spaces, parentheses, etc.
+    char* encoded_path = curl_easy_escape(curl, thumbnail_path.c_str(), thumbnail_path.length());
+    if (!encoded_path) {
+        std::cout << "[GetThumbnailImageInMemory] ERROR - Failed to URL encode thumbnail path: " << thumbnail_path << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailImageInMemory: Failed to URL encode thumbnail path: " << thumbnail_path;
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return false;
+    }
+    
     std::string url = "http://" + m_pWebServiceInfo->ip 
                      + m_pWebServiceInfo->port_device 
-                     + "/server/files/gcodes/" + thumbnail_path;
+                     + "/server/files/gcodes/" + std::string(encoded_path);
+    curl_free(encoded_path);  // Free the memory allocated by curl_easy_escape
     
     // Set CURL options
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
@@ -2685,10 +2765,21 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
         return false;
     }
     
-    // Build GCode file download URL
+    // Build GCode file download URL with URL-encoded filename
+    // URL encode the filename to handle special characters like spaces, parentheses, etc.
+    char* encoded_gcodeName = curl_easy_escape(curl, gcodeName.c_str(), gcodeName.length());
+    if (!encoded_gcodeName) {
+        std::cout << "[GetThumbnailFromGCodeFile] ERROR - Failed to URL encode filename: " << gcodeName << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetThumbnailFromGCodeFile: Failed to URL encode filename: " << gcodeName;
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return false;
+    }
+    
     std::string url = "http://" + m_pWebServiceInfo->ip 
                      + m_pWebServiceInfo->port_device 
-                     + "/server/files/gcodes/" + gcodeName;
+                     + "/server/files/gcodes/" + std::string(encoded_gcodeName);
+    curl_free(encoded_gcodeName);  // Free the memory allocated by curl_easy_escape
     
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -2697,8 +2788,8 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteThumbnailMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gcode_data);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Longer timeout for GCode file
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60);  // Longer timeout for GCode file
     
     std::cout << "[GetThumbnailFromGCodeFile] Downloading GCode file from: " << url << std::endl;
     result = curl_easy_perform(curl);
@@ -3335,6 +3426,22 @@ const NozzleInfo& GetNozzleInfo()
 const bool& IsConnectedToAMS()
 {
     return m_bIsConnetedToAMS;
+}
+
+void SetThumbnailChecking( bool bCheck )
+{
+    if ( bCheck ) { m_bDoThumbnailCheck.store(true, std::memory_order_relaxed); }
+    else          { m_bDoThumbnailCheck.store(false, std::memory_order_relaxed); }
+}
+
+bool IsStartThumbnailChecking()
+{
+    return m_bDoThumbnailCheck.load(std::memory_order_relaxed);
+}
+
+void ResetPreviousPrintState(  )
+{
+    prev_state.clear();
 }
 
 } // namespace MonitorControl

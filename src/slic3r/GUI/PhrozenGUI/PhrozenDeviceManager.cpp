@@ -148,7 +148,11 @@ bool PhrozenMachineObject::GetPhrozenThumbnailAsBitmap(const std::string& gcodeN
     // Step 1: Try to get thumbnail from GCode file first
     // ============================================
     std::vector<unsigned char> thumbnail_data;
-    bool download_success = MonitorControl::GetThumbnailFromGCodeFile(gcodeName, thumbnail_data);
+    bool download_success = false;
+    {
+        std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+        download_success = MonitorControl::GetThumbnailFromGCodeFile(gcodeName, thumbnail_data);
+    }
     
     // ============================================
     // Step 2: If failed, try to get thumbnail image via HTTP API (fallback)

@@ -315,6 +315,9 @@ struct PrinterInfo
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
+    
+    bool isSameIP = "";
+    std::string pre_printerIP = "";
 };
 
 struct CalibrationInfo 
@@ -840,6 +843,9 @@ struct HttpErrorInfo {
     extern std::mutex m_kCurlMutex;
     extern std::mutex m_kCommandMutex;
     extern bool m_bIsConnetedToAMS;
+    extern std::atomic<bool> m_bDoThumbnailCheck;
+    extern std::string prev_state;
+    extern bool isReadFromGcodeFinished;
     extern WebCamImageDataThreadHandler WebCamDataHandler;
     extern HttpErrorInfo error_info;
 
@@ -970,6 +976,10 @@ struct HttpErrorInfo {
     const std::vector<AMSInfo>& GetAMSList();
     const bool& IsConnectedToAMS();
     const NozzleInfo& GetNozzleInfo();
+
+    void SetThumbnailChecking( bool bCheck );
+    bool IsStartThumbnailChecking();
+    void ResetPreviousPrintState();
 
 #pragma endregion //PhrozenMonitorController
 

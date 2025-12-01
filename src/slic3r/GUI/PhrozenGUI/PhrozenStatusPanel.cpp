@@ -2949,8 +2949,8 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     // ======================== //
     // 更新各項列印相關資訊與狀態入口
     // ======================== //
-    update_print_states(obj);
     m_project_task_panel->Thaw();
+    update_print_states(obj);
 
 #if !BBL_RELEASE_TO_PUBLIC
     auto delay1  = std::chrono::duration_cast<std::chrono::milliseconds>(obj->last_utc_time - std::chrono::system_clock::now()).count();
@@ -4298,20 +4298,20 @@ void PhrozenStatusPanel::update_print_stage(MachineObject *obj)
 
 void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
 {
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Function called" << std::endl;
+    std::cout << "[PhrozenStatusPanel] update_thumbnail: Function called" << std::endl;
     
     // ============================================
     // 防呆檢查：確保物件有效
     // ============================================
     if (!obj) {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - obj is nullptr" << std::endl;
-        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: obj is nullptr";
+        std::cout << "[PhrozenStatusPanel] update_thumbnail: ERROR - obj is nullptr" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail: obj is nullptr";
         return;
     }
     
     if (!m_project_task_panel) {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - m_project_task_panel is nullptr" << std::endl;
-        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: m_project_task_panel is nullptr";
+        std::cout << "[PhrozenStatusPanel] update_thumbnail: ERROR - m_project_task_panel is nullptr" << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail: m_project_task_panel is nullptr";
         return;
     }
     
@@ -4319,11 +4319,11 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
     // 獲取當前打印的 GCode 文件名
     // ============================================
     std::string gcode_name = obj->GetPhrozenPrintFile();
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: GCode name = \"" << gcode_name << "\"" << std::endl;
+    std::cout << "[PhrozenStatusPanel] update_thumbnail: GCode name = \"" << gcode_name << "\"" << std::endl;
     
     if (gcode_name.empty()) {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - GCode file name is empty" << std::endl;
-        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+        std::cout << "[PhrozenStatusPanel] update_thumbnail: WARNING - GCode file name is empty" << std::endl;
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail: "
                                     << "GCode file name is empty, skipping thumbnail update";
         return;
     }
@@ -4331,18 +4331,18 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
     // ============================================
     // 檢查緩存：如果已經有相同的縮略圖，直接使用
     // ============================================
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Checking cache, cached_gcode_name = \"" 
-              << m_cached_gcode_name << "\"" << std::endl;
+    std::cout << "[PhrozenStatusPanel] update_thumbnail: Checking cache, cached_gcode_name = \""
+              << obj->m_cached_gcode_name << "\"" << std::endl;
     
-    if (gcode_name == m_cached_gcode_name) {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache match found, checking cache entry..." << std::endl;
-        auto cache_it = m_thumbnail_cache.find(gcode_name);
-        if (cache_it != m_thumbnail_cache.end() && cache_it->second.IsOk()) {
+    if (gcode_name == obj->m_cached_gcode_name) {
+        std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache match found, checking cache entry..." << std::endl;
+        auto cache_it = obj->m_thumbnail_cache.find(gcode_name);
+        if (cache_it != obj->m_thumbnail_cache.end() && cache_it->second.IsOk()) {
             std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache hit! Using cached thumbnail" << std::endl;
             // 緩存命中：直接使用緩存的縮略圖
             try {
                 wxSize thumbnail_size = m_project_task_panel->get_bitmap_thumbnail()->GetSize();
-                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Target thumbnail size = " 
+                std::cout << "[PhrozenStatusPanel] update_thumbnail: Target thumbnail size = "
                           << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
                 
                 if (thumbnail_size.x > 0 && thumbnail_size.y > 0) {
@@ -4356,11 +4356,11 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
                         // 記錄原始尺寸和目標尺寸，用於診斷
                         int orig_width = cached_img.GetWidth();
                         int orig_height = cached_img.GetHeight();
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cached thumbnail size = " 
-                                  << orig_width << "x" << orig_height << ", target = " 
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail: Cached thumbnail size = "
+                                  << orig_width << "x" << orig_height << ", target = "
                                   << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
                         
-                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
+                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail: "
                                                 << "Cached thumbnail original size: " << orig_width << "x" << orig_height
                                                 << ", target size: " << thumbnail_size.x << "x" << thumbnail_size.y;
                         
@@ -4368,8 +4368,8 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
                         // 如果原始圖片尺寸與控件尺寸相同，直接使用原始圖片
                         // 否則使用改進的超採樣技術：根據原始圖片大小動態調整策略
                         if (orig_width != thumbnail_size.x || orig_height != thumbnail_size.y) {
-                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Scaling cached thumbnail from " 
-                                      << orig_width << "x" << orig_height << " to " 
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail: Scaling cached thumbnail from "
+                                      << orig_width << "x" << orig_height << " to "
                                       << thumbnail_size.x << "x" << thumbnail_size.y 
                                       << " (using improved supersampling)" << std::endl;
                             
@@ -4393,7 +4393,7 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
                             int intermediate_width = thumbnail_size.x * supersample_factor;
                             int intermediate_height = thumbnail_size.y * supersample_factor;
                             
-                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using supersample factor " 
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail: Using supersample factor "
                                       << supersample_factor << " (scale ratio: " << scale_ratio << ")" << std::endl;
                             
                             // 使用 ResampleBicubic 進行更高質量的縮放（類似 GLTexture 中的方法）
@@ -4410,197 +4410,59 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
                                 thumbnail_size.y
                             );
                             
-                            BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                                     << "Rescaled cached thumbnail from " 
+                            BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail: "
+                                                     << "Rescaled cached thumbnail from "
                                                      << orig_width << "x" << orig_height
                                                      << " to " << thumbnail_size.x << "x" << thumbnail_size.y;
                         } else {
-                            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using original cached thumbnail size (exact match)" << std::endl;
-                            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                            std::cout << "[PhrozenStatusPanel] update_thumbnail: Using original cached thumbnail size (exact match)" << std::endl;
+                            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail: "
                                                      << "Using original cached thumbnail size (exact match)";
                         }
                         
-                        // 直接傳入 wxImage，與 on_webrequest_state 和 update_cloud_subtask 一致
+                        // 直接傳入 wxImage
                         m_project_task_panel->set_thumbnail_img(display_img);
+                        // 設置亮度值（用於暗色模式顯示）
                         m_project_task_panel->set_brightness_value(get_brightness_value(display_img));
                         
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Successfully updated UI with cached thumbnail" << std::endl;
-                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail: Successfully updated UI with cached thumbnail" << std::endl;
+                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail: "
                                                  << "Using cached thumbnail for GCode: \"" << gcode_name << "\"";
                         return;  // 成功使用緩存，直接返回
                     } else {
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - Cached image is not OK" << std::endl;
+                        std::cout << "[PhrozenStatusPanel] update_thumbnail: WARNING - Cached image is not OK: \""
+                                  << gcode_name << "\", displaying broken image" << std::endl;
+                        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                                 << "Failed to convert bitmap to image for GCode: \""
+                                                 << gcode_name << "\", displaying broken image";
+                        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
                     }
                 } else {
-                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: WARNING - Invalid thumbnail size: " 
-                              << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
+                    // 縮略圖控件尺寸無效：記錄錯誤
+                    std::cout << "[PhrozenStatusPanel] update_thumbnail: ERROR - Invalid thumbnail size: "
+                              << thumbnail_size.x << "x" << thumbnail_size.y << ", GCode: \"" << gcode_name << "\"" << std::endl;
+                    BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                                             << "Invalid thumbnail size: " << thumbnail_size.x
+                                             << "x" << thumbnail_size.y
+                                             << ", GCode: \"" << gcode_name << "\"";
+                    m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
                 }
             } catch (const std::exception& e) {
-                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: EXCEPTION while using cached thumbnail: " 
+                std::cout << "[PhrozenStatusPanel] update_thumbnail: EXCEPTION while using cached thumbnail: "
                           << e.what() << std::endl;
-                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail: "
                                            << "Exception while using cached thumbnail: " << e.what()
                                            << ", will fetch new thumbnail";
                 // 緩存使用失敗，繼續獲取新的縮略圖
             }
         } else {
-            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache entry not found or invalid" << std::endl;
+            std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache entry not found or invalid" << std::endl;
         }
     } else {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Cache miss (different GCode name)" << std::endl;
+        std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache miss (different GCode name)" << std::endl;
     }
     
-    // ============================================
-    // 緩存未命中或失效：使用記憶體版本獲取縮略圖
-    // ============================================
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Fetching new thumbnail from network..." << std::endl;
-    wxBitmap thumbnail_bmp;
-    bool success = obj->GetPhrozenThumbnailAsBitmap(gcode_name, thumbnail_bmp);
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: GetPhrozenThumbnailAsBitmap result: " 
-              << (success ? "SUCCESS" : "FAILED") << std::endl;
-    
-    if (success && thumbnail_bmp.IsOk()) {
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Thumbnail bitmap is OK, processing..." << std::endl;
-        // 縮略圖獲取成功：保存到緩存並更新 UI
-        try {
-            wxSize thumbnail_size = m_project_task_panel->get_bitmap_thumbnail()->GetSize();
-            
-            // 驗證縮略圖控件尺寸是否有效
-            if (thumbnail_size.x > 0 && thumbnail_size.y > 0) {
-                // 將 wxBitmap 轉換為 wxImage 以便縮放
-                wxImage thumbnail_img = thumbnail_bmp.ConvertToImage();
-                
-                if (thumbnail_img.IsOk()) {
-                    // 保存原始縮略圖到緩存（不縮放，保持原始清晰度）
-                    m_thumbnail_cache[gcode_name] = thumbnail_bmp;
-                    m_cached_gcode_name = gcode_name;
-                    
-                    wxImage display_img = thumbnail_img;
-                    
-                    // 記錄原始尺寸和目標尺寸，用於診斷
-                    int orig_width = thumbnail_img.GetWidth();
-                    int orig_height = thumbnail_img.GetHeight();
-                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: New thumbnail size = " 
-                              << orig_width << "x" << orig_height << ", target = " 
-                              << thumbnail_size.x << "x" << thumbnail_size.y << std::endl;
-                    
-                    BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                            << "Thumbnail original size: " << orig_width << "x" << orig_height
-                                            << ", target size: " << thumbnail_size.x << "x" << thumbnail_size.y;
-                    
-                    // 檢查是否需要縮放
-                    // 如果原始圖片尺寸與控件尺寸相同，直接使用原始圖片
-                    // 否則使用改進的超採樣技術：根據原始圖片大小動態調整策略
-                    if (orig_width != thumbnail_size.x || orig_height != thumbnail_size.y) {
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Scaling thumbnail from " 
-                                  << orig_width << "x" << orig_height << " to " 
-                                  << thumbnail_size.x << "x" << thumbnail_size.y 
-                                  << " (using improved supersampling)" << std::endl;
-                        
-                        // 改進的超採樣策略：
-                        // 如果原始圖片比目標大，使用更大的超採樣因子（3x 或 4x）
-                        // 這樣可以更好地保留細節
-                        float scale_ratio_x = float(orig_width) / float(thumbnail_size.x);
-                        float scale_ratio_y = float(orig_height) / float(thumbnail_size.y);
-                        float scale_ratio = std::max(scale_ratio_x, scale_ratio_y);
-                        
-                        int supersample_factor = 2;
-                        if (scale_ratio > 1.5f) {
-                            // 原始圖片明顯大於目標，使用更大的超採樣因子
-                            supersample_factor = 3;
-                        }
-                        if (scale_ratio > 2.0f) {
-                            // 原始圖片遠大於目標，使用最大超採樣因子
-                            supersample_factor = 4;
-                        }
-                        
-                        int intermediate_width = thumbnail_size.x * supersample_factor;
-                        int intermediate_height = thumbnail_size.y * supersample_factor;
-                        
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using supersample factor " 
-                                  << supersample_factor << " (scale ratio: " << scale_ratio << ")" << std::endl;
-                        
-                        // 使用 ResampleBicubic 進行更高質量的縮放（類似 GLTexture 中的方法）
-                        // ResampleBicubic 提供比 Scale 更好的質量，特別適合縮小操作
-                        // 第一步：放大到中間尺寸（使用雙三次插值）
-                        wxImage intermediate_img = thumbnail_img.ResampleBicubic(
-                            intermediate_width, 
-                            intermediate_height
-                        );
-                        
-                        // 第二步：縮小到目標尺寸（使用雙三次插值）
-                        display_img = intermediate_img.ResampleBicubic(
-                            thumbnail_size.x, 
-                            thumbnail_size.y
-                        );
-                        
-                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                                 << "Rescaled thumbnail from " 
-                                                 << orig_width << "x" << orig_height
-                                                 << " to " << thumbnail_size.x << "x" << thumbnail_size.y;
-                    } else {
-                        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Using original thumbnail size (exact match)" << std::endl;
-                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                                 << "Using original thumbnail size (exact match)";
-                    }
-                    
-                    // 直接傳入 wxImage，與 on_webrequest_state 和 update_cloud_subtask 一致
-                    m_project_task_panel->set_thumbnail_img(display_img);
-                    
-                    // 設置亮度值（用於暗色模式顯示）
-                    m_project_task_panel->set_brightness_value(get_brightness_value(display_img));
-                    
-                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Successfully loaded and cached thumbnail for GCode: \"" 
-                              << gcode_name << "\"" << std::endl;
-                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                             << "Thumbnail loaded and cached successfully. "
-                                             << "GCode: \"" << gcode_name << "\"";
-                } else {
-                    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Failed to convert bitmap to image for GCode: \"" 
-                              << gcode_name << "\", displaying broken image" << std::endl;
-                    BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                             << "Failed to convert bitmap to image for GCode: \"" 
-                                             << gcode_name << "\", displaying broken image";
-                    m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-                }
-            } else {
-                // 縮略圖控件尺寸無效：記錄錯誤
-                std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Invalid thumbnail size: " 
-                          << thumbnail_size.x << "x" << thumbnail_size.y << ", GCode: \"" << gcode_name << "\"" << std::endl;
-                BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                         << "Invalid thumbnail size: " << thumbnail_size.x 
-                                         << "x" << thumbnail_size.y 
-                                         << ", GCode: \"" << gcode_name << "\"";
-                m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-            }
-        } catch (const std::exception& e) {
-            // 處理過程發生異常：顯示破損圖片
-            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: EXCEPTION during thumbnail processing: " 
-                      << e.what() << ", GCode: \"" << gcode_name << "\"" << std::endl;
-            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                     << "Exception during thumbnail processing: " << e.what()
-                                     << ", GCode: \"" << gcode_name << "\", displaying broken image";
-            m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-        } catch (...) {
-            // 未知異常：顯示破損圖片
-            std::cout << "[PhrozenStatusPanel] update_thumbnail_path: UNKNOWN EXCEPTION during thumbnail processing, GCode: \"" 
-                      << gcode_name << "\"" << std::endl;
-            BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                     << "Unknown exception during thumbnail processing. "
-                                     << "GCode: \"" << gcode_name << "\", displaying broken image";
-            m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-        }
-    } else {
-        // 縮略圖獲取失敗：顯示破損圖片
-        std::cout << "[PhrozenStatusPanel] update_thumbnail_path: ERROR - Failed to get thumbnail bitmap for GCode: \"" 
-                  << gcode_name << "\", displaying broken image" << std::endl;
-        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail_path: "
-                                    << "Failed to get thumbnail bitmap for GCode: \"" 
-                                    << gcode_name << "\", displaying broken image";
-        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
-    }
-    
-    std::cout << "[PhrozenStatusPanel] update_thumbnail_path: Function completed for GCode=\"" << gcode_name << "\"" << std::endl;
+    std::cout << "[PhrozenStatusPanel] update_thumbnail: Function completed for GCode=\"" << gcode_name << "\"" << std::endl;
 }
 
 void PhrozenStatusPanel::update_print_filament(MachineObject *obj)

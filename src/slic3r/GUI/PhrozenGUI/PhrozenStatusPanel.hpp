@@ -553,9 +553,6 @@ protected:
     bool m_show_mode_changed = false;
     std::map<wxString, wxImage> img_list; // key: url, value: wxBitmap png Image
     std::map<std::string, std::string> m_print_connect_types;
-    // Thumbnail cache: key is gcode filename, value is the original wxBitmap (before scaling)
-    std::map<std::string, wxBitmap> m_thumbnail_cache;
-    std::string m_cached_gcode_name; // Track the last gcode name to avoid unnecessary updates
     std::vector<Button *>       m_buttons;
     int last_status;
     ScoreData *m_score_data;

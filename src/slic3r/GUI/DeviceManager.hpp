@@ -775,6 +775,10 @@ public:
     int     total_layers = 0;
     bool    is_support_layer_num { false };
     bool    nozzle_blob_detection_enabled{ false };
+    
+    // Thumbnail cache: key is gcode filename, value is the original wxBitmap (before scaling)
+    std::map<std::string, wxBitmap> m_thumbnail_cache;
+    std::string m_cached_gcode_name; // Track the last gcode name to avoid unnecessary updates
 
     int last_cali_version = -1;
     int cali_version = -1;

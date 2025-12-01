@@ -6942,6 +6942,10 @@ void GUI_App::ProcessPhrozenConnector()
 
     std::thread _threadReceiveWebCameraView(RunReceiveWebCameraView);
     _threadReceiveWebCameraView.detach();
+    
+    MonitorControl::ResetPreviousPrintState();
+    std::thread _threadReceiveThumbnail(RunReceiveThumbnail);
+    _threadReceiveThumbnail.detach();
 }
 
 void GUI_App::ProcessPhrozenDisconnect()
@@ -7007,6 +7011,99 @@ void RunReceiveWebCameraView()
 void RunSendMessage(  )
 {
     MonitorControl::GetAllInfo_websocket();
+}
+
+void RunReceiveThumbnail()
+{
+    while(MonitorControl::IsStartSending()){
+        if(MonitorControl::IsStartThumbnailChecking() && MonitorControl::isReadFromGcodeFinished){
+            auto pObject = wxGetApp().GetPhrozenMachineObject();
+            std::string gcode_name = pObject->GetPhrozenPrintFile();
+            if ( pObject && !gcode_name.empty())
+            {
+                std::cout << "[GUI_App] RunReceiveThumbnail: Fetching new thumbnail from network..." << std::endl;
+                wxBitmap thumbnail_bmp;
+                MonitorControl::isReadFromGcodeFinished = false;
+                bool success = pObject->GetPhrozenThumbnailAsBitmap(gcode_name, thumbnail_bmp);
+                std::cout << "[GUI_App] RunReceiveThumbnail: GetPhrozenThumbnailAsBitmap result: "
+                << (success ? "SUCCESS" : "FAILED") << std::endl;
+                if (success && thumbnail_bmp.IsOk()) {
+                    MonitorControl::SetThumbnailChecking(false);
+                    std::cout << "[GUI_App] RunReceiveThumbnail: Thumbnail bitmap is OK, processing..." << std::endl;
+                    // 縮略圖獲取成功：保存到緩存並更新
+                    try {
+                        // 將 wxBitmap 轉換為 wxImage 以便縮放
+                        wxImage thumbnail_img = thumbnail_bmp.ConvertToImage();
+                        
+                        if (thumbnail_img.IsOk()) {
+                            // 保存原始縮略圖到緩存（不縮放，保持原始清晰度）
+                            pObject->m_thumbnail_cache[gcode_name] = thumbnail_bmp;
+                            pObject->m_cached_gcode_name = gcode_name;
+                        } else {
+                            std::cout << "[GUI_App] RunReceiveThumbnail: ERROR - Failed to convert bitmap to image for GCode: \""
+                            << gcode_name << "\", displaying broken image" << std::endl;
+                            BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                            << "Failed to convert bitmap to image for GCode: \""
+                            << gcode_name << "\", displaying broken image";
+                        }
+                    } catch (const std::exception& e) {
+                        // 處理過程發生異常
+                        std::cout << "[GUI_App] RunReceiveThumbnail: EXCEPTION during thumbnail processing: "
+                        << e.what() << ", GCode: \"" << gcode_name << "\"" << std::endl;
+                        BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                        << "Exception during thumbnail processing: " << e.what()
+                        << ", GCode: \"" << gcode_name;
+                    } catch (...) {
+                        // 未知異常
+                        std::cout << "[GUI_App] RunReceiveThumbnail: UNKNOWN EXCEPTION during thumbnail processing, GCode: \""
+                        << gcode_name << "\"" << std::endl;
+                        BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                        << "Unknown exception during thumbnail processing. "
+                        << "GCode: \"" << gcode_name;
+                    }
+                }
+                else {
+                    // 縮略圖獲取失敗
+                    std::cout << "[GUI_App] RunReceiveThumbnail: ERROR - Failed to get thumbnail bitmap for GCode: \""
+                    << gcode_name << "\", displaying broken image" << std::endl;
+                    BOOST_LOG_TRIVIAL(warning) << "GUI_App::RunReceiveThumbnail: "
+                    << "Failed to get thumbnail bitmap for GCode: \""
+                    << gcode_name;
+                }
+                MonitorControl::isReadFromGcodeFinished = true;
+            }
+            else
+            {
+                // Detailed logging for debugging: print all variables and flags
+                bool isStartThumbnailChecking = MonitorControl::IsStartThumbnailChecking();
+                bool pObjectIsNull = (pObject == nullptr);
+                bool gcodeNameIsEmpty = gcode_name.empty();
+                
+                std::cout << "[GUI_App] RunReceiveThumbnail: Condition check failed - detailed status:" << std::endl;
+                std::cout << "  - IsStartThumbnailChecking: " << (isStartThumbnailChecking ? "true" : "false") << std::endl;
+                std::cout << "  - pObject is nullptr: " << (pObjectIsNull ? "true" : "false") << std::endl;
+                std::cout << "  - gcode_name is empty: " << (gcodeNameIsEmpty ? "true" : "false") << std::endl;
+                std::cout << "  - gcode_name value: \"" << gcode_name << "\"" << std::endl;
+                std::cout << "  - gcode_name length: " << gcode_name.length() << std::endl;
+                
+                if (pObject) {
+                    std::cout << "  - pObject is valid (not nullptr)" << std::endl;
+                    std::cout << "  - pObject->IsPhrozenConnected(): " << (pObject->IsPhrozenConnected() ? "true" : "false") << std::endl;
+                    std::cout << "  - pObject->IsPhrozenStartReceiving(): " << (pObject->IsPhrozenStartReceiving() ? "true" : "false") << std::endl;
+                } else {
+                    std::cout << "  - pObject is nullptr (cannot access object methods)" << std::endl;
+                }
+                
+                BOOST_LOG_TRIVIAL(debug) << "RunReceiveThumbnail: Condition check failed - "
+                << ", IsStartThumbnailChecking=" << isStartThumbnailChecking
+                << ", pObjectIsNull=" << pObjectIsNull
+                << ", gcodeNameIsEmpty=" << gcodeNameIsEmpty
+                << ", gcode_name=\"" << gcode_name << "\"";
+                
+                assert( 0 );
+            }
+        }
+    }
 }
 
 // kResult{ machineIp, machineName }

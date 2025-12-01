@@ -729,6 +729,7 @@ private:
 void RunGetPrinterInfo( );
 void RunReceiveMessage( );
 void RunReceiveWebCameraView();
+void RunReceiveThumbnail();
 void RunSendMessage( );
 
 // kResult{ machineIp, machineName }
