@@ -6948,6 +6948,7 @@ void GUI_App::ProcessPhrozenDisconnect()
 {
     MonitorControl::SetStartReceiving( false );
     MonitorControl::SetStartSending( false );
+    MonitorControl::SetIp("");
 }
 
 PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()
