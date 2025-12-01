@@ -5,6 +5,7 @@
 #include "../Widgets/Button.hpp"
 #include "../Widgets/StepCtrl.hpp"
 #include "PhrozenSideTools.hpp"
+#include "PhrozenCalibrationDlg.hpp"
 #include "../Widgets/WebView.hpp"
 
 #include "../BitmapCache.hpp"
@@ -2544,9 +2545,10 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
         //    m_print_error_dlg->on_hide();
     });
 
+    m_calibration_btn->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
+
     #if HideOriginUiWidget
     m_switch_speed->Connect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
-    m_calibration_btn->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
     #endif
 }
 
@@ -2580,6 +2582,7 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
         delete kItem.second;
     }
     
+    m_calibration_btn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
 
     #if HideOriginUiWidget
     m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
@@ -2596,7 +2599,6 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     m_bpButton_e_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_up_10), NULL, this);
     m_bpButton_e_down_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_down_10), NULL, this);
     m_switch_speed->Disconnect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
-    m_calibration_btn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
     m_button_unload->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_unload), NULL, this);
     #endif
     // remove warning dialogs
@@ -3619,24 +3621,25 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
 void PhrozenStatusPanel::update_cali(MachineObject *obj)
 {
     if (!obj) return;
-
-    if (obj->is_calibration_running()) {
-        m_calibration_btn->SetLabel(_L("Calibrating"));
-        if (calibration_dlg && calibration_dlg->IsShown()) {
-            m_calibration_btn->Disable();
-        } else {
-            m_calibration_btn->Enable();
-        }
-    } else {
-        // IDLE
-        m_calibration_btn->SetLabel(_L("Calibration"));
-        // disable in printing
-        if (obj->is_in_printing()) {
-            m_calibration_btn->Disable();
-        } else {
-            m_calibration_btn->Enable();
-        }
-    }
+    //[TODO] check state: no connect or is printing(running or pause) or is open calib dlg
+    //       need disable it
+    //if (obj->is_calibration_running()) {
+    //    m_calibration_btn->SetLabel(_L("Calibrating"));
+    //    if (calibration_dlg && calibration_dlg->IsShown()) {
+    //        m_calibration_btn->Disable();
+    //    } else {
+    //        m_calibration_btn->Enable();
+    //    }
+    //} else {
+    //    // IDLE
+    //    m_calibration_btn->SetLabel(_L("Calibration"));
+    //    // disable in printing
+    //    if (obj->is_in_printing()) {
+    //        m_calibration_btn->Disable();
+    //    } else {
+    //        m_calibration_btn->Enable();
+    //    }
+    //}
 }
 
 void PhrozenStatusPanel::update_calib_bitmap() {
@@ -5179,18 +5182,31 @@ void PhrozenStatusPanel::on_xyz_abs(wxCommandEvent &event)
 
 void PhrozenStatusPanel::on_start_calibration(wxCommandEvent &event)
 {
-    if (obj) {
-        if (calibration_dlg == nullptr) {
-            calibration_dlg = new CalibrationDialog();
-            calibration_dlg->update_machine_obj(obj);
-            calibration_dlg->update_cali(obj);
-            calibration_dlg->ShowModal();
-        } else {
-            calibration_dlg->update_machine_obj(obj);
-            calibration_dlg->update_cali(obj);
-            calibration_dlg->ShowModal();
-        }
+    if (calibration_dlg == nullptr) {
+        //calibration_dlg = new CalibrationDialog();
+        calibration_dlg = new PhrozenCalibrationDlg();
+        //calibration_dlg->update_machine_obj(nullptr);
+        //calibration_dlg->update_cali(nullptr);
+        calibration_dlg->ShowModal();
+    } else {
+        //calibration_dlg->update_machine_obj(nullptr);
+        //calibration_dlg->update_cali(nullptr);
+        calibration_dlg->ShowModal();
     }
+
+
+    //if (obj) {
+    //    if (calibration_dlg == nullptr) {
+    //        calibration_dlg = new CalibrationDialog();
+    //        calibration_dlg->update_machine_obj(obj);
+    //        calibration_dlg->update_cali(obj);
+    //        calibration_dlg->ShowModal();
+    //    } else {
+    //        calibration_dlg->update_machine_obj(obj);
+    //        calibration_dlg->update_cali(obj);
+    //        calibration_dlg->ShowModal();
+    //    }
+    //}
 }
 
 bool PhrozenStatusPanel::is_stage_list_info_changed(MachineObject *obj)
@@ -5235,22 +5251,23 @@ void PhrozenStatusPanel::set_default()
 
 void PhrozenStatusPanel::show_status(int status)
 {
-    if (last_status == status) return;
-    last_status = status;
-
-    if (((status & (int) MonitorStatus::MONITOR_DISCONNECTED) != 0)
-     || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
-     || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0)
-     || ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0)
-        ) {
-        show_printing_status(false, false);
-        m_calibration_btn->Disable();
-        m_panel_monitoring_title->Disable();
-    } else if ((status & (int) MonitorStatus::MONITOR_NORMAL) != 0) {
-        show_printing_status(true, true);
-        m_calibration_btn->Disable();
-        m_panel_monitoring_title->Enable();
-    }
+    //[TODO] setting button enable
+    //if (last_status == status) return;
+    //last_status = status;
+    //
+    //if (((status & (int) MonitorStatus::MONITOR_DISCONNECTED) != 0)
+    // || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
+    // || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0)
+    // || ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0)
+    //    ) {
+    //    show_printing_status(false, false);
+    //    m_calibration_btn->Disable();
+    //    m_panel_monitoring_title->Disable();
+    //} else if ((status & (int) MonitorStatus::MONITOR_NORMAL) != 0) {
+    //    show_printing_status(true, true);
+    //    m_calibration_btn->Disable();
+    //    m_panel_monitoring_title->Enable();
+    //}
 }
 
 void PhrozenStatusPanel::set_hold_count(int& count)

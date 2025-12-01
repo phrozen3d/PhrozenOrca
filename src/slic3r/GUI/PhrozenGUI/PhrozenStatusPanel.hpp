@@ -16,7 +16,7 @@
 #include "../wxMediaCtrl2.h"
 #include "../MediaPlayCtrl.h"
 #include "../AMSSetting.hpp"
-#include "../Calibration.hpp"
+//#include "../Calibration.hpp"
 #include "../CalibrationWizardPage.hpp"
 #include "../PrintOptionsDialog.hpp"
 #include "../AMSMaterialsSetting.hpp"
@@ -37,6 +37,7 @@
 namespace Slic3r {
 namespace GUI {
 class PhrozenFilamentControl;
+class PhrozenCalibrationDlg;
 
 enum class PhrozenParamControl : int32_t
 {
@@ -518,7 +519,8 @@ protected:
     std::set<int> rated_model_id;
     PrinterPartsDialog*  print_parts_dlg { nullptr };
     PrintOptionsDialog*  print_options_dlg { nullptr };
-    CalibrationDialog*   calibration_dlg {nullptr};
+    //CalibrationDialog*   calibration_dlg {nullptr};
+    PhrozenCalibrationDlg* calibration_dlg {nullptr};
 
     PrintErrorDialog* m_print_error_dlg = nullptr;
     SecondaryCheckDialog* m_print_error_dlg_no_action = nullptr;
