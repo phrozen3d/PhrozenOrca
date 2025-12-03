@@ -4332,7 +4332,11 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
     // 檢查緩存：如果已經有相同的縮略圖，直接使用
     // ============================================
     std::cout << "[PhrozenStatusPanel] update_thumbnail: Checking cache, cached_gcode_name = \""
-              << obj->m_cached_gcode_name << "\"" << std::endl;
+              << obj->m_cached_gcode_name << "\", gcode_name = \"" << gcode_name 
+              << "\", cache_size = " << obj->m_thumbnail_cache.size() << std::endl;
+    BOOST_LOG_TRIVIAL(debug) << "update_thumbnail: Checking cache - cached_gcode_name=\"" 
+                             << obj->m_cached_gcode_name << "\", gcode_name=\"" << gcode_name 
+                             << "\", cache_size=" << obj->m_thumbnail_cache.size();
     
     if (gcode_name == obj->m_cached_gcode_name) {
         std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache match found, checking cache entry..." << std::endl;
@@ -4460,6 +4464,18 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
         }
     } else {
         std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache miss (different GCode name)" << std::endl;
+        // Check if cache actually has the gcode_name but m_cached_gcode_name is empty
+        auto cache_it = obj->m_thumbnail_cache.find(gcode_name);
+        if (cache_it != obj->m_thumbnail_cache.end()) {
+            std::cout << "[PhrozenStatusPanel] update_thumbnail: WARNING - Cache HAS entry for gcode_name=\"" 
+                      << gcode_name << "\" but m_cached_gcode_name is empty!" << std::endl;
+            BOOST_LOG_TRIVIAL(warning) << "update_thumbnail: WARNING - Cache HAS entry for gcode_name=\"" 
+                                       << gcode_name << "\" but m_cached_gcode_name is empty!";
+        } else {
+            std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache does NOT have entry for gcode_name=\"" 
+                      << gcode_name << "\"" << std::endl;
+        }
+        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
     }
     
     std::cout << "[PhrozenStatusPanel] update_thumbnail: Function completed for GCode=\"" << gcode_name << "\"" << std::endl;

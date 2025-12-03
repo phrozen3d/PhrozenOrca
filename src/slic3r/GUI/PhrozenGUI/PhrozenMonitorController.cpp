@@ -2778,18 +2778,31 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     std::cout << "[GetThumbnailFromGCodeFile] Attempting to extract thumbnail from GCode file: \"" << gcodeName << "\"" << std::endl;
     
     // ============================================
-    // Step 1: Download first 1MB of GCode file to memory (using HTTP Range request)
+    // Step 1: Download first portion of GCode file to memory (using HTTP Range request)
     // Thumbnails are typically located at the beginning of GCode files, so we only
     // need to download the first portion instead of the entire file.
     // This significantly reduces download time and prevents timeout issues.
+    // 
+    // Typical thumbnail sizes:
+    // - Multiple thumbnails + GCode header comments: usually < 10KB total
+    // 
+    // Based on actual GCode file analysis, the first 95 lines (containing header,
+    // thumbnail, and initial config) are only about 5.7KB. We use 16KB (16384 bytes)
+    // as initial range, which provides about 2.8x safety margin while being much
+    // faster than larger ranges. This should cover 99% of cases.
     // ============================================
     std::vector<unsigned char> gcode_data;
     CURL* curl = nullptr;
     CURLcode result = CURLE_FAILED_INIT;
     
-    // Define the range to download: first 1MB (0 to 1048575 bytes)
-    // This is sufficient for thumbnail extraction as thumbnails are always at the start
-    const char* RANGE_HEADER = "Range: bytes=0-1048575";
+    // Define the range to download: first 16KB (0 to 16383 bytes)
+    // This is sufficient for thumbnail extraction in most cases
+    // Thumbnails are always at the start of GCode files, typically within first 10KB
+    const size_t INITIAL_RANGE_SIZE = 16 * 1024;  // 16KB
+    const size_t INITIAL_RANGE_END = INITIAL_RANGE_SIZE - 1;  // 0 to 16383
+    char range_header_buf[64];
+    snprintf(range_header_buf, sizeof(range_header_buf), "Range: bytes=0-%zu", INITIAL_RANGE_END);
+    const char* RANGE_HEADER = range_header_buf;
     
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
@@ -2830,9 +2843,10 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gcode_data);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Reduced timeout since we're only downloading 1MB
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Reduced timeout since we're only downloading 16KB
     
-    std::cout << "[GetThumbnailFromGCodeFile] Downloading first 1MB of GCode file from: " << url << std::endl;
+    std::cout << "[GetThumbnailFromGCodeFile] Downloading first " << (INITIAL_RANGE_SIZE / 1024) 
+              << "KB of GCode file from: " << url << std::endl;
     result = curl_easy_perform(curl);
     
     // Clean up header list
@@ -2849,15 +2863,14 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     }
     
     std::cout << "[GetThumbnailFromGCodeFile] Downloaded " << gcode_data.size() 
-              << " bytes of GCode data (first 1MB range)" << std::endl;
+              << " bytes of GCode data (requested " << (INITIAL_RANGE_SIZE / 1024) << "KB range)" << std::endl;
     
-    // Check if we got a partial content response (206) or full content (200)
-    // If server doesn't support Range requests, we might get the full file or an error
-    // In most cases, 1MB should be sufficient for thumbnail extraction
+    // In generally, 16KB should be sufficient for thumbnail extraction
     
     // ============================================
     // Step 2: Parse downloaded GCode data and extract thumbnail
-    // Note: We only parse the first 1MB downloaded, which should contain all thumbnails
+    // Note: We only parse the downloaded portion, which should contain all thumbnails
+    // Thumbnails are always at the start of GCode files, typically within first 16KB
     // ============================================
     const std::string BEGIN_MASK = "; thumbnail begin";
     const std::string END_MASK = "; thumbnail end";
