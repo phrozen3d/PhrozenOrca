@@ -65,24 +65,49 @@ private:
 class PhrozenCalibrationDlg : public DPIDialog
 {
 private:
+    enum class ECalibType : int32_t 
+    {
+        None,
+        Auto_Leveling,
+        Resonance_Compensation,
+        Temperature_Calibration
+    };
+
     CalibrationProgressBar* m_auto_leveling{nullptr};
     CalibrationProgressBar* m_resonance_compensation{nullptr};
     CalibrationProgressBar* m_temperature_calibration{nullptr};
 
     wxStaticText* m_description_text{nullptr};
 
+    std::unique_ptr<boost::thread> m_spSend_command_thread{nullptr};
+    std::weak_ptr<int> m_token;
+
+    int m_nRefreshInterval{ 500 }; // 0.5 second
+    std::unique_ptr<wxTimer> m_spRefresh_timer{nullptr};
+
+    ECalibType m_eCurrentProcessingCalib{ ECalibType::None };
+    void OnCalibrationSelected( wxCommandEvent& event );
+    void SendCommandToMachine( const ECalibType& eType );
+    void OnTimer( wxTimerEvent& event );
+    void StartRefreshTimer();
+    void StopRefreshTimer();
+
+    bool m_bTestMode = false;
+    void OnRefreshTest();
+
 public:
     PhrozenCalibrationDlg(Plater *plater = nullptr);
     ~PhrozenCalibrationDlg();
+    int ShowModal() wxOVERRIDE;
+    void SyncAndUpdateMachineStatus();
     void on_dpi_changed(const wxRect &suggested_rect) override;
-
     void SetAutoLevelingProgress(int percent);
     void SetResonanceCompensationProgress(int percent);
     void SetTemperatureCalibrationProgress(int percent);
 
     bool Show(bool show) override;
 
-    void OnCalibrationSelected( wxCommandEvent& event );
+    
 };
 
 }} // namespace Slic3r::GUI

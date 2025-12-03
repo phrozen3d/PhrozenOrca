@@ -1,6 +1,7 @@
 #include "PhrozenCalibrationDlg.hpp"
+#include <wx/event.h>
+#include <wx/timer.h>
 #include "../I18N.hpp"
-
 #include "../libslic3r/Utils.hpp"
 #include "../libslic3r/Thread.hpp"
 #include "../GUI.hpp"
@@ -14,6 +15,8 @@
 namespace Slic3r { namespace GUI {
 wxDEFINE_EVENT(EVT_PHROZEN_CALIBRATION_SELECTED, wxCommandEvent);
 
+
+#pragma region CalibrationProgressBar
 // CalibrationProgressBar implementation
 wxBEGIN_EVENT_TABLE(CalibrationProgressBar, wxWindow)
     EVT_PAINT(CalibrationProgressBar::OnPaint)
@@ -115,9 +118,9 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
     // Draw border with anti-aliasing
     wxColour border_color;
     if (m_pressed) {
-        border_color = wxColour(0xD0, 0xD0, 0xD0); // Slightly darker white when pressed
+        border_color = wxColour(0xC8, 0x4C, 0x10); // Darker orange when pressed
     } else if (m_hover) {
-        border_color = wxColour(0xFF, 0xFF, 0xFF); // Bright white on hover
+        border_color = wxColour(0xF0, 0x70, 0x20); // Brighter orange on hover
     } else {
         border_color = wxColour(0xE0, 0xE0, 0xE0); // Normal white
     }
@@ -148,7 +151,9 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
 
     // Draw percentage on the right side if progress > 0
     if (m_progress > 0) {
-        wxString percent_text = wxString::Format("%d%%", m_progress);
+        wxString percent_text =  m_progress != 100 ? 
+                                    wxString::Format("%d%%", m_progress) : wxString( _L("Done") );
+
         double percent_width, percent_height;
         gc->GetTextExtent(percent_text, &percent_width, &percent_height);
         double percent_x = size.x - percent_width - FromDIP(20);
@@ -188,6 +193,11 @@ void CalibrationProgressBar::OnMouseUp(wxMouseEvent& event)
     wxPostEvent(this, sendEvent);
 }
 
+#pragma endregion
+
+
+
+#pragma region PhrozenCalibrationDlg
 // PhrozenCalibrationDlg implementation
 PhrozenCalibrationDlg::PhrozenCalibrationDlg(Plater *plater)
     : DPIDialog(static_cast<wxWindow *>(wxGetApp().mainframe),
@@ -250,10 +260,53 @@ PhrozenCalibrationDlg::PhrozenCalibrationDlg(Plater *plater)
     m_auto_leveling->Bind( EVT_PHROZEN_CALIBRATION_SELECTED, &PhrozenCalibrationDlg::OnCalibrationSelected, this);
     m_resonance_compensation->Bind( EVT_PHROZEN_CALIBRATION_SELECTED, &PhrozenCalibrationDlg::OnCalibrationSelected, this);
     m_temperature_calibration->Bind( EVT_PHROZEN_CALIBRATION_SELECTED, &PhrozenCalibrationDlg::OnCalibrationSelected, this);
+
+    m_spRefresh_timer = std::make_unique< wxTimer >( new wxTimer() );
+    m_spRefresh_timer->SetOwner(this);
+    Bind(wxEVT_TIMER, &PhrozenCalibrationDlg::OnTimer, this);
+
+    Bind(wxEVT_CLOSE_WINDOW, [this](auto& e) {
+        if ( m_eCurrentProcessingCalib != ECalibType::None ) return;
+
+        StopRefreshTimer();
+        EndModal(wxID_CANCEL);
+    });
 }
 
 PhrozenCalibrationDlg::~PhrozenCalibrationDlg()
 {
+    if (m_spSend_command_thread && m_spSend_command_thread->joinable()) {
+        m_spSend_command_thread->join();
+    }
+
+}
+
+int PhrozenCalibrationDlg::ShowModal()
+{
+    SyncAndUpdateMachineStatus();
+    return DPIDialog::ShowModal();
+}
+
+void PhrozenCalibrationDlg::SyncAndUpdateMachineStatus()
+{
+#if 0   //[TO Discuss] - not sure here need support how many calibration type?
+
+
+    //[TODO] add thread to check current machine status,
+    //       2 point: is idle? or now is processing which calibration?
+    bool bIsCalibration = false;
+    if ( bIsCalibration )
+    {
+        //process recieve progress and update ui
+        m_eCurrentProcessingCalib = ECalibType::None; //[TODO] set current
+        return;
+    }
+#endif 
+
+    // reset ui
+    SetAutoLevelingProgress( 0 );
+    SetResonanceCompensationProgress( 0 );
+    SetTemperatureCalibrationProgress( 0 );
 }
 
 void PhrozenCalibrationDlg::on_dpi_changed(const wxRect &suggested_rect)
@@ -307,23 +360,125 @@ bool PhrozenCalibrationDlg::Show(bool show)
 
 void PhrozenCalibrationDlg::OnCalibrationSelected( wxCommandEvent& event )
 {
-    auto pObj = event.GetEventObject();
-    if ( !pObj ) return;
-    if ( pObj == m_auto_leveling )
+    if ( m_eCurrentProcessingCalib != ECalibType::None ) return;
+
+    auto pEventObj = event.GetEventObject();
+    if ( !pEventObj ) return;
+    if ( pEventObj == m_auto_leveling )
     {
-        m_auto_leveling->SetProgress(80);
+        SetAutoLevelingProgress( 1 );
+        SendCommandToMachine( ECalibType::Auto_Leveling );
     }
-    else if ( pObj == m_temperature_calibration )
+    else if ( pEventObj == m_resonance_compensation )
     {
-        m_temperature_calibration->SetProgress(40);
+        SetResonanceCompensationProgress( 1 );
+        SendCommandToMachine( ECalibType::Resonance_Compensation );
     }
-    else if ( pObj == m_temperature_calibration )
+    else if ( pEventObj == m_temperature_calibration )
     {
-        m_temperature_calibration->SetProgress(20);
+        SetTemperatureCalibrationProgress( 1 );
+        SendCommandToMachine( ECalibType::Temperature_Calibration );
+    }
+    else
+    {
+        wxMessageBox(_(L("Not supported operator!!!")));
     }
 }
 
+void PhrozenCalibrationDlg::SendCommandToMachine( const ECalibType& eType )
+{
+    m_eCurrentProcessingCalib = eType;
+
+    // link thread, to make sure it release used memory when smart ptr replaced
+    if ( m_spSend_command_thread && m_spSend_command_thread->joinable() )
+    {
+        m_spSend_command_thread->detach();
+    }
+
+    m_spSend_command_thread = std::make_unique<boost::thread>(
+        Slic3r::create_thread([this] {
+    
+            //[TODO]
+            // 1. send command
+            // 2. enable recieve machine calibration progress process (in GUI_APP)
+
+            CallAfter( [this]() {
+                StartRefreshTimer();
+            });
+        })
+    );
 
 
+}
+
+void PhrozenCalibrationDlg::OnTimer( wxTimerEvent& event )
+{
+    if ( m_bTestMode )
+    {
+        OnRefreshTest();
+        return;
+    }
+
+    bool bCalibrationDone = false;    //[TODO] recieve from machine object
+    int nPercentage = 0;            //[TODO] recieve from machine object (0-100)
+    switch( m_eCurrentProcessingCalib )
+    {
+        case ECalibType::Auto_Leveling:             SetAutoLevelingProgress( nPercentage ); break;
+        case ECalibType::Resonance_Compensation:    SetResonanceCompensationProgress( nPercentage ); break;
+        case ECalibType::Temperature_Calibration:   SetTemperatureCalibrationProgress( nPercentage ); break;
+    }
+
+    Refresh();
+
+    if ( bCalibrationDone )
+    {
+        m_eCurrentProcessingCalib = ECalibType::None;
+        StopRefreshTimer();
+    }
+    
+}
+
+void PhrozenCalibrationDlg::StartRefreshTimer()
+{
+    if ( !m_spRefresh_timer ) return;
+    m_spRefresh_timer->Start( m_nRefreshInterval );
+}
+
+void PhrozenCalibrationDlg::StopRefreshTimer()
+{
+    if ( !m_spRefresh_timer ) return;
+    m_spRefresh_timer->Stop();
+}
+
+void PhrozenCalibrationDlg::OnRefreshTest()
+{
+    int nParam = 0;
+    switch( m_eCurrentProcessingCalib )
+    {
+        case ECalibType::Auto_Leveling:             
+            nParam = std::clamp(m_auto_leveling->GetProgress() + 5, 0, 100); 
+            SetAutoLevelingProgress( nParam );
+            break;
+
+        case ECalibType::Resonance_Compensation:    
+            nParam = std::clamp(m_resonance_compensation->GetProgress() + 10, 0, 100); 
+            SetResonanceCompensationProgress( nParam ); 
+            break;
+
+        case ECalibType::Temperature_Calibration:   
+            nParam = std::clamp(m_temperature_calibration->GetProgress() + 15, 0, 100);
+            SetTemperatureCalibrationProgress( nParam ); 
+            break;
+    }
+
+    Refresh();
+    if ( nParam == 100 )
+    {
+        StopRefreshTimer();
+        m_eCurrentProcessingCalib = ECalibType::None;
+    }
+}
+
+#pragma endregion
 
 }} // namespace Slic3r::GUI

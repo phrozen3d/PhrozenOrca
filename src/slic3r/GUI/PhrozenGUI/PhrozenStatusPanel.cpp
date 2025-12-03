@@ -5061,14 +5061,9 @@ void PhrozenStatusPanel::on_xyz_abs(wxCommandEvent &event)
 void PhrozenStatusPanel::on_start_calibration(wxCommandEvent &event)
 {
     if (calibration_dlg == nullptr) {
-        //calibration_dlg = new CalibrationDialog();
         calibration_dlg = new PhrozenCalibrationDlg();
-        //calibration_dlg->update_machine_obj(nullptr);
-        //calibration_dlg->update_cali(nullptr);
         calibration_dlg->ShowModal();
     } else {
-        //calibration_dlg->update_machine_obj(nullptr);
-        //calibration_dlg->update_cali(nullptr);
         calibration_dlg->ShowModal();
     }
 
