@@ -11,6 +11,7 @@
 #include <thread>
 #include <chrono>
 #include <cstdlib>
+#include <cstdint>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/socket.h>
@@ -208,12 +209,40 @@ bool CheckArpEntryExists(const std::string& target_ip) {
             continue;
         }
         
-        struct sockaddr_inarp* sin = (struct sockaddr_inarp*)(rtm + 1);
+        // 正確解析路由表消息中的 sockaddr 結構體
+        // 路由表消息格式：rt_msghdr 後面跟著多個 sockaddr 結構體
+        // 需要正確計算偏移量並遍歷所有 sockaddr
+        char* sa_ptr = (char*)(rtm + 1);
+        char* sa_end = (char*)rtm + rtm->rtm_msglen;
         
-        if (sin->sin_addr.s_addr == target.s_addr) {
-            // 找到 ARP 條目
-            free(buf);
-            return true;
+        // 遍歷所有 sockaddr 結構體
+        while (sa_ptr < sa_end) {
+            struct sockaddr* sa = (struct sockaddr*)sa_ptr;
+            
+            // 檢查 sockaddr 長度是否有效
+            if (sa->sa_len == 0 || sa->sa_len > (sa_end - sa_ptr)) {
+                break; // 無效的 sockaddr，停止解析
+            }
+            
+            // 檢查是否為 IPv4 地址
+            if (sa->sa_family == AF_INET) {
+                struct sockaddr_in* sin = (struct sockaddr_in*)sa;
+                if (sin->sin_addr.s_addr == target.s_addr) {
+                    // 找到 ARP 條目
+                    free(buf);
+                    return true;
+                }
+            }
+            
+            // 移動到下一個 sockaddr（需要對齊到 4 字節邊界）
+            sa_ptr += sa->sa_len;
+            // macOS 要求 sockaddr 對齊到 4 字節邊界
+            sa_ptr = (char*)(((uintptr_t)sa_ptr + 3) & ~3);
+            
+            // 額外檢查：確保對齊後不會超出邊界
+            if (sa_ptr >= sa_end) {
+                break;
+            }
         }
     }
     
@@ -2749,11 +2778,18 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     std::cout << "[GetThumbnailFromGCodeFile] Attempting to extract thumbnail from GCode file: \"" << gcodeName << "\"" << std::endl;
     
     // ============================================
-    // Step 1: Download GCode file to memory
+    // Step 1: Download first 1MB of GCode file to memory (using HTTP Range request)
+    // Thumbnails are typically located at the beginning of GCode files, so we only
+    // need to download the first portion instead of the entire file.
+    // This significantly reduces download time and prevents timeout issues.
     // ============================================
     std::vector<unsigned char> gcode_data;
     CURL* curl = nullptr;
     CURLcode result = CURLE_FAILED_INIT;
+    
+    // Define the range to download: first 1MB (0 to 1048575 bytes)
+    // This is sufficient for thumbnail extraction as thumbnails are always at the start
+    const char* RANGE_HEADER = "Range: bytes=0-1048575";
     
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
@@ -2781,18 +2817,26 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
                      + "/server/files/gcodes/" + std::string(encoded_gcodeName);
     curl_free(encoded_gcodeName);  // Free the memory allocated by curl_easy_escape
     
+    // Build HTTP header list with Range request
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, RANGE_HEADER);
+    
     curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteThumbnailMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gcode_data);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60);  // Longer timeout for GCode file
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Reduced timeout since we're only downloading 1MB
     
-    std::cout << "[GetThumbnailFromGCodeFile] Downloading GCode file from: " << url << std::endl;
+    std::cout << "[GetThumbnailFromGCodeFile] Downloading first 1MB of GCode file from: " << url << std::endl;
     result = curl_easy_perform(curl);
+    
+    // Clean up header list
+    curl_slist_free_all(headers);
     
     curl_easy_cleanup(curl);
     curl_global_cleanup();
@@ -2804,10 +2848,16 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
         return false;
     }
     
-    std::cout << "[GetThumbnailFromGCodeFile] Downloaded " << gcode_data.size() << " bytes of GCode data" << std::endl;
+    std::cout << "[GetThumbnailFromGCodeFile] Downloaded " << gcode_data.size() 
+              << " bytes of GCode data (first 1MB range)" << std::endl;
+    
+    // Check if we got a partial content response (206) or full content (200)
+    // If server doesn't support Range requests, we might get the full file or an error
+    // In most cases, 1MB should be sufficient for thumbnail extraction
     
     // ============================================
-    // Step 2: Parse GCode file and extract thumbnail
+    // Step 2: Parse downloaded GCode data and extract thumbnail
+    // Note: We only parse the first 1MB downloaded, which should contain all thumbnails
     // ============================================
     const std::string BEGIN_MASK = "; thumbnail begin";
     const std::string END_MASK = "; thumbnail end";
