@@ -245,7 +245,10 @@ public:
     wxBitmap m_bitmap_extruder_empty_unload;
     wxBitmap m_bitmap_extruder_filled_unload;
 
-    CameraItem *m_setting_button;
+    //CameraItem *m_pCam_switch_button;
+    //CameraItem *m_pCam_light_switch_button;
+    Button* m_pCam_light_switch_button;
+    Button* m_pCam_switch_button;
 
     wxBitmap m_bitmap_camera;
     ScalableBitmap m_bitmap_sdcard_state_normal;

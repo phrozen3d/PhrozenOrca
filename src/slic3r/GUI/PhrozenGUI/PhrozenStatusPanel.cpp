@@ -957,10 +957,42 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
             wxGetApp().getAgent()->stop_subscribe("tunnel");
     });
 #endif
+//PhrozenImages/Camera_Cam_Switch
+//PhrozenImages/Camera_Cam_Switch_Hover
+//PhrozenImages/Camera_Light_Switch
+//PhrozenImages/Camera_Light_Switch_Hover
 
-    m_setting_button = new CameraItem(m_panel_monitoring_title, "camera_setting", "camera_setting_hover");
-    m_setting_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    m_setting_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
+    //m_pCam_switch_button = new CameraItem(m_panel_monitoring_title, "PhrozenImages/Camera_Cam_Switch", "PhrozenImages/Camera_Cam_Switch_Hover");
+    //m_pCam_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
+    //m_pCam_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
+
+    //m_pCam_light_switch_button = new CameraItem(m_panel_monitoring_title, "PhrozenImages/Camera_Light_Switch", "PhrozenImages/Camera_Light_Switch_Hover");
+    //m_pCam_light_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
+    //m_pCam_light_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
+
+    StateColor btn_bg_green(std::pair<wxColour, int>(AMS_CONTROL_DISABLE_COLOUR, StateColor::Disabled),
+                            std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
+                            std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
+                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
+    StateColor btn_bd_green(std::pair<wxColour, int>(AMS_CONTROL_WHITE_COLOUR, StateColor::Disabled),
+                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Enabled));
+
+    m_pCam_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Cam_Switch");
+    m_pCam_switch_button->SetBackgroundColor(btn_bg_green);
+    m_pCam_switch_button->SetBorderColor(btn_bd_green);
+    m_pCam_switch_button->SetTextColor(wxColour("#FFFFFE"));
+    m_pCam_switch_button->SetSize(wxSize(FromDIP(24), FromDIP(24)));
+    m_pCam_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
+
+    m_pCam_light_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Light_Switch");
+    m_pCam_light_switch_button->SetBackgroundColor(btn_bg_green);
+    m_pCam_light_switch_button->SetBorderColor(btn_bd_green);
+    m_pCam_light_switch_button->SetTextColor(wxColour("#FFFFFE"));
+    m_pCam_light_switch_button->SetSize(wxSize(FromDIP(24), FromDIP(24)));
+    m_pCam_light_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
+
+
+
 
     m_camera_switch_button = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
     m_camera_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
@@ -975,11 +1007,14 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     });
     //m_camera_switch_button->Hide();
 
-    m_setting_button->SetToolTip(_L("Camera Setting"));
+    m_pCam_switch_button->SetToolTip(_L("Turn On/Off Camera"));
+    m_pCam_light_switch_button->SetToolTip(_L("Turn On/Off Light"));
     m_camera_switch_button->SetToolTip(_L("Switch Camera View"));
 
     bSizer_monitoring_title->Add(m_camera_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-    bSizer_monitoring_title->Add(m_setting_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
+    bSizer_monitoring_title->Add(m_pCam_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
+    bSizer_monitoring_title->Add(m_pCam_light_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
+
 
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0);
 
@@ -2503,8 +2538,8 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
 
     #if HideOriginUiWidget
-    m_setting_button->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_setting_button->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
+    m_pCam_switch_button->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
+    m_pCam_switch_button->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_switch_lamp->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
     m_switch_nozzle_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); // TODO
     m_switch_printing_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
@@ -2585,8 +2620,8 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     m_calibration_btn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
 
     #if HideOriginUiWidget
-    m_setting_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_setting_button->Disconnect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
+    m_pCam_switch_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
+    m_pCam_switch_button->Disconnect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
     m_switch_lamp->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
     m_switch_nozzle_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
     m_switch_printing_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
@@ -5112,7 +5147,7 @@ void PhrozenStatusPanel::set_default()
     reset_printing_values();
 
     #if HideOriginUiWidget
-    m_setting_button->Show();
+    m_pCam_switch_button->Show();
     m_tempCtrl_chamber->Show();
     #endif
 
@@ -5150,7 +5185,8 @@ void PhrozenStatusPanel::set_hold_count(int& count)
 
 void PhrozenStatusPanel::rescale_camera_icons()
 {
-    m_setting_button->msw_rescale();
+    m_pCam_switch_button->Rescale();
+    m_pCam_light_switch_button->Rescale();
 
 
     m_bitmap_sdcard_state_abnormal = ScalableBitmap(this, wxGetApp().dark_mode()?"sdcard_state_abnormal_dark":"sdcard_state_abnormal", 20);
