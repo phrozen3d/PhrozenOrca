@@ -6413,13 +6413,32 @@ wxString GUI_App::current_language_code_safe() const
 		{ "ko", 	"ko_KR", },
 		{ "pl", 	"pl_PL", },
 		{ "uk", 	"uk_UA", },
-		{ "zh", 	"zh_CN", },
 		{ "ru", 	"ru_RU", },
         { "tr", 	"tr_TR", },
         { "pt", 	"pt_BR", },
         { "lt", 	"lt_LT", },
 	};
+
+    static const std::map< wxString, wxString > zhMapping 
+    {
+        { "zh_hans",    "zh_CN", }, //Simplified Chinese
+        { "zh_cn",      "zh_CN", }, 
+        { "zh_hk",      "zh_CN", }, 
+        { "zh_hant",    "zh_TW", }, //Traditional Chinese
+        { "zh_tw",      "zh_TW", }
+    };
+
 	wxString language_code = this->current_language_code().BeforeFirst('_');
+    if ( language_code == "zh" )
+    {
+        auto it = zhMapping.find( this->current_language_code().Lower() );
+        if (it != mapping.end())
+        {
+            language_code = it->second;
+            return language_code;
+        }
+    }
+
 	auto it = mapping.find(language_code);
 	if (it != mapping.end())
 		language_code = it->second;
