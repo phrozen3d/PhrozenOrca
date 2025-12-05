@@ -4510,7 +4510,7 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
             std::cout << "[PhrozenStatusPanel] update_thumbnail: Cache does NOT have entry for gcode_name=\"" 
                       << gcode_name << "\"" << std::endl;
         }
-        m_project_task_panel->set_thumbnail_img(m_thumbnail_brokenimg.bmp());
+        m_project_task_panel->set_thumbnail_img(m_project_task_panel->get_bitmap_thumbnail_placeholder().bmp());
     }
     
     std::cout << "[PhrozenStatusPanel] update_thumbnail: Function completed for GCode=\"" << gcode_name << "\"" << std::endl;

@@ -68,6 +68,29 @@ public:
     virtual bool IsPhrozenStartReceiving() override;
 
     virtual std::string GetPhrozenConnectedMachineIp() override;
+    
+    // Calibration functions
+    // Start calibration (async)
+    virtual bool StartCalibration() override;
+    
+    // Start resonance compensation (async)
+    virtual bool StartResonanceCompensation() override;
+    
+    // Start temperature calibration (async)
+    virtual bool StartTemperatureCalibration() override;
+    
+    // Get calibration status (returns int: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR)
+    virtual int GetCalibrationStatus() override;
+    virtual int GetResonanceCompensationStatus() override;
+    virtual int GetTemperatureCalibrationStatus() override;
+    
+    // Get calibration progress (0-100)
+    virtual float GetCalibrationProgress() override;
+    virtual float GetResonanceCompensationProgress() override;
+    virtual float GetTemperatureCalibrationProgress() override;
+    
+    // Check if any calibration is running
+    virtual bool IsAnyCalibrationRunning() override;
 };
 
 } // namespace Slic3r

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <atomic>
+#include <regex>
 #include <boost/beast/core/detail/base64.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #ifdef __APPLE__
@@ -123,10 +124,14 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     bool m_bConnectionInitial = false;
     std::mutex m_kCurlMutex;
     std::mutex m_kCommandMutex;
+    std::mutex m_kCalibrationProgressMutex;
     bool m_bIsConnetedToAMS = false;
     std::atomic<bool> m_bDoThumbnailCheck{false};
     std::string prev_state = "";
     bool isReadFromGcodeFinished = true;
+    
+    // Calibration progress tracking
+    CalibrationProgressInfo m_calibrationProgressInfo = {};
     WebCamImageDataThreadHandler WebCamDataHandler = {};
     HttpErrorInfo error_info = {};
     AMSPatterns amsPatterns = {};
@@ -604,6 +609,263 @@ struct FrameProcessor {
     }
 };
 
+// Calibration progress calculator module
+struct CalibrationProgressCalculator {
+    // Calculate calibration progress based on probe points
+    static void UpdateCalibrationProgress(const std::string& params, CalibrationProgressInfo& info) {
+        // Check for probe at message: "// probe at X,Y is z=Z"
+        size_t probe_pos = params.find("probe at ");
+        if (probe_pos != std::string::npos) {
+            info.heatingCompleted = true;
+            
+            double x = 0, y = 0, z = 0;
+            if (sscanf(params.c_str(), "// probe at %lf,%lf is z=%lf", &x, &y, &z) == 3) {
+                // Auto-leveling Progress Calculation
+                // Background: According to machine operation and Dongguan team feedback
+                // Auto-leveling probe grid configuration
+                // Note: The following values should be obtained from the printer's printer.cfg configuration:
+                // - Grid coordinates (coords[]): Start and end positions come from bed_mesh_min/bed_mesh_max in printer.cfg
+                // - Grid size (gridSize): X/Y probe point counts come from bed_mesh_probe_count in printer.cfg
+                // Currently using hardcoded values for a 6x6 grid with coordinates [10, 66, 122, 178, 234, 290]
+                // Grid layout: 6x6 = 36 probe points
+                // Start position: (10, 10), End position: (290, 290)
+                // Probe point spacing: 56mm
+                // Calculation formula: spacing = (end.x - start.x) / (gridSize - 1) = (290 - 10) / (6 - 1) = 280 / 5 = 56mm
+                // Or from adjacent coordinates: 66 - 10 = 56, 122 - 66 = 56, etc.
+                const double coords[] = {10.0, 66.0, 122.0, 178.0, 234.0, 290.0};
+                const int gridSize = 6;  // X/Y probe point count from printer.cfg bed_mesh_probe_count
+                const float add = 1.944f;  // Progress increment per probe point: (95 - 25) / 36 ≈ 1.944
+                const float baseProgress = 25.0f;  // Base progress after heating phase (0-25%)
+                
+                // Find indices for x and y coordinates in the grid
+                int xIdx = -1, yIdx = -1;
+                for (int i = 0; i < gridSize; ++i) {
+                    if (std::abs(x - coords[i]) <= 0.01) { xIdx = i; break; }
+                }
+                for (int i = 0; i < gridSize; ++i) {
+                    if (std::abs(y - coords[i]) <= 0.01) { yIdx = i; break; }
+                }
+                
+                // Calculate progress with zigzag scanning pattern
+                // The probe uses zigzag (snake) pattern: odd rows (1st, 3rd, 5th) scan left-to-right,
+                // even rows (2nd, 4th, 6th) scan right-to-left (X reversed)
+                // Point index calculation:
+                // - Odd rows (yIdx even: 0, 2, 4): pointIndex = yIdx * gridSize + xIdx + 1
+                // - Even rows (yIdx odd: 1, 3, 5): pointIndex = yIdx * gridSize + (gridSize - 1 - xIdx) + 1
+                // Progress ranges from 25% (first point) to ~95% (last point, 36th)
+                if (xIdx >= 0 && yIdx >= 0) {
+                    int pointIndex;
+                    if (yIdx % 2 == 0) {
+                        // Odd row (1st, 3rd, 5th): scan left-to-right
+                        pointIndex = yIdx * gridSize + xIdx + 1;
+                    } else {
+                        // Even row (2nd, 4th, 6th): scan right-to-left (X reversed)
+                        pointIndex = yIdx * gridSize + (gridSize - 1 - xIdx) + 1;
+                    }
+                    float progress = baseProgress + add * pointIndex;
+                    if (progress > 1.0f) {
+                        info.calibrationProgress = std::min(progress, 100.0f);
+                    }
+                }
+            }
+        }
+        
+        // Update calibration progress based on heating (if not completed)
+        if (info.calibrationStatus == CalibrationState::RUNNING && !info.heatingCompleted) {
+            float bed = 0, extruder = 0;
+            if (m_pPrinterInfo->bed_temperature_target > 0)
+                bed = (static_cast<float>(m_pPrinterInfo->bed_temperature) / 
+                       m_pPrinterInfo->bed_temperature_target) * 12.5f;
+            if (m_pPrinterInfo->extruder_temperature_target > 0) {
+                extruder = (static_cast<float>(m_pPrinterInfo->extruder_temperature) / 
+                           m_pPrinterInfo->extruder_temperature_target) * 12.5f;
+                if (extruder > 12.5f)
+                    extruder = 12.5f;
+            }
+            float progress = bed + extruder;  // Max 25%
+            if (progress > 1.0f) {
+                info.calibrationProgress = progress;
+            }
+        }
+    }
+    
+    // Calculate resonance compensation progress
+    static void UpdateResonanceCompensationProgress(const std::string& params, CalibrationProgressInfo& info) {
+        // Resonance Compensation Progress Calculation
+        // Background: According to machine operation and Dongguan team feedback, resonance compensation has a fixed duration.
+        // The process consists of X-axis and Y-axis resonance compensation tests, which can be observed from the web console logs.
+        //
+        // Progress Distribution:
+        // - Initial phase (preparation): 0% - 10% (10% progress)
+        // - X-axis test: 10% - 50% (40% progress, 120 seconds fixed duration)
+        // - Y-axis test: 50% - 90% (40% progress, 120 seconds fixed duration)
+        // - Final phase (completion): 90% - 100% (10% progress)
+        //
+        // Calculation Formula:
+        // - For X/Y axis tests: 40% progress = 120 seconds
+        // - Progress rate: 40% / 120 seconds = 1% per 3 seconds
+        // - Frequency-based progress: progress = baseProgress + (Hz / 150) * 40
+        //   where baseProgress is 10% for X-axis and 50% for Y-axis
+        //   and 150 Hz is the maximum test frequency
+        //
+        // Time-based progress (when frequency info unavailable):
+        // - Initial phase: 1% per 3 seconds (0% - 10%)
+        // - Final phase: 1% per 5.2 seconds (89% - 99%)
+        
+        static float _progress = 0;
+        
+        // Check for axis testing
+        if (params == "// Testing axis x") {
+            info.startResonanceCompensation = true;
+            _progress = 10.0f;  // X axis test starts at 10% (after initial preparation phase)
+            info.startTime = std::chrono::steady_clock::now();
+        } else if (params == "// Testing axis y") {
+            _progress = 50.0f;  // Y axis test starts at 50% (after X-axis test completes)
+            info.startTime = std::chrono::steady_clock::now();
+        }
+        
+        // Check for frequency testing: "// Testing frequency X Hz"
+        // Progress calculation: baseProgress + (currentHz / maxHz) * axisProgressRange
+        // Example: X-axis at 75 Hz = 10% + (75/150) * 40% = 10% + 20% = 30%
+        //          Y-axis at 75 Hz = 50% + (75/150) * 40% = 50% + 20% = 70%
+        int Hz = 0;
+        if (sscanf(params.c_str(), "// Testing frequency %d Hz", &Hz) == 1 && Hz > 0) {
+            float progress = _progress + (static_cast<float>(Hz) / 150.0f) * 40.0f;
+            if (progress > 1.0f) {
+                info.resonanceCompensationProgress = progress;
+            }
+        }
+        
+        // Handle initial phase (progress < 10%): Preparation phase before X-axis test starts
+        // Time-based progress: 1% per 3 seconds
+        if (!info.startResonanceCompensation && info.resonanceCompensationProgress < 10.0f) {
+            auto nowTime = std::chrono::steady_clock::now();
+            long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - info.startTime).count();
+            if (timeDiff > 3) {
+                float newProgress = info.resonanceCompensationProgress + 1.0f;
+                if (newProgress > 1.0f) {
+                    info.resonanceCompensationProgress = newProgress;
+                    info.startTime = nowTime;
+                }
+            }
+        }
+        
+        // Handle final phase (89% - 99%): Completion phase after Y-axis test
+        // Time-based progress: 1% per 5.2 seconds (slower than initial phase)
+        if (info.resonanceCompensationProgress >= 89.0f && info.resonanceCompensationProgress <= 99.0f) {
+            auto nowTime = std::chrono::steady_clock::now();
+            long long timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(nowTime - info.startTime).count();
+            if (timeDiff > 5200) {  // 5.2 seconds per 1%
+                float newProgress = info.resonanceCompensationProgress + 1.0f;
+                if (newProgress > 1.0f) {
+                    info.resonanceCompensationProgress = newProgress;
+                    info.startTime = nowTime;
+                }
+            }
+        }
+        
+        info.resonanceCompensationProgress = std::min(info.resonanceCompensationProgress, 100.0f);
+    }
+    
+    // Calculate temperature calibration progress
+    static void UpdateTemperatureCalibrationProgress(const std::string& params, CalibrationProgressInfo& info) {
+        // Temperature Progress Calculation
+        // Background: According to machine operation and Dongguan team feedback.
+        // Match pattern: T0:XXX/YYY (e.g., "T0:210.0/210.0" or "T0:205.5/205.0")
+        // According to CalibrationWindow_Analysis.md line 224, the original pattern was:
+        // R"(T0:(\d+\.\d+)\s*/\s*(\d+\.\d+))" which requires decimal point
+        // This strict pattern ensures:
+        // - \d+ : one or more digits before decimal point (required)
+        // - \. : decimal point (required)
+        // - \d+ : one or more digits after decimal point (required)
+        // This matches only formats like "T0:210.0/210.0" with decimal point
+        std::regex t0_pattern(R"(T0:(\d+\.\d+)\s*/\s*(\d+\.\d+))");
+        std::smatch match;
+        if (std::regex_search(params, match, t0_pattern)) {
+            float t0_value1 = std::stof(match[1]);  // Current temperature
+            float t0_value2 = std::stof(match[2]);  // Target temperature
+            
+            // Temperature Calibration Progress Formula Explanation
+            // Background: Temperature calibration cycles between 210°C and 205°C repeatedly.
+            // Each complete cycle (210°C -> 205°C -> 210°C) represents approximately 9% progress.
+            // The first cycle (0°C -> 210°C) is special and also counts as 9% (0% - 9%).
+            // Subsequent cycles each contribute 8% progress increment.
+            //
+            // Progress Distribution:
+            // - Cycle 1 (0°C -> 210°C): 0% - 9% (9% total)
+            // - Cycle 2 (210°C -> 205°C -> 210°C): 9% - 17% (8% increment)
+            // - Cycle 3 (210°C -> 205°C -> 210°C): 17% - 25% (8% increment)
+            // - ... and so on until 100%
+            //
+            // tempProgress counter tracks cycle number:
+            // - Even values (0, 2, 4, ...): 210°C phase
+            // - Odd values (1, 3, 5, ...): 205°C phase
+            // - Increments when entering each phase
+            
+            // 210°C phase: Heating from 205°C (or 0°C for first cycle) to 210°C
+            if (std::abs(t0_value2 - 210.0f) < 0.1f) {
+                // Increment tempProgress when entering 210°C phase (even -> odd transition)
+                if (info.tempProgress == 0 || info.tempProgress % 2 == 0)
+                    info.tempProgress++;
+                
+                if (t0_value1 <= 210.0f) {
+                    // Formula for subsequent cycles (tempProgress > 1): Heating from 205°C to 210°C
+                    // progress = completedCyclesProgress + currentCycleProgress
+                    // completedCyclesProgress = 8.0f * (tempProgress - 1)
+                    //   Explanation: First cycle (tempProgress=1) gives 0, second cycle (tempProgress=2) gives 8%,
+                    //                third cycle (tempProgress=3) gives 16%, etc.
+                    // currentCycleProgress = ((currentTemp - 205°C) / (210°C - 205°C)) * 9.0f
+                    //   Explanation: Linear interpolation from 205°C to 210°C, scaled to 9% of cycle
+                    //   Example: At 207.5°C (halfway), progress = 0.5 * 9% = 4.5% within cycle
+                    if (info.tempProgress > 1 && t0_value1 >= 205.0f && t0_value1 <= 210.0f) {
+                        float progress = (8.0f * (static_cast<float>(info.tempProgress) - 1)) + 
+                                         ((t0_value1 - 205.0f) / (t0_value2 - 205.0f)) * 9.0f;
+                        if (progress > 1.0f) {
+                            info.temperatureCalibrationProgress = progress;
+                        }
+                    }
+                    // Formula for first cycle (tempProgress == 1): Heating from 0°C to 210°C
+                    // progress = (currentTemp / targetTemp) * 9.0f
+                    //   Explanation: Linear interpolation from 0°C to 210°C, scaled to 9% total
+                    //   Example: At 105°C (halfway), progress = 0.5 * 9% = 4.5%
+                    else if (info.tempProgress == 1) {
+                        float progress = (t0_value1 / t0_value2) * 9.0f;
+                        if (progress > 1.0f) {
+                            info.temperatureCalibrationProgress = progress;
+                        }
+                    }
+                }
+            }
+            // 205°C phase: Cooling from 210°C to 205°C
+            else if (std::abs(t0_value2 - 205.0f) < 0.1f) {
+                // Increment tempProgress when entering 205°C phase (odd -> even transition)
+                if (info.tempProgress % 2 != 0)
+                    info.tempProgress++;
+                
+                if (t0_value1 <= 210.0f && t0_value1 >= 205.0f) {
+                    // Formula: Cooling from 210°C to 205°C
+                    // progress = completedCyclesProgress + currentCycleProgress
+                    // completedCyclesProgress = 8.0f * (tempProgress - 1)
+                    //   Explanation: Same as 210°C phase, tracks completed cycles
+                    // currentCycleProgress = ((210°C - currentTemp) / (210°C - 205°C)) * 9.0f
+                    //   Explanation: Linear interpolation from 210°C to 205°C (inverse direction),
+                    //                scaled to 9% of cycle
+                    //   Example: At 207.5°C (halfway cooling), progress = 0.5 * 9% = 4.5% within cycle
+                    //   Note: (210°C - currentTemp) gives distance from start (210°C), 
+                    //         divided by total range (5°C) gives progress ratio
+                    float progress = (8.0f * (static_cast<float>(info.tempProgress) - 1)) + 
+                                     ((210.0f - t0_value1) / (210.0f - t0_value2)) * 9.0f;
+                    if (progress > 1.0f) {
+                        info.temperatureCalibrationProgress = progress;
+                    }
+                }
+            }
+            
+            info.temperatureCalibrationProgress = std::min(info.temperatureCalibrationProgress, 100.0f);
+        }
+    }
+};
+
 // Message processing module for message type detection and conversion
 struct MessageProcessor {
     static bool ShouldSkipProcStat(const std::string& message) {
@@ -647,6 +909,73 @@ struct MessageProcessor {
                             nozzleInfo.fila_exist = false;
                         }
                         BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (nozzleInfo.fila_exist ? "true" : "false") << " ***";
+                    }
+                    
+                    // ============================================
+                    // Calibration message processing
+                    // ============================================
+                    {
+                        // Auto-leveling (Calibration) messages
+                        if (params.find("Probe samples exceed samples_tolerance") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            m_calibrationProgressInfo.calibrationStatus = CalibrationState::ERROR;
+                            BOOST_LOG_TRIVIAL(warning) << "Calibration error: Probe samples exceed tolerance";
+                        } else if (params.find("Mesh Bed Leveling Complete") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            if (m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.calibrationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.calibrationProgress = 100.0f;
+                                BOOST_LOG_TRIVIAL(info) << "Calibration completed";
+                            }
+                        } else if (params.find("probe at ") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            CalibrationProgressCalculator::UpdateCalibrationProgress(params, m_calibrationProgressInfo);
+                        }
+                        
+                        // Resonance compensation messages
+                        if (params.find("// Testing axis x") != std::string::npos ||
+                            params.find("// Testing axis y") != std::string::npos ||
+                            params.find("// Testing frequency") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            CalibrationProgressCalculator::UpdateResonanceCompensationProgress(params, m_calibrationProgressInfo);
+                        } else if (params.find("with these parameters and restart the printer.") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            if (m_calibrationProgressInfo.resonanceCompensationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.resonanceCompensationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.resonanceCompensationProgress = 100.0f;
+                                BOOST_LOG_TRIVIAL(info) << "Resonance compensation completed";
+                            }
+                        }
+                        
+                        // Temperature calibration messages
+                        if (params.find("T0:") != std::string::npos && params.find("/") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            CalibrationProgressCalculator::UpdateTemperatureCalibrationProgress(params, m_calibrationProgressInfo);
+                        } else if (params.find("Klippy Disconnected") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            if (m_calibrationProgressInfo.temperatureCalibrationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.temperatureCalibrationProgress = 100.0f;
+                                BOOST_LOG_TRIVIAL(info) << "Temperature calibration completed";
+                            }
+                        }
+                        
+                        // Generic completion message
+                        if (params.find("Klipper state: Disconnect") != std::string::npos) {
+                            std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                            if (m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.calibrationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.calibrationProgress = 100.0f;
+                            }
+                            if (m_calibrationProgressInfo.resonanceCompensationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.resonanceCompensationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.resonanceCompensationProgress = 100.0f;
+                            }
+                            if (m_calibrationProgressInfo.temperatureCalibrationStatus == CalibrationState::RUNNING) {
+                                m_calibrationProgressInfo.temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                                m_calibrationProgressInfo.temperatureCalibrationProgress = 100.0f;
+                            }
+                        }
                     }
                 }
             } catch (const json::exception& e) {
@@ -3505,6 +3834,57 @@ bool IsStartThumbnailChecking()
 void ResetPreviousPrintState(  )
 {
     prev_state.clear();
+}
+
+// Calibration progress and status query APIs
+CalibrationProgressInfo GetCalibrationProgressInfo()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo;
+}
+
+CalibrationState GetCalibrationStatus()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.calibrationStatus;
+}
+
+CalibrationState GetResonanceCompensationStatus()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.resonanceCompensationStatus;
+}
+
+CalibrationState GetTemperatureCalibrationStatus()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.temperatureCalibrationStatus;
+}
+
+float GetCalibrationProgress()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.calibrationProgress;
+}
+
+float GetResonanceCompensationProgress()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.resonanceCompensationProgress;
+}
+
+float GetTemperatureCalibrationProgress()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.temperatureCalibrationProgress;
+}
+
+bool IsAnyCalibrationRunning()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    return m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING ||
+           m_calibrationProgressInfo.resonanceCompensationStatus == CalibrationState::RUNNING ||
+           m_calibrationProgressInfo.temperatureCalibrationStatus == CalibrationState::RUNNING;
 }
 
 } // namespace MonitorControl

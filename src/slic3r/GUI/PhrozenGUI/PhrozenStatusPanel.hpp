@@ -175,6 +175,7 @@ public:
     void set_plate_index(int plate_idx = -1);
     void market_scoring_show();
     void market_scoring_hide();
+    ScalableBitmap get_bitmap_thumbnail_placeholder() {return m_thumbnail_placeholder;};
     
 public:
     ScalableButton* get_abort_button() {return m_button_abort;};

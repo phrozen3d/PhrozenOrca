@@ -11,6 +11,7 @@
 #include "../format.hpp"
 #include "../Widgets/RoundedRectangle.hpp"
 #include "../Widgets/StaticBox.hpp"
+#include "PhrozenDeviceManager.hpp"
 
 namespace Slic3r { namespace GUI {
 wxDEFINE_EVENT(EVT_PHROZEN_CALIBRATION_SELECTED, wxCommandEvent);
@@ -74,12 +75,14 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
     // Draw progress fill with anti-aliasing (aligned with border)
     if (m_progress > 0) {
         wxColour fill_color;
-        if (m_pressed) {
-            fill_color = wxColour(0xC8, 0x4C, 0x10); // Darker orange when pressed
-        } else if (m_hover) {
-            fill_color = wxColour(0xF0, 0x70, 0x20); // Brighter orange on hover
+        if (m_bPressed) {
+            fill_color = wxColour(0xC8, 0x4C, 0x10, 0xFF); // Darker orange when pressed
+        } else if (m_bHover) {
+            fill_color = wxColour(0xF0, 0x70, 0x20, 0xFF); // Brighter orange on hover
+        } else if (m_bDisabled) {
+            fill_color = wxColour(0xF0, 0x5E, 0x20, 0x80); // Normal orange with 50% transparency
         } else {
-            fill_color = wxColour(0xF0, 0x5E, 0x20); // Normal orange (240, 94, 32)
+            fill_color = wxColour(0xF0, 0x5E, 0x20, 0xFF); // Normal orange (240, 94, 32) with 100% transparency
         }
 
         // Calculate fill width accounting for border inset
@@ -117,12 +120,14 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
 
     // Draw border with anti-aliasing
     wxColour border_color;
-    if (m_pressed) {
-        border_color = wxColour(0xC8, 0x4C, 0x10); // Darker orange when pressed
-    } else if (m_hover) {
-        border_color = wxColour(0xF0, 0x70, 0x20); // Brighter orange on hover
+    if (m_bPressed) {
+        border_color = wxColour(0xC8, 0x4C, 0x10, 0xFF); // Darker orange when pressed
+    } else if (m_bHover) {
+        border_color = wxColour(0xF0, 0x70, 0x20, 0xFF); // Brighter orange on hover
+    } else if (m_bDisabled) {
+        border_color = wxColour(0xE0, 0xE0, 0xE0, 0x80); // Normal white with 50% transparency
     } else {
-        border_color = wxColour(0xE0, 0xE0, 0xE0); // Normal white
+        border_color = wxColour(0xE0, 0xE0, 0xE0, 0xFF); // Normal white
     }
 
     gc->SetPen(wxPen(border_color, border_width));
@@ -150,9 +155,18 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
     gc->DrawText(m_label, text_x, text_y);
 
     // Draw percentage on the right side if progress > 0
-    if (m_progress > 0) {
-        wxString percent_text =  m_progress != 100 ? 
-                                    wxString::Format("%d%%", m_progress) : wxString( _L("Done") );
+    if(m_bWaitingForSendCommand && m_progress == 0){
+        wxString percent_text = wxString(_L("Waiting..."));
+        double percent_width, percent_height;
+        gc->GetTextExtent(percent_text, &percent_width, &percent_height);
+        double percent_x = size.x - percent_width - FromDIP(20);
+        double percent_y = (size.y - percent_height) / 2.0;
+        gc->DrawText(percent_text, percent_x, percent_y);
+    }
+    else if (m_progress > 0) {
+        m_bWaitingForSendCommand = false;
+        wxString percent_text =  m_progress != 100 ?
+                                wxString::Format("%d%%", m_progress) : wxString( _L("Done") );
 
         double percent_width, percent_height;
         gc->GetTextExtent(percent_text, &percent_width, &percent_height);
@@ -166,26 +180,29 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
 
 void CalibrationProgressBar::OnMouseEnter(wxMouseEvent& event)
 {
-    m_hover = true;
+    if (m_bDisabled) return;
+    m_bHover = true;
     Refresh();
 }
 
 void CalibrationProgressBar::OnMouseLeave(wxMouseEvent& event)
 {
-    m_hover = false;
-    m_pressed = false;
+    m_bHover = false;
+    m_bPressed = false;
     Refresh();
 }
 
 void CalibrationProgressBar::OnMouseDown(wxMouseEvent& event)
 {
-    m_pressed = true;
+    if (m_bDisabled) return;
+    m_bPressed = true;
     Refresh();
 }
 
 void CalibrationProgressBar::OnMouseUp(wxMouseEvent& event)
 {
-    m_pressed = false;
+    if (m_bDisabled) return;
+    m_bPressed = false;
     Refresh();
 
     wxCommandEvent sendEvent(EVT_PHROZEN_CALIBRATION_SELECTED);
@@ -289,24 +306,46 @@ int PhrozenCalibrationDlg::ShowModal()
 
 void PhrozenCalibrationDlg::SyncAndUpdateMachineStatus()
 {
-#if 0   //[TO Discuss] - not sure here need support how many calibration type?
-
-
-    //[TODO] add thread to check current machine status,
-    //       2 point: is idle? or now is processing which calibration?
-    bool bIsCalibration = false;
-    if ( bIsCalibration )
-    {
-        //process recieve progress and update ui
-        m_eCurrentProcessingCalib = ECalibType::None; //[TODO] set current
+    // Get PhrozenMachineObject instance
+    PhrozenMachineObject* obj = wxGetApp().GetPhrozenMachineObject();
+    if (!obj) {
+        // If object is null, just reset UI
+        SetAutoLevelingProgress(0);
+        SetResonanceCompensationProgress(0);
+        SetTemperatureCalibrationProgress(0);
+        m_eCurrentProcessingCalib = ECalibType::None;
         return;
     }
-#endif 
 
-    // reset ui
-    SetAutoLevelingProgress( 0 );
-    SetResonanceCompensationProgress( 0 );
-    SetTemperatureCalibrationProgress( 0 );
+    // Check if any calibration is running
+    if (obj->IsAnyCalibrationRunning()) {
+        // Determine which calibration is running
+        int autoLevelingStatus = obj->GetCalibrationStatus();
+        int resonanceStatus = obj->GetResonanceCompensationStatus();
+        int tempStatus = obj->GetTemperatureCalibrationStatus();
+        
+        // Check which one is running
+        // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
+        if (autoLevelingStatus == 1) {
+            m_eCurrentProcessingCalib = ECalibType::Auto_Leveling;
+            SetAutoLevelingProgress(static_cast<int>(obj->GetCalibrationProgress()));
+            StartRefreshTimer();
+        } else if (resonanceStatus == 1) {
+            m_eCurrentProcessingCalib = ECalibType::Resonance_Compensation;
+            SetResonanceCompensationProgress(static_cast<int>(obj->GetResonanceCompensationProgress()));
+            StartRefreshTimer();
+        } else if (tempStatus == 1) {
+            m_eCurrentProcessingCalib = ECalibType::Temperature_Calibration;
+            SetTemperatureCalibrationProgress(static_cast<int>(obj->GetTemperatureCalibrationProgress()));
+            StartRefreshTimer();
+        }
+    } else {
+        // No calibration running, reset UI
+        SetAutoLevelingProgress(0);
+        SetResonanceCompensationProgress(0);
+        SetTemperatureCalibrationProgress(0);
+        m_eCurrentProcessingCalib = ECalibType::None;
+    }
 }
 
 void PhrozenCalibrationDlg::on_dpi_changed(const wxRect &suggested_rect)
@@ -349,6 +388,27 @@ void PhrozenCalibrationDlg::SetTemperatureCalibrationProgress(int percent)
     }
 }
 
+void PhrozenCalibrationDlg::SetAutoLevelingCommandState(bool state)
+{
+    if (m_auto_leveling) {
+        m_auto_leveling->SetWaiting(state);
+    }
+}
+
+void PhrozenCalibrationDlg::SetResonanceCompensationCommandState(bool state)
+{
+    if (m_resonance_compensation) {
+        m_resonance_compensation->SetWaiting(state);
+    }
+}
+
+void PhrozenCalibrationDlg::SetTemperatureCalibrationCommandState(bool state)
+{
+    if (m_temperature_calibration) {
+        m_temperature_calibration->SetWaiting(state);
+    }
+}
+
 bool PhrozenCalibrationDlg::Show(bool show)
 {
     if (show) {
@@ -366,17 +426,29 @@ void PhrozenCalibrationDlg::OnCalibrationSelected( wxCommandEvent& event )
     if ( !pEventObj ) return;
     if ( pEventObj == m_auto_leveling )
     {
-        SetAutoLevelingProgress( 1 );
+        // Disable all buttons including the clicked one
+        if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
+        if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
+        if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetAutoLevelingCommandState( true );
         SendCommandToMachine( ECalibType::Auto_Leveling );
     }
     else if ( pEventObj == m_resonance_compensation )
     {
-        SetResonanceCompensationProgress( 1 );
+        // Disable all buttons including the clicked one
+        if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
+        if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
+        if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetResonanceCompensationCommandState( true );
         SendCommandToMachine( ECalibType::Resonance_Compensation );
     }
     else if ( pEventObj == m_temperature_calibration )
     {
-        SetTemperatureCalibrationProgress( 1 );
+        // Disable all buttons including the clicked one
+        if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
+        if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
+        if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetTemperatureCalibrationCommandState( true );
         SendCommandToMachine( ECalibType::Temperature_Calibration );
     }
     else
@@ -396,19 +468,51 @@ void PhrozenCalibrationDlg::SendCommandToMachine( const ECalibType& eType )
     }
 
     m_spSend_command_thread = std::make_unique<boost::thread>(
-        Slic3r::create_thread([this] {
-    
-            //[TODO]
-            // 1. send command
-            // 2. enable recieve machine calibration progress process (in GUI_APP)
+        Slic3r::create_thread([this, eType] {
+            // Get PhrozenMachineObject instance
+            PhrozenMachineObject* obj = wxGetApp().GetPhrozenMachineObject();
+            if (!obj) {
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenCalibrationDlg::SendCommandToMachine: PhrozenMachineObject is null";
+                CallAfter([this]() {
+                    wxMessageBox(_L("Please connect to a Phrozen printer first."), _L("Error"), wxOK | wxICON_ERROR);
+                    m_eCurrentProcessingCalib = ECalibType::None;
+                });
+                return;
+            }
 
-            CallAfter( [this]() {
+            bool success = false;
+            // Send command based on calibration type
+            switch (eType) {
+                case ECalibType::Auto_Leveling:
+                    success = obj->StartCalibration();
+                    break;
+                case ECalibType::Resonance_Compensation:
+                    success = obj->StartResonanceCompensation();
+                    break;
+                case ECalibType::Temperature_Calibration:
+                    success = obj->StartTemperatureCalibration();
+                    break;
+                default:
+                    BOOST_LOG_TRIVIAL(warning) << "PhrozenCalibrationDlg::SendCommandToMachine: Unknown calibration type";
+                    break;
+            }
+
+            if (!success) {
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenCalibrationDlg::SendCommandToMachine: Failed to start calibration";
+                CallAfter([this]() {
+                    wxMessageBox(_L("Failed to start calibration. Please check the connection and try again."), 
+                                _L("Error"), wxOK | wxICON_ERROR);
+                    m_eCurrentProcessingCalib = ECalibType::None;
+                });
+                return;
+            }
+
+            // Start timer to update progress
+            CallAfter([this]() {
                 StartRefreshTimer();
             });
         })
     );
-
-
 }
 
 void PhrozenCalibrationDlg::OnTimer( wxTimerEvent& event )
@@ -419,23 +523,72 @@ void PhrozenCalibrationDlg::OnTimer( wxTimerEvent& event )
         return;
     }
 
-    bool bCalibrationDone = false;    //[TODO] recieve from machine object
-    int nPercentage = 0;            //[TODO] recieve from machine object (0-100)
+    // Get PhrozenMachineObject instance
+    PhrozenMachineObject* obj = wxGetApp().GetPhrozenMachineObject();
+    if (!obj) {
+        // If object is null, stop timer and reset state
+        m_eCurrentProcessingCalib = ECalibType::None;
+        StopRefreshTimer();
+        return;
+    }
+
+    bool bCalibrationDone = false;
+    int nPercentage = 0;
+    
+    // Get calibration status and progress based on current type
     switch( m_eCurrentProcessingCalib )
     {
-        case ECalibType::Auto_Leveling:             SetAutoLevelingProgress( nPercentage ); break;
-        case ECalibType::Resonance_Compensation:    SetResonanceCompensationProgress( nPercentage ); break;
-        case ECalibType::Temperature_Calibration:   SetTemperatureCalibrationProgress( nPercentage ); break;
+        case ECalibType::Auto_Leveling: {
+            int status = obj->GetCalibrationStatus();
+            nPercentage = static_cast<int>(obj->GetCalibrationProgress());
+            SetAutoLevelingProgress(nPercentage);
+            
+            // Check if calibration is completed or error
+            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
+            if (status == 2 || status == 3) {
+                bCalibrationDone = true;
+            }
+            break;
+        }
+        case ECalibType::Resonance_Compensation: {
+            int status = obj->GetResonanceCompensationStatus();
+            nPercentage = static_cast<int>(obj->GetResonanceCompensationProgress());
+            SetResonanceCompensationProgress(nPercentage);
+            
+            // Check if calibration is completed or error
+            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
+            if (status == 2 || status == 3) {
+                bCalibrationDone = true;
+            }
+            break;
+        }
+        case ECalibType::Temperature_Calibration: {
+            int status = obj->GetTemperatureCalibrationStatus();
+            nPercentage = static_cast<int>(obj->GetTemperatureCalibrationProgress());
+            SetTemperatureCalibrationProgress(nPercentage);
+            
+            // Check if calibration is completed or error
+            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
+            if (status == 2 || status == 3) {
+                bCalibrationDone = true;
+            }
+            break;
+        }
+        default:
+            break;
     }
 
     Refresh();
 
     if ( bCalibrationDone )
     {
+        // Re-enable all buttons when calibration is done
+        if (m_auto_leveling) m_auto_leveling->SetDisabled(false);
+        if (m_resonance_compensation) m_resonance_compensation->SetDisabled(false);
+        if (m_temperature_calibration) m_temperature_calibration->SetDisabled(false);
         m_eCurrentProcessingCalib = ECalibType::None;
         StopRefreshTimer();
     }
-    
 }
 
 void PhrozenCalibrationDlg::StartRefreshTimer()

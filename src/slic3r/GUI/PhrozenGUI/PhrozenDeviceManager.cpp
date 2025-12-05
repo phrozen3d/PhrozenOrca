@@ -806,6 +806,176 @@ std::string PhrozenMachineObject::GetPhrozenConnectedMachineIp()
     return dev_ip;
 }
 
+// Calibration functions implementation
+bool PhrozenMachineObject::StartCalibration()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartCalibration: connection or receiver not ready, command ignored";
+        return false;
+    }
+    
+    // Check if any calibration is already running
+    if (MonitorControl::IsAnyCalibrationRunning()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartCalibration: Another calibration is already running";
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "StartCalibration: Starting calibration (async)";
+    
+    try {
+        // Initialize calibration status
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.calibrationStatus = MonitorControl::CalibrationState::RUNNING;
+            MonitorControl::m_calibrationProgressInfo.calibrationProgress = 0.0f;
+            MonitorControl::m_calibrationProgressInfo.heatingCompleted = false;
+            MonitorControl::m_calibrationProgressInfo.startTime = std::chrono::steady_clock::now();
+        }
+        
+        // Start calibration in background thread
+        std::thread threadForCalibration([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::Calibration_http();
+        });
+        
+        threadForCalibration.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "StartCalibration: Failed to create thread: " << e.what();
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.calibrationStatus = MonitorControl::CalibrationState::STOPPED;
+        }
+        return false;
+    }
+}
+
+bool PhrozenMachineObject::StartResonanceCompensation()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartResonanceCompensation: connection or receiver not ready, command ignored";
+        return false;
+    }
+    
+    // Check if any calibration is already running
+    if (MonitorControl::IsAnyCalibrationRunning()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartResonanceCompensation: Another calibration is already running";
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "StartResonanceCompensation: Starting resonance compensation (async)";
+    
+    try {
+        // Initialize resonance compensation status
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.resonanceCompensationStatus = MonitorControl::CalibrationState::RUNNING;
+            MonitorControl::m_calibrationProgressInfo.resonanceCompensationProgress = 0.0f;
+            MonitorControl::m_calibrationProgressInfo.startResonanceCompensation = false;
+            MonitorControl::m_calibrationProgressInfo.startTime = std::chrono::steady_clock::now();
+        }
+        
+        // Start resonance compensation in background thread
+        std::thread threadForResonanceCompensation([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::ResonanceCompensation();
+        });
+        
+        threadForResonanceCompensation.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "StartResonanceCompensation: Failed to create thread: " << e.what();
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.resonanceCompensationStatus = MonitorControl::CalibrationState::STOPPED;
+        }
+        return false;
+    }
+}
+
+bool PhrozenMachineObject::StartTemperatureCalibration()
+{
+    // Check if WebSocket connection is established and receiver is ready
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartTemperatureCalibration: connection or receiver not ready, command ignored";
+        return false;
+    }
+    
+    // Check if any calibration is already running
+    if (MonitorControl::IsAnyCalibrationRunning()) {
+        BOOST_LOG_TRIVIAL(warning) << "StartTemperatureCalibration: Another calibration is already running";
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "StartTemperatureCalibration: Starting temperature calibration (async)";
+    
+    try {
+        // Initialize temperature calibration status
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.temperatureCalibrationStatus = MonitorControl::CalibrationState::RUNNING;
+            MonitorControl::m_calibrationProgressInfo.temperatureCalibrationProgress = 0.0f;
+            MonitorControl::m_calibrationProgressInfo.tempProgress = 0;
+            MonitorControl::m_calibrationProgressInfo.startTime = std::chrono::steady_clock::now();
+        }
+        
+        // Start temperature calibration in background thread
+        std::thread threadForTemperatureCalibration([](){
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+            MonitorControl::TemperatureCalibration();
+        });
+        
+        threadForTemperatureCalibration.detach();
+        return true;
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "StartTemperatureCalibration: Failed to create thread: " << e.what();
+        {
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCalibrationProgressMutex);
+            MonitorControl::m_calibrationProgressInfo.temperatureCalibrationStatus = MonitorControl::CalibrationState::STOPPED;
+        }
+        return false;
+    }
+}
+
+int PhrozenMachineObject::GetCalibrationStatus()
+{
+    return static_cast<int>(MonitorControl::GetCalibrationStatus());
+}
+
+int PhrozenMachineObject::GetResonanceCompensationStatus()
+{
+    return static_cast<int>(MonitorControl::GetResonanceCompensationStatus());
+}
+
+int PhrozenMachineObject::GetTemperatureCalibrationStatus()
+{
+    return static_cast<int>(MonitorControl::GetTemperatureCalibrationStatus());
+}
+
+float PhrozenMachineObject::GetCalibrationProgress()
+{
+    return MonitorControl::GetCalibrationProgress();
+}
+
+float PhrozenMachineObject::GetResonanceCompensationProgress()
+{
+    return MonitorControl::GetResonanceCompensationProgress();
+}
+
+float PhrozenMachineObject::GetTemperatureCalibrationProgress()
+{
+    return MonitorControl::GetTemperatureCalibrationProgress();
+}
+
+bool PhrozenMachineObject::IsAnyCalibrationRunning()
+{
+    return MonitorControl::IsAnyCalibrationRunning();
+}
 
 #if 0
 /* Common Functions */

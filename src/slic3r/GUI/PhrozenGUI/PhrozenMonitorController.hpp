@@ -328,6 +328,34 @@ struct CalibrationInfo
     bool resonanceCompensationDone = false;
 };
 
+// Calibration state enumeration
+enum class CalibrationState {
+    STOPPED = 0,    // 停止/未開始
+    RUNNING = 1,    // 執行中
+    COMPLETED = 2,  // 完成
+    ERROR = 3       // 錯誤
+};
+
+// Calibration progress information structure
+struct CalibrationProgressInfo {
+    CalibrationState calibrationStatus = CalibrationState::STOPPED;
+    CalibrationState resonanceCompensationStatus = CalibrationState::STOPPED;
+    CalibrationState temperatureCalibrationStatus = CalibrationState::STOPPED;
+    
+    float calibrationProgress = 0.0f;           // 0-100
+    float resonanceCompensationProgress = 0.0f;   // 0-100
+    float temperatureCalibrationProgress = 0.0f;  // 0-100
+    
+    // Internal state tracking (for progress calculation)
+    bool heatingCompleted = false;               // Auto-leveling heating completed
+    bool startResonanceCompensation = false;     // Resonance compensation test started
+    int tempProgress = 0;                        // Temperature calibration progress counter
+    std::chrono::steady_clock::time_point startTime;
+    
+    // Initialize startTime
+    CalibrationProgressInfo() : startTime(std::chrono::steady_clock::now()) {}
+};
+
 enum DetectionState 
 {
     function_off,
@@ -842,12 +870,15 @@ struct HttpErrorInfo {
     extern bool m_bConnectionInitial;
     extern std::mutex m_kCurlMutex;
     extern std::mutex m_kCommandMutex;
+    extern std::mutex m_kCalibrationProgressMutex;
     extern bool m_bIsConnetedToAMS;
     extern std::atomic<bool> m_bDoThumbnailCheck;
     extern std::string prev_state;
     extern bool isReadFromGcodeFinished;
     extern WebCamImageDataThreadHandler WebCamDataHandler;
     extern HttpErrorInfo error_info;
+
+    extern CalibrationProgressInfo m_calibrationProgressInfo;
 
     size_t write_data(void* ptr, size_t size, size_t nmemb, void* stream);
 
@@ -980,6 +1011,16 @@ struct HttpErrorInfo {
     void SetThumbnailChecking( bool bCheck );
     bool IsStartThumbnailChecking();
     void ResetPreviousPrintState();
+
+    // Calibration progress and status APIs
+    CalibrationProgressInfo GetCalibrationProgressInfo();
+    CalibrationState GetCalibrationStatus();
+    CalibrationState GetResonanceCompensationStatus();
+    CalibrationState GetTemperatureCalibrationStatus();
+    float GetCalibrationProgress();
+    float GetResonanceCompensationProgress();
+    float GetTemperatureCalibrationProgress();
+    bool IsAnyCalibrationRunning();  // Check if any calibration is running
 
 #pragma endregion //PhrozenMonitorController
 

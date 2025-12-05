@@ -46,13 +46,19 @@ public:
 
     void SetProgress(int percent);
     int GetProgress() const { return m_progress; }
-
+    void SetWaiting ( bool waitingType) { m_bWaitingForSendCommand = waitingType; }
+    bool IsWaiting () { return m_bWaitingForSendCommand; }
+    void SetDisabled(bool disabled) { m_bDisabled = disabled; Refresh(); }
+    
 private:
+    
     wxString m_label;
     int m_progress{0};
-    bool m_hover{false};
-    bool m_pressed{false};
-
+    bool m_bHover{false};
+    bool m_bPressed{false};
+    bool m_bDisabled{false};
+    bool m_bWaitingForSendCommand{false};
+    
     void OnPaint(wxPaintEvent& event);
     void OnMouseEnter(wxMouseEvent& event);
     void OnMouseLeave(wxMouseEvent& event);
@@ -104,7 +110,10 @@ public:
     void SetAutoLevelingProgress(int percent);
     void SetResonanceCompensationProgress(int percent);
     void SetTemperatureCalibrationProgress(int percent);
-
+    void SetAutoLevelingCommandState(bool state);
+    void SetResonanceCompensationCommandState(bool state);
+    void SetTemperatureCalibrationCommandState(bool state);
+    
     bool Show(bool show) override;
 
     

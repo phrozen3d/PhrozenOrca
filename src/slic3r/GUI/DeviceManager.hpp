@@ -473,6 +473,32 @@ public:
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }
     virtual std::string GetPhrozenConnectedMachineIp() { return ""; }
+    
+    // Calibration functions
+    // Note: CalibrationState is defined in PhrozenMonitorController.hpp
+    // Using int as return type to avoid forward declaration issues with enum class
+    // PhrozenMachineObject will cast to proper CalibrationState type
+    // Start calibration (async)
+    virtual bool StartCalibration() { return false; }
+    
+    // Start resonance compensation (async)
+    virtual bool StartResonanceCompensation() { return false; }
+    
+    // Start temperature calibration (async)
+    virtual bool StartTemperatureCalibration() { return false; }
+    
+    // Get calibration status (returns int: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR)
+    virtual int GetCalibrationStatus() { return 0; }
+    virtual int GetResonanceCompensationStatus() { return 0; }
+    virtual int GetTemperatureCalibrationStatus() { return 0; }
+    
+    // Get calibration progress (0-100)
+    virtual float GetCalibrationProgress() { return 0.0f; }
+    virtual float GetResonanceCompensationProgress() { return 0.0f; }
+    virtual float GetTemperatureCalibrationProgress() { return 0.0f; }
+    
+    // Check if any calibration is running
+    virtual bool IsAnyCalibrationRunning() { return false; }
 #pragma endregion
 
 public:
