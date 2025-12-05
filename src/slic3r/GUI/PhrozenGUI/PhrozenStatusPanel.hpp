@@ -277,8 +277,6 @@ public:
 
     wxStaticBitmap *m_bitmap_static_use_time;
     wxStaticBitmap *m_bitmap_static_use_weight;
-    wxStaticBitmap* m_camera_switch_button;
-
 
     wxMediaCtrl2 *  m_media_ctrl;
     MediaPlayCtrl * m_media_play_ctrl{nullptr};
@@ -384,6 +382,8 @@ public:
     void on_ams_unload_all(wxCommandEvent& event);
     void on_ams_unload_single_slot(wxCommandEvent& event);
     void on_ams_load_single_slot(wxCommandEvent& event);
+    void on_camera_enabled( wxCommandEvent& event );
+    void on_lighting_enabled( wxCommandEvent& event );
     
 public:   
     void on_camera_source_change(wxCommandEvent& event);

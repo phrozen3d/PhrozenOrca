@@ -957,61 +957,41 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
             wxGetApp().getAgent()->stop_subscribe("tunnel");
     });
 #endif
-//PhrozenImages/Camera_Cam_Switch
-//PhrozenImages/Camera_Cam_Switch_Hover
-//PhrozenImages/Camera_Light_Switch
-//PhrozenImages/Camera_Light_Switch_Hover
 
-    //m_pCam_switch_button = new CameraItem(m_panel_monitoring_title, "PhrozenImages/Camera_Cam_Switch", "PhrozenImages/Camera_Cam_Switch_Hover");
-    //m_pCam_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    //m_pCam_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
+    wxColour kBgNormal = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue() );
+    wxColour kBgDisabled = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue(), 50 );
+    wxColour kBgPressed = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.3, AMS_CONTROL_BRAND_COLOUR.Green()/1.3, AMS_CONTROL_BRAND_COLOUR.Blue()/1.3 );
+    wxColour kBgChecked = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.8, AMS_CONTROL_BRAND_COLOUR.Green()/1.8, AMS_CONTROL_BRAND_COLOUR.Blue()/1.8 );
+    StateColor btn_phrozen_bg( std::pair<wxColour, int>(kBgDisabled, StateColor::Disabled),
+                               std::pair<wxColour, int>(kBgPressed, StateColor::Pressed),
+                               std::pair<wxColour, int>(kBgChecked, StateColor::Checked),
+                               std::pair<wxColour, int>(kBgNormal, StateColor::Normal));
 
-    //m_pCam_light_switch_button = new CameraItem(m_panel_monitoring_title, "PhrozenImages/Camera_Light_Switch", "PhrozenImages/Camera_Light_Switch_Hover");
-    //m_pCam_light_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    //m_pCam_light_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
-
-    StateColor btn_bg_green(std::pair<wxColour, int>(AMS_CONTROL_DISABLE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
-                            std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
-    StateColor btn_bd_green(std::pair<wxColour, int>(AMS_CONTROL_WHITE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Enabled));
+    StateColor btn_phrozen_bd(std::pair<wxColour, int>(kBgPressed, StateColor::Hovered) );
 
     m_pCam_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Cam_Switch");
-    m_pCam_switch_button->SetBackgroundColor(btn_bg_green);
-    m_pCam_switch_button->SetBorderColor(btn_bd_green);
+    m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
+    m_pCam_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_switch_button->SetTextColor(wxColour("#FFFFFE"));
-    m_pCam_switch_button->SetSize(wxSize(FromDIP(24), FromDIP(24)));
+    m_pCam_switch_button->SetSize(wxSize(FromDIP(20), FromDIP(24)));
     m_pCam_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
+    m_pCam_switch_button->SetCanFocus( false );
+    m_pCam_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_camera_enabled), NULL, this);
+
 
     m_pCam_light_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Light_Switch");
-    m_pCam_light_switch_button->SetBackgroundColor(btn_bg_green);
-    m_pCam_light_switch_button->SetBorderColor(btn_bd_green);
+    m_pCam_light_switch_button->SetBackgroundColor(btn_phrozen_bg);
+    m_pCam_light_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_light_switch_button->SetTextColor(wxColour("#FFFFFE"));
-    m_pCam_light_switch_button->SetSize(wxSize(FromDIP(24), FromDIP(24)));
+    m_pCam_light_switch_button->SetSize(wxSize(FromDIP(20), FromDIP(24)));
     m_pCam_light_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
+    m_pCam_light_switch_button->SetCanFocus( false );
+    m_pCam_light_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_lighting_enabled), NULL, this);
 
-
-
-
-    m_camera_switch_button = new wxStaticBitmap(m_panel_monitoring_title, wxID_ANY, wxNullBitmap, wxDefaultPosition, wxSize(FromDIP(38), FromDIP(24)), 0);
-    m_camera_switch_button->SetMinSize(wxSize(FromDIP(38), FromDIP(24)));
-    m_camera_switch_button->SetBackgroundColour(PHROZEN_STATUS_TITLE_BG);
-    m_camera_switch_button->SetBitmap(m_bitmap_switch_camera.bmp());
-    m_camera_switch_button->Bind(wxEVT_LEFT_DOWN, &PhrozenStatusBasePanel::on_camera_switch_toggled, this);
-    m_camera_switch_button->Bind(wxEVT_RIGHT_DOWN, [this](auto& e) {
-        const std::string js_request_pip = R"(
-            document.querySelector('video').requestPictureInPicture();
-        )";
-        //m_custom_camera_view->RunScript(js_request_pip);
-    });
-    //m_camera_switch_button->Hide();
 
     m_pCam_switch_button->SetToolTip(_L("Turn On/Off Camera"));
     m_pCam_light_switch_button->SetToolTip(_L("Turn On/Off Light"));
-    m_camera_switch_button->SetToolTip(_L("Switch Camera View"));
 
-    bSizer_monitoring_title->Add(m_camera_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
     bSizer_monitoring_title->Add(m_pCam_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
     bSizer_monitoring_title->Add(m_pCam_light_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
 
@@ -1876,19 +1856,32 @@ void PhrozenStatusBasePanel::on_ams_load_single_slot(wxCommandEvent& WXUNUSED(ev
     }
 }
 
+void PhrozenStatusBasePanel::on_camera_enabled( wxCommandEvent& event )
+{
+    auto pObj = dynamic_cast< Button* >( event.GetEventObject() );
+    if ( !pObj ) return;
+    bool bCurrent = pObj->GetValue();
+    bool bTarget = !bCurrent;
+    pObj->SetValue( bTarget );
+    //TODO
+    // operate camera
+}
+
+void PhrozenStatusBasePanel::on_lighting_enabled( wxCommandEvent& event )
+{
+    auto pObj = dynamic_cast< Button* >( event.GetEventObject() );
+    if ( !pObj ) return;
+    bool bCurrent = pObj->GetValue();
+    bool bTarget = !bCurrent;
+    pObj->SetValue( bTarget );
+    //TODO
+    // operate light
+}
+
 void PhrozenStatusBasePanel::handle_camera_source_change()
 {
     const auto new_cam_url = wxGetApp().app_config->get("camera", "custom_source");
     const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-
-    if (enabled && !new_cam_url.empty()) {
-        m_custom_camera_view->LoadURL(new_cam_url);
-        toggle_custom_camera();
-        m_camera_switch_button->Show();
-    } else {
-        toggle_builtin_camera();
-        m_camera_switch_button->Hide();
-    }
 }
 
 void PhrozenStatusBasePanel::toggle_builtin_camera()
