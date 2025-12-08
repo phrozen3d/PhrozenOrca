@@ -918,7 +918,7 @@ struct MessageProcessor {
                         // Auto-leveling (Calibration) messages
                         if (params.find("Probe samples exceed samples_tolerance") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
-                            m_calibrationProgressInfo.calibrationStatus = CalibrationState::ERROR;
+                            m_calibrationProgressInfo.calibrationStatus = CalibrationState::HAS_ERROR;
                             BOOST_LOG_TRIVIAL(warning) << "Calibration error: Probe samples exceed tolerance";
                         } else if (params.find("Mesh Bed Leveling Complete") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);

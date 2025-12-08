@@ -315,7 +315,7 @@ struct PrinterInfo
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
-    
+
     bool isSameIP = "";
     std::string pre_printerIP = "";
 };
@@ -333,7 +333,7 @@ enum class CalibrationState {
     STOPPED = 0,    // 停止/未開始
     RUNNING = 1,    // 執行中
     COMPLETED = 2,  // 完成
-    ERROR = 3       // 錯誤
+    HAS_ERROR = 3       // 錯誤
 };
 
 // Calibration progress information structure
