@@ -41,6 +41,8 @@ public:
     virtual float GetPhrozenPrintFilamentAmount() override;
     virtual bool IsPrintPaused() override;
 
+    virtual bool GetPhrozenCommand_lighting_enabled() override;
+
     virtual double GetPhrozenSendFileProgress() override;
 
     // set command to machine
@@ -63,6 +65,8 @@ public:
     virtual bool SetPhrozenCommand_resume() override;
     virtual bool SetPhrozenCommand_abort() override;
     virtual bool SetPhrozenCommand_sendandprint(std::string) override;
+
+    virtual void SetPhrozenCommand_lighting_enabled(  bool bEnabled ) override;
 
     virtual bool IsPhrozenConnected() override;
     virtual bool IsPhrozenStartReceiving() override;

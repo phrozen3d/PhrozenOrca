@@ -382,8 +382,10 @@ public:
     void on_ams_unload_all(wxCommandEvent& event);
     void on_ams_unload_single_slot(wxCommandEvent& event);
     void on_ams_load_single_slot(wxCommandEvent& event);
-    void on_camera_enabled( wxCommandEvent& event );
-    void on_lighting_enabled( wxCommandEvent& event );
+    void on_camera_button_triggered( wxCommandEvent& event );
+    virtual void on_lighting_button_triggered( wxCommandEvent& event );
+    bool IsWebcamUiEnabled();
+    bool IsLightingUiEnabled();
     
 public:   
     void on_camera_source_change(wxCommandEvent& event);
@@ -617,7 +619,6 @@ protected:
     /* calibration */
     void on_start_calibration(wxCommandEvent &event);
 
-
     /* update apis */
     void update(MachineObject* obj);
     void UpdateWebCameraView(MachineObject* obj);
@@ -639,6 +640,7 @@ protected:
     void update_temp_ctrl(MachineObject *obj);
     void update_print_speed_ctrl(MachineObject *obj);
     void update_fan_cooling_speed_ctrl(MachineObject *obj);
+    void update_webcam_lighting_status( MachineObject *obj );
     void update_misc_ctrl(MachineObject *obj);
     void update_ams(MachineObject* obj);
     void update_extruder_status(MachineObject* obj);
@@ -663,6 +665,7 @@ protected:
     bool cooling_part_input   = false;
     bool cooling_shield_input   = false;
     bool print_speed_input    = false;
+    bool lighting_state_input = false;
 
     int  m_temp_nozzle_timeout{ 0 };
     int  m_temp_bed_timeout {0};
@@ -670,6 +673,7 @@ protected:
     int  m_cooling_part_timeout {0};
     int  m_cooling_shield_timeout {0};
     int  m_print_speed_timeout {0};
+    int  m_lighting_state_timeout {0};
 
 #pragma region Event_from_ui
     void on_nozzle_temp_kill_focus(wxFocusEvent &event);

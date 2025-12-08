@@ -449,6 +449,8 @@ public:
     
     virtual double GetPhrozenSendFileProgress() { return 0.0; }
 
+    virtual bool GetPhrozenCommand_lighting_enabled() { return false; }
+
     //set command to machine
     //control
     virtual void SetPhrozenCommand_bed_temp( int nTemp ) {}
@@ -473,6 +475,8 @@ public:
     virtual bool IsPhrozenConnected(){ return false; }
     virtual bool IsPhrozenStartReceiving() { return false; }
     virtual std::string GetPhrozenConnectedMachineIp() { return ""; }
+
+    virtual void SetPhrozenCommand_lighting_enabled(  bool bEnabled ) {}
     
     // Calibration functions
     // Note: CalibrationState is defined in PhrozenMonitorController.hpp

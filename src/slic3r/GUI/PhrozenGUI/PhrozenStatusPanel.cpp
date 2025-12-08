@@ -976,7 +976,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pCam_switch_button->SetSize(wxSize(FromDIP(20), FromDIP(24)));
     m_pCam_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
     m_pCam_switch_button->SetCanFocus( false );
-    m_pCam_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_camera_enabled), NULL, this);
+    m_pCam_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_camera_button_triggered), NULL, this);
 
 
     m_pCam_light_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Light_Switch");
@@ -986,7 +986,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pCam_light_switch_button->SetSize(wxSize(FromDIP(20), FromDIP(24)));
     m_pCam_light_switch_button->SetMinSize(wxSize(-1, FromDIP(24)));
     m_pCam_light_switch_button->SetCanFocus( false );
-    m_pCam_light_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_lighting_enabled), NULL, this);
+    m_pCam_light_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_lighting_button_triggered), NULL, this);
 
 
     m_pCam_switch_button->SetToolTip(_L("Turn On/Off Camera"));
@@ -1856,27 +1856,44 @@ void PhrozenStatusBasePanel::on_ams_load_single_slot(wxCommandEvent& WXUNUSED(ev
     }
 }
 
-void PhrozenStatusBasePanel::on_camera_enabled( wxCommandEvent& event )
+void PhrozenStatusBasePanel::on_camera_button_triggered( wxCommandEvent& event )
 {
     auto pObj = dynamic_cast< Button* >( event.GetEventObject() );
     if ( !pObj ) return;
     bool bCurrent = pObj->GetValue();
     bool bTarget = !bCurrent;
     pObj->SetValue( bTarget );
-    //TODO
-    // operate camera
 }
 
-void PhrozenStatusBasePanel::on_lighting_enabled( wxCommandEvent& event )
+void PhrozenStatusBasePanel::on_lighting_button_triggered( wxCommandEvent& event )
 {
     auto pObj = dynamic_cast< Button* >( event.GetEventObject() );
     if ( !pObj ) return;
     bool bCurrent = pObj->GetValue();
     bool bTarget = !bCurrent;
     pObj->SetValue( bTarget );
-    //TODO
-    // operate light
+
+    if ( MonitorControl::IsStartReceiving() ) 
+    {
+        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        if ( !pPhrozenMachineObj ) return;
+        pPhrozenMachineObj->SetPhrozenCommand_lighting_enabled( bTarget );
+    }
+
+    auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        
 }
+
+bool PhrozenStatusBasePanel::IsWebcamUiEnabled()
+{
+    return m_pCam_switch_button->GetValue();
+}
+
+bool PhrozenStatusBasePanel::IsLightingUiEnabled()
+{
+    return m_pCam_light_switch_button->GetValue();
+}
+
 
 void PhrozenStatusBasePanel::handle_camera_source_change()
 {
@@ -3423,6 +3440,18 @@ void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
         if (!cooling_shield_input) { update_cooling_shield_target_power( current_shield_cooling ); }
     }
     
+}
+
+void PhrozenStatusPanel::update_webcam_lighting_status( MachineObject *obj )
+{
+    if (!obj) return;
+
+    bool bIsLighingEnabled = obj->GetPhrozenCommand_lighting_enabled();
+    if (m_lighting_state_timeout > 0) {
+        m_lighting_state_timeout--;
+    } else {
+        if (!lighting_state_input) { m_pCam_light_switch_button->SetValue( bIsLighingEnabled ); }
+    }
 }
 
 void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)

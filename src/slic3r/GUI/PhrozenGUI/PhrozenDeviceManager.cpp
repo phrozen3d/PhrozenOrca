@@ -271,6 +271,11 @@ bool PhrozenMachineObject::IsPrintPaused()
     return MonitorControl::m_pPrinterInfo->is_paused;
 }
 
+bool PhrozenMachineObject::GetPhrozenCommand_lighting_enabled() 
+{
+    return MonitorControl::m_bIsLEDOn;
+}
+
 double PhrozenMachineObject::GetPhrozenSendFileProgress()
 {
     // Return value range: 0.0 ~ 100.0
@@ -789,6 +794,33 @@ bool PhrozenMachineObject::SetPhrozenCommand_sendandprint(std::string filePath)
         BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_sendandprint: Failed to create thread: " << e.what();
         return false;
     }
+}
+
+void PhrozenMachineObject::SetPhrozenCommand_lighting_enabled( bool bEnabled )
+{
+    if (!IsPhrozenConnected() || !IsPhrozenStartReceiving()) {
+        BOOST_LOG_TRIVIAL(warning) << "SetPhrozenCommand_lighting_enabled: connection or receiver not ready, command ignored - !IsPhrozenConnected()=" << IsPhrozenConnected()
+        << ", !IsPhrozenStartReceiving()=" << IsPhrozenStartReceiving();
+        return;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "SetPhrozenCommand_lighting_enabled: (" << bEnabled << ")";
+
+    try {
+        std::thread threadForSetNozzleMovement([bEnabled](){
+            
+            std::lock_guard<std::mutex> lock(MonitorControl::m_kCommandMutex);
+    
+            MonitorControl::SetLED( bEnabled );
+        });
+        
+        threadForSetNozzleMovement.detach();
+    }
+    catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << "SetPhrozenCommand_nozzle_offset: Failed to create thread: " << e.what();
+    }
+
+    
 }
 
 bool PhrozenMachineObject::IsPhrozenConnected() 
