@@ -899,6 +899,16 @@ struct MessageProcessor {
                     if (pos != std::string::npos) {
                         m_pPrinterInfo->error = msg_json["params"][0].get<std::string>();
                     }
+
+                    // Check LED State
+                    std::string strLEDKeyword = "P0 LED_State=";
+                    auto uLEDPos = params.find(strLEDKeyword);
+                    if ( uLEDPos != std::string::npos )
+                    {
+                        std::string strLEDValue = params.substr(uLEDPos + strLEDKeyword.length(), 1);
+                        m_bIsLEDOn = std::stoi(strLEDValue);
+                        return;
+                    }
                     
                     // Check for PRZ_ADC response with fila_exist
                     if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
@@ -2636,6 +2646,13 @@ void GetAllInfo_websocket()
     payload_Nozzle["params"]["script"] = "PRZ_ADC";
     payload_Nozzle["id"] = printer_gcode_script;
 
+    //LED
+    json payload_LED;
+    payload_LED["jsonrpc"] = "2.0";
+    payload_LED["method"] = "printer.gcode.script";
+    payload_LED["params"]["script"] = "P0 LED_GetState";
+    payload_LED["id"] = printer_gcode_script;
+
     // Log thread ID for Xcode console debugging
     std::thread::id thread_id = std::this_thread::get_id();
     std::cout << "[GetAllInfo_websocket] Thread started, Thread ID: " << thread_id << std::endl;
@@ -2670,6 +2687,7 @@ void GetAllInfo_websocket()
                     result = send_action_Command(payload_AMS.dump());
                     result = send_action_Command(payload_history.dump());
                     result = send_action_Command(payload_Nozzle.dump());
+                    result = send_action_Command(payload_LED.dump());
                     threadControl.first_time_to_send_query = false;
                     previousTime = std::chrono::steady_clock::now();
                 }

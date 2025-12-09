@@ -658,6 +658,9 @@ protected:
     void on_update_webcam_ui_timer(wxTimerEvent& event);
     void InitWebCamUiUpdateTimer();
 
+    /* lighting(LED) */
+    void on_lighting_button_triggered( wxCommandEvent& event ) override;
+
     // ======= phrozen checked done ========== //
     bool bed_temp_input    = false;
     bool nozzle_temp_input = false;

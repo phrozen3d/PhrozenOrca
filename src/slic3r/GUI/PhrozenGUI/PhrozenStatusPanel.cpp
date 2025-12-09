@@ -1872,16 +1872,6 @@ void PhrozenStatusBasePanel::on_lighting_button_triggered( wxCommandEvent& event
     bool bCurrent = pObj->GetValue();
     bool bTarget = !bCurrent;
     pObj->SetValue( bTarget );
-
-    if ( MonitorControl::IsStartReceiving() ) 
-    {
-        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
-        if ( !pPhrozenMachineObj ) return;
-        pPhrozenMachineObj->SetPhrozenCommand_lighting_enabled( bTarget );
-    }
-
-    auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
-        
 }
 
 bool PhrozenStatusBasePanel::IsWebcamUiEnabled()
@@ -3019,6 +3009,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     update_temp_ctrl(obj);
     update_print_speed_ctrl(obj);
     update_fan_cooling_speed_ctrl(obj);
+    update_webcam_lighting_status( obj );
     
     if ( !IsWebCamRefreshTimerInitialized() )
     {
@@ -3129,9 +3120,22 @@ void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
     UpdateWebCameraView( obj );
 }
 
+void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
+{
+    PhrozenStatusBasePanel::on_lighting_button_triggered( event );
+
+    if ( MonitorControl::IsStartReceiving() ) 
+    {
+        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        if ( !pPhrozenMachineObj ) return;
+        pPhrozenMachineObj->SetPhrozenCommand_lighting_enabled( IsLightingUiEnabled() );
+        set_hold_count( m_lighting_state_timeout );
+    }
+}
+
 void PhrozenStatusPanel::UpdateWebCameraView(MachineObject* obj)
 {
-    if (!obj) return;
+    if ( !obj || IsWebcamUiEnabled() ) return;
 
     if ( !obj->GetPhrozenWebCameraSnapshotImage( m_kWebCameraImageData ) )
     {
@@ -3446,11 +3450,11 @@ void PhrozenStatusPanel::update_webcam_lighting_status( MachineObject *obj )
 {
     if (!obj) return;
 
-    bool bIsLighingEnabled = obj->GetPhrozenCommand_lighting_enabled();
     if (m_lighting_state_timeout > 0) {
         m_lighting_state_timeout--;
     } else {
-        if (!lighting_state_input) { m_pCam_light_switch_button->SetValue( bIsLighingEnabled ); }
+        bool bIsLighingEnabled = obj->GetPhrozenCommand_lighting_enabled();
+        m_pCam_light_switch_button->SetValue( bIsLighingEnabled );
     }
 }
 
@@ -5165,6 +5169,7 @@ void PhrozenStatusPanel::set_default()
     m_switch_nozzle_fan_timeout = 0;
     m_switch_printing_fan_timeout = 0;
     m_switch_cham_fan_timeout = 0;
+    m_lighting_state_timeout = 0;
     m_show_ams_group = false;
     reset_printing_values();
 
