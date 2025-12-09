@@ -117,16 +117,11 @@ struct HistoryInfo {
 };
 
 struct MonitorWindow {
-    std::vector<NetworkingMachineInfo> natworkingMachineList;
-    std::vector<PrintingHistoryInfo> printhistoryList;
     std::vector<AMSInfo> AMSList;
     std::vector<bool> AMSselected = { false,false, false, false };
     int AMSselectedID = 1;
-    std::wstring expected = L"";
     std::string connectedMachineName = "";
     std::string printfile = "";
-    std::string printfileForRestore = "";
-    std::string moveHead = "";
     int print_speed;
     int auxiliary_fan_speed;
     int fan_speed;
@@ -134,51 +129,28 @@ struct MonitorWindow {
     int nozzle_temperature;
     int bed_temperature;
     int chamber_temperature;
-    float offset_value = 1;
-    float z_offset_value = 0.005;
     int Led_value;
-    int selectMachineTab;
-    bool initial = true;
     bool selectMachineWindowShow = false;
     bool selectMachineWindowShow_preview = false;
-    bool beforePrintWindowShow = false;
-    bool beforeExportWindowShow = false;
-    bool isShownAMSsetting = false;
-    bool isShownAMSeditor = false;
-    bool isShownPrinterBusyWarning = false;
-    bool isShownPrintCompleteAndCancelWarning = false;
-    bool isShownPrinterFailedWarning = false;
-    bool isShownMonitorErrorWarning = false;
-    int AMSeditorIndex = 0;
-    
-    bool isShownCalibrationNotification = false;
-    bool isShownCalibration = false;
-    int CalibrationStatus = 0; // 0:stop 1:start 2:done 3:error
-    int TemperatureCalibrationStatus = 0;
-    int ResonanceCompensationStatus = 0;
-    bool isCalibrationStart = false;
-    int calibration_progress = 2;
-    bool calibration_did = false;
-    std::string calibration_profile = "default";
     bool isShownIPConnectNotification = false;
-    
+
     //AMS error
     int amsNum = 0;
     std::string Chroma_Kit = "Chroma\xC2\xA0Kit";
     std::string AMS_ID = "\xC2\xA0" + std::to_string(AMSselectedID) + "\xC2\xA0";
     std::string error_code = "[XXXXXXXXX]";
     std::string test_AMS_Response = "";
-    
+
     bool isShownChromaConnectionErrorNotification = false; // f
-    bool isShownUnloadFilamentErrorNotification = false; // 8 
+    bool isShownUnloadFilamentErrorNotification = false; // 8
     bool isShownLoadFilamentErrorNotification = false; // 4
     bool isShownSendMaterialFailedNotification = false; //
     bool isShownExtrusionErrorNotification = false; // c, 7
     bool isShownFilamentFlushTimeoutNotification = false; // d
-    
+
     bool isShownStopPrintNotification = false;
     bool stopPrinting_click = false;
-    
+
     //PauseCode and Warning Flag Map
     std::unordered_map<std::string, bool*> pauseCodeToFlag = {
     	{ "4", &isShownLoadFilamentErrorNotification },
@@ -188,16 +160,17 @@ struct MonitorWindow {
     	{ "d", &isShownFilamentFlushTimeoutNotification },
     	{ "f", &isShownChromaConnectionErrorNotification }
     };
-    
+
     // only for test
     // Optional: Set the label corresponding to the error type
     const std::vector<char> errorTypes = { '4', '7', '8', 'c', 'd', 'f' };
     const std::vector<std::string> errorLabels = {
     	"Error 4", "Error 7", "Error 8", "Error C", "Error D", "Error F"
     };
-    
+
     std::string amsReturnError = "";
-    
+    std::wstring receiveMessage = L"";
+
     // New AMS Note
     // lancaigang231202:+PAUSE:1,oldchannel,newchannel;1-New AMS does not need
     // lancaigang231202:+PAUSE:2,oldchannel,newchannel;2-Pause ACK
@@ -218,50 +191,6 @@ struct MonitorWindow {
     // lancaigang231202:+PAUSE:i,oldchannel,newchannel;i-
     // lancaigang231202:+PAUSE:j,oldchannel,newchannel;j-
     // lancaigang231202:+PAUSE:10,oldchannel,newchannel;10-The touch screen or fluidd web page automatically pauses
-    
-    bool resonanceCompensation_did = false;
-    bool home_did = false;
-    bool AMSaction_did = false;
-    std::string pringfile;
-    bool getThumbnailsuccess = false;
-    bool ActionDone = false;
-    std::wstring receiveMessage = L"";
-    bool isShowAMSmenu = false;
-    bool beforePritingStart = false;
-    bool beforePritingHeating = false;
-    bool beforePritingDone = false;
-    bool beforePrintingWindowInitial = true;
-    bool sendjob = false;
-    bool isShownAMStutorial = false;
-    bool isShownAMSuninstallfilament = false;
-    bool isClickAMS_EnterStandbyArea = false;
-    bool isClickAMS_EnetrNozzleHead = false;
-    bool isClickAMS_RetractToStandbyArea = false;
-    bool isClickAMS_UninstallFilament = false;
-    int EnterStandbyArea_page = 0;
-    int EnetrNozzleHead_page = 0;
-    int RetractToStandbyArea_page = 0;
-    int UninstallFilament_page = 0;
-    bool historyDetailWindowShow = false;
-    bool history_info = false;
-    std::wstring history_detail_path;
-    std::string history_name;
-    std::string history_print_date;
-    std::string history_total_layers;
-    std::string history_filament_volume;
-    std::string history_total_height;
-    std::string history_print_time = "";
-    std::string history_print_time_hrs = "0";
-    std::string history_print_time_mins = "0";
-    std::string history_print_time_secs = "0";
-    int history_rate;
-    std::string history_print_comment;
-    std::vector<int> star_ratings;
-    std::vector<std::string> i_time;
-    std::vector<std::string> i_filament;
-    int projectId = 0;
-    std::vector<bool> historySelection;
-    bool selectAllPrintHistory = false;
 };
 
 struct PhrozenMemoryStruct 
