@@ -1995,18 +1995,18 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenNozzleTempControllor(wxWindow* pPare
     auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
     sizerFlex->AddGrowableCol(1);
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Nozzle_temp.bmp() ), 0, wxALL | wxEXPAND, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Nozzle"), 1, wxLEFT, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Nozzle_temp.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Nozzle"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spTemp_nozzle, pParent );
-    sizerFlex->Add( m_spTemp_nozzle.get(), 0, wxLEFT, 10 );
+    sizerFlex->Add( m_spTemp_nozzle.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
     CreateValueTextCtrl( m_spTemp_nozzle_ctrl, pParent, PhrozenParamControl::Temperature_Nozzle );
-    sizerFlex->Add( m_spTemp_nozzle_ctrl.get(), 0, wxLEFT, 10 );
+    sizerFlex->Add( m_spTemp_nozzle_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
 
     return sizerFlex;
 }
@@ -2016,18 +2016,18 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenHeatedBedTempControllor(wxWindow* pP
     auto sizerFlex = new wxFlexGridSizer(1, 6, wxSize(0, 5));
     sizerFlex->AddGrowableCol(1);
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Heated_bed_temp.bmp() ), 0, wxALL | wxEXPAND, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Heated Bed"), 1, wxLEFT, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Heated_bed_temp.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Heated Bed"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spTemp_heatedBed, pParent ); 
-    sizerFlex->Add( m_spTemp_heatedBed.get(), 0, wxLEFT, 10 );
+    sizerFlex->Add( m_spTemp_heatedBed.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
     CreateValueTextCtrl( m_spTemp_heatedBed_ctrl, pParent, PhrozenParamControl::Temperature_HeatedBed ); 
-    sizerFlex->Add( m_spTemp_heatedBed_ctrl.get(), 0, wxLEFT, 10 );
+    sizerFlex->Add( m_spTemp_heatedBed_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
-    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxEXPAND, 10 );
+    sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
 
     return sizerFlex;
 }
