@@ -13,10 +13,8 @@
 #include "../SliceInfoPanel.hpp"
 #include "../CameraPopup.hpp"
 #include "../GUI.hpp"
-#include "../wxMediaCtrl2.h"
 #include "../MediaPlayCtrl.h"
 #include "../AMSSetting.hpp"
-//#include "../Calibration.hpp"
 #include "../CalibrationWizardPage.hpp"
 #include "../PrintOptionsDialog.hpp"
 #include "../AMSMaterialsSetting.hpp"
@@ -215,8 +213,6 @@ public:
     wxBoxSizer* create_temp_control(wxWindow* parent);
     wxBoxSizer* create_misc_control(wxWindow* parent);
     wxBoxSizer* create_axis_control(wxWindow* parent);
-    wxBoxSizer* create_bed_control(wxWindow* parent);
-    wxBoxSizer* create_extruder_control(wxWindow* parent);
     
     std::vector<unsigned char> m_kWebCameraImageData;
     wxBitmap m_kCurrentWebCamBitmap;
@@ -225,16 +221,11 @@ public:
 
 #pragma region OrcaOriginalMember
     protected:
-    wxBitmap m_item_placeholder;
     ScalableBitmap m_thumbnail_placeholder;
     ScalableBitmap m_thumbnail_brokenimg;
     ScalableBitmap m_thumbnail_sdcard;
-    wxBitmap m_bitmap_item_prediction;
-    wxBitmap m_bitmap_item_cost;
-    wxBitmap m_bitmap_item_print;
     ScalableBitmap m_bitmap_speed;
     ScalableBitmap m_bitmap_speed_active;
-    ScalableBitmap m_bitmap_axis_home;
     ScalableBitmap m_bitmap_lamp_on;
     ScalableBitmap m_bitmap_lamp_off;
     ScalableBitmap m_bitmap_fan_on;
@@ -246,22 +237,8 @@ public:
     wxBitmap m_bitmap_extruder_empty_unload;
     wxBitmap m_bitmap_extruder_filled_unload;
 
-    //CameraItem *m_pCam_switch_button;
-    //CameraItem *m_pCam_light_switch_button;
     Button* m_pCam_light_switch_button;
     Button* m_pCam_switch_button;
-
-    wxBitmap m_bitmap_camera;
-    ScalableBitmap m_bitmap_sdcard_state_normal;
-    ScalableBitmap m_bitmap_sdcard_state_abnormal;
-    ScalableBitmap m_bitmap_sdcard_state_no;
-    ScalableBitmap m_bitmap_recording_on;
-    ScalableBitmap m_bitmap_recording_off;
-    ScalableBitmap m_bitmap_timelapse_on;
-    ScalableBitmap m_bitmap_timelapse_off;
-    ScalableBitmap m_bitmap_vcamera_on;
-    ScalableBitmap m_bitmap_vcamera_off;
-    ScalableBitmap m_bitmap_switch_camera;
 
     /* title panel */
     wxPanel *       media_ctrl_panel;
@@ -278,7 +255,6 @@ public:
     wxStaticBitmap *m_bitmap_static_use_time;
     wxStaticBitmap *m_bitmap_static_use_weight;
 
-    wxMediaCtrl2 *  m_media_ctrl;
     MediaPlayCtrl * m_media_play_ctrl{nullptr};
 
     Label *         m_staticText_printing;
@@ -291,13 +267,10 @@ public:
     wxStaticText *  m_staticText_progress_percent_icon;
     wxStaticText *  m_staticText_progress_left;
     wxStaticText *  m_staticText_layers;
-    Button *        m_button_report;
     ScalableButton *m_button_pause_resume;
     ScalableButton *m_button_abort;
     Button *        m_button_clean;
     wxWebView *     m_custom_camera_view{nullptr};
-
-    wxStaticText *  m_text_tasklist_caption;
 
     Label *  m_staticText_control;
     ImageSwitchButton *m_switch_lamp;
@@ -324,41 +297,26 @@ public:
 
     float           m_fixed_aspect_ratio{1.8};
 
-    AxisCtrlButton *m_bpButton_xy;
     PhrozenAxisCtrlButton *m_phButton_xy;
-
-    //wxStaticText *  m_staticText_xy;
     Button *        m_bpButton_z_10;
     Button *        m_bpButton_z_1;
     Button *        m_bpButton_z_down_1;
     Button *        m_bpButton_z_down_10;
     Button *        m_button_unload;
     wxStaticText *  m_staticText_z_tip;
-    wxStaticText *  m_staticText_e;
     Button *        m_bpButton_e_10;
     Button *        m_bpButton_e_down_10;
     StaticLine *    m_temp_extruder_line;
-    wxBoxSizer*     m_ams_list;
-    wxStaticText *  m_ams_debug;
     bool            m_show_ams_group{false};
     wxStaticBitmap *m_ams_extruder_img;
     wxStaticBitmap* m_bitmap_extruder_img;
     wxPanel *       m_panel_separator_right;
     wxPanel *       m_panel_separotor_bottom;
-    wxGridBagSizer *m_tasklist_info_sizer{nullptr};
     wxBoxSizer *    m_printing_sizer;
-    wxBoxSizer *    m_tasklist_sizer;
-    wxBoxSizer *    m_tasklist_caption_sizer;
     wxPanel*        m_panel_error_txt;
     wxPanel*        m_staticline;
     Label *         m_error_text;
-    wxStaticText*   m_staticText_calibration_caption;
-    wxStaticText*   m_staticText_calibration_caption_top;
-    wxStaticText*   m_calibration_text;
-    Button*         m_parts_btn;
-    Button*         m_options_btn;
     Button*         m_calibration_btn;
-    StepIndicator*  m_calibration_flow;
 
     wxPanel *       m_machine_ctrl_panel;
     PhrozenPrintingTaskPanel *       m_project_task_panel;
@@ -457,8 +415,6 @@ public:
     std::unique_ptr< wxStaticText > m_spTemp_heatedBed;
     std::unique_ptr< wxSpinCtrl > m_spTemp_nozzle_ctrl;
     std::unique_ptr< wxSpinCtrl > m_spTemp_heatedBed_ctrl;
-    int m_nNozzle_temperature = 0;
-    int m_nHeatedBed_temperature = 0;
 
     //Cooling
     std::unique_ptr< wxStaticText > m_spCooling_auxiliary;
@@ -467,9 +423,6 @@ public:
     std::unique_ptr< wxSpinCtrl > m_spCooling_auxiliary_ctrl;
     std::unique_ptr< wxSpinCtrl > m_spCooling_part_ctrl;
     std::unique_ptr< wxSpinCtrl > m_spCooling_shield_ctrl;
-    int m_nCooling_auxiliary = 0;
-    int m_nCooling_part = 0;
-    int m_nCooling_shield = 0;
 
     //Speed
     std::unordered_map< PhrozenPrintSpeed, wxRadioButton* > m_kPrintSpeedButtons;
@@ -519,19 +472,13 @@ private:
     friend class PhrozenMonitorPanel;
 
 protected:
-    std::shared_ptr<SliceInfoPopup> m_slice_info_popup;
-    std::shared_ptr<ImageTransientPopup> m_image_popup;
     std::shared_ptr<CameraPopup> m_camera_popup;
-    std::set<int> rated_model_id;
-    PrinterPartsDialog*  print_parts_dlg { nullptr };
     PrintOptionsDialog*  print_options_dlg { nullptr };
-    //CalibrationDialog*   calibration_dlg {nullptr};
     PhrozenCalibrationDlg* calibration_dlg {nullptr};
 
     PrintErrorDialog* m_print_error_dlg = nullptr;
     SecondaryCheckDialog* m_print_error_dlg_no_action = nullptr;
     SecondaryCheckDialog* abort_dlg = nullptr;
-    SecondaryCheckDialog* con_load_dlg = nullptr;
     SecondaryCheckDialog* ctrl_e_hint_dlg = nullptr;
     SecondaryCheckDialog* sdcard_hint_dlg = nullptr;
      
@@ -543,10 +490,7 @@ protected:
     int          m_last_sdcard    = -1;
     int          m_last_recording = -1;
     int          m_last_timelapse = -1;
-    int          m_last_extrusion = -1;
     int          m_last_vcamera   = -1;
-    int          m_model_mall_request_count = 0;
-    json         m_rating_result;
 
     wxWebRequest web_request;
 
@@ -560,7 +504,6 @@ protected:
     std::map<wxString, wxImage> img_list; // key: url, value: wxBitmap png Image
     std::map<std::string, std::string> m_print_connect_types;
     std::vector<Button *>       m_buttons;
-    int last_status;
     ScoreData *m_score_data;
     wxBitmap* calib_bitmap = nullptr;
     CalibMode m_calib_mode;
@@ -569,9 +512,6 @@ protected:
     PrintingTaskType m_current_print_mode = PrintingTaskType::NOT_CLEAR;
 
     void init_scaled_buttons();
-    void create_tasklist_info();
-    void show_task_list_info(bool show = true);
-    void update_tasklist_info();
 
     void on_market_scoring(wxCommandEvent &event);
     void on_market_retry(wxCommandEvent &event);
@@ -622,7 +562,6 @@ protected:
     /* update apis */
     void update(MachineObject* obj);
     void UpdateWebCameraView(MachineObject* obj);
-    void show_printing_status(bool ctrl_area = true, bool temp_area = true);
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
     void update_model_info();
@@ -728,9 +667,6 @@ public:
         SDCARD_THUMBNAIL = 3,
         STATE_COUNT = 4
     };
-
-    std::string    last_profile_id;
-    std::string    last_task_id;
 
     enum ThumbnailState task_thumbnail_state {ThumbnailState::PLACE_HOLDER};
     std::vector<int> last_stage_list_info;

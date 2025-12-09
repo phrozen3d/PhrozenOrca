@@ -1018,33 +1018,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     media_ctrl_panel->Bind(wxEVT_PAINT, fnUpdate);//called by media_ctrl_panel->Refresh();
 
 
-    //wxBoxSizer *bSizer_monitoring = new wxBoxSizer(wxVERTICAL);
-    //m_media_ctrl = new wxMediaCtrl2(this);
-    //m_media_ctrl->SetMinSize(wxSize(PAGE_MIN_WIDTH, FromDIP(288)));
-
-    //m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString);
-    //m_custom_camera_view->EnableContextMenu(false);
-    //Bind(wxEVT_WEBVIEW_NAVIGATING, &PhrozenStatusBasePanel::on_webview_navigating, this, m_custom_camera_view->GetId());
-
-    //m_media_play_ctrl = new PhrozenMediaPlayCtrl(this, m_media_ctrl, wxDefaultPosition, wxSize(-1, FromDIP(40)));
-    //m_custom_camera_view->Hide();
-    //m_custom_camera_view->Bind(wxEVT_WEBVIEW_SCRIPT_MESSAGE_RECEIVED, [this](wxWebViewEvent& evt) {
-    //    if (evt.GetString() == "leavepictureinpicture") {
-    //        // When leaving PiP, video gets paused in some cases and toggling play
-    //        // programmatically does not work.
-    //        m_custom_camera_view->Reload();
-    //    }
-    //    else if (evt.GetString() == "enterpictureinpicture") {
-    //        toggle_builtin_camera();
-    //    }
-    //});
-
-    //sizer->Add(m_media_ctrl, 1, wxEXPAND | wxALL, 0);
-    //sizer->Add(m_custom_camera_view, 1, wxEXPAND | wxALL, 0);
-    //sizer->Add(m_media_play_ctrl, 0, wxEXPAND | wxALL, 0);
-//    media_ctrl_panel->SetSizer(bSizer_monitoring);
-//    media_ctrl_panel->Layout();
-//
     sizer->Add(media_ctrl_panel, 1, wxEXPAND | wxALL, 1);
 
     if (wxGetApp().app_config->get("camera", "enable_custom_source") == "true") {
@@ -1456,186 +1429,22 @@ wxBoxSizer* PhrozenStatusBasePanel::create_axis_control(wxWindow* parent)
     return sizer;
 }
 
-wxBoxSizer* PhrozenStatusBasePanel::create_bed_control(wxWindow* parent)
-{
-    wxBoxSizer *sizer         = new wxBoxSizer(wxVERTICAL);
-    wxBoxSizer *bSizer_z_ctrl = new wxBoxSizer(wxVERTICAL);
-    auto        panel         = new wxPanel(parent, wxID_ANY);
-    panel->SetBackgroundColour(*wxWHITE);
-
-    panel->SetSize(wxSize(FromDIP(52), -1));
-    panel->SetMinSize(wxSize(FromDIP(52), -1));
-    panel->SetMaxSize(wxSize(FromDIP(52), -1));
-
-
-
-    StateColor z_10_ctrl_bg(std::pair<wxColour, int>(PHROZEN_BUTTON_PRESS_COL, StateColor::Pressed), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL1_COL, StateColor::Normal));
-    StateColor z_10_ctrl_bd(std::pair<wxColour, int>(PHROZEN_BUTTON_HOVER_COL, StateColor::Hovered), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL1_COL, StateColor::Normal));
-
-    StateColor z_1_ctrl_bg(std::pair<wxColour, int>(PHROZEN_BUTTON_PRESS_COL, StateColor::Pressed), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL2_COL, StateColor::Normal));
-    StateColor z_1_ctrl_bd(std::pair<wxColour, int>(PHROZEN_BUTTON_HOVER_COL, StateColor::Hovered), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL2_COL, StateColor::Normal));
-
-    bSizer_z_ctrl->AddStretchSpacer();
-    m_bpButton_z_10 = new Button(panel, wxString("10"), "monitor_bed_up", 0, FromDIP(15));
-    m_bpButton_z_10->SetFont(::Label::Body_13);
-    m_bpButton_z_10->SetBorderWidth(2);
-    m_bpButton_z_10->SetBackgroundColor(z_10_ctrl_bg);
-    m_bpButton_z_10->SetBorderColor(z_10_ctrl_bd);
-    m_bpButton_z_10->SetTextColor(StateColor(std::make_pair(PHROZEN_DISCONNECT_TEXT_COL, (int) StateColor::Disabled), std::make_pair(PHROZEN_NORMAL_TEXT_COL, (int) StateColor::Normal)));
-    m_bpButton_z_10->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_10->SetCornerRadius(0);
-
-    bSizer_z_ctrl->Add(m_bpButton_z_10, 0, wxEXPAND | wxALL, 0);
-
-    m_bpButton_z_1 = new Button(panel, wxString(" 1"), "monitor_bed_up", 0, FromDIP(15));
-    m_bpButton_z_1->SetFont(::Label::Body_13);
-    m_bpButton_z_1->SetBorderWidth(2);
-    m_bpButton_z_1->SetBackgroundColor(z_1_ctrl_bg);
-    m_bpButton_z_1->SetBorderColor(z_1_ctrl_bd);
-    m_bpButton_z_1->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_1->SetTextColor(StateColor(std::make_pair(PHROZEN_DISCONNECT_TEXT_COL, (int) StateColor::Disabled), std::make_pair(PHROZEN_NORMAL_TEXT_COL, (int) StateColor::Normal)));
-
-    bSizer_z_ctrl->Add(m_bpButton_z_1, 0, wxEXPAND | wxALL, 0);
-
-    bSizer_z_ctrl->Add(0, FromDIP(6), 0, wxEXPAND, 0);
-
-    m_bpButton_z_down_1 = new Button(panel, wxString(" 1"), "monitor_bed_down", 0, FromDIP(15));
-    m_bpButton_z_down_1->SetFont(::Label::Body_13);
-    m_bpButton_z_down_1->SetBorderWidth(2);
-    m_bpButton_z_down_1->SetBackgroundColor(z_1_ctrl_bg);
-    m_bpButton_z_down_1->SetBorderColor(z_1_ctrl_bd);
-    m_bpButton_z_down_1->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_down_1->SetTextColor(StateColor(std::make_pair(PHROZEN_DISCONNECT_TEXT_COL, (int) StateColor::Disabled), std::make_pair(PHROZEN_NORMAL_TEXT_COL, (int) StateColor::Normal)));
-
-    bSizer_z_ctrl->Add(m_bpButton_z_down_1, 0, wxEXPAND | wxALL, 0);
-
-    m_bpButton_z_down_10 = new Button(panel, wxString("10"), "monitor_bed_down", 0, FromDIP(15));
-    m_bpButton_z_down_10->SetFont(::Label::Body_13);
-    m_bpButton_z_down_10->SetBorderWidth(2);
-    m_bpButton_z_down_10->SetBackgroundColor(z_10_ctrl_bg);
-    m_bpButton_z_down_10->SetBorderColor(z_10_ctrl_bd);
-    m_bpButton_z_down_10->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_down_10->SetTextColor(StateColor(std::make_pair(PHROZEN_DISCONNECT_TEXT_COL, (int) StateColor::Disabled), std::make_pair(PHROZEN_NORMAL_TEXT_COL, (int) StateColor::Normal)));
-
-    bSizer_z_ctrl->Add(m_bpButton_z_down_10, 0, wxEXPAND | wxALL, 0);
-
-    bSizer_z_ctrl->Add(0, FromDIP(16), 0, wxEXPAND, 0);
-
-    m_staticText_z_tip = new wxStaticText(panel, wxID_ANY, _L("Bed"), wxDefaultPosition, wxDefaultSize, 0);
-    m_staticText_z_tip->SetFont(::Label::Body_13);
-    if (wxGetApp().app_config->get("language") == "de_DE") m_staticText_z_tip->SetFont(::Label::Body_11);
-    m_staticText_z_tip->Wrap(-1);
-    m_staticText_z_tip->SetForegroundColour(PHROZEN_TEXT_LIGHT_FONT_COL);
-    bSizer_z_ctrl->Add(m_staticText_z_tip, 0, wxBOTTOM | wxALIGN_CENTER_HORIZONTAL, FromDIP(5));
-
-    panel->SetSizer(bSizer_z_ctrl);
-    panel->Layout();
-    sizer->Add(panel, 1, wxEXPAND, 0);
-
-    return sizer;
-}
-
-wxBoxSizer* PhrozenStatusBasePanel::create_extruder_control(wxWindow* parent)
-{
-    wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-    wxBoxSizer *bSizer_e_ctrl = new wxBoxSizer(wxVERTICAL);
-    auto        panel = new wxPanel(parent,wxID_ANY);
-    panel->SetBackgroundColour(*wxWHITE);
-
-
-    panel->SetSize(wxSize(FromDIP(52), -1));
-    panel->SetMinSize(wxSize(FromDIP(52), -1));
-    panel->SetMaxSize(wxSize(FromDIP(52), -1));
-
-    StateColor e_ctrl_bg(std::pair<wxColour, int>(PHROZEN_BUTTON_PRESS_COL, StateColor::Pressed), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL1_COL, StateColor::Normal));
-    StateColor e_ctrl_bd(std::pair<wxColour, int>(PHROZEN_BUTTON_HOVER_COL, StateColor::Hovered), std::pair<wxColour, int>(PHROZEN_BUTTON_NORMAL1_COL, StateColor::Normal));
-    m_bpButton_e_10 = new Button(panel, "", "monitor_extruder_up", 0, FromDIP(22));
-    m_bpButton_e_10->SetBorderWidth(2);
-    m_bpButton_e_10->SetBackgroundColor(e_ctrl_bg);
-    m_bpButton_e_10->SetBorderColor(e_ctrl_bd);
-    m_bpButton_e_10->SetMinSize(wxSize(FromDIP(40), FromDIP(40)));
-
-    bSizer_e_ctrl->AddStretchSpacer();
-    bSizer_e_ctrl->Add(m_bpButton_e_10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-    bSizer_e_ctrl->Add(0, FromDIP(7), 0, 0, 0);
-
-    m_bitmap_extruder_img = new wxStaticBitmap(panel, wxID_ANY, m_bitmap_extruder_empty_load, wxDefaultPosition, wxDefaultSize, 0);
-    m_bitmap_extruder_img->SetMinSize(EXTRUDER_IMAGE_SIZE);
-
-    bSizer_e_ctrl->Add(m_bitmap_extruder_img, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, FromDIP(5));
-    bSizer_e_ctrl->Add(0, FromDIP(7), 0, 0, 0);
-    m_bpButton_e_down_10 = new Button(panel, "", "monitor_extruder_down", 0, FromDIP(22));
-    m_bpButton_e_down_10->SetBorderWidth(2);
-    m_bpButton_e_down_10->SetBackgroundColor(e_ctrl_bg);
-    m_bpButton_e_down_10->SetBorderColor(e_ctrl_bd);
-    m_bpButton_e_down_10->SetMinSize(wxSize(FromDIP(40), FromDIP(40)));
-
-    bSizer_e_ctrl->Add(m_bpButton_e_down_10, 0, wxALIGN_CENTER_HORIZONTAL, 0);
-
-
-    m_button_unload = new Button(panel, _L("Unload"));
-
-    StateColor abort_bg(std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Disabled), std::pair<wxColour, int>(wxColour(206, 206, 206), StateColor::Pressed),
-                        std::pair<wxColour, int>(wxColour(238, 238, 238), StateColor::Hovered), std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Enabled),
-                        std::pair<wxColour, int>(wxColour(255, 255, 255), StateColor::Normal));
-    m_button_unload->SetBackgroundColor(abort_bg);
-    StateColor abort_bd(std::pair<wxColour, int>(wxColour(144, 144, 144), StateColor::Disabled), std::pair<wxColour, int>(wxColour(38, 46, 48), StateColor::Enabled));
-    m_button_unload->SetBorderColor(abort_bd);
-    StateColor abort_text(std::pair<wxColour, int>(wxColour(144, 144, 144), StateColor::Disabled), std::pair<wxColour, int>(wxColour(38, 46, 48), StateColor::Enabled));
-    m_button_unload->SetTextColor(abort_text);
-    m_button_unload->SetFont(Label::Body_10);
-    m_button_unload->SetMinSize(wxSize(-1, FromDIP(24)));
-    m_button_unload->SetCornerRadius(FromDIP(12));
-    bSizer_e_ctrl->Add(0, 0, 1, wxEXPAND, 0);
-    bSizer_e_ctrl->Add(m_button_unload, 0, wxALIGN_CENTER_HORIZONTAL| wxTOP|wxBOTTOM, FromDIP(5));
-
-    bSizer_e_ctrl->Add(0, FromDIP(9), 0, wxEXPAND, 0);
-
-    m_staticText_e = new wxStaticText(panel, wxID_ANY, _L("Extruder"), wxDefaultPosition, wxDefaultSize, 0);
-    m_staticText_e->SetFont(::Label::Body_13);
-    m_staticText_e->Wrap(-1);
-    m_staticText_e->SetForegroundColour(PHROZEN_TEXT_LIGHT_FONT_COL);
-    bSizer_e_ctrl->Add(m_staticText_e, 0, wxBOTTOM | wxALIGN_CENTER_HORIZONTAL, FromDIP(5));
-
-    panel->SetSizer(bSizer_e_ctrl);
-    panel->Layout();
-    sizer->Add(panel, 1, wxEXPAND, 0);
-
-    return sizer;
-}
-
-void PhrozenStatusBasePanel::init_bitmaps() 
+void PhrozenStatusBasePanel::init_bitmaps()
 {
     static Slic3r::GUI::BitmapCache cache;
-    m_bitmap_item_prediction = create_scaled_bitmap("monitor_item_prediction", nullptr, 16);
-    m_bitmap_item_cost       = create_scaled_bitmap("monitor_item_cost", nullptr, 16);
-    m_bitmap_item_print      = create_scaled_bitmap("monitor_item_print", nullptr, 18);
-    m_bitmap_axis_home       = ScalableBitmap(this, "Phrozen_monitor_axis_home", 32);
     m_bitmap_lamp_on         = ScalableBitmap(this, "monitor_lamp_on", 24);
     m_bitmap_lamp_off        = ScalableBitmap(this, "monitor_lamp_off", 24);
     m_bitmap_fan_on          = ScalableBitmap(this, "monitor_fan_on", 22);
     m_bitmap_fan_off         = ScalableBitmap(this, "monitor_fan_off", 22);
     m_bitmap_speed           = ScalableBitmap(this, "monitor_speed", 24);
     m_bitmap_speed_active    = ScalableBitmap(this, "monitor_speed_active", 24);
-    
+
     m_thumbnail_brokenimg    = ScalableBitmap(this, "monitor_brokenimg", 120);
     m_thumbnail_sdcard       = ScalableBitmap(this, "monitor_sdcard_thumbnail", 120);
-    //m_bitmap_camera          = create_scaled_bitmap("monitor_camera", nullptr, 18);
     m_bitmap_extruder_empty_load      = *cache.load_png("monitor_extruder_empty_load", FromDIP(28), FromDIP(70), false, false);
     m_bitmap_extruder_filled_load     = *cache.load_png("monitor_extruder_filled_load", FromDIP(28), FromDIP(70), false, false);
     m_bitmap_extruder_empty_unload    = *cache.load_png("monitor_extruder_empty_unload", FromDIP(28), FromDIP(70), false, false);
     m_bitmap_extruder_filled_unload   = *cache.load_png("monitor_extruder_filled_unload", FromDIP(28), FromDIP(70), false, false);
-
-    m_bitmap_sdcard_state_abnormal = ScalableBitmap(this, wxGetApp().dark_mode() ? "sdcard_state_abnormal_dark" : "sdcard_state_abnormal", 20);
-    m_bitmap_sdcard_state_normal = ScalableBitmap(this, wxGetApp().dark_mode() ? "sdcard_state_normal_dark" : "sdcard_state_normal", 20);
-    m_bitmap_sdcard_state_no = ScalableBitmap(this, wxGetApp().dark_mode() ? "sdcard_state_no_dark" : "sdcard_state_no", 20);
-    m_bitmap_recording_on = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_recording_on_dark" : "monitor_recording_on", 20);
-    m_bitmap_recording_off = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_recording_off_dark" : "monitor_recording_off", 20);
-    m_bitmap_timelapse_on = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_timelapse_on_dark" : "monitor_timelapse_on", 20);
-    m_bitmap_timelapse_off = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_timelapse_off_dark" : "monitor_timelapse_off", 20);
-    m_bitmap_vcamera_on = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_vcamera_on_dark" : "monitor_vcamera_on", 20);
-    m_bitmap_vcamera_off = ScalableBitmap(this, wxGetApp().dark_mode() ? "monitor_vcamera_off_dark" : "monitor_vcamera_off", 20);
-    m_bitmap_switch_camera = ScalableBitmap(this, wxGetApp().dark_mode() ? "camera_switch_dark" : "camera_switch", 20);
 
 
     m_ParamSeparator    = ScalableBitmap(this, "PhrozenImages/ControlPanel_Temp_Separator", FromDIP(12));
@@ -1894,7 +1703,6 @@ void PhrozenStatusBasePanel::handle_camera_source_change()
 void PhrozenStatusBasePanel::toggle_builtin_camera()
 {
     m_custom_camera_view->Hide();
-    m_media_ctrl->Show();
     m_media_play_ctrl->Show();
 }
 
@@ -1904,19 +1712,12 @@ void PhrozenStatusBasePanel::toggle_custom_camera()
 
     if (enabled) {
         m_custom_camera_view->Show();
-        m_media_ctrl->Hide();
         m_media_play_ctrl->Hide();
     }
 }
 
 void PhrozenStatusBasePanel::on_camera_switch_toggled(wxMouseEvent& event)
 {
-    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-    if (enabled && m_media_ctrl->IsShown()) {
-        toggle_custom_camera();
-    } else {
-        toggle_builtin_camera();
-    }
 }
 
 void PhrozenStatusBasePanel::remove_controls()
@@ -3254,79 +3055,6 @@ void PhrozenStatusPanel::update_error_message()
     }
 }
 
-void PhrozenStatusPanel::show_printing_status(bool ctrl_area, bool temp_area)
-{
-#if HideOriginUiWidget
-    if (!ctrl_area) {
-        m_phButton_xy->Enable(false);
-        m_bpButton_z_10->Enable(false);
-        m_bpButton_z_1->Enable(false);
-        m_bpButton_z_down_1->Enable(false);
-        m_bpButton_z_down_10->Enable(false);
-        m_bpButton_e_10->Enable(false);
-        m_bpButton_e_down_10->Enable(false);
-
-		m_bpButton_z_10->SetIcon("monitor_bed_up_disable");
-		m_bpButton_z_1->SetIcon("monitor_bed_up_disable");
-		m_bpButton_z_down_1->SetIcon("monitor_bed_down_disable");
-		m_bpButton_z_down_10->SetIcon("monitor_bed_down_disable");
-        m_bpButton_e_10->SetIcon("monitor_extruder_up_disable");
-        m_bpButton_e_down_10->SetIcon("monitor_extrduer_down_disable");
-
-        m_staticText_z_tip->SetForegroundColour(PHROZEN_DISCONNECT_TEXT_COL);
-        m_staticText_e->SetForegroundColour(PHROZEN_DISCONNECT_TEXT_COL);
-        m_button_unload->Enable(false);
-        m_switch_speed->SetValue(false);
-    } else {
-        m_switch_speed->Enable();
-        m_switch_lamp->Enable();
-        m_switch_nozzle_fan->Enable();
-        m_switch_printing_fan->Enable();
-        m_switch_cham_fan->Enable();
-        m_phButton_xy->Enable();
-        m_bpButton_z_10->Enable();
-        m_bpButton_z_1->Enable();
-        m_bpButton_z_down_1->Enable();
-        m_bpButton_z_down_10->Enable();
-        m_bpButton_e_10->Enable();
-        m_bpButton_e_down_10->Enable();
-
-		m_bpButton_z_10->SetIcon("monitor_bed_up");
-		m_bpButton_z_1->SetIcon("monitor_bed_up");
-		m_bpButton_z_down_1->SetIcon("monitor_bed_down");
-		m_bpButton_z_down_10->SetIcon("monitor_bed_down");
-		m_bpButton_e_10->SetIcon("monitor_extruder_up");
-		m_bpButton_e_down_10->SetIcon("monitor_extrduer_down");
-
-        m_staticText_z_tip->SetForegroundColour(PHROZEN_TEXT_LIGHT_FONT_COL);
-        m_staticText_e->SetForegroundColour(PHROZEN_TEXT_LIGHT_FONT_COL);
-        m_button_unload->Enable();
-        m_switch_speed->SetValue(true);
-    }
-
-    if (!temp_area) {
-        m_tempCtrl_nozzle->Enable(false);
-        m_tempCtrl_bed->Enable(false);
-        m_tempCtrl_chamber->Enable(false);
-        m_switch_speed->Enable(false);
-        m_switch_speed->SetValue(false);
-        m_switch_lamp->Enable(false);
-        m_switch_nozzle_fan->Enable(false);
-        m_switch_printing_fan->Enable(false);
-        m_switch_cham_fan->Enable(false);
-    } else {
-        m_tempCtrl_nozzle->Enable();
-        m_tempCtrl_bed->Enable();
-        m_tempCtrl_chamber->Enable();
-        m_switch_speed->Enable();
-        m_switch_speed->SetValue(true);
-        m_switch_lamp->Enable();
-        m_switch_nozzle_fan->Enable();
-        m_switch_printing_fan->Enable();
-        m_switch_cham_fan->Enable();
-    }
-#endif
-}
 
 void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
 {
@@ -5214,38 +4942,6 @@ void PhrozenStatusPanel::rescale_camera_icons()
 {
     m_pCam_switch_button->Rescale();
     m_pCam_light_switch_button->Rescale();
-
-
-    m_bitmap_sdcard_state_abnormal = ScalableBitmap(this, wxGetApp().dark_mode()?"sdcard_state_abnormal_dark":"sdcard_state_abnormal", 20);
-    m_bitmap_sdcard_state_normal = ScalableBitmap(this, wxGetApp().dark_mode()?"sdcard_state_normal_dark":"sdcard_state_normal", 20);
-    m_bitmap_sdcard_state_no = ScalableBitmap(this, wxGetApp().dark_mode()?"sdcard_state_no_dark":"sdcard_state_no", 20);
-    m_bitmap_recording_on = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_recording_on_dark":"monitor_recording_on", 20);
-    m_bitmap_recording_off = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_recording_off_dark":"monitor_recording_off", 20);
-    m_bitmap_timelapse_on = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_timelapse_on_dark":"monitor_timelapse_on", 20);
-    m_bitmap_timelapse_off = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_timelapse_off_dark":"monitor_timelapse_off", 20);
-    m_bitmap_vcamera_on = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_vcamera_on_dark":"monitor_vcamera_on", 20);
-    m_bitmap_vcamera_off = ScalableBitmap(this, wxGetApp().dark_mode()?"monitor_vcamera_off_dark":"monitor_vcamera_off", 20);
-
-    //if (m_media_play_ctrl->IsStreaming()) {
-    //}
-    //else {
-    //}
-
-    if (!obj) return;
-
-    if (obj->get_sdcard_state() == MachineObject::SdcardState::NO_SDCARD) {
-    } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_NORMAL) {
-    } else if (obj->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_ABNORMAL) {
-    } else {
-    }
-
-    if (obj->is_recording()) {
-    } else {
-    }
-
-    if (obj->is_timelapse()) {
-    } else {
-    }
 }
 
 void PhrozenStatusPanel::on_sys_color_changed()
