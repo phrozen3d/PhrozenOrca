@@ -6,7 +6,7 @@
 #include <wx/stattext.h>
 #include "StaticBox.hpp"
 
-wxDECLARE_EVENT(wxCUSTOMEVT_SET_TEMP_FINISH, wxCommandEvent);
+wxDECLARE_EVENT(wxPHROZEN_CUSTOMEVT_SET_TEMP_FINISH, wxCommandEvent);
 
 class PhrozenTempInput : public wxNavigationEnabled<StaticBox>
 {

@@ -6,7 +6,7 @@
 #include "../GUI.hpp"
 #include "../GUI_App.hpp"
 
-wxDEFINE_EVENT(wxCUSTOMEVT_SET_TEMP_FINISH, wxCommandEvent);
+wxDEFINE_EVENT(wxPHROZEN_CUSTOMEVT_SET_TEMP_FINISH, wxCommandEvent);
 
 BEGIN_EVENT_TABLE(PhrozenTempInput, StaticBox)
 EVT_MOTION(PhrozenTempInput::mouseMoved)
@@ -140,7 +140,7 @@ bool PhrozenTempInput::AllisNum(std::string str)
 
 void PhrozenTempInput::SetFinish()
 {
-    wxCommandEvent event(wxCUSTOMEVT_SET_TEMP_FINISH);
+    wxCommandEvent event(wxPHROZEN_CUSTOMEVT_SET_TEMP_FINISH);
     event.SetInt(temp_type);
     wxPostEvent(this->GetParent(), event);
 }
