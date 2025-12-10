@@ -376,7 +376,7 @@ public:
 #pragma region ui_control_panel
     wxFlexGridSizer* GenNozzleTempControllor( wxWindow* pParent );
     wxFlexGridSizer* GenHeatedBedTempControllor( wxWindow* pParent );
-    wxFlexGridSizer* GenSpeed_PrintLevel( wxWindow* pParent );
+    wxBoxSizer* GenSpeed_PrintLevel( wxWindow* pParent );
     wxFlexGridSizer* GenCooling_Auxiliary( wxWindow* pParent );
     wxFlexGridSizer* GenCooling_Part( wxWindow* pParent );
     wxFlexGridSizer* GenCooling_Shield( wxWindow* pParent );
