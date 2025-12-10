@@ -580,7 +580,9 @@ set(SLIC3R_GUI_SOURCES
     Utils/Obico.hpp
     Utils/Flashforge.cpp
     Utils/Flashforge.hpp
-
+	Utils/Phrozen/PhrozenNetworkAgent.hpp
+	Utils/Phrozen/PhrozenNetworkAgent.cpp
+	
     GUI/OAuthDialog.cpp
     GUI/OAuthDialog.hpp
     GUI/Jobs/OAuthJob.cpp

@@ -2,6 +2,7 @@
 #define slic3r_PhrozenDeviceManager_hpp_
 
 #include "../DeviceManager.hpp"
+#include <atomic>
 
 namespace Slic3r {
 
@@ -11,6 +12,7 @@ class PhrozenMachineObject : public MachineObject
 public:
 
     PhrozenMachineObject( std::string name, std::string id, std::string ip );
+    PhrozenMachineObject( std::string ip );
     ~PhrozenMachineObject();
 
     virtual float GetPhrozenBedTemperature() override;
@@ -95,6 +97,98 @@ public:
     
     // Check if any calibration is running
     virtual bool IsAnyCalibrationRunning() override;
+};
+
+class PhrozenDeviceSearchResult
+{
+public:
+    PhrozenDeviceSearchResult(){}
+
+    void ClearAll() { m_kFoundedListA.clear(); m_kFoundedListB.clear(); }
+    std::map< std::string, std::string > GetFounded() { return *m_pReadBuffer; }
+
+    void SetDataReady( bool bReady )
+    {
+        if ( bReady ) { m_bDataReady.store(true, std::memory_order_relaxed); }
+        else          { m_bDataReady.store(false, std::memory_order_relaxed); }
+    }
+    bool IsDataReady()
+    {
+        return m_bDataReady.load(std::memory_order_relaxed);
+    }
+
+    void WriteDataAndSwap( std::map< std::string, std::string >& kData )
+    {
+        SetDataReady(false);
+        m_pWriteBuffer->clear();
+        ( *m_pWriteBuffer ) = std::move( kData );
+        SetDataReady(true);
+    }
+
+private:
+
+    std::atomic<bool> m_bDataReady{false};
+
+    std::map< std::string, std::string > m_kFoundedListA;
+    std::map< std::string, std::string > m_kFoundedListB;
+    std::map< std::string, std::string >* m_pWriteBuffer = &m_kFoundedListA;
+    std::map< std::string, std::string >* m_pReadBuffer = &m_kFoundedListB;
+};
+
+class PhrozenDeviceSearcher
+{
+public:
+
+static void StartSearch();
+static void StopSearch();
+static bool IsDataReady();
+static std::map< std::string, std::string > GetList();
+
+private:
+static void Run() noexcept;
+static void ProcessSearchMachine( std::map< std::string, std::string >& kResult );
+
+
+static std::unique_ptr<boost::thread> t_;
+static std::atomic<bool> stop_;
+
+
+
+static std::exception_ptr eptr_;
+
+static PhrozenDeviceSearchResult m_kSearchResult;
+};
+
+class PhrozenDeviceManager
+{
+private:
+    NetworkAgent* m_agent { nullptr };
+
+    PhrozenMachineObject* create_machine(std::string dev_id);
+
+    static PhrozenDeviceSearchResult m_kDeviceResult;
+
+public:
+    PhrozenDeviceManager(NetworkAgent* agent = nullptr);
+    ~PhrozenDeviceManager();
+    void set_agent(NetworkAgent* agent);
+
+    std::mutex listMutex;
+    std::string m_strSelected_machine_ip;                               /* dev_id */
+    std::map<std::string, std::shared_ptr< PhrozenMachineObject > > m_kConnectedBefore;   /* dev_id -> MachineObject*  cloudMachine of User */
+
+    void erase_connected_before_machine(std::string dev_id);
+
+    bool set_selected_machine(std::string dev_id,  bool do_connect = false );
+    PhrozenMachineObject* get_selected_machine();
+
+    void get_connected_before_ip_list( std::vector< std::string >& kList );
+
+    void disconnect_all();
+
+    boost::thread* m_thread{nullptr};
+
+    
 };
 
 } // namespace Slic3r
