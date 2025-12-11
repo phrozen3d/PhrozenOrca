@@ -774,15 +774,9 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_filament_left_panel->Hide();
     m_filament_right_panel->Hide();
 
-
-
-
-
     m_statictext_ams_msg = new wxStaticText(this, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
     m_statictext_ams_msg->SetFont(::Label::Body_13);
     m_statictext_ams_msg->Hide();
-
-
 
     /*options*/
     wxBoxSizer* sizer_split_options = new wxBoxSizer(wxHORIZONTAL);
@@ -821,11 +815,11 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
 
     m_sizer_prepare->Add(0, 0, 1, wxTOP, FromDIP(12));
 
-    auto hyperlink_sizer = new wxBoxSizer( wxHORIZONTAL );
-    m_hyperlink = new wxHyperlinkCtrl(m_panel_prepare, wxID_ANY, _L("Click here if you can't connect to the printer"), wxT("https://wiki.bambulab.com/en/software/bambu-studio/failed-to-connect-printer"), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
-
-    hyperlink_sizer->Add(m_hyperlink, 0, wxALIGN_CENTER | wxALL, 5);
-    m_sizer_prepare->Add(hyperlink_sizer, 0, wxALIGN_CENTER | wxALL, 5);
+    // Hyperlink for printer can't connect resolve.
+    //auto hyperlink_sizer = new wxBoxSizer( wxHORIZONTAL );
+    //m_hyperlink = new wxHyperlinkCtrl(m_panel_prepare, wxID_ANY, _L("Click here if you can't connect to the printer"), wxT("https://wiki.bambulab.com/en/software/bambu-studio/failed-to-connect-printer"), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
+    //hyperlink_sizer->Add(m_hyperlink, 0, wxALIGN_CENTER | wxALL, 5);
+    //m_sizer_prepare->Add(hyperlink_sizer, 0, wxALIGN_CENTER | wxALL, 5);
 
     m_button_ensure = new Button(m_panel_prepare, _L("Send"));
     m_button_ensure->SetBackgroundColor(m_btn_bg_enable);
@@ -962,6 +956,10 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_sizer_main->Add(0, 0, 0, wxTOP, FromDIP(12));
     m_sizer_main->Add(m_basic_panel, 0, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(0, 0, 0, wxEXPAND | wxTOP, FromDIP(14));
+
+
+#if 0
+    // Temporarily closed because there is not enough time to improve it.
     m_sizer_main->Add(sizer_split_filament, 1, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(m_filament_panel, 0, wxALIGN_CENTER|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(m_sizer_filament_2extruder, 0, wxALIGN_CENTER|wxLEFT|wxRIGHT, FromDIP(15));
@@ -971,6 +969,15 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_sizer_main->Add(sizer_split_options, 1, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(m_sizer_options, 0, wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(0, 0, 0, wxTOP, FromDIP(10));
+#else
+    sizer_split_filament->ShowItems( false );
+    m_filament_panel->Show( false );
+    m_sizer_filament_2extruder->ShowItems( false );
+    m_statictext_ams_msg->Show( false );
+    sizer_split_options->ShowItems( false );
+    m_sizer_options->ShowItems( false );
+#endif
+
     m_sizer_main->Add(m_simplebook, 0, wxALIGN_CENTER_HORIZONTAL, 0);
     m_sizer_main->Add(m_sw_print_failed_info, 0, wxALIGN_CENTER, 0);
     m_sizer_main->Add(0, 0, 0, wxEXPAND | wxTOP, FromDIP(18));
@@ -1814,6 +1821,9 @@ void PhrozenSelectMachineDialog::show_errors(wxString &info)
 void PhrozenSelectMachineDialog::on_send_btn_pressed(wxCommandEvent &event)
 {
 
+    this->on_send_print();
+
+#if 0 //Temporarily closed because there is not enough time to improve it for phrozen style.
     bool has_slice_warnings = false;
     bool is_printing_block  = false;
 
@@ -2008,6 +2018,7 @@ void PhrozenSelectMachineDialog::on_send_btn_pressed(wxCommandEvent &event)
         this->on_send_print();
 
     }
+#endif
 }
 
 wxString PhrozenSelectMachineDialog::format_steel_name(NozzleType type)
@@ -2047,20 +2058,14 @@ void PhrozenSelectMachineDialog::on_send_print()
         return;
 
     int result = 0;
-    if (m_printer_last_select.empty()) {
+    if (m_printer_last_select_ip.empty()) {
         return;
     }
-
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev) return;
-
-    PhrozenMachineObject* obj = Slic3r::GUI::wxGetApp().GetPhrozenMachineObject();
-    //[TODO] not sure need connect machine object? or just call function to link?
-
     //[TODO] ams mapping? spool holde using?
     bool bIsAutoLeveling    = m_checkbox_list[ EPhrozenPrintOption::Auto_Leveling ]->GetValue();
     bool bIsUseChroma_Kit   = m_checkbox_list[ EPhrozenPrintOption::Chroma_Kit ]->GetValue();
 
+    //[TODO] use ip to send print
 
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
 
@@ -2332,7 +2337,7 @@ void PhrozenSelectMachineDialog::update_user_printer()
 {
     // clear machine list
     m_comboBox_printer->Clear();
-    m_printer_last_select = "";
+    m_printer_last_select_ip = "";
     wxArrayString                         machine_list_ip;
 
     wxBusyCursor kWaiting; // set mouse cursor show busy ico
@@ -2347,6 +2352,8 @@ void PhrozenSelectMachineDialog::update_user_printer()
     {
         m_comboBox_printer->Set(machine_list_ip);
         m_comboBox_printer->SetSelection( 0 );
+        m_printer_last_select_ip = m_comboBox_printer->GetValue().ToStdString();
+
         wxCommandEvent event(wxEVT_COMBOBOX);
         event.SetEventObject(m_comboBox_printer);
         wxPostEvent(m_comboBox_printer, event);
@@ -2358,7 +2365,7 @@ void PhrozenSelectMachineDialog::update_user_printer()
         Enable_Send_Button(false);
     }
 
-    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "for send task, current printer id =  " << m_printer_last_select << std::endl;
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "for send task, current printer id =  " << m_printer_last_select_ip << std::endl;
 }
 
 void PhrozenSelectMachineDialog::on_rename_click(wxMouseEvent& event)
@@ -2469,8 +2476,7 @@ void PhrozenSelectMachineDialog::on_timer(wxTimerEvent &event)
 
 void PhrozenSelectMachineDialog::on_selection_changed(wxCommandEvent &event)
 {
-    assert( 0 );
-
+    m_printer_last_select_ip = m_comboBox_printer->GetValue().ToStdString();
 #if 0
     /* reset timeout and reading printer info */
     m_status_bar->reset();
@@ -2842,7 +2848,7 @@ void PhrozenSelectMachineDialog::set_default()
         m_comboBox_printer->Show(true);
         m_button_refresh->Show(true);
         m_rename_normal_panel->Show(true);
-        m_hyperlink->Show(true);
+        //m_hyperlink->Show(true);
     }
     else if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
         ShowMessageNotSupportSdCardView();
@@ -2891,7 +2897,7 @@ void PhrozenSelectMachineDialog::set_default()
     //clear combobox
     //m_list.clear();
     m_comboBox_printer->Clear();
-    m_printer_last_select = "";
+    m_printer_last_select_ip = "";
     m_print_info = "";
     m_comboBox_printer->SetValue(wxEmptyString);
     m_comboBox_printer->Enable();

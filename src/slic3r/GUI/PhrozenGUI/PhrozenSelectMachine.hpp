@@ -229,7 +229,7 @@ private:
 
     std::string                         m_print_error_msg;
     std::string                         m_print_error_extra;
-    std::string                         m_printer_last_select;
+    std::string                         m_printer_last_select_ip;
     std::string                         m_print_info;
     wxString                            m_current_project_name;
 
