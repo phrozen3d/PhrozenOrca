@@ -1101,8 +1101,8 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     // Row 0: Temperature+Speed | Manual Adjustment
     // Row 1: Cooling | Z-Offset
     auto sizerGrid = new wxFlexGridSizer(2, 3, 0, 0); // 2 rows, 3 cols (left, separator, right)
-    sizerGrid->AddGrowableCol(0, 1);
-    sizerGrid->AddGrowableCol(2, 1);
+    sizerGrid->AddGrowableCol(0, 1);  // Left column - proportion 1
+    sizerGrid->AddGrowableCol(2, 2);  // Right column - proportion 2 (needs more space for Z control)
 
     // ============ ROW 0: Temperature+Speed | Manual Adjustment ============
     
@@ -1150,25 +1150,63 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     sep0->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG);
     sizerGrid->Add(sep0, 0, wxEXPAND);
 
-    // Right cell: Manual Adjustment
+    // Right cell: Manual Adjustment - redesigned for vertical centering
     wxSizer *sizerTopRight = new wxBoxSizer(wxVERTICAL);
     
-    // Manual Adjustment title
+    // Title section (fixed height)
     wxPanel* line5 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line5->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerTopRight->Add( line5, 0, wxALL | wxEXPAND, 0 );
     sizerTopRight->Add(new wxStaticText(box, wxID_ANY, "Manual Adjustment"), 0, wxLEFT, 5);
 
-    // Manual Adjustment body
     wxPanel* line55 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line55->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerTopRight->Add( line55, 0, wxALL | wxEXPAND, 0 );
+    
+    // Top spacing - centers sizerManualBody vertically (excluding title)
+    sizerTopRight->AddStretchSpacer(1);
 
-    auto sizerFlex = new wxFlexGridSizer(1, 3, wxSize(5, 5));
-    sizerFlex->Add( GenManualAdjustment_moveRange(box), 0, wxALL | wxEXPAND, 0);
-    sizerFlex->Add( GenManualAdjustment_move_xy(box), 0, wxALL | wxEXPAND, 20);
-    sizerFlex->Add( GenManualAdjustment_move_z(box), 0, wxALL | wxEXPAND, 20);
-    sizerTopRight->Add( sizerFlex, 0, wxALL | wxEXPAND, 10 );
+    // Content section - three controls with individual vertical centering
+    auto sizerManualBody = new wxBoxSizer(wxHORIZONTAL);
+    sizerManualBody->SetMinSize(wxSize(FromDIP(380), -1));  // Minimum width for all 3 controls
+    
+    // Left spacing
+    sizerManualBody->AddStretchSpacer(1);
+    
+    // 0.1/1/10mm control - wrapped for vertical centering
+    auto wrapper_moveRange = new wxBoxSizer(wxVERTICAL);
+    //wrapper_moveRange->AddStretchSpacer(1);  // Top spacing
+    wrapper_moveRange->Add( GenManualAdjustment_moveRange(box), 0, wxALIGN_CENTER_HORIZONTAL, 0 );
+    //wrapper_moveRange->AddStretchSpacer(1);  // Bottom spacing
+    sizerManualBody->Add( wrapper_moveRange, 0, wxALIGN_CENTER_VERTICAL, 0 );
+    
+    // Spacing between moveRange and XY
+    sizerManualBody->AddStretchSpacer(1);
+    
+    // XY control - wrapped for vertical centering
+    auto wrapper_xy = new wxBoxSizer(wxVERTICAL);
+    //wrapper_xy->AddStretchSpacer(1);  // Top spacing
+    wrapper_xy->Add( GenManualAdjustment_move_xy(box), 0, wxALIGN_CENTER_HORIZONTAL, 0 );
+    //wrapper_xy->AddStretchSpacer(1);  // Bottom spacing
+    sizerManualBody->Add( wrapper_xy, 0, wxALIGN_CENTER_VERTICAL, 0 );
+    
+    // Spacing between XY and Z
+    sizerManualBody->AddStretchSpacer(1);
+    
+    // Z control - wrapped for vertical centering
+    auto wrapper_z = new wxBoxSizer(wxVERTICAL);
+    //wrapper_z->AddStretchSpacer(1);  // Top spacing
+    wrapper_z->Add( GenManualAdjustment_move_z(box), 0, wxALIGN_CENTER_HORIZONTAL, 0 );
+    //wrapper_z->AddStretchSpacer(1);  // Bottom spacing
+    sizerManualBody->Add( wrapper_z, 0, wxALIGN_CENTER_VERTICAL, 0 );
+    
+    // Right spacing
+    sizerManualBody->AddStretchSpacer(1);
+    
+    sizerTopRight->Add( sizerManualBody, 0, wxALIGN_CENTER_HORIZONTAL, 0 );
+    
+    // Bottom spacing - centers sizerManualBody vertically (excluding title)
+    sizerTopRight->AddStretchSpacer(2);
 
     sizerGrid->Add(sizerTopRight, 1, wxEXPAND);
 
@@ -1222,14 +1260,25 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     sizerBottomRight->Add( line6, 0, wxALL | wxEXPAND, 0 );
 
     wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, "Z-Offset");
-    sizerBottomRight->Add(zOffsetTitle, 0, wxLEFT | wxEXPAND, 5);
+    sizerBottomRight->Add(zOffsetTitle, 0, wxLEFT, 5);
 
     // z-offset body
     wxPanel* line66 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line66->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerBottomRight->Add( line66, 0, wxALL | wxEXPAND, 0 );
 
-    sizerBottomRight->Add(GenManualAdjustment_z_offset(box), 0, wxALL | wxEXPAND, 10);
+    // Top spacing - centers the button group vertically (excluding title)
+    sizerBottomRight->AddStretchSpacer(1);
+
+    // Wrap buttons in a horizontal sizer to center them horizontally
+    auto sizerZOffsetButtons = new wxBoxSizer(wxHORIZONTAL);
+    sizerZOffsetButtons->AddStretchSpacer(1);  // Left spacing
+    sizerZOffsetButtons->Add(GenManualAdjustment_z_offset(box), 0, wxALIGN_CENTER_VERTICAL, 0);
+    sizerZOffsetButtons->AddStretchSpacer(1);  // Right spacing
+    sizerBottomRight->Add(sizerZOffsetButtons, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+
+    // Bottom spacing - centers the button group vertically (excluding title)
+    sizerBottomRight->AddStretchSpacer(1);
 
     sizerGrid->Add(sizerBottomRight, 1, wxEXPAND);
 
@@ -1498,15 +1547,15 @@ void PhrozenStatusBasePanel::init_bitmaps()
     m_Speed             = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed", FromDIP(12));
     m_Speed_Level       = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed_Level", FromDIP(12));
                                         
-    m_Control_xy_up     = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Up", FromDIP(12));
-    m_Control_xy_down   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Down", FromDIP(12));
-    m_Control_xy_left   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Left", FromDIP(12));
-    m_Control_xy_right  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Right", FromDIP(12));
-    m_Control_xy_home   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Home", FromDIP(12));
-    m_Control_xy_title  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_XY", FromDIP(12));
-                                         
-    m_Control_z_title   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_Z", FromDIP(12));
-    m_Control_z_nozzle  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Nozzle", FromDIP(12));
+    m_Control_xy_up     = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Up", FromDIP(28));
+    m_Control_xy_down   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Down", FromDIP(28));
+    m_Control_xy_left   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Left", FromDIP(28));
+    m_Control_xy_right  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Right", FromDIP(28));
+    m_Control_xy_home   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Home", FromDIP(28));
+    m_Control_xy_title  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_XY", FromDIP(10));
+
+    m_Control_z_title   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_Z", FromDIP(10));
+    m_Control_z_nozzle  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Nozzle", FromDIP(24));
 
 }
 
@@ -1998,14 +2047,14 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Shield(wxWindow* pParent)
 
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_moveRange( wxWindow* pParent )
 {
-    auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
+    auto sizer = new wxGridSizer(4, 1, wxSize(1, 1));  // Reduced gap from 2 to 1 (half)
     sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
 
     auto fnCreateToggleButton =[&] ( const std::string& strName,
                                      const PhrozenNozzleMoveRange eType ) -> void
     {
         auto spButton = new wxToggleButton( pParent, wxID_ANY, strName, wxDefaultPosition, wxSize(100, 36) );
-        sizer->Add(spButton, 0, wxALL, 5);
+        sizer->Add(spButton, 0, wxALL, 1);  // Reduced margin from 2 to 1 (half)
         m_kNozzleMovementRangeButtons.insert( { eType, spButton } );
     };
 
@@ -2018,33 +2067,46 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_moveRange( wxWindow* pParen
 
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent )
 {
-    
-    
-
     wxBitmapButton* pButton{nullptr};
     auto sizer = new wxGridSizer(4, 3, wxSize(5, 5));
 
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Control_xy_title.bmp(), wxDefaultPosition, wxSize(36, 36) ), 1, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    // Row 0: empty | title | empty (smaller title to match Z)
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
+    wxSize nozzleBmpTitleSize = m_Control_xy_title.GetBmpSize();
+    auto* titleBitmap = new wxStaticBitmap(pParent, wxID_ANY, m_Control_xy_title.bmp(), wxDefaultPosition, nozzleBmpTitleSize);
+    titleBitmap->SetMinSize(nozzleBmpTitleSize);
+    sizer->Add( titleBitmap, 0, wxALIGN_CENTER, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
 
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-
+    // Row 1: empty | up | empty
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
     pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Y_Positive );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
-    
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_left.bmp(), PhrozenMovement::Nozzle_X_Negative );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_home.bmp(), PhrozenMovement::Nozzle_Home_XY );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_right.bmp(), PhrozenMovement::Nozzle_X_Positive );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
 
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    // Row 2: left | home | right
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_left.bmp(), PhrozenMovement::Nozzle_X_Negative );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_home.bmp(), PhrozenMovement::Nozzle_Home_XY );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_right.bmp(), PhrozenMovement::Nozzle_X_Positive );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
+
+    // Row 3: empty | down | empty
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
     pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Y_Negative );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
-    sizer->Add( new wxPanel(pParent), 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
+    sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
     
     return sizer;
 }
@@ -2053,16 +2115,34 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
 {
     wxBitmapButton* pButton{nullptr};
     auto sizer = new wxGridSizer(4, 1, wxSize(5, 5));
+    sizer->SetMinSize(wxSize(46, -1));  // Ensure minimum width for Z control
 
-    sizer->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Control_z_title.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    // Row 0: Z title (smaller to match XY title visually) - use bitmap's actual size
+    wxSize zTitleBmpSize = m_Control_z_title.GetBmpSize();
+    std::cout << "[Z Title Bitmap] Size: width=" << zTitleBmpSize.GetWidth() << ", height=" << zTitleBmpSize.GetHeight() << std::endl;
+    auto* titleBitmap = new wxStaticBitmap(pParent, wxID_ANY, m_Control_z_title.bmp(), wxDefaultPosition, zTitleBmpSize);
+    titleBitmap->SetMinSize(zTitleBmpSize);
+    sizer->Add( titleBitmap, 0, wxALIGN_CENTER, 0 );
 
+    // Row 1: Z+ up button
     pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Z_Positive );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    pButton->Show();
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
 
-    sizer->Add( new wxStaticBitmap( pParent, wxID_ANY, m_Control_z_nozzle.bmp(), wxDefaultPosition, wxSize(36, 36) ), 0, wxALL | wxEXPAND, 0 );
+    // Row 2: Nozzle icon (slightly larger) - use bitmap's actual size
+    wxSize nozzleBmpSize = m_Control_z_nozzle.GetBmpSize();
+    auto* nozzleBitmap = new wxStaticBitmap( pParent, wxID_ANY, m_Control_z_nozzle.bmp(), wxDefaultPosition, nozzleBmpSize );
+    nozzleBitmap->SetMinSize(nozzleBmpSize);
+    sizer->Add( nozzleBitmap, 0, wxALIGN_CENTER, 0 );
     
+    // Row 3: Z- down button
     pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Z_Negative );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    pButton->Show();
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
     
     return sizer;
 }
@@ -2070,37 +2150,69 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
 wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent )
 {
     wxBitmapButton* pButton{nullptr};
-    auto sizer = new wxGridSizer(2, 3, wxSize(5, 5));
+    // Increased horizontal gap (40px) to separate 0.005/0.01 and 0.05/0.1 button groups, and increase spacing between buttons in same group
+    // Reduced vertical gap (2px) to bring upper and lower button groups closer
+    auto sizer = new wxGridSizer(2, 3, wxSize(40, 2));
 
     auto fnCreateToggleButton =[&] ( const std::string& strName,
                                      const PhrozenPrintNozzleOffsetRange eType ) -> void
     {
+        // Same size as moveRange buttons: wxSize(100, 36)
         auto spButton = new wxToggleButton( pParent, wxID_ANY, strName, wxDefaultPosition, wxSize(100, 36) );
-        sizer->Add(spButton, 0, wxALL, 5);
+        sizer->Add(spButton, 0, wxALL, 1);  // Reduced margin to match moveRange buttons
         m_kNozzleOffsetRangeButtons.insert( { eType, spButton } );
     };
 
-    fnCreateToggleButton("0.005mm", PhrozenPrintNozzleOffsetRange::Range_0005_MM );
-    fnCreateToggleButton("0.01mm", PhrozenPrintNozzleOffsetRange::Range_001_MM );
+    // Add 0.005mm button
+    auto spButton_0005 = new wxToggleButton( pParent, wxID_ANY, "0.005mm", wxDefaultPosition, wxSize(100, 36) );
+    sizer->Add(spButton_0005, 0, wxALL, 1);
+    m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_0005_MM, spButton_0005 } );
+    
+    // Add 0.01mm button with extra left spacing to increase gap from 0.005mm
+    auto spButton_001 = new wxToggleButton( pParent, wxID_ANY, "0.01mm", wxDefaultPosition, wxSize(100, 36) );
+    auto wrapper_001 = new wxBoxSizer(wxHORIZONTAL);
+    wrapper_001->AddSpacer(FromDIP(15));  // Extra left spacing to increase gap
+    wrapper_001->Add(spButton_001, 0, wxALIGN_CENTER_VERTICAL, 0);
+    sizer->Add(wrapper_001, 0, wxALL, 1);
+    m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_001_MM, spButton_001 } );
 
     pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Offset_Positive );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
 
-    fnCreateToggleButton("0.05mm", PhrozenPrintNozzleOffsetRange::Range_005_MM );
-    fnCreateToggleButton("0.1mm", PhrozenPrintNozzleOffsetRange::Range_01_MM );
+    // Add 0.05mm button
+    auto spButton_005 = new wxToggleButton( pParent, wxID_ANY, "0.05mm", wxDefaultPosition, wxSize(100, 36) );
+    sizer->Add(spButton_005, 0, wxALL, 1);
+    m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_005_MM, spButton_005 } );
+    
+    // Add 0.1mm button with extra left spacing to increase gap from 0.05mm
+    auto spButton_01 = new wxToggleButton( pParent, wxID_ANY, "0.1mm", wxDefaultPosition, wxSize(100, 36) );
+    auto wrapper_01 = new wxBoxSizer(wxHORIZONTAL);
+    wrapper_01->AddSpacer(FromDIP(15));  // Extra left spacing to increase gap
+    wrapper_01->Add(spButton_01, 0, wxALIGN_CENTER_VERTICAL, 0);
+    sizer->Add(wrapper_01, 0, wxALL, 1);
+    m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_01_MM, spButton_01 } );
 
     pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Offset_Negative );
-    sizer->Add( pButton, 0, wxALL | wxEXPAND, 0 );
+    pButton->SetMinSize(wxSize(28, 28));
+    pButton->SetMaxSize(wxSize(28, 28));
+    sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
 
     m_kNozzleOffsetRangeButtons[ PhrozenPrintNozzleOffsetRange::Range_0005_MM ]->SetValue( true );
-    return sizer;
+    
+    // Wrap sizer in a horizontal sizer to add left spacing
+    auto wrapperSizer = new wxBoxSizer(wxHORIZONTAL);
+    wrapperSizer->AddSpacer(FromDIP(20));  // Left spacing to shift buttons to the right
+    wrapperSizer->Add(sizer, 0, wxALIGN_CENTER_VERTICAL, 0);
+    return wrapperSizer;
 }
 
 wxBitmapButton* PhrozenStatusBasePanel::CreateManualMovementButton( wxWindow* pParent,
                                                                     wxBitmap& kIcon, 
                                                                     const PhrozenMovement eType )
 {
-    auto pButton =  new wxBitmapButton(pParent, wxID_ANY, kIcon, wxDefaultPosition, wxSize(36, 36) );
+    auto pButton =  new wxBitmapButton(pParent, wxID_ANY, kIcon, wxDefaultPosition, wxSize(28, 28), wxBU_AUTODRAW | wxBORDER_NONE );
     m_kManualMovementButtons.insert( { eType, pButton } );
     return pButton;
 }
