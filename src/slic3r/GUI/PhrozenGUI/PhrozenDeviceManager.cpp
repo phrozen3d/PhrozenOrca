@@ -1044,6 +1044,7 @@ void PhrozenDeviceSearcher::StopSearch()
         t_->join();
     }
     t_.reset();
+    t_ = nullptr;
 
     // if thread in background has exception, throw it because now is main thread
     if (eptr_) {
@@ -1051,6 +1052,9 @@ void PhrozenDeviceSearcher::StopSearch()
         eptr_ = nullptr;
         std::rethrow_exception(e);
     }
+
+    m_kSearchResult.SetDataReady(false);
+    m_kSearchResult.ClearAll();
 }
 
 bool PhrozenDeviceSearcher::IsDataReady()
@@ -1126,12 +1130,11 @@ void PhrozenDeviceSearcher::ProcessSearchMachine( std::map< std::string, std::st
         
         // Receive responses with timeout
         auto start_time = std::chrono::steady_clock::now();
-        const auto timeout_duration = std::chrono::seconds(2);
+        const auto timeout_duration = std::chrono::seconds(1);
         
         char receive_buffer[1024];
         udp::endpoint sender_endpoint;
         
-        wxBusyCursor kWaiting; // set mouse cursor show busy icon
         while (std::chrono::steady_clock::now() - start_time < timeout_duration) {
             boost::this_thread::interruption_point();
 

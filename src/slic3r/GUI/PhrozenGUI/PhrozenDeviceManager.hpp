@@ -122,6 +122,12 @@ public:
         SetDataReady(false);
         m_pWriteBuffer->clear();
         ( *m_pWriteBuffer ) = std::move( kData );
+
+        //swap buffer pointer
+        auto tempBuffer = m_pReadBuffer;
+        m_pReadBuffer = m_pWriteBuffer;
+        m_pWriteBuffer = tempBuffer;
+
         SetDataReady(true);
     }
 

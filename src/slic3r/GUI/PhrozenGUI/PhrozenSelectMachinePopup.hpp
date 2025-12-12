@@ -47,7 +47,8 @@ enum class PhrozenPrinterState : int32_t {
     IDLE,
     BUSY,
     LOCK,
-    IN_LAN
+    IN_LAN,
+    NOT_SELECT
 };
 
 enum class PhrozenPrinterBindState : int32_t {
@@ -237,7 +238,6 @@ public:
     bool was_dismiss() { return m_dismiss; }
 
 private:
-    int                               m_my_devices_count{0};
     int                               m_other_devices_count{0};
     PhrozenIpKeyInButton*             m_panel_direct_connection{nullptr};
     wxWindow*                         m_placeholder_panel{nullptr};
@@ -265,11 +265,16 @@ private:
     void OnLeftUp(wxMouseEvent &event);
     void on_timer(wxTimerEvent &event);
 
-	void      update_other_devices();
-    void      update_lan_devices();
-    bool      search_for_printer(MachineObject* obj);
-    void      on_dissmiss_win(wxCommandEvent &event);
+	void update_other_devices();
+    void update_lan_devices();
+    bool search_for_printer(MachineObject* obj);
+    void on_dissmiss_win(wxCommandEvent &event);
+    void release_panel_data( PhrozenMachineObjectPanel* pIpPanel );
+    void clear_all_ip_panel();
     wxWindow *create_title_panel(wxString text);
+    PhrozenMachineObjectPanel* m_pSearchingPad{nullptr};
+    void create_searching_pad();
+    void remove_searching_pad();
 };
 
 class PhrozenEditDevNameDialog : public DPIDialog

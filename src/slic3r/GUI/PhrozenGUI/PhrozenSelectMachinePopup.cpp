@@ -27,6 +27,7 @@
 #include "../Notebook.hpp"
 #include "../BitmapCache.hpp"
 #include "../BindDialog.hpp"
+#include "PhrozenDeviceManager.hpp"
 
 namespace Slic3r { namespace GUI {
 
@@ -43,8 +44,9 @@ wxDEFINE_EVENT(EVT_PHROZEN_IP_CONNECT_SUCCESS, wxCommandEvent);
 
 
 #define INITIAL_NUMBER_OF_MACHINES 0
-#define LIST_REFRESH_INTERVAL 200
-#define MACHINE_LIST_REFRESH_INTERVAL 2000
+#define MACHINE_LIST_REFRESH_INTERVAL 1100
+#define STRING_PHROZEN_MACHINE_SEARCHING _L("Searching...");
+wxString strSearching = STRING_PHROZEN_MACHINE_SEARCHING;
 
 #define WRAP_GAP FromDIP(2)
 
@@ -723,6 +725,8 @@ void PhrozenMachineObjectPanel::on_mouse_leave(wxMouseEvent &evt)
 
 void PhrozenMachineObjectPanel::on_mouse_left_up(wxMouseEvent &evt)
 {
+    if ( m_state == PhrozenPrinterState::NOT_SELECT ) return;
+
     // show edit
     if (m_show_edit) {
         auto edit_left   = GetSize().x - m_unbind_img.GetBmpSize().x - 6 - m_edit_name_img.GetBmpSize().x - 6;
@@ -841,28 +845,18 @@ PhrozenSelectMachinePopup::~PhrozenSelectMachinePopup() { delete m_refresh_timer
 void PhrozenSelectMachinePopup::Popup(wxWindow *WXUNUSED(focus))
 {
     BOOST_LOG_TRIVIAL(trace) << "get_print_info: start";
+    PhrozenDeviceSearcher::StartSearch();
+
     if (m_refresh_timer) {
         m_refresh_timer->Stop();
         m_refresh_timer->Start(MACHINE_LIST_REFRESH_INTERVAL);
     }
 
-    if (!get_print_info_thread) {
-        get_print_info_thread = new boost::thread(Slic3r::create_thread([this, token = std::weak_ptr<int>(m_token)] {
-            std::unordered_map< std::string, std::string > kIpResult;
-            m_bFirstUpdating = true;
-            SearchPhrozenPrinter( kIpResult );
-
-            CallAfter([token, this, kIpResult]() {
-                if (token.expired()) {return;}
-                m_lan_machine_ip_list = kIpResult;
-                m_bFirstUpdating = false;
-
-                wxCommandEvent event(EVT_PHROZEN_UPDATE_USER_MACHINE_LIST);
-                event.SetEventObject(this);
-                wxPostEvent(this, event);
-            });
-        }));
-    }
+    CallAfter([this]() {
+        wxCommandEvent event(EVT_PHROZEN_UPDATE_USER_MACHINE_LIST);
+        event.SetEventObject(this);
+        wxPostEvent(this, event);
+    });
 
     wxPostEvent(this, wxTimerEvent());
     PopupWindow::Popup();
@@ -872,21 +866,13 @@ void PhrozenSelectMachinePopup::OnDismiss()
 {
     BOOST_LOG_TRIVIAL(trace) << "get_print_info: dismiss";
     m_dismiss = true;
+    PhrozenDeviceSearcher::StopSearch();
 
     if (m_refresh_timer) {
         m_refresh_timer->Stop();
     }
-    if (get_print_info_thread) {
-        if (get_print_info_thread->joinable()) {
-            get_print_info_thread->join();
-            delete get_print_info_thread;
-            get_print_info_thread = nullptr;
-        }
-    }
 
-    wxCommandEvent event(EVT_FINISHED_UPDATE_MACHINE_LIST);
-    event.SetEventObject(this);
-    wxPostEvent(this, event);
+    clear_all_ip_panel();
 }
 
 bool PhrozenSelectMachinePopup::ProcessLeftDown(wxMouseEvent &event) {
@@ -1065,120 +1051,97 @@ void PhrozenSelectMachinePopup::update_other_devices()
 
 }
 
-void PhrozenSelectMachinePopup::update_lan_devices()
+void PhrozenSelectMachinePopup::release_panel_data( PhrozenMachineObjectPanel* pIpPanel )
 {
-    if ( m_lan_machine_ip_list.empty() ){
-        return;
+    if ( !pIpPanel ) return;
+
+     m_sizer_my_devices->Detach( pIpPanel );
+     delete pIpPanel;
+}
+
+void PhrozenSelectMachinePopup::clear_all_ip_panel()
+{
+    for ( auto kIter : m_lan_machine_ip_panels )
+    {
+        release_panel_data( kIter.second );
+    }
+    m_lan_machine_ip_panels.clear();
+    m_lan_machine_ip_list.clear();
+}
+
+void PhrozenSelectMachinePopup::create_searching_pad()
+{
+    if ( m_pSearchingPad )
+    {
+        remove_searching_pad();
     }
 
-    BOOST_LOG_TRIVIAL(trace) << "SelectMachinePopup update_machine_ip_list start";
+    m_pSearchingPad = new PhrozenMachineObjectPanel( m_scrolledWindow, wxID_ANY );
+    m_pSearchingPad->set_maching_ip( strSearching.ToStdString() );
+    m_pSearchingPad->set_printer_state( PhrozenPrinterState::NOT_SELECT );
+    m_sizer_my_devices->Add( m_pSearchingPad, 0, wxEXPAND, 0 );
+}
+
+void PhrozenSelectMachinePopup::remove_searching_pad()
+{
+    if ( !m_pSearchingPad ) return;
+    release_panel_data( m_pSearchingPad );
+    m_pSearchingPad = nullptr;
+}
+
+void PhrozenSelectMachinePopup::update_lan_devices()
+{
+    std::map< std::string, std::string > kSearchResult;
+    if ( PhrozenDeviceSearcher::IsDataReady() )
+    {
+        kSearchResult = PhrozenDeviceSearcher::GetList();
+    }
+
     this->Freeze();
     m_scrolledWindow->Freeze();
 
-    std::string strConnectedIp;
-    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
-
-    std::unordered_map< std::string, std::string > kMachineForAdd = m_lan_machine_ip_list;
-    std::vector< std::string > kMachineForRemove;
-    for ( auto& kMachinePanelItem : m_lan_machine_ip_panels )
+    bool bIpPadChanged = false;
+    if ( kSearchResult.empty() && m_lan_machine_ip_panels.empty() )
     {
-        std::string strIp = kMachinePanelItem.first;
-        auto kExistMachine = kMachineForAdd.find( strIp );
-        if ( kExistMachine == kMachineForAdd.end() )
-        {
-            kMachineForRemove.push_back( strIp );
-            continue;
-        }
-        else
-        {
-            kMachineForAdd.erase( kExistMachine );
-            if ( !m_bFirstUpdating )
-            {
-                kMachinePanelItem.second->Show();
-                if ( strIp == strConnectedIp )
-                {
-                    kMachinePanelItem.second->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND );
-                }
-                else
-                {
-                    kMachinePanelItem.second->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
-                }
+        if ( !m_pSearchingPad ) { create_searching_pad(); bIpPadChanged = true; }
+        
+    }
+    else
+    {
+        remove_searching_pad();
+        BOOST_LOG_TRIVIAL(trace) << "SelectMachinePopup update_machine_ip_list start";
 
-            }
-            //todo update maching state
+        // always add new find.
+        std::string strConnectedIp;
+        Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+
+        for ( auto kIter : kSearchResult )
+        {
+            auto kFounded = m_lan_machine_ip_panels.find( kIter.first );
+            if ( kFounded != m_lan_machine_ip_panels.end() ) continue;
+
+            auto strIp = kIter.first;
+            auto  op = new PhrozenMachineObjectPanel( m_scrolledWindow, wxID_ANY );
+            op->set_maching_ip( strIp );
+            op->set_printer_state( PhrozenPrinterState::IN_LAN );
+
+            if ( strIp == strConnectedIp ) { op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND ); }
+            else { op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND ); }
             
+
+            m_lan_machine_ip_panels.insert( { strIp, op } );
+            m_sizer_my_devices->Add(op, 0, wxEXPAND, 0);
+            bIpPadChanged = true;
         }
     }
 
-    //add
-    for ( auto& kIter : kMachineForAdd )
-    {
-        auto strIp = kIter.first;
-        auto  op = new PhrozenMachineObjectPanel(m_scrolledWindow, wxID_ANY);
-        op->set_maching_ip( strIp );
-        if ( strIp == strConnectedIp )
-        {
-            op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND );
-        }
-        else
-        {
-            op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
-        }
+    if ( bIpPadChanged ) m_scrolledWindow->Fit();
 
-        //op->Bind(EVT_CONNECT_LAN_PRINT, [this, mobj](wxCommandEvent &e) {
-        //    if (mobj) {
-        //        if (mobj->is_lan_mode_printer()) {
-        //            ConnectPrinterDialog dlg(wxGetApp().mainframe, wxID_ANY, _L("Input access code"));
-        //            dlg.set_machine_object(mobj);
-        //            if (dlg.ShowModal() == wxID_OK) {
-        //                wxGetApp().mainframe->jump_to_monitor(mobj->dev_id);
-        //            }
-        //        }
-        //    }
-        //});
-        //
-        //op->Bind(EVT_EDIT_PRINT_NAME, [this, mobj](wxCommandEvent &e) {
-        //   EditDevNameDialog dlg;
-        //   dlg.set_machine_obj(mobj);
-        //   dlg.ShowModal();
-        //});
-
-
-        m_lan_machine_ip_panels.insert( { strIp, op } );
-        m_sizer_my_devices->Add(op, 0, wxEXPAND, 0);
-    }
-
-    //remove
-    for ( auto& strIp : kMachineForRemove )
-    {
-        // Platform-specific iterator binding: MSVC allows binding temporary iterator to non-const reference,
-        // while Clang (macOS) strictly requires value copy for temporary objects per C++ standard
-#ifdef _WIN32
-        auto& kIter = m_lan_machine_ip_panels.find( strIp );
-#else
-        auto kIter = m_lan_machine_ip_panels.find( strIp );
-#endif
-        if ( kIter == m_lan_machine_ip_panels.end() )
-        {
-            continue;
-        }
-        // detach from sizer
-        auto pPanelPtr = kIter->second;
-        m_sizer_my_devices->Detach( pPanelPtr );
-        // remove pointer
-        pPanelPtr->Destroy();
-        m_lan_machine_ip_panels.erase( kIter );
-    }
-
-    if (m_my_devices_count != m_lan_machine_ip_list.size() ) {
-		m_scrolledWindow->Fit();
-    }
     m_scrolledWindow->Layout();
     m_scrolledWindow->Thaw();
 	Layout();
 	Fit();
 	this->Thaw();
-    m_my_devices_count = m_lan_machine_ip_list.size();
 }
 
 bool PhrozenSelectMachinePopup::search_for_printer(MachineObject* obj)
