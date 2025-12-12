@@ -191,6 +191,7 @@ public:
     void show_edit_printer_name(bool show);
     void update_machine_info(MachineObject *info, bool is_my_devices = false);
     void set_maching_ip( std::string strIp ){ m_strIp = strIp; }
+    std::string get_machine_ip(){ return m_strIp; }
 protected:
     void OnPaint(wxPaintEvent &event);
     void render(wxDC &dc);
@@ -258,23 +259,28 @@ private:
     bool                              m_bFirstUpdating{ false };
 
 
-    std::unordered_map< std::string, std::string > m_lan_machine_ip_list; //{ machineIp, machineName }
-    std::unordered_map< std::string, PhrozenMachineObjectPanel* > m_lan_machine_ip_panels;
+    std::vector< PhrozenMachineObjectPanel* > m_history_lan_machine_ip_panels;
+    size_t m_nMaxHistoryIp{ 5 };
+    std::map< std::string, PhrozenMachineObjectPanel* > m_lan_machine_ip_panels;
 
 private:
     void OnLeftUp(wxMouseEvent &event);
     void on_timer(wxTimerEvent &event);
 
-	void update_other_devices();
+	void update_history_devices();
     void update_lan_devices();
     bool search_for_printer(MachineObject* obj);
     void on_dissmiss_win(wxCommandEvent &event);
     void release_panel_data( PhrozenMachineObjectPanel* pIpPanel );
-    void clear_all_ip_panel();
+    void clear_all_searched_ip_panel();
     wxWindow *create_title_panel(wxString text);
     PhrozenMachineObjectPanel* m_pSearchingPad{nullptr};
     void create_searching_pad();
     void remove_searching_pad();
+    PhrozenMachineObjectPanel* create_ip_object_panel( PhrozenPrinterState eState, std::string strIp, bool bIsConnected = false );
+
+    void on_ip_panel_clicked( wxCommandEvent& event );
+    //m_select_machine->Bind(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, &PhrozenMonitorPanel::OnConnectMachineByIp, this );
 };
 
 class PhrozenEditDevNameDialog : public DPIDialog

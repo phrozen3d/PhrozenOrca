@@ -342,7 +342,10 @@ Thaw();
 
 void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
 {
-    if ( event.GetString().IsEmpty() )
+    std::string strConnectedIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+
+    if ( event.GetString().IsEmpty() || strConnectedIp == event.GetString() )
     {
         return;
     }

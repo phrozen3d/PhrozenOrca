@@ -812,14 +812,14 @@ PhrozenSelectMachinePopup::PhrozenSelectMachinePopup(wxWindow *parent)
     auto own_title        = create_title_panel(_L("My Device"));
     m_sizer_my_devices    = new wxBoxSizer(wxVERTICAL);
 
-    auto other_title      = create_title_panel(_L("Other Device"));
+    auto other_title      = create_title_panel(_L("History Device"));
     m_sizer_other_devices = new wxBoxSizer(wxVERTICAL);
 
     m_panel_direct_connection = new PhrozenIpKeyInButton(m_scrolledWindow, wxID_ANY, wxDefaultPosition, PHROZEN_SELECT_MACHINE_ITEM_SIZE);
 
     m_sizxer_scrolledWindow->Add(own_title, 0, wxEXPAND | wxLEFT, FromDIP(15));
-    m_sizxer_scrolledWindow->Add(m_sizer_my_devices, 0, wxEXPAND, 0);
     m_sizxer_scrolledWindow->Add(m_panel_direct_connection, 0, wxEXPAND, 0);
+    m_sizxer_scrolledWindow->Add(m_sizer_my_devices, 0, wxEXPAND, 0);
     m_sizxer_scrolledWindow->Add(other_title, 0, wxEXPAND | wxLEFT, FromDIP(15));
     m_sizxer_scrolledWindow->Add(m_sizer_other_devices, 0, wxEXPAND, 0);
 
@@ -840,7 +840,22 @@ PhrozenSelectMachinePopup::PhrozenSelectMachinePopup(wxWindow *parent)
     Bind(EVT_DISSMISS_MACHINE_LIST, &PhrozenSelectMachinePopup::on_dissmiss_win, this);
 }
 
-PhrozenSelectMachinePopup::~PhrozenSelectMachinePopup() { delete m_refresh_timer;}
+PhrozenSelectMachinePopup::~PhrozenSelectMachinePopup() 
+{ 
+    delete m_refresh_timer;
+
+    for ( auto pObj : m_history_lan_machine_ip_panels )
+    {
+        release_panel_data( pObj );
+    }
+    m_history_lan_machine_ip_panels.clear();
+
+    for ( auto kIter : m_lan_machine_ip_panels )
+    {
+        release_panel_data( kIter.second );
+    }
+    m_lan_machine_ip_panels.clear();
+}
 
 void PhrozenSelectMachinePopup::Popup(wxWindow *WXUNUSED(focus))
 {
@@ -872,7 +887,7 @@ void PhrozenSelectMachinePopup::OnDismiss()
         m_refresh_timer->Stop();
     }
 
-    clear_all_ip_panel();
+    clear_all_searched_ip_panel();
 }
 
 bool PhrozenSelectMachinePopup::ProcessLeftDown(wxMouseEvent &event) {
@@ -923,131 +938,17 @@ void PhrozenSelectMachinePopup::on_timer(wxTimerEvent &event)
     wxPostEvent(this, user_event);
 }
 
-void PhrozenSelectMachinePopup::update_other_devices()
+void PhrozenSelectMachinePopup::update_history_devices()
 {
+    if ( m_history_lan_machine_ip_panels.empty() ) return;
 
-//    DeviceManager* dev = wxGetApp().getDeviceManager();
-//    if (!dev) return;
-//    m_free_machine_list = dev->get_local_machine_list();
-//
-//    BOOST_LOG_TRIVIAL(trace) << "SelectMachinePopup update_other_devices start";
-//    this->Freeze();
-//    m_scrolledWindow->Freeze();
-//    int i = 0;
-//
-//    for (auto &elem : m_free_machine_list) {
-//        MachineObject *     mobj = elem.second;
-//        /* do not show printer bind state is empty */
-//        if (!mobj->is_avaliable()) continue;
-//
-//        if (!wxGetApp().is_user_login() && !mobj->is_lan_mode_printer())
-//            continue;
-//
-//        /* do not show printer in my list */
-//        auto it = m_bind_machine_list.find(mobj->dev_id);
-//        if (it != m_bind_machine_list.end())
-//            continue;
-//
-//        PhrozenMachineObjectPanel* op = nullptr;
-//        if (i < m_other_list_machine_panel.size()) {
-//            op = m_other_list_machine_panel[i]->mPanel;
-//        } else {
-//            op = new PhrozenMachineObjectPanel(m_scrolledWindow, wxID_ANY);
-//            PhrozenMachinePanel* mpanel = new PhrozenMachinePanel();
-//            mpanel->mIndex = wxString::Format("%d", i);
-//            mpanel->mPanel = op;
-//            m_other_list_machine_panel.push_back(mpanel);
-//            m_sizer_other_devices->Add(op, 0, wxEXPAND, 0);
-//        }
-//#if !BBL_RELEASE_TO_PUBLIC && defined(__WINDOWS__)
-//        if (!search_for_printer(mobj)) {
-//            op->Hide();
-//        }
-//        else {
-//            op->Show();
-//        }
-//#else
-//        op->Show();
-//#endif
-//        i++;
-//
-//        op->update_machine_info(mobj);
-//
-//        if (mobj->is_lan_mode_printer()) {
-//            if (mobj->has_access_right()) {
-//                op->set_printer_state(PhrozenPrinterState::IN_LAN);
-//            } else {
-//                op->set_printer_state(PhrozenPrinterState::LOCK);
-//            }
-//        } else {
-//            op->show_edit_printer_name(false);
-//            op->show_printer_bind(true, PhrozenPrinterBindState::ALLOW_BIND);
-//            if (mobj->is_in_printing()) {
-//                op->set_printer_state(PhrozenPrinterState::BUSY);
-//            } else {
-//                op->SetToolTip(_L("Online"));
-//                op->set_printer_state(PhrozenPrinterState::IDLE);
-//            }
-//        }
-//
-//        op->Bind(EVT_CONNECT_LAN_PRINT, [this, mobj](wxCommandEvent &e) {
-//            if (mobj) {
-//                if (mobj->is_lan_mode_printer()) {
-//                    ConnectPrinterDialog dlg(wxGetApp().mainframe, wxID_ANY, _L("Input access code"));
-//                    dlg.set_machine_object(mobj);
-//                    if (dlg.ShowModal() == wxID_OK) {
-//                        wxGetApp().mainframe->jump_to_monitor(mobj->dev_id);
-//                    }
-//                }
-//            }
-//        });
-//
-//        op->Bind(EVT_BIND_MACHINE, [this, mobj](wxCommandEvent &e) {
-//            BindMachineDialog dlg;
-//            dlg.update_machine_info(mobj);
-//            int dlg_result = wxID_CANCEL;
-//            dlg_result     = dlg.ShowModal();
-//            if (dlg_result == wxID_OK) { wxGetApp().mainframe->jump_to_monitor(mobj->dev_id); }
-//        });
-//    }
-//
-//    for (int j = i; j < m_other_list_machine_panel.size(); j++) {
-//        m_other_list_machine_panel[j]->mPanel->update_machine_info(nullptr);
-//        m_other_list_machine_panel[j]->mPanel->Hide();
-//    }
-//
-//    if (m_placeholder_panel != nullptr) {
-//        m_scrolledWindow->RemoveChild(m_placeholder_panel);
-//        m_placeholder_panel->Destroy();
-//        m_placeholder_panel = nullptr;
-//    }
-//
-//    m_placeholder_panel = new wxWindow(m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxSize(-1,FromDIP(26)));
-//    wxBoxSizer* placeholder_sizer = new wxBoxSizer(wxVERTICAL);
-//
-//    m_hyperlink = new wxHyperlinkCtrl(m_placeholder_panel, wxID_ANY, _L("Can't find my devices?"), wxT("https://wiki.bambulab.com/en/software/bambu-studio/failed-to-connect-printer"), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
-//    m_hyperlink->SetNormalColour(StateColor::darkModeColorFor("#009789"));
-//    placeholder_sizer->Add(m_hyperlink, 0, wxALIGN_CENTER | wxALL, 5);
-//
-//
-//    m_placeholder_panel->SetSizer(placeholder_sizer);
-//    m_placeholder_panel->Layout();
-//    placeholder_sizer->Fit(m_placeholder_panel);
-//
-//    m_placeholder_panel->SetBackgroundColour(StateColor::darkModeColorFor(*wxWHITE));
-//    m_sizer_other_devices->Add(m_placeholder_panel, 0, wxEXPAND, 0);
-//
-//    //m_sizer_other_devices->Layout();
-//    if(m_other_devices_count != i) {
-//		m_scrolledWindow->Fit();
-//    }
-//    m_scrolledWindow->Layout();
-//	m_scrolledWindow->Thaw();
-//	Layout();
-//	Fit();
-//	this->Thaw();
-//    m_other_devices_count = i;
-//    BOOST_LOG_TRIVIAL(trace) << "SelectMachinePopup update_other_devices end";
+    this->Freeze();
+    m_scrolledWindow->Freeze();
+    m_scrolledWindow->Layout();
+    m_scrolledWindow->Thaw();
+    Layout();
+    Fit();
+    this->Thaw();
 
 }
 
@@ -1059,14 +960,13 @@ void PhrozenSelectMachinePopup::release_panel_data( PhrozenMachineObjectPanel* p
      delete pIpPanel;
 }
 
-void PhrozenSelectMachinePopup::clear_all_ip_panel()
+void PhrozenSelectMachinePopup::clear_all_searched_ip_panel()
 {
     for ( auto kIter : m_lan_machine_ip_panels )
     {
         release_panel_data( kIter.second );
     }
     m_lan_machine_ip_panels.clear();
-    m_lan_machine_ip_list.clear();
 }
 
 void PhrozenSelectMachinePopup::create_searching_pad()
@@ -1087,6 +987,59 @@ void PhrozenSelectMachinePopup::remove_searching_pad()
     if ( !m_pSearchingPad ) return;
     release_panel_data( m_pSearchingPad );
     m_pSearchingPad = nullptr;
+}
+
+PhrozenMachineObjectPanel* PhrozenSelectMachinePopup::create_ip_object_panel( PhrozenPrinterState eState, std::string strIp, bool bIsConnected )
+{
+    auto  op = new PhrozenMachineObjectPanel( m_scrolledWindow, wxID_ANY );
+    op->set_maching_ip( strIp );
+    op->set_printer_state( eState );
+    if ( bIsConnected ) 
+    { 
+        op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND ); 
+    }
+    else 
+    { 
+        op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND ); 
+    }
+    op->Bind(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, &PhrozenSelectMachinePopup::on_ip_panel_clicked, this );
+    return op;
+}
+
+void PhrozenSelectMachinePopup::on_ip_panel_clicked( wxCommandEvent& event )
+{
+    auto strIp = event.GetString().ToStdString();
+    std::string strConnectedIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+    if ( strIp.empty() || strConnectedIp == strIp )
+    {
+        return;
+    }
+
+    for ( auto pObj : m_history_lan_machine_ip_panels )
+    {
+        if ( pObj->get_machine_ip() == strIp )
+        {
+            event.Skip(); // pass to upper layer, to make machine connect
+            return;
+        }
+    }
+
+    if ( m_history_lan_machine_ip_panels.size() == m_nMaxHistoryIp )
+    {
+        auto kLastIter = m_history_lan_machine_ip_panels.begin() + ( m_nMaxHistoryIp - 1 );
+        release_panel_data( *kLastIter );
+        m_history_lan_machine_ip_panels.erase( kLastIter );
+    }
+
+    auto  op = new PhrozenMachineObjectPanel( m_scrolledWindow, wxID_ANY );
+    op->set_maching_ip( strIp );
+    op->set_printer_state( PhrozenPrinterState::IDLE );
+    op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
+    m_history_lan_machine_ip_panels.insert( m_history_lan_machine_ip_panels.begin(), op );
+    m_sizer_other_devices->Add(op, 0, wxEXPAND, 0);
+
+    event.Skip(); // pass to upper layer, to make machine connect
 }
 
 void PhrozenSelectMachinePopup::update_lan_devices()
@@ -1121,14 +1074,7 @@ void PhrozenSelectMachinePopup::update_lan_devices()
             if ( kFounded != m_lan_machine_ip_panels.end() ) continue;
 
             auto strIp = kIter.first;
-            auto  op = new PhrozenMachineObjectPanel( m_scrolledWindow, wxID_ANY );
-            op->set_maching_ip( strIp );
-            op->set_printer_state( PhrozenPrinterState::IN_LAN );
-
-            if ( strIp == strConnectedIp ) { op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND ); }
-            else { op->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND ); }
-            
-
+            auto op = create_ip_object_panel( PhrozenPrinterState::IN_LAN, strIp, strIp == strConnectedIp );
             m_lan_machine_ip_panels.insert( { strIp, op } );
             m_sizer_my_devices->Add(op, 0, wxEXPAND, 0);
             bIpPadChanged = true;
@@ -1169,7 +1115,7 @@ void PhrozenSelectMachinePopup::on_dissmiss_win(wxCommandEvent &event)
 void PhrozenSelectMachinePopup::update_machine_list(wxCommandEvent &event)
 {
     update_lan_devices();
-    update_other_devices();
+    update_history_devices();
     BOOST_LOG_TRIVIAL(trace) << "SelectMachinePopup update_machine_list end";
 }
 
