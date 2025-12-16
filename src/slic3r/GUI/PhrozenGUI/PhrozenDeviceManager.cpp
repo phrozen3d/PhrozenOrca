@@ -1197,78 +1197,92 @@ void PhrozenDeviceSearcher::ProcessSearchMachine( std::map< std::string, std::st
         throw;
     }
 }
+#pragma endregion
+
+#pragma region PhrozenMachineObject_Dev
+//class PhrozenMachineObject_Dev 
+//{
+//public:
+//    PhrozenMachineObject_Dev( std::string ip );
+//    ~PhrozenMachineObject_Dev();
+//
+//private:
+//    std::shared_ptr< PhrozenNetworkAgent > m_spNetworkAgent { nullptr };
+//};
+
+PhrozenMachineObject_Dev::PhrozenMachineObject_Dev( std::string ip, PhrozenNetworkAgent* pAgent ) 
+    :m_strIp( ip ),
+    m_pNetworkAgent( pAgent )
+{
+    
+}
+
+PhrozenMachineObject_Dev::~PhrozenMachineObject_Dev()
+{
+
+}
 
 
 #pragma endregion
 
+
+
 // PhrozenDeviceManager implementation
 #pragma region PhrozenDeviceManager
-PhrozenDeviceManager::PhrozenDeviceManager(NetworkAgent* agent)
+PhrozenDeviceManager::PhrozenDeviceManager( PhrozenNetworkAgent* agent)
 {
-    m_agent = agent;
+    m_pNetworkAgent = agent;
 
-    // Load saved local machines
     if (agent) {
-        AppConfig*  config         = GUI::wxGetApp().app_config;
+        AppConfig*  config         = GUI::wxGetApp().app_config; // not sure if need it 
     }
 }
 
 PhrozenDeviceManager::~PhrozenDeviceManager()
 {
-    m_kConnectedBefore.clear();
+    if ( m_spConnected_dev )
+    {   
+        disconnect_machine();
+    }
 }
 
-void PhrozenDeviceManager::set_agent(NetworkAgent* agent)
+void PhrozenDeviceManager::set_agent(PhrozenNetworkAgent* agent)
 {
-    m_agent = agent;
+    m_pNetworkAgent = agent;
 }
 
-PhrozenMachineObject* PhrozenDeviceManager::create_machine(std::string dev_id) {
-    auto kFind = m_kConnectedBefore.find( dev_id );
-    if ( kFind != m_kConnectedBefore.end() )
+bool PhrozenDeviceManager::connect_machine(std::string dev_id ) 
+{
+    if ( get_connecting_machine() )
     {
-        return kFind->second.get();
+        disconnect_machine();
     }
-    auto spMachine = std::shared_ptr< PhrozenMachineObject >( new PhrozenMachineObject( dev_id ) );
-    m_kConnectedBefore.insert( {dev_id, spMachine} );
-    return spMachine.get();
-}
 
-void PhrozenDeviceManager::erase_connected_before_machine(std::string dev_id) {
-    auto kIter = m_kConnectedBefore.find( dev_id );
-    if ( kIter != m_kConnectedBefore.end() )
-    {
-        m_kConnectedBefore.erase( kIter );
-    }
-}
+    if ( !create_machine( dev_id , m_spConnected_dev ) ) return false;
 
-bool PhrozenDeviceManager::set_selected_machine(std::string dev_id, bool do_connect ) {
-    m_strSelected_machine_ip = dev_id;
-    if ( do_connect )
-    {
-        auto pMachine = create_machine( m_strSelected_machine_ip );
-        //TODO make connect? and safe disconnect last machine
-    }
+
+
     return true;
 }
 
-PhrozenMachineObject* PhrozenDeviceManager::get_selected_machine() {
-    if (m_strSelected_machine_ip.empty()) return nullptr;
-
-    auto kFind = m_kConnectedBefore.find( m_strSelected_machine_ip );
-    return kFind != m_kConnectedBefore.end() ? kFind->second.get() : nullptr;
-}
-
-void PhrozenDeviceManager::get_connected_before_ip_list( std::vector< std::string >& kList )
+PhrozenMachineObject_Dev* PhrozenDeviceManager::get_connecting_machine()
 {
-    for ( auto kIter : m_kConnectedBefore )
-    {
-        kList.push_back( kIter.first );
-    }
+    return m_spConnected_dev.get();
 }
 
-void PhrozenDeviceManager::disconnect_all() {
-    // Implementation needed
+void PhrozenDeviceManager::disconnect_machine() 
+{
+    if ( !m_spConnected_dev ) return;
+
+}
+
+bool PhrozenDeviceManager::create_machine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject ) 
+{
+    spObject = nullptr;
+    if ( dev_id.empty() || !m_pNetworkAgent ) { return false; }
+
+    spObject = std::shared_ptr< PhrozenMachineObject_Dev >( new PhrozenMachineObject_Dev( dev_id, m_pNetworkAgent ) );
+    return spObject != nullptr;
 }
 
 

@@ -582,6 +582,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/Flashforge.hpp
 	Utils/Phrozen/PhrozenNetworkAgent.hpp
 	Utils/Phrozen/PhrozenNetworkAgent.cpp
+	Utils/Phrozen/PhrozenMachineDatas.hpp
+	Utils/Phrozen/PhrozenMachineDatas.cpp
 	
     GUI/OAuthDialog.cpp
     GUI/OAuthDialog.hpp

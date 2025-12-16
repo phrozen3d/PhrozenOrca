@@ -9,7 +9,6 @@ namespace Slic3r {
 PhrozenNetworkAgent::PhrozenNetworkAgent(std::string log_dir)
     : m_log_dir(log_dir)
     , m_config_dir("")
-    , m_connected_dev_id("")
     , m_connected_dev_ip("")
     , m_is_connected(false)
     , m_timeout_ms(30000)  // 30 seconds default timeout
@@ -21,6 +20,16 @@ PhrozenNetworkAgent::PhrozenNetworkAgent(std::string log_dir)
     , m_on_progress_callback(nullptr)
 {
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Constructor called with log_dir: " << log_dir;
+
+    // implement callback function
+    m_fn_snapshop_write_stream_callback = [&](void* contents, size_t size, size_t nmemb, void* userp) -> size_t
+    {
+        size_t total_size = size * nmemb;
+        std::vector<unsigned char>* buffer = (std::vector<unsigned char> *)userp;
+        buffer->insert(buffer->end(), (unsigned char*)contents, (unsigned char*)contents + total_size);
+        return total_size;
+    };
+
 }
 
 // Destructor
@@ -60,18 +69,17 @@ int PhrozenNetworkAgent::start()
 }
 
 // Connect to a printer
-int PhrozenNetworkAgent::connect_printer(std::string dev_id, std::string dev_ip)
+int PhrozenNetworkAgent::connect_printer( std::string dev_ip)
 {
     std::lock_guard<std::mutex> lock(m_connection_mutex);
 
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Connecting to printer - ID: " << dev_id << ", IP: " << dev_ip;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Connecting to printer - IP: " << dev_ip;
 
     if (m_is_connected) {
         BOOST_LOG_TRIVIAL(warning) << "PhrozenNetworkAgent: Already connected to a printer, disconnecting first";
         disconnect_printer();
     }
 
-    m_connected_dev_id = dev_id;
     m_connected_dev_ip = dev_ip;
     m_is_connected = true;
 
@@ -94,9 +102,8 @@ int PhrozenNetworkAgent::disconnect_printer()
         return 0;
     }
 
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Disconnecting from printer: " << m_connected_dev_id;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Disconnecting from printer: " << m_connected_dev_ip;
 
-    m_connected_dev_id.clear();
     m_connected_dev_ip.clear();
     m_is_connected = false;
 
@@ -140,14 +147,14 @@ void PhrozenNetworkAgent::set_on_progress_callback(OnProgressCallback callback)
 }
 
 // Send message
-int PhrozenNetworkAgent::send_message(std::string dev_id, std::string message)
+int PhrozenNetworkAgent::send_message(std::string dev_ip, std::string message)
 {
     std::lock_guard<std::mutex> lock(m_message_mutex);
 
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending message to " << dev_id << ": " << message;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending message to " << dev_ip << ": " << message;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -158,12 +165,12 @@ int PhrozenNetworkAgent::send_message(std::string dev_id, std::string message)
 }
 
 // Send GCode command
-int PhrozenNetworkAgent::send_gcode_command(std::string dev_id, std::string gcode)
+int PhrozenNetworkAgent::send_gcode_command(std::string dev_ip, std::string gcode)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending GCode to " << dev_id << ": " << gcode;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending GCode to " << dev_ip << ": " << gcode;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -173,12 +180,12 @@ int PhrozenNetworkAgent::send_gcode_command(std::string dev_id, std::string gcod
 }
 
 // Send file
-int PhrozenNetworkAgent::send_file(std::string dev_id, std::string file_path, OnProgressCallback progress_fn)
+int PhrozenNetworkAgent::send_file(std::string dev_ip, std::string file_path, OnProgressCallback progress_fn)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending file to " << dev_id << ": " << file_path;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending file to " << dev_ip << ": " << file_path;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -188,13 +195,13 @@ int PhrozenNetworkAgent::send_file(std::string dev_id, std::string file_path, On
 }
 
 // Download file
-int PhrozenNetworkAgent::download_file(std::string dev_id, std::string remote_path, std::string local_path)
+int PhrozenNetworkAgent::download_file(std::string dev_ip, std::string remote_path, std::string local_path)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Downloading file from " << dev_id
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Downloading file from " << dev_ip
                             << " - Remote: " << remote_path << ", Local: " << local_path;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -204,12 +211,12 @@ int PhrozenNetworkAgent::download_file(std::string dev_id, std::string remote_pa
 }
 
 // Get printer info
-int PhrozenNetworkAgent::get_printer_info(std::string dev_id, std::string* info_json)
+int PhrozenNetworkAgent::get_printer_info(std::string dev_ip, std::string* info_json)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer info for " << dev_id;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer info for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -219,12 +226,12 @@ int PhrozenNetworkAgent::get_printer_info(std::string dev_id, std::string* info_
 }
 
 // Get printer status
-int PhrozenNetworkAgent::get_printer_status(std::string dev_id, std::string* status_json)
+int PhrozenNetworkAgent::get_printer_status(std::string dev_ip, std::string* status_json)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer status for " << dev_id;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer status for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
@@ -234,40 +241,67 @@ int PhrozenNetworkAgent::get_printer_status(std::string dev_id, std::string* sta
 }
 
 // Get camera stream URL
-int PhrozenNetworkAgent::get_camera_stream_url(std::string dev_id, std::string* url)
+int PhrozenNetworkAgent::get_camera_stream_url(std::string dev_ip, std::string* url)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera stream URL for " << dev_id;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera stream URL for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
         return -1;
     }
 
     // Implementation needed: Get camera stream URL
-
+    std::string port_device = ":8808";
+   *url = "http://" + dev_ip + port_device + "/webcam/?action=snapshot";
     return 0;
 }
 
 // Get camera snapshot
-int PhrozenNetworkAgent::get_camera_snapshot(std::string dev_id, std::vector<unsigned char>& image_data)
+CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data)
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera snapshot for " << dev_id;
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera snapshot for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_id != dev_id) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_id;
-        return -1;
+    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
+        return CURLcode::CURLE_FAILED_INIT;
     }
 
     // Implementation needed: Get camera snapshot
+    std::string str_snapshot_url;
+    if ( !get_camera_stream_url( dev_ip, &str_snapshot_url ) )
+    {
+        return CURLcode::CURLE_FAILED_INIT;
+    }
 
-    return 0;
+    CURLcode res = CURLcode::CURLE_FAILED_INIT;
+
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        BOOST_LOG_TRIVIAL( error ) << "CURL initialization failed!";
+        return res;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, str_snapshot_url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, m_fn_snapshop_write_stream_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &image_data);
+    curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
+
+    res = curl_easy_perform(curl);
+    if ( res != CURLE_OK ) {
+        BOOST_LOG_TRIVIAL(error) << "get snapshop image fail. snapshop url= " << str_snapshot_url;
+    }
+    curl_easy_cleanup(curl);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    return res;
 }
 
 // Get connected printer ID
 std::string PhrozenNetworkAgent::get_connected_printer_id()
 {
     std::lock_guard<std::mutex> lock(m_connection_mutex);
-    return m_connected_dev_id;
+    return m_connected_dev_ip;
 }
 
 // Get connected printer IP

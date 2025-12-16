@@ -6,11 +6,29 @@
 
 namespace Slic3r {
 
+class PhrozenNetworkAgent;
+
+//class PhrozenWebcamDataHandler
+//{
+//public:
+//
+//
+//private:
+//    std::mutex buffer_mutex;
+//    std::vector<unsigned char> bufferA;
+//    std::vector<unsigned char> bufferB;
+//    std::vector<unsigned char>* pWriteBuffer = &bufferA;
+//    std::vector<unsigned char>* pReadBuffer = &bufferB;
+//
+//    std::atomic< bool > m_bDataReady{false};
+//
+//};
+
+
 class PhrozenMachineObject : public MachineObject
 {
 
 public:
-
     PhrozenMachineObject( std::string name, std::string id, std::string ip );
     PhrozenMachineObject( std::string ip );
     ~PhrozenMachineObject();
@@ -99,6 +117,19 @@ public:
     virtual bool IsAnyCalibrationRunning() override;
 };
 
+class PhrozenMachineObject_Dev 
+{
+public:
+    PhrozenMachineObject_Dev( std::string ip, PhrozenNetworkAgent* pAgent );
+    ~PhrozenMachineObject_Dev();
+
+private:
+    PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
+    std::string m_strIp;
+};
+
+
+#pragma region PhrozenDeviceSearchResult
 class PhrozenDeviceSearchResult
 {
 public:
@@ -140,7 +171,9 @@ private:
     std::map< std::string, std::string >* m_pWriteBuffer = &m_kFoundedListA;
     std::map< std::string, std::string >* m_pReadBuffer = &m_kFoundedListB;
 };
+#pragma endregion 
 
+#pragma region PhrozenDeviceSearcher
 class PhrozenDeviceSearcher
 {
 public:
@@ -164,38 +197,29 @@ static std::exception_ptr eptr_;
 
 static PhrozenDeviceSearchResult m_kSearchResult;
 };
+#pragma endregion 
 
+#pragma region PhrozenDeviceManager
 class PhrozenDeviceManager
 {
-private:
-    NetworkAgent* m_agent { nullptr };
-
-    PhrozenMachineObject* create_machine(std::string dev_id);
-
-    static PhrozenDeviceSearchResult m_kDeviceResult;
 
 public:
-    PhrozenDeviceManager(NetworkAgent* agent = nullptr);
+    PhrozenDeviceManager( PhrozenNetworkAgent* agent = nullptr);
     ~PhrozenDeviceManager();
-    void set_agent(NetworkAgent* agent);
+    void set_agent( PhrozenNetworkAgent* agent);
+    void disconnect_machine();
+    bool connect_machine( std::string strIp );
+    PhrozenMachineObject_Dev* get_connecting_machine();
 
-    std::mutex listMutex;
-    std::string m_strSelected_machine_ip;                               /* dev_id */
-    std::map<std::string, std::shared_ptr< PhrozenMachineObject > > m_kConnectedBefore;   /* dev_id -> MachineObject*  cloudMachine of User */
-
-    void erase_connected_before_machine(std::string dev_id);
-
-    bool set_selected_machine(std::string dev_id,  bool do_connect = false );
-    PhrozenMachineObject* get_selected_machine();
-
-    void get_connected_before_ip_list( std::vector< std::string >& kList );
-
-    void disconnect_all();
-
-    boost::thread* m_thread{nullptr};
-
+private:
+    bool create_machine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject );
     
+    
+    std::shared_ptr< PhrozenMachineObject_Dev > m_spConnected_dev{ nullptr };
+    PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
+
 };
+#pragma endregion 
 
 } // namespace Slic3r
 

@@ -19,6 +19,7 @@ typedef std::function<void(std::string)> OnMessageCallback;
 typedef std::function<void(bool)> OnConnectionCallback;
 typedef std::function<void(int, std::string)> OnErrorCallback;
 typedef std::function<void(float)> OnProgressCallback;
+typedef std::function<size_t(void*, size_t, size_t, void*)> OnSnapshotWriteStreamCallback;
 
 class PhrozenNetworkAgent
 {
@@ -32,7 +33,7 @@ public:
     int start();
 
     // Connection management
-    int connect_printer(std::string dev_id, std::string dev_ip);
+    int connect_printer( std::string dev_ip);
     int disconnect_printer();
     bool is_connected();
 
@@ -55,8 +56,8 @@ public:
     int get_printer_status(std::string dev_id, std::string* status_json);
 
     // Camera operations
-    int get_camera_stream_url(std::string dev_id, std::string* url);
-    int get_camera_snapshot(std::string dev_id, std::vector<unsigned char>& image_data);
+    int get_camera_stream_url(std::string dev_ip, std::string* url);
+    CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
 
     // Utility methods
     std::string get_connected_printer_id();
@@ -68,7 +69,6 @@ private:
     // Internal state
     std::string m_log_dir;
     std::string m_config_dir;
-    std::string m_connected_dev_id;
     std::string m_connected_dev_ip;
     bool m_is_connected;
     int m_timeout_ms;
@@ -82,6 +82,7 @@ private:
     OnConnectionCallback m_on_connection_callback;
     OnErrorCallback m_on_error_callback;
     OnProgressCallback m_on_progress_callback;
+    OnSnapshotWriteStreamCallback m_fn_snapshop_write_stream_callback;
 
     // Thread safety
     std::mutex m_connection_mutex;
