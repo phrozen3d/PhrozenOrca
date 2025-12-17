@@ -241,39 +241,57 @@ int PhrozenNetworkAgent::get_printer_status(std::string dev_ip, std::string* sta
 }
 
 // Get camera stream URL
-int PhrozenNetworkAgent::get_camera_stream_url(std::string dev_ip, std::string* url)
+bool PhrozenNetworkAgent::get_camera_stream_url(std::string dev_ip, std::string* url)
 {
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera stream URL for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
+    //if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+    //    BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
+    //    return -1;
+    //}
 
     // Implementation needed: Get camera stream URL
     std::string port_device = ":8808";
    *url = "http://" + dev_ip + port_device + "/webcam/?action=snapshot";
-    return 0;
+    return true;
 }
 
-// Get camera snapshot
+size_t WebcamWriteStreamCallback(void* contents, size_t size, size_t nmemb, void* userp) 
+{
+    size_t total_size = size * nmemb;
+    std::vector<unsigned char>* buffer = (std::vector<unsigned char> *)userp;
+    buffer->insert(buffer->end(), (unsigned char*)contents, (unsigned char*)contents + total_size);
+    return total_size;
+}
+
+// Get camera snapshot (//LiveStreamWithMultiThread)
 CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data)
 {
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting camera snapshot for " << dev_ip;
 
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return CURLcode::CURLE_FAILED_INIT;
-    }
+    //if (!m_is_connected || m_connected_dev_ip != dev_ip) {
+    //    BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
+    //    return CURLcode::CURLE_FAILED_INIT;
+    //}
 
-    // Implementation needed: Get camera snapshot
     std::string str_snapshot_url;
     if ( !get_camera_stream_url( dev_ip, &str_snapshot_url ) )
     {
         return CURLcode::CURLE_FAILED_INIT;
     }
 
-    CURLcode res = CURLcode::CURLE_FAILED_INIT;
+    auto lastCaptureTime = std::chrono::steady_clock::now();
+    float fRecordInterval = 8.f;
+    CURLcode res = CURLE_FAILED_INIT;
+
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCaptureTime).count();
+    while ( elapsed < fRecordInterval )
+    {
+        now = std::chrono::steady_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCaptureTime).count();
+    }
+
 
     CURL* curl = curl_easy_init();
     if (!curl) {
@@ -281,9 +299,18 @@ CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vecto
         return res;
     }
 
+    auto fn_snapshop_write_stream_callback = [&](void* contents, size_t size, size_t nmemb, void* userp) -> size_t
+    {
+        size_t total_size = size * nmemb;
+        std::vector<unsigned char>* buffer = (std::vector<unsigned char> *)userp;
+        buffer->insert(buffer->end(), (unsigned char*)contents, (unsigned char*)contents + total_size);
+        return total_size;
+    };
+
+    std::vector<unsigned char> kTempWebCamImageData;
     curl_easy_setopt(curl, CURLOPT_URL, str_snapshot_url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, m_fn_snapshop_write_stream_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &image_data);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WebcamWriteStreamCallback); //m_fn_snapshop_write_stream_callback
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &image_data);//image_data
     curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
 
@@ -292,8 +319,6 @@ CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vecto
         BOOST_LOG_TRIVIAL(error) << "get snapshop image fail. snapshop url= " << str_snapshot_url;
     }
     curl_easy_cleanup(curl);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     return res;
 }
 

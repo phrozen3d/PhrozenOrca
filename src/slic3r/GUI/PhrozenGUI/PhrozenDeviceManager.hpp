@@ -2,28 +2,13 @@
 #define slic3r_PhrozenDeviceManager_hpp_
 
 #include "../DeviceManager.hpp"
+#include "../../Utils/Phrozen/PhrozenMachineDatas.hpp"
 #include <atomic>
 
 namespace Slic3r {
 
 class PhrozenNetworkAgent;
-
-//class PhrozenWebcamDataHandler
-//{
-//public:
-//
-//
-//private:
-//    std::mutex buffer_mutex;
-//    std::vector<unsigned char> bufferA;
-//    std::vector<unsigned char> bufferB;
-//    std::vector<unsigned char>* pWriteBuffer = &bufferA;
-//    std::vector<unsigned char>* pReadBuffer = &bufferB;
-//
-//    std::atomic< bool > m_bDataReady{false};
-//
-//};
-
+class WorkerFuncSafe;
 
 class PhrozenMachineObject : public MachineObject
 {
@@ -43,9 +28,6 @@ public:
     virtual float GetPhrozenBedTargetTemperature() override;
     virtual float GetPhrozenNozzleTargetTemperature() override;
 
-    virtual std::string GetPhrozenWebCameraStreamUrl() override;
-    virtual std::string GetPhrozenWebCameraSnapshotUrl() override;
-    virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) override;
     virtual int GetPhrozenBedTemperature_limit() override;
     virtual int GetPhrozenNozzleTemperature_limit() override;
     // print states
@@ -123,9 +105,21 @@ public:
     PhrozenMachineObject_Dev( std::string ip, PhrozenNetworkAgent* pAgent );
     ~PhrozenMachineObject_Dev();
 
+    // Read from ui
+    bool ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data );
+    std::string GetMachineIp() { return m_strIp; }
+
+    // Recieve from machine
+    bool MoveDataToWebcamSnapshot( std::vector<unsigned char>& data );
+private:
+    
+
 private:
     PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
     std::string m_strIp;
+
+    DoubleBufferSP< std::vector<unsigned char> >* GetWebcameSnapshotPtr() { return &m_webcame_snapshot; }
+    DoubleBufferSP< std::vector<unsigned char> > m_webcame_snapshot;
 };
 
 
@@ -207,17 +201,27 @@ public:
     PhrozenDeviceManager( PhrozenNetworkAgent* agent = nullptr);
     ~PhrozenDeviceManager();
     void set_agent( PhrozenNetworkAgent* agent);
-    void disconnect_machine();
-    bool connect_machine( std::string strIp );
-    PhrozenMachineObject_Dev* get_connecting_machine();
+    
+    void DisconnectMachine();
+    bool CreateAndConnectMachine( std::string strIp );
+    PhrozenMachineObject_Dev* GetConnectingMachine();
+
+    bool StartReceiveWebcam();
+    void StopReceiveWebcam();
+
+    bool IsMachineConnecting() { return m_spConnectedMachine != nullptr; }
 
 private:
-    bool create_machine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject );
+    bool CreateMachine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject );
     
-    
-    std::shared_ptr< PhrozenMachineObject_Dev > m_spConnected_dev{ nullptr };
+    std::shared_ptr< PhrozenMachineObject_Dev > m_spConnectedMachine{ nullptr };
     PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
 
+    
+
+
+private:
+    std::unique_ptr< WorkerFuncSafe > m_spRecieveWebcam{ nullptr };
 };
 #pragma endregion 
 

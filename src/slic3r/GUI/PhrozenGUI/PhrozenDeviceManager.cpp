@@ -11,6 +11,7 @@
 #include <wx/mstream.h>
 #include <boost/log/trivial.hpp>
 #include "../GUI_App.hpp"
+#include "../../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 //#include "MsgDialog.hpp"
 //#include "Plater.hpp"
 //#include "ReleaseNote.hpp"
@@ -81,33 +82,6 @@ float PhrozenMachineObject::GetPhrozenBedTargetTemperature()
 float PhrozenMachineObject::GetPhrozenNozzleTargetTemperature() 
 {
     return MonitorControl::m_pPrinterInfo->extruder_temperature_target;
-}
-
-
-std::string PhrozenMachineObject::GetPhrozenWebCameraStreamUrl()
-{
-    std::string url = "http://" + MonitorControl::m_pWebServiceInfo->ip + MonitorControl::m_pWebServiceInfo->port_device + "/webcam/?action=stream";//action=snapshot";
-    return url;
-}
-
-std::string PhrozenMachineObject::GetPhrozenWebCameraSnapshotUrl()
-{
-    std::string url = "http://" + MonitorControl::m_pWebServiceInfo->ip + MonitorControl::m_pWebServiceInfo->port_device + "/webcam/?action=snapshot";
-    return url;
-}
-
-
-bool PhrozenMachineObject::GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData )
-{
-    std::lock_guard<std::mutex> lock( MonitorControl::WebCamDataHandler.buffer_mutex);
-    if ( MonitorControl::WebCamDataHandler.pReadBuffer->empty()
-         || !MonitorControl::WebCamDataHandler.bNewImageAvailable )
-    {
-        return false;
-    }
-    kWebCameraImageData = std::move( *MonitorControl::WebCamDataHandler.pReadBuffer );
-    MonitorControl::WebCamDataHandler.bNewImageAvailable = false;
-    return true;
 }
 
 int PhrozenMachineObject::GetPhrozenBedTemperature_limit()
@@ -1200,16 +1174,6 @@ void PhrozenDeviceSearcher::ProcessSearchMachine( std::map< std::string, std::st
 #pragma endregion
 
 #pragma region PhrozenMachineObject_Dev
-//class PhrozenMachineObject_Dev 
-//{
-//public:
-//    PhrozenMachineObject_Dev( std::string ip );
-//    ~PhrozenMachineObject_Dev();
-//
-//private:
-//    std::shared_ptr< PhrozenNetworkAgent > m_spNetworkAgent { nullptr };
-//};
-
 PhrozenMachineObject_Dev::PhrozenMachineObject_Dev( std::string ip, PhrozenNetworkAgent* pAgent ) 
     :m_strIp( ip ),
     m_pNetworkAgent( pAgent )
@@ -1219,9 +1183,24 @@ PhrozenMachineObject_Dev::PhrozenMachineObject_Dev( std::string ip, PhrozenNetwo
 
 PhrozenMachineObject_Dev::~PhrozenMachineObject_Dev()
 {
-
 }
 
+
+bool PhrozenMachineObject_Dev::MoveDataToWebcamSnapshot( std::vector<unsigned char>& data )
+{
+    auto pWebcam = GetWebcameSnapshotPtr();
+    if ( pWebcam->move_and_write( data ) )
+    {
+        pWebcam->flip();
+    }
+    return true;
+}
+
+bool PhrozenMachineObject_Dev::ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data )
+{
+    auto pWebcam = GetWebcameSnapshotPtr();
+    return pWebcam->try_read( data );
+}
 
 #pragma endregion
 
@@ -1240,9 +1219,9 @@ PhrozenDeviceManager::PhrozenDeviceManager( PhrozenNetworkAgent* agent)
 
 PhrozenDeviceManager::~PhrozenDeviceManager()
 {
-    if ( m_spConnected_dev )
+    if ( m_spConnectedMachine )
     {   
-        disconnect_machine();
+        DisconnectMachine();
     }
 }
 
@@ -1251,32 +1230,30 @@ void PhrozenDeviceManager::set_agent(PhrozenNetworkAgent* agent)
     m_pNetworkAgent = agent;
 }
 
-bool PhrozenDeviceManager::connect_machine(std::string dev_id ) 
+bool PhrozenDeviceManager::CreateAndConnectMachine(std::string dev_id ) 
 {
-    if ( get_connecting_machine() )
+    if ( m_spConnectedMachine )
     {
-        disconnect_machine();
+        DisconnectMachine();
     }
-
-    if ( !create_machine( dev_id , m_spConnected_dev ) ) return false;
-
-
-
-    return true;
+    return CreateMachine( dev_id , m_spConnectedMachine );
 }
 
-PhrozenMachineObject_Dev* PhrozenDeviceManager::get_connecting_machine()
+PhrozenMachineObject_Dev* PhrozenDeviceManager::GetConnectingMachine()
 {
-    return m_spConnected_dev.get();
+    return m_spConnectedMachine ? m_spConnectedMachine.get() : nullptr;
 }
 
-void PhrozenDeviceManager::disconnect_machine() 
+void PhrozenDeviceManager::DisconnectMachine() 
 {
-    if ( !m_spConnected_dev ) return;
+    if ( !m_spConnectedMachine ) return;
+
+    StopReceiveWebcam();
+    m_spConnectedMachine = nullptr;
 
 }
 
-bool PhrozenDeviceManager::create_machine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject ) 
+bool PhrozenDeviceManager::CreateMachine( std::string dev_id , std::shared_ptr< PhrozenMachineObject_Dev >& spObject ) 
 {
     spObject = nullptr;
     if ( dev_id.empty() || !m_pNetworkAgent ) { return false; }
@@ -1285,6 +1262,38 @@ bool PhrozenDeviceManager::create_machine( std::string dev_id , std::shared_ptr<
     return spObject != nullptr;
 }
 
+bool PhrozenDeviceManager::StartReceiveWebcam()
+{
+    if ( !m_spConnectedMachine || !m_pNetworkAgent ) return false;
+
+    auto strIp = m_spConnectedMachine->GetMachineIp();
+    if ( strIp.empty() ) return false;
+    if ( m_spRecieveWebcam ) return true;
+
+    auto agent = m_pNetworkAgent;
+    auto machineObj = m_spConnectedMachine;
+
+    m_spRecieveWebcam = std::make_unique< WorkerFuncSafe >( 
+    [ agent, machineObj, strIp] {
+
+        std::vector<unsigned char> image_data;
+        auto kResult = agent->get_camera_snapshot(strIp, image_data );
+        if ( kResult == CURLcode::CURLE_OK )
+        {
+            machineObj->MoveDataToWebcamSnapshot( image_data );
+        }
+    }, 
+    std::chrono::milliseconds{10} );
+
+    m_spRecieveWebcam->Process();
+    return true;
+}
+
+void PhrozenDeviceManager::StopReceiveWebcam()
+{
+    m_spRecieveWebcam->Stop();
+    m_spRecieveWebcam = nullptr;
+}
 
 
 #pragma endregion

@@ -7,12 +7,116 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <thread>
+#include <atomic>
 #include "slic3r/Utils/json_diff.hpp"
+
 
 namespace Slic3r {
 
 // Forward declarations
 class AppConfig;
+
+class WorkerFuncSafe {
+public:
+    explicit WorkerFuncSafe(std::function<void()> runFunc,
+                            std::chrono::milliseconds loopSleep = std::chrono::milliseconds{1})
+        : m_runFunc(std::move(runFunc)),
+          m_loopSleep(loopSleep),
+          m_running(false),
+          m_stopping(false) {}
+
+    bool Process( bool bNonBlockingIfStopping = false ) {
+        std::unique_lock<std::mutex> lk(m_mutex);
+
+        if (m_thread && m_running.load(std::memory_order_acquire)) return false; 
+
+        if (m_thread && m_stopping.load(std::memory_order_acquire)) {
+            if (bNonBlockingIfStopping) return false; // if not totally stop, return directly
+
+            // otherwise, wait until totally stop, then reprocess.
+            m_cv.wait(lk, [this] { return !m_thread; });
+        }
+
+        // thread totally stop, start work
+        m_running.store(true, std::memory_order_release);
+        m_stopping.store(false, std::memory_order_release);
+
+        // create new thread
+        m_thread = std::make_unique<std::thread>([this]{
+
+            while (m_running.load(std::memory_order_acquire)) {
+                try {
+                    m_runFunc();
+                } catch (const std::exception& ex) {
+                    // prevent exception let thread silent dead
+                    std::cerr << "Worker runFunc() exception: " << ex.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "Worker runFunc() unknown exception" << std::endl;
+                }
+
+                // Cut costs according to demand and avoid a vicious cycle.
+                if (m_loopSleep.count() > 0) {
+                    std::this_thread::sleep_for(m_loopSleep);
+                }
+            }
+
+            // end loop, start do clear( stop() ), do not do other thing here.
+        });
+
+        return true;
+    }
+
+    // Cooperative stopping: Notify the loop to end, join without holding locks, set to nullptr
+    void Stop() {
+        std::unique_ptr<std::thread> localThread;
+
+        {
+            std::lock_guard<std::mutex> lk(m_mutex);
+
+            if (!m_thread) {
+                m_running.store(false, std::memory_order_release);
+                m_stopping.store(false, std::memory_order_release);
+                return;
+            }
+
+            // set stop flag to cut while loop
+            m_running.store(false, std::memory_order_release);
+            m_stopping.store(true, std::memory_order_release);
+
+            // Move the thread out of the scope of the variable to reduce the lock range 
+            // (to avoid deadlock caused by holding locks during joins).
+            localThread = std::move(m_thread); // m_thread change to nullptr
+        }
+
+        // Join without holding a lock to avoid blocking other calls (such as processes).
+        if (localThread && localThread->joinable()) {
+            localThread->join();
+        }
+
+        // Cleanup complete; reset the stopping flag to notify potentially waiting processes()
+        {
+            std::lock_guard<std::mutex> lk(m_mutex);
+            m_stopping.store(false, std::memory_order_release);
+        }
+        m_cv.notify_all();
+    }
+
+    ~WorkerFuncSafe() {
+        Stop(); // Ensure resource recycling
+    }
+
+private:
+    std::function<void()>         m_runFunc;
+    std::chrono::milliseconds     m_loopSleep;
+
+    std::unique_ptr<std::thread>  m_thread;
+    std::atomic<bool>             m_running;  // While loop continues
+    std::atomic<bool>             m_stopping; // Is stop() cleaning up
+
+    std::mutex                    m_mutex;
+    std::condition_variable       m_cv;
+};
 
 // Callback function types for Phrozen network communication
 typedef std::function<void(std::string)> OnMessageCallback;
@@ -56,7 +160,7 @@ public:
     int get_printer_status(std::string dev_id, std::string* status_json);
 
     // Camera operations
-    int get_camera_stream_url(std::string dev_ip, std::string* url);
+    bool get_camera_stream_url(std::string dev_ip, std::string* url);
     CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
 
     // Utility methods
@@ -105,6 +209,7 @@ private:
     // Error handling
     void handle_error(int error_code, const std::string& error_message);
     std::string get_error_string(CURLcode code);
+
 };
 
 } // namespace Slic3r
