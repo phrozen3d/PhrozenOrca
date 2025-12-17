@@ -1232,11 +1232,15 @@ void PhrozenDeviceManager::set_agent(PhrozenNetworkAgent* agent)
 
 bool PhrozenDeviceManager::CreateAndConnectMachine(std::string dev_id ) 
 {
+    if ( !m_pNetworkAgent ) return false;
     if ( m_spConnectedMachine )
     {
         DisconnectMachine();
     }
-    return CreateMachine( dev_id , m_spConnectedMachine );
+
+    bool bSucced = m_pNetworkAgent->InitializeConnector( dev_id );
+    return bSucced ? CreateMachine( dev_id , m_spConnectedMachine ) : false;
+
 }
 
 PhrozenMachineObject_Dev* PhrozenDeviceManager::GetConnectingMachine()
@@ -1293,6 +1297,16 @@ void PhrozenDeviceManager::StopReceiveWebcam()
 {
     m_spRecieveWebcam->Stop();
     m_spRecieveWebcam = nullptr;
+}
+
+bool PhrozenDeviceManager::StartSendMessage()
+{
+    return true;
+}
+
+void PhrozenDeviceManager::StopSendMessage()
+{
+
 }
 
 

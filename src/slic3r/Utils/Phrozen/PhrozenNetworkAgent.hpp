@@ -16,7 +16,12 @@ namespace Slic3r {
 
 // Forward declarations
 class AppConfig;
+class PhrozenWebServiceInfo;
+class PhrozenPrinterInfo;
+class PhrozenThreadControl;
+class PhrozenMonitorWindow;
 
+#pragma region WorkerFuncSafe
 class WorkerFuncSafe {
 public:
     explicit WorkerFuncSafe(std::function<void()> runFunc,
@@ -117,6 +122,7 @@ private:
     std::mutex                    m_mutex;
     std::condition_variable       m_cv;
 };
+#pragma endregion
 
 // Callback function types for Phrozen network communication
 typedef std::function<void(std::string)> OnMessageCallback;
@@ -131,6 +137,26 @@ public:
     PhrozenNetworkAgent(std::string log_dir = "");
     ~PhrozenNetworkAgent();
 
+    bool InitializeConnector( const std::string& strIp  );
+    void CleanupWebSocketConnection();
+
+    void SetStartSending( bool bStart );
+    bool IsStartSending();
+
+    void SetStartReceiving( bool bStart );
+    bool IsStartReceiving();
+
+
+    // ==== function to interactive with machine === //
+    void RunSendMessage( const std::vector< json >& kMessageList );
+
+    bool get_camera_stream_url(std::string dev_ip, std::string* url);
+    CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
+
+
+
+
+    //====== below just for reference ========== //
     // Initialization and configuration
     int init_log();
     int set_config_dir(std::string config_dir);
@@ -159,10 +185,6 @@ public:
     int get_printer_info(std::string dev_id, std::string* info_json);
     int get_printer_status(std::string dev_id, std::string* status_json);
 
-    // Camera operations
-    bool get_camera_stream_url(std::string dev_ip, std::string* url);
-    CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
-
     // Utility methods
     std::string get_connected_printer_id();
     std::string get_connected_printer_ip();
@@ -170,6 +192,23 @@ public:
     int get_timeout() const;
 
 private:
+    
+    bool InitializeConnectorImp( const std::string& strIp );
+
+
+    std::string m_strIp;
+    CURL* m_pCurlMainWebsocket = nullptr;
+    std::mutex m_kCurlMutex;
+
+    std::unique_ptr< PhrozenWebServiceInfo > m_spWebServiceInfo{ nullptr };
+    std::unique_ptr< PhrozenPrinterInfo > m_spPrinterInfo{ nullptr };
+    std::unique_ptr< PhrozenThreadControl > m_spThreadControl{ nullptr };
+    std::unique_ptr< PhrozenMonitorWindow > m_spMonitorWindow{ nullptr };
+    
+    std::atomic<bool> m_bStartSending{false};
+    std::atomic<bool> m_bStartReceiving{false};
+
+     //====== below just for reference ========== //
     // Internal state
     std::string m_log_dir;
     std::string m_config_dir;
@@ -209,6 +248,8 @@ private:
     // Error handling
     void handle_error(int error_code, const std::string& error_message);
     std::string get_error_string(CURLcode code);
+
+
 
 };
 

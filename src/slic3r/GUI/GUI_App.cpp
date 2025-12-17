@@ -6907,6 +6907,7 @@ bool is_support_filament(int extruder_id)
 #pragma region Phrozen
 bool GUI_App::InitPhrozenConnector( const std::string& strIp )
 {
+    //old flow: 
     MonitorControl::SetIp( strIp );
     CURLcode kResult = MonitorControl::Initialconnect();
     //trigger ams update query command after connect to speicified IP address (Printer)
@@ -6926,20 +6927,15 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
         pPhrozenMachineObject = std::make_shared< PhrozenMachineObject >( "Arco", "Arco", strIp );
     }
 
-    if ( !m_spPhrozenManager->CreateAndConnectMachine( strIp ) )
-    {
-        std::terminate();
-    }
+    //new flow
+    return m_spPhrozenManager->CreateAndConnectMachine( strIp ); //std::terminate();
 
-
-    return kResult == CURLcode::CURLE_OK;
+    
 }
 
 void GUI_App::ProcessPhrozenConnector()
 {
     MonitorControl::m_kHistoryInfoList.clear();
-    MonitorControl::m_kMonitorWindow.selectMachineWindowShow = false;
-    MonitorControl::m_kMonitorWindow.selectMachineWindowShow_preview = false;
     MonitorControl::SetStartReceiving( true );
     MonitorControl::SetStartSending( true );
     

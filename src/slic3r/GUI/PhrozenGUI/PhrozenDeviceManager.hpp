@@ -209,6 +209,9 @@ public:
     bool StartReceiveWebcam();
     void StopReceiveWebcam();
 
+    bool StartSendMessage();
+    void StopSendMessage();
+
     bool IsMachineConnecting() { return m_spConnectedMachine != nullptr; }
 
 private:
@@ -222,6 +225,7 @@ private:
 
 private:
     std::unique_ptr< WorkerFuncSafe > m_spRecieveWebcam{ nullptr };
+    std::unique_ptr< WorkerFuncSafe > m_spSendMessage{ nullptr };
 };
 #pragma endregion 
 

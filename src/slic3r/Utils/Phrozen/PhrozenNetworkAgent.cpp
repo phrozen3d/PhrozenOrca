@@ -1,6 +1,7 @@
 #include "PhrozenNetworkAgent.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include <boost/log/trivial.hpp>
+#include "PhrozenMachineDatas.hpp"
 #include <sstream>
 
 namespace Slic3r {
@@ -38,6 +39,225 @@ PhrozenNetworkAgent::~PhrozenNetworkAgent()
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Destructor called";
     disconnect_printer();
     cleanup_curl();
+}
+
+bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
+{
+    if ( !m_spWebServiceInfo )
+    {
+        m_spWebServiceInfo = std::make_unique< PhrozenWebServiceInfo >();
+    }
+    if ( !m_spPrinterInfo )
+    {
+        m_spPrinterInfo = std::make_unique< PhrozenPrinterInfo >();
+    }
+    if ( !m_spThreadControl )
+    {
+        m_spThreadControl = std::make_unique< PhrozenThreadControl >();
+    }
+    if ( !m_spMonitorWindow )
+    {
+        m_spMonitorWindow = std::make_unique< PhrozenMonitorWindow >();
+    }
+
+
+    //trigger ams update query command after connect to speicified IP address (Printer)
+    m_spThreadControl->first_time_to_send_query = true;
+
+    bool bSuccess = InitializeConnectorImp( strIp );
+    if ( !bSuccess )
+    {
+        m_spWebServiceInfo->ip = "";
+        m_spMonitorWindow->connectedMachineName = "";
+        m_spMonitorWindow->isShownIPConnectNotification = true;
+        SetStartReceiving(false);
+        SetStartSending(false);
+    }
+    return bSuccess;
+}
+
+bool PhrozenNetworkAgent::InitializeConnectorImp( const std::string& strIp )
+{
+    auto fnCheckCurlSuccess =[&]( CURLcode& res ) -> bool
+    {
+        bool bSuccess = res == CURLcode::CURLE_OK;
+        if ( bSuccess ){  m_strIp = strIp; }
+        return bSuccess;
+    };
+
+    CURLcode res = CURLE_FAILED_INIT;
+    curl_version_info_data *ver_info;
+
+    // Check CURL version and WebSocket support
+    ver_info = curl_version_info(CURLVERSION_NOW);
+    if (!ver_info) {
+        printf("Failed to get CURL version info\n");
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Failed to get CURL version info\n";
+        return fnCheckCurlSuccess(res);
+    }
+
+    printf("CURL version: %s\n", ver_info->version);
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "CURL version: " << ver_info->version << "\n";
+
+    // Check if WebSocket protocol is supported
+    bool ws_supported = false;
+    if (ver_info->protocols) {
+        for (const char * const *proto = ver_info->protocols; *proto; ++proto) {
+            if (strcmp(*proto, "ws") == 0 || strcmp(*proto, "wss") == 0) {
+                ws_supported = true;
+                printf("WebSocket protocol supported: %s\n", *proto);
+                break;
+            }
+        }
+    }
+
+    if (!ws_supported) {
+        printf("WebSocket protocol not supported by this CURL build\n");
+        printf("Supported protocols: ");
+        if (ver_info->protocols) {
+            for (const char * const *proto = ver_info->protocols; *proto; ++proto) {
+                printf("%s ", *proto);
+            }
+        }
+        printf("\n");
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebSocket protocol not supported by this CURL build\n";
+        return fnCheckCurlSuccess( res ); // Protocol not supported
+    }
+
+    CleanupWebSocketConnection();
+    m_pCurlMainWebsocket = curl_easy_init();
+
+    if (m_pCurlMainWebsocket) {
+        // Validate webServiceInfo before using
+        if ( m_spWebServiceInfo->ip.empty() || m_spWebServiceInfo->port.empty()) {
+            printf("WebService info not properly initialized: IP=%s, Port=%s\n",
+                   m_spWebServiceInfo->ip.c_str(), m_spWebServiceInfo->port.c_str());
+            curl_easy_cleanup(m_pCurlMainWebsocket);
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebService info not properly initialized\n";
+            return fnCheckCurlSuccess( res ); // Invalid configuration
+        }
+
+        std::string url = "ws://" + m_spWebServiceInfo->ip + ":" + m_spWebServiceInfo->port + "/websocket";
+        printf("Attempting WebSocket connection to: %s\n", url.c_str());
+
+#ifdef __APPLE__
+        // Use the socket API to trigger an ARP request and wait for it to complete (the wait is already included internally).
+        TriggerArpResolution(m_spWebServiceInfo->ip);
+        
+        // Waiting for the ARP table to be updated and for confirmation that ARP resolution is complete (maximum wait 1000ms).
+        if (WaitForArpResolution(m_spWebServiceInfo->ip, 1000)) {
+            printf("ARP resolution completed, ARP entry confirmed in table\n");
+        } else {
+            printf("ARP resolution may not be complete, but proceeding with connection\n");
+            // The connection will continue even if the ARP table check fails (there may be a delay in ARP table updates).
+        }
+        printf("Proceeding with WebSocket connection\n");
+#endif
+
+        // Set CURL options
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_TIMEOUT_MS, 5000L); // Increased timeout
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
+
+        // Enable verbose output for debugging
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_VERBOSE, 1L);
+
+        // Set user agent
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_USERAGENT, "PhrozenOrca WebSocket Client");
+
+        // Disable SSL verification for testing (remove in production)
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(m_pCurlMainWebsocket, CURLOPT_SSL_VERIFYHOST, 0L);
+
+        /* Perform the request, res will get the return code */
+        res = curl_easy_perform(m_pCurlMainWebsocket);
+
+        /* Check for errors */
+        if (res != CURLE_OK) {
+            printf("WebSocket connection failed: %s (Error code: %d)\n",
+                   curl_easy_strerror(res), res);
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebSocket connection failed\n";
+
+            // Get more detailed error information
+            long response_code;
+            curl_easy_getinfo(m_pCurlMainWebsocket, CURLINFO_RESPONSE_CODE, &response_code);
+            printf("HTTP response code: %ld\n", response_code);
+
+            curl_easy_cleanup(m_pCurlMainWebsocket);
+            m_pCurlMainWebsocket = nullptr;
+            SetStartReceiving( false );
+            SetStartSending( false );
+
+            return fnCheckCurlSuccess( res ); // Return CURL error code
+        }
+        else {
+            printf("WebSocket connection established successfully\n");
+            
+            if(m_spWebServiceInfo->ip == m_spPrinterInfo->pre_printerIP){
+                m_spPrinterInfo->isSameIP = true;
+            }
+            else{
+                m_spPrinterInfo->isSameIP = false;
+                m_spPrinterInfo->pre_printerIP = m_spWebServiceInfo->ip;
+            }
+
+            // Get connection info
+            long response_code;
+            curl_easy_getinfo(m_pCurlMainWebsocket, CURLINFO_RESPONSE_CODE, &response_code);
+            printf("HTTP response code: %ld\n", response_code);
+
+            char *effective_url;
+            curl_easy_getinfo(m_pCurlMainWebsocket, CURLINFO_EFFECTIVE_URL, &effective_url);
+            if (effective_url) {
+                printf("Connected to: %s\n", effective_url);
+            }
+        }
+    }
+    else {
+        printf("Failed to initialize CURL handle\n");
+        m_pCurlMainWebsocket = nullptr;
+        SetStartReceiving( false );
+        SetStartSending( false );
+        return fnCheckCurlSuccess( res ); // CURL init failed
+    }
+
+    return fnCheckCurlSuccess( res );
+}
+
+void PhrozenNetworkAgent::CleanupWebSocketConnection()
+{
+    if ( m_pCurlMainWebsocket != nullptr) {
+        //close websocket while it linking.
+        size_t sent;
+        curl_ws_send(m_pCurlMainWebsocket, "", 0, &sent, 0, CURLWS_CLOSE);
+        
+        //release memory
+        curl_easy_cleanup(m_pCurlMainWebsocket);
+        m_pCurlMainWebsocket = nullptr;
+    }
+    m_strIp = "";
+}
+
+void PhrozenNetworkAgent::SetStartSending( bool bStart )
+{
+    if ( bStart ) { m_bStartSending.store(true, std::memory_order_relaxed); }
+    else          { m_bStartSending.store(false, std::memory_order_relaxed); }
+}
+
+bool PhrozenNetworkAgent::IsStartSending()
+{
+    return m_bStartSending.load(std::memory_order_relaxed);
+}
+
+void PhrozenNetworkAgent::SetStartReceiving( bool bStart )
+{
+    if ( bStart ) { m_bStartReceiving.store(true, std::memory_order_relaxed); }
+    else          { m_bStartReceiving.store(false, std::memory_order_relaxed); }
+}
+
+bool PhrozenNetworkAgent::IsStartReceiving()
+{
+    return m_bStartReceiving.load(std::memory_order_relaxed);
 }
 
 // Initialize logging
@@ -238,6 +458,55 @@ int PhrozenNetworkAgent::get_printer_status(std::string dev_ip, std::string* sta
     // Implementation needed: Query printer status
 
     return 0;
+}
+
+
+void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageList )
+{
+#if 0
+    try {
+        auto nowTime = std::chrono::steady_clock::now();
+        auto previousTime = std::chrono::steady_clock::now();
+        while ( IsStartSending() )
+        {
+            {
+                // CRITICAL: libcurl easy handle is NOT thread-safe
+                // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+                // Operating the same curl handle from 2 threads may cause crash risk
+                std::lock_guard<std::mutex> lock(m_kCurlMutex);
+                BOOST_LOG_TRIVIAL(debug) << "RunSendMessage: Lock acquired, Thread ID: " << thread_id;
+                
+                CURLcode result = send_action_Command(payload.dump());
+                
+                nowTime = std::chrono::steady_clock::now();
+                long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
+                /*when re-connect after disconnect need to do one more time*/
+                //if (threadControl.first_time_to_send_query) {
+                    //no need to do repeat execution
+                //   result = send_action_Command(payload_AMS.dump());
+                //}
+                // TODO: Allow duplicate execution until we implement a better mechanism
+                // Temporarily allow repeated execution until better solution is found
+                if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                {
+                    result = send_action_Command(payload_AMS.dump());
+                    result = send_action_Command(payload_history.dump());
+                    result = send_action_Command(payload_Nozzle.dump());
+                    result = send_action_Command(payload_LED.dump());
+                    threadControl.first_time_to_send_query = false;
+                    previousTime = std::chrono::steady_clock::now();
+                }
+                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
+            }// Lock released from here before sleep to avoid blocking ReceiveResponse() thread
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+
+    } catch (const std::invalid_argument& e) {
+        DebugOutput( "Caught std::invalid_argument: " , e.what());
+    } catch (const std::exception& e) {
+        DebugOutput( "Caught std::exception: " , e.what() );
+    }
+ #endif
 }
 
 // Get camera stream URL
