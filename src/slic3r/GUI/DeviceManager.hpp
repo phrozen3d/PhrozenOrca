@@ -426,9 +426,6 @@ public:
     virtual float GetPhrozenBedTargetTemperature() { return 0.0f; }
     virtual float GetPhrozenNozzleTargetTemperature() { return 0.0f; }
 
-    virtual std::string GetPhrozenWebCameraStreamUrl() { return ""; }
-    virtual std::string GetPhrozenWebCameraSnapshotUrl() { return ""; }
-    virtual bool GetPhrozenWebCameraSnapshotImage( std::vector<unsigned char>& kWebCameraImageData ) {return false;}
     virtual int GetPhrozenBedTemperature_limit() { return 300; }
     virtual int GetPhrozenNozzleTemperature_limit() { return 300; }
     virtual int GetPhrozenCoolingPower_limit() { return 100; }

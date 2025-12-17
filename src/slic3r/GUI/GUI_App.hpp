@@ -63,6 +63,9 @@ class DeviceManager;
 class NetworkAgent;
 class TaskManager;
 class PhrozenMachineObject;
+class PhrozenDeviceManager;
+class PhrozenMachineObject_Dev;
+class PhrozenNetworkAgent;
 
 namespace GUI{
 
@@ -684,12 +687,21 @@ public:
     void            check_config_updates_from_updater() { check_updates(false); }
 
 #pragma region Phrozen
+    bool InitPhrozenNetwork();
     bool InitPhrozenConnector( const std::string& strIp );
     void ProcessPhrozenConnector();
     void ProcessPhrozenDisconnect();
     std::shared_ptr< PhrozenMachineObject > pPhrozenMachineObject = nullptr;
     PhrozenMachineObject* GetPhrozenMachineObject();
     void GetCurrentConnectedMachineIp( std::string& strIp );
+
+    std::unique_ptr< PhrozenDeviceManager > m_spPhrozenManager{ nullptr }; 
+    PhrozenDeviceManager* GetPhrozenDeviceManager() { return m_spPhrozenManager ? m_spPhrozenManager.get() : nullptr; }
+
+    std::unique_ptr< PhrozenNetworkAgent > m_spPhrozenAgent{ nullptr };
+    PhrozenNetworkAgent* GetPhrozenNetworkAgent() { return m_spPhrozenAgent ? m_spPhrozenAgent.get() : nullptr; }
+
+
 #pragma endregion
 
 
@@ -728,7 +740,6 @@ private:
 #pragma region Phrozen
 void RunGetPrinterInfo( );
 void RunReceiveMessage( );
-void RunReceiveWebCameraView();
 void RunReceiveThumbnail();
 void RunSendMessage( );
 

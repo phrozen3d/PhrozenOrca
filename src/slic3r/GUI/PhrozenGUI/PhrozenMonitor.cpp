@@ -207,10 +207,19 @@ void PhrozenMonitorPanel::update_all()
     show_status(MONITOR_NORMAL);
     if (m_status_info_panel->IsShown() && MonitorControl::IsStartReceiving() ) 
     {
+        auto pManager = wxGetApp().GetPhrozenDeviceManager();
+        if ( pManager )
+        {
+            m_status_info_panel->SetPhrozenMachineObject( pManager->GetConnectingMachine() );
+        }
+
+
         auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
         m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
         m_status_info_panel->update( pPhrozenMachineObj );
         m_side_tools->set_current_printer_name( pPhrozenMachineObj->dev_ip );
+
+        
     }
     else
     {

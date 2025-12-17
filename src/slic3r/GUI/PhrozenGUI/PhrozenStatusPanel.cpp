@@ -7,6 +7,7 @@
 #include "PhrozenSideTools.hpp"
 #include "PhrozenCalibrationDlg.hpp"
 #include "../Widgets/WebView.hpp"
+#include "../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 
 #include "../BitmapCache.hpp"
 #include "../GUI_App.hpp"
@@ -3102,9 +3103,7 @@ void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 
 void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
-    auto obj = wxGetApp().GetPhrozenMachineObject();
-    if (!obj) return;
-    UpdateWebCameraView( obj );
+    if ( m_pMachineObj ) UpdateWebCameraView( m_pMachineObj );
 }
 
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
@@ -3120,11 +3119,14 @@ void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
     }
 }
 
-void PhrozenStatusPanel::UpdateWebCameraView(MachineObject* obj)
+void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* obj)
 {
-    if ( !obj || IsWebcamUiEnabled() ) return;
-
-    if ( !obj->GetPhrozenWebCameraSnapshotImage( m_kWebCameraImageData ) )
+    if ( !obj || IsWebcamUiEnabled() ) 
+    {
+        ResetWebcamView();// clear image result (black)
+        return;
+    }
+    if ( !m_pMachineObj->ReadDataFromWebcamSnapshot( m_kWebCameraImageData ) )
     {
         return;
     }
@@ -3136,6 +3138,15 @@ void PhrozenStatusPanel::UpdateWebCameraView(MachineObject* obj)
     media_ctrl_panel->GetSize( &x, &y );
     image.Rescale(x, y);
 
+    m_kCurrentWebCamBitmap = wxBitmap(image);
+    media_ctrl_panel->Refresh();
+}
+
+void PhrozenStatusPanel::ResetWebcamView()
+{
+    int x, y;
+    media_ctrl_panel->GetSize( &x, &y );
+    wxImage image(x,y);
     m_kCurrentWebCamBitmap = wxBitmap(image);
     media_ctrl_panel->Refresh();
 }

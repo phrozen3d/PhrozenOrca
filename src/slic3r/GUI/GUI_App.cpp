@@ -96,6 +96,7 @@
 #include "DownloadProgressDialog.hpp"
 #include "PhrozenGUI/PhrozenMonitorController.hpp"
 #include "PhrozenGUI/PhrozenDeviceManager.hpp"
+#include "../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
@@ -2604,6 +2605,7 @@ bool GUI_App::on_init_inner()
     }
     copy_network_if_available();
     on_init_network();
+    InitPhrozenNetwork();
 
     if (m_agent && m_agent->is_user_login()) {
         enable_user_preset_folder(true);
@@ -6923,6 +6925,13 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
     {
         pPhrozenMachineObject = std::make_shared< PhrozenMachineObject >( "Arco", "Arco", strIp );
     }
+
+    if ( !m_spPhrozenManager->CreateAndConnectMachine( strIp ) )
+    {
+        std::terminate();
+    }
+
+
     return kResult == CURLcode::CURLE_OK;
 }
 
@@ -6940,8 +6949,10 @@ void GUI_App::ProcessPhrozenConnector()
     std::thread _threadReceiveMessage(RunReceiveMessage);
     _threadReceiveMessage.detach();
 
-    std::thread _threadReceiveWebCameraView(RunReceiveWebCameraView);
-    _threadReceiveWebCameraView.detach();
+    if ( m_spPhrozenManager->IsMachineConnecting() )
+    {
+        m_spPhrozenManager->StartReceiveWebcam();
+    }
     
     MonitorControl::ResetPreviousPrintState();
     std::thread _threadReceiveThumbnail(RunReceiveThumbnail);
@@ -6970,6 +6981,33 @@ void GUI_App::GetCurrentConnectedMachineIp( std::string& strIp )
     strIp = pPhrozenMachineObject->GetPhrozenConnectedMachineIp();
 }
 
+bool GUI_App::InitPhrozenNetwork()
+{
+    // phrozen network & device manager
+    if ( !m_spPhrozenAgent )
+    {
+        m_spPhrozenAgent = std::make_unique< PhrozenNetworkAgent >();
+        if ( !m_spPhrozenAgent ) 
+        {
+            wxLogError(format_wxstr(_L("Insufficient memory, network agent initialize fail")));
+            BOOST_LOG_TRIVIAL(error) << boost::format("Insufficient memory, network agent initialize fail");
+            std::terminate();
+        }
+    }
+
+    if ( !m_spPhrozenManager )
+    {
+        m_spPhrozenManager = std::make_unique< PhrozenDeviceManager >( m_spPhrozenAgent.get() );
+        if ( !m_spPhrozenManager ) 
+        {
+            wxLogError(format_wxstr(_L("Insufficient memory, machine manager initialize fail")));
+            BOOST_LOG_TRIVIAL(error) << boost::format("Insufficient memory, machine manager initialize fail");
+            std::terminate();
+        }
+    }
+    return true;
+}
+
 void RunGetPrinterInfo( )
 {
     unique_lock<mutex> ulForPrintInfo(MonitorControl::threadControl.mutexPrinterInfo);
@@ -6992,20 +7030,6 @@ void RunReceiveMessage( )
 {
     BOOST_LOG_TRIVIAL(info) << "Using ReceiveResponse()";
     MonitorControl::ReceiveResponse();
-}
-
-void RunReceiveWebCameraView()
-{
-    auto pObject = wxGetApp().GetPhrozenMachineObject();
-    if ( pObject )
-    {
-        std::string url = pObject->GetPhrozenWebCameraSnapshotUrl();
-        MonitorControl::ReceiveWebCameraView(url);
-    }
-    else
-    {
-        assert( 0 );
-    }
 }
 
 void RunSendMessage(  )

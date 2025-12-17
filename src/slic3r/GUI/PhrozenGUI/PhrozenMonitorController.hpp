@@ -695,16 +695,6 @@ struct ThreadControl
     bool first_time_to_send_query = true;
 };
 
-struct WebCamImageDataThreadHandler
-{
-    std::mutex buffer_mutex;
-    std::vector<unsigned char> bufferA;
-    std::vector<unsigned char> bufferB;
-    std::vector<unsigned char>* pWriteBuffer = &bufferA;
-    std::vector<unsigned char>* pReadBuffer = &bufferB;
-    bool bNewImageAvailable = false;
-};
-
 struct HttpErrorInfo {
     bool has_error = false;            // Whether an error occurred
     int http_status_code = 0;          // HTTP status code (200, 400, 500, etc.)
@@ -804,7 +794,6 @@ struct HttpErrorInfo {
     extern std::atomic<bool> m_bDoThumbnailCheck;
     extern std::string prev_state;
     extern bool isReadFromGcodeFinished;
-    extern WebCamImageDataThreadHandler WebCamDataHandler;
     extern HttpErrorInfo error_info;
 
     extern CalibrationProgressInfo m_calibrationProgressInfo;
@@ -820,8 +809,6 @@ struct HttpErrorInfo {
     void HandlePauseCode(const std::string& pauseCode);
 
     CURLcode ReceiveResponse();
-    
-    CURLcode ReceiveWebCameraView( const std::string & url ); //LiveStreamWithMultiThread
 
     CURLcode CheckAMSConnection();
 

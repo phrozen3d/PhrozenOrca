@@ -359,6 +359,9 @@ public:
     void SetMachineObject( MachineObject* pObj ) { obj = pObj; }
     MachineObject* obj{nullptr};
 
+    void SetPhrozenMachineObject( PhrozenMachineObject_Dev* pObj ) { m_pMachineObj = pObj; }
+    PhrozenMachineObject_Dev* m_pMachineObj{nullptr};
+
     void reset_temp_misc_control();
     int before_error_code = 0;
     int skip_print_error = 0;
@@ -561,7 +564,8 @@ protected:
 
     /* update apis */
     void update(MachineObject* obj);
-    void UpdateWebCameraView(MachineObject* obj);
+    void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
+    void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
     void update_model_info();

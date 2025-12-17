@@ -132,7 +132,6 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     
     // Calibration progress tracking
     CalibrationProgressInfo m_calibrationProgressInfo = {};
-    WebCamImageDataThreadHandler WebCamDataHandler = {};
     HttpErrorInfo error_info = {};
     AMSPatterns amsPatterns = {};
     NozzleInfo nozzleInfo = {};
@@ -1653,47 +1652,6 @@ size_t WriteStreamCallback(void* contents, size_t size, size_t nmemb, void* user
     std::vector<unsigned char>* buffer = (std::vector<unsigned char> *)userp;
     buffer->insert(buffer->end(), (unsigned char*)contents, (unsigned char*)contents + total_size);
     return total_size;
-}
-
-CURLcode ReceiveWebCameraView( const std::string & url )
-{
-    auto lastCaptureTime = std::chrono::steady_clock::now();
-    auto lastPipeTime = std::chrono::steady_clock::now();
-    CURLcode res = CURLE_FAILED_INIT;
-    while ( !MonitorControl::m_bClose && IsStartReceiving() ) {
-
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastCaptureTime).count();
-
-        if (elapsed >= MonitorControl::m_fRecordInterval) {
-            lastCaptureTime = now;
-
-            CURL* curl = curl_easy_init();
-            if (!curl) {
-                DebugOutput( "cURL initialization failed!");
-                return res;
-            }
-
-            std::vector<unsigned char> kTempWebCamImageData;
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteStreamCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &kTempWebCamImageData); //&image_data
-            curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
-            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
-
-            CURLcode res = curl_easy_perform(curl);
-            if (res == CURLE_OK) {
-                std::lock_guard<std::mutex> lock( WebCamDataHandler.buffer_mutex );
-                *WebCamDataHandler.pWriteBuffer = std::move( kTempWebCamImageData );
-                std::swap( WebCamDataHandler.pWriteBuffer, WebCamDataHandler.pReadBuffer );
-                WebCamDataHandler.bNewImageAvailable = true;
-            }
-            curl_easy_cleanup(curl);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    return res;
-
 }
 
 CURLcode CheckAMSConnection() {
