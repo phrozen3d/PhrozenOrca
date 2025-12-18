@@ -20,6 +20,14 @@ class PhrozenWebServiceInfo;
 class PhrozenPrinterInfo;
 class PhrozenThreadControl;
 class PhrozenMonitorWindow;
+class CalibrationProgressInfo;
+class PhrozenHistoryInfo;
+class PhrozenAMSPatterns;
+class PhrozenAMSInfo;
+
+template <typename T>
+class DoubleBufferSP;
+
 
 #pragma region WorkerFuncSafe
 class WorkerFuncSafe {
@@ -132,6 +140,21 @@ typedef std::function<void(float)> OnProgressCallback;
 typedef std::function<size_t(void*, size_t, size_t, void*)> OnSnapshotWriteStreamCallback;
 
 #pragma region PhrozenNetworkAgent
+
+class SafeString {
+    std::string value;
+    std::mutex m;
+public:
+    void set(const std::string& s) {
+        std::lock_guard<std::mutex> lk(m);
+        value = s;
+    }
+       std::string get() {
+        std::lock_guard<std::mutex> lk(m);
+        return value;
+    }
+};
+
 class PhrozenNetworkAgent
 {
 public:
@@ -150,7 +173,11 @@ public:
     void SetFirstTimeToSendQuery( bool flag );
     bool IsFirstTimeToSendQuery();
 
+    void SetThumbnailChecking( bool bCheck );
+    bool IsThumbnailChecking();
 
+    void SetConnectedToAms( bool connected );
+    bool IsConnetedToAMS();
 
     // ==== function to interactive with machine === //
     void RunSendMessage( const std::vector< json >& kMessageList,
@@ -205,14 +232,6 @@ private:
     CURLcode send_action_Command( std::string send_payload );
     void DebugOutput(const std::string& prefix, const char* message = ""  );
 
-    // message parser
-    //bool ShouldSkipProcStat(const std::string& message);
-    //void ProcessGcodeResponse(const std::string& message, Slic3r::PhrozenPrinterInfo& kInfo );
-    //void ProcessHistoryInfo(const std::string& message, std::string& historyBuffer, bool& historyStart);
-    //void ProcessPauseMessage(const std::string& message);
-
-
-
     CURL* m_pCurlMainWebsocket = nullptr;
     std::mutex m_kCurlMutex;
     std::mutex m_kCalibrationProgressMutex;
@@ -221,10 +240,21 @@ private:
     std::unique_ptr< PhrozenPrinterInfo > m_spPrinterInfo{ nullptr };
     std::unique_ptr< PhrozenThreadControl > m_spThreadControl{ nullptr };
     std::unique_ptr< PhrozenMonitorWindow > m_spMonitorWindow{ nullptr };
+    std::unique_ptr< PhrozenAMSPatterns > m_spAmsPatterns{ nullptr };
+    
+    std::vector< PhrozenHistoryInfo > m_kHistoryList;
+    std::vector< PhrozenAMSInfo > m_kAMSList;
     
     std::atomic<bool> m_bStartSending{false};
     std::atomic<bool> m_bStartReceiving{false};
     std::atomic<bool> m_bFirstTimeToSendQuery{true};
+    std::atomic<bool> m_bDoThumbnailCheck{true};
+    std::atomic<bool> m_bIsConnetedToAMS{true};
+
+    SafeString m_kPrev_state;
+    
+    
+
 
 
      //====== below just for reference ========== //

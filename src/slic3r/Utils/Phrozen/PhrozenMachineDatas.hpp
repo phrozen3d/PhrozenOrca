@@ -7,6 +7,8 @@
 #include <type_traits>
 #include "../json_diff.hpp"
 
+typedef unsigned int GLuint;
+
 namespace Slic3r {
 
 #pragma region DoubleBuffer
@@ -137,6 +139,11 @@ public:
     std::string port_device = ":8808";
     std::string payload;
     std::unique_ptr<std::string> responseData = make_unique<std::string>();
+    json jsonPrinterInfoData;
+    json jsonHistoryInfoData;
+    json jsonReturnInfoData;
+    json jsonThumbnailsInfoData;
+
     void reset() {
         ip.clear();
         payload.clear();
@@ -173,6 +180,9 @@ struct PhrozenPrinterInfo
     std::string error = "";
     bool bIsLedOn = false;
     bool bIsNozzleDetectFilament = false;
+
+    bool isSameIP = "";
+    std::string pre_printerIP = "";
 };
 #pragma endregion
 
@@ -365,11 +375,69 @@ class PhrozenSendMessageGenerator
 };
 #pragma endregion
 
+#pragma region PhrozenCalibrationProgressInfo
+// Calibration state enumeration
+enum class CalibrationState : int32_t {
+    STOPPED = 0,    // 停止/未開始
+    RUNNING = 1,    // 執行中
+    COMPLETED = 2,  // 完成
+    HAS_ERROR = 3       // 錯誤
+};
 
 
+class CalibrationProgressInfo 
+{
+public:
+    CalibrationState calibrationStatus = CalibrationState::STOPPED;
+    CalibrationState resonanceCompensationStatus = CalibrationState::STOPPED;
+    CalibrationState temperatureCalibrationStatus = CalibrationState::STOPPED;
+    
+    float calibrationProgress = 0.0f;           // 0-100
+    float resonanceCompensationProgress = 0.0f;   // 0-100
+    float temperatureCalibrationProgress = 0.0f;  // 0-100
+    
+    // Internal state tracking (for progress calculation)
+    bool heatingCompleted = false;               // Auto-leveling heating completed
+    bool startResonanceCompensation = false;     // Resonance compensation test started
+    int tempProgress = 0;                        // Temperature calibration progress counter
+    std::chrono::steady_clock::time_point startTime;
+    
+    // Initialize startTime
+    CalibrationProgressInfo() : startTime(std::chrono::steady_clock::now()) {}
+};
 
+#pragma endregion
 
+#pragma region PhrozenHistoryInfo
+class PhrozenHistoryInfo 
+{
+public:
+    std::wstring gcode_name;
+    std::string status;
+    float fliament_used;
+    float total_duration;
+    std::string screenshotimage;
+    std::string timestamp;
+    std::string gcode_path;
+    std::string cfg_path;
+};
+#pragma endregion
 
+#pragma region PhrozenAMSPatterns
+class PhrozenAMSPatterns
+{
+public:
+    // AMS pattern strings
+    const std::string AMS_connected = "\\u6709\\u51e0\\u53f0AMS\\u5df2\\u7ecf\\u6253\\u5f00\\u4e32\\u53e3='1'";
+    const std::string AMS_unconnect = "!! \\u6ca1\\u6709\\u8fde\\u63a5\\u4efb\\u4f55AMS\\u591a\\u8272\\uff0c\\u8fde\\u63a5AMS\\u5931\\u8d25";
+    const std::string AMS_load_single_start = "P1Tn:0";
+    const std::string AMS_load_single_end = "P1Tn:1";
+    const std::string AMS_unload_single_start = "P1Bn:0";
+    const std::string AMS_unload_single_end = "P1Bn:1";
+    const std::string AMS_unload_all_start = "P2A2:0";
+    const std::string AMS_unload_all_end = "P2A2:1";
+};
+#pragma endregion
 
 } // namespace Slic3r
 
