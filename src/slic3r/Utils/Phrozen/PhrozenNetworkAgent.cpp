@@ -4,8 +4,90 @@
 #include "PhrozenMachineDatas.hpp"
 #include <sstream>
 
-namespace Slic3r {
+using namespace Slic3r;
 
+#pragma region PhrozenFrameProcessor
+// ============================================
+// ReceiveResponse() Processing Modules
+// ============================================
+// 
+// Frame processing module for WebSocket frame handling
+struct PhrozenFrameProcessor {
+
+#ifndef __APPLE__
+    static bool IsContinuationFrame(const struct curl_ws_frame* meta) {
+        bool is_continuation_frame = false;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #elif defined(CURLWS_CONT)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #else
+        is_continuation_frame = ((meta->flags & 0x80) == 0);
+        #endif
+        return is_continuation_frame;
+    }
+    
+    static bool IsFinalFrame(const struct curl_ws_frame* meta) {
+        bool is_final_frame = true;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
+        #elif defined(CURLWS_CONT)
+        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
+        #else
+        is_final_frame = ((meta->flags & 0x80) != 0);
+        #endif
+        return is_final_frame;
+    }
+#else
+    static bool IsContinuationFrame(struct curl_ws_frame* meta) {
+        bool is_continuation_frame = false;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #elif defined(CURLWS_CONT)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #else
+        is_continuation_frame = ((meta->flags & 0x80) == 0);
+        #endif
+        return is_continuation_frame;
+    }
+    
+    static bool IsFinalFrame(struct curl_ws_frame* meta) {
+        bool is_final_frame = true;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
+        #elif defined(CURLWS_CONT)
+        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
+        #else
+        is_final_frame = ((meta->flags & 0x80) != 0);
+        #endif
+        return is_final_frame;
+    }
+#endif
+
+    
+    static std::string CombineFrames(const std::string& frame_data, 
+                                     std::string& accumulated_buffer) {
+        std::string complete_message = accumulated_buffer.empty() 
+            ? frame_data 
+            : (accumulated_buffer + frame_data);
+        accumulated_buffer.clear();
+        return complete_message;
+    }
+    
+    static void UpdateSlidingWindow(std::string& sliding_window_buffer, 
+                                    const std::string& complete_message,
+                                    size_t max_size) {
+        sliding_window_buffer += complete_message;
+        if (sliding_window_buffer.size() > max_size) {
+            sliding_window_buffer = sliding_window_buffer.substr(
+                sliding_window_buffer.size() - max_size / 2
+            );
+        }
+    }
+};
+#pragma endregion
+
+#pragma region PhrozenNetworkAgent
 // Constructor
 PhrozenNetworkAgent::PhrozenNetworkAgent(std::string log_dir)
     : m_log_dir(log_dir)
@@ -62,7 +144,8 @@ bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
 
 
     //trigger ams update query command after connect to speicified IP address (Printer)
-    m_spThreadControl->first_time_to_send_query = true;
+    SetFirstTimeToSendQuery( true );
+    m_spWebServiceInfo->ip = strIp;
 
     bool bSuccess = InitializeConnectorImp( strIp );
     if ( !bSuccess )
@@ -81,7 +164,7 @@ bool PhrozenNetworkAgent::InitializeConnectorImp( const std::string& strIp )
     auto fnCheckCurlSuccess =[&]( CURLcode& res ) -> bool
     {
         bool bSuccess = res == CURLcode::CURLE_OK;
-        if ( bSuccess ){  m_strIp = strIp; }
+        if ( !bSuccess ){  m_spWebServiceInfo->ip = ""; }
         return bSuccess;
     };
 
@@ -192,14 +275,6 @@ bool PhrozenNetworkAgent::InitializeConnectorImp( const std::string& strIp )
         }
         else {
             printf("WebSocket connection established successfully\n");
-            
-            if(m_spWebServiceInfo->ip == m_spPrinterInfo->pre_printerIP){
-                m_spPrinterInfo->isSameIP = true;
-            }
-            else{
-                m_spPrinterInfo->isSameIP = false;
-                m_spPrinterInfo->pre_printerIP = m_spWebServiceInfo->ip;
-            }
 
             // Get connection info
             long response_code;
@@ -235,13 +310,13 @@ void PhrozenNetworkAgent::CleanupWebSocketConnection()
         curl_easy_cleanup(m_pCurlMainWebsocket);
         m_pCurlMainWebsocket = nullptr;
     }
-    m_strIp = "";
+
+    m_spWebServiceInfo->reset();
 }
 
 void PhrozenNetworkAgent::SetStartSending( bool bStart )
 {
-    if ( bStart ) { m_bStartSending.store(true, std::memory_order_relaxed); }
-    else          { m_bStartSending.store(false, std::memory_order_relaxed); }
+    m_bStartSending.store(bStart, std::memory_order_relaxed);
 }
 
 bool PhrozenNetworkAgent::IsStartSending()
@@ -251,13 +326,22 @@ bool PhrozenNetworkAgent::IsStartSending()
 
 void PhrozenNetworkAgent::SetStartReceiving( bool bStart )
 {
-    if ( bStart ) { m_bStartReceiving.store(true, std::memory_order_relaxed); }
-    else          { m_bStartReceiving.store(false, std::memory_order_relaxed); }
+    m_bStartReceiving.store(bStart, std::memory_order_relaxed);
 }
 
 bool PhrozenNetworkAgent::IsStartReceiving()
 {
     return m_bStartReceiving.load(std::memory_order_relaxed);
+}
+
+void PhrozenNetworkAgent::SetFirstTimeToSendQuery( bool flag )
+{
+    m_bFirstTimeToSendQuery.store( flag, std::memory_order_relaxed);
+}
+
+bool PhrozenNetworkAgent::IsFirstTimeToSendQuery()
+{
+    return m_bFirstTimeToSendQuery.load(std::memory_order_relaxed);
 }
 
 // Initialize logging
@@ -461,9 +545,97 @@ int PhrozenNetworkAgent::get_printer_status(std::string dev_ip, std::string* sta
 }
 
 
-void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageList )
+void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageList,
+                                          const std::vector< bool >& kSendingList )
 {
+
+    try {
+        size_t uCount = kMessageList.size();
+        if ( kSendingList.size() != uCount ) 
+        {
+            DebugOutput( "Sending list not same count: " + std::to_string( uCount ) );
+            return;
+        }
+
+        // CRITICAL: libcurl easy handle is NOT thread-safe
+        // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+        // Operating the same curl handle from 2 threads may cause crash risk
+        std::lock_guard<std::mutex> lock( m_kCurlMutex );
+        CURLcode result;
+        for ( auto i = 0; i < uCount; ++i )
+        {
+            if ( !kSendingList[i] ) continue;
+            result = send_action_Command(  kMessageList[ i ].dump()  );
+            if ( result != CURLcode::CURLE_OK )
+            {
+                DebugOutput( "Message sending fail, id= " + std::to_string( i ) );
+                BOOST_LOG_TRIVIAL(warning) << "Message sending fail, id= " << i;
+            }
+        }
+    } catch (const std::invalid_argument& e) {
+        DebugOutput( "Caught std::invalid_argument: " , e.what());
+    } catch (const std::exception& e) {
+        DebugOutput( "Caught std::exception: " , e.what() );
+    }
+
 #if 0
+    //Initialconnect();
+    size_t sent;
+    json payload;
+    payload["jsonrpc"] = "2.0";
+    payload["method"] = "printer.objects.query";
+    payload["params"] = {
+        {"objects", {
+            {"extruder", {"temperature", "target"}},
+            {"temperature_sensor Chamber_sensor", {"temperature"}},
+            {"output_pin fan_assist", {"value"}},
+            {"fan_generic cooling_fan", nullptr},
+            {"fan_generic Chamber_fan", {"speed"}},
+            {"heater_bed", {"temperature", "target"}},
+            {"gcode_move", {"speed_factor", "homing_origin"}},
+            {"homing_origin", nullptr},
+            {"display_status", nullptr},
+            {"print_stats", nullptr},
+            {"pause_resume", nullptr},
+            {"error", nullptr},
+            {"toolhead", {"position", "status", "homed_axes", "estimated_print_time"}}
+        }}
+    };
+    payload["id"] = PhrozenPrinterID::printer_gcode_script;
+
+    //History
+    json payload_history;
+    payload_history["jsonrpc"] = "2.0";
+    payload_history["method"] = "server.history.list";
+    payload_history["id"] = 5656;
+
+    //AMS
+    json payload_AMS;
+    payload_AMS["jsonrpc"] = "2.0";
+    payload_AMS["method"] = "printer.gcode.script";
+    payload_AMS["params"]["script"] = "P114";
+    payload_AMS["id"] = PhrozenPrinterID::printer_gcode_script;
+    
+    //Nozzle
+    //to check the filament is existing in the nozzle or not
+    json payload_Nozzle;
+    payload_Nozzle["jsonrpc"] = "2.0";
+    payload_Nozzle["method"] = "printer.gcode.script";
+    payload_Nozzle["params"]["script"] = "PRZ_ADC";
+    payload_Nozzle["id"] = PhrozenPrinterID::printer_gcode_script;
+
+    //LED
+    json payload_LED;
+    payload_LED["jsonrpc"] = "2.0";
+    payload_LED["method"] = "printer.gcode.script";
+    payload_LED["params"]["script"] = "P0 LED_GetState";
+    payload_LED["id"] = PhrozenPrinterID::printer_gcode_script;
+
+    // Log thread ID for Xcode console debugging
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::cout << "[GetAllInfo_websocket] Thread started, Thread ID: " << thread_id << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "GetAllInfo_websocket: Thread started, Thread ID: " << thread_id;
+    
     try {
         auto nowTime = std::chrono::steady_clock::now();
         auto previousTime = std::chrono::steady_clock::now();
@@ -487,13 +659,13 @@ void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageLis
                 //}
                 // TODO: Allow duplicate execution until we implement a better mechanism
                 // Temporarily allow repeated execution until better solution is found
-                if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                if ((timeDiff > 5 && m_spPrinterInfo->state != "printing") || m_spThreadControl->first_time_to_send_query)
                 {
                     result = send_action_Command(payload_AMS.dump());
                     result = send_action_Command(payload_history.dump());
                     result = send_action_Command(payload_Nozzle.dump());
                     result = send_action_Command(payload_LED.dump());
-                    threadControl.first_time_to_send_query = false;
+                    m_spThreadControl->first_time_to_send_query = false;
                     previousTime = std::chrono::steady_clock::now();
                 }
                 BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
@@ -506,7 +678,189 @@ void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageLis
     } catch (const std::exception& e) {
         DebugOutput( "Caught std::exception: " , e.what() );
     }
- #endif
+
+#endif
+ 
+}
+
+void PhrozenNetworkAgent::RunReceiveResponse()
+{
+    // Log thread ID for Xcode console debugging
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::cout << "[ReceiveResponse] Thread started, Thread ID: " << thread_id << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "ReceiveResponse: Thread started, Thread ID: " << thread_id;
+    
+    char buffer[500000];
+    size_t rlen;
+    CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
+    
+#ifndef __APPLE__
+    const struct curl_ws_frame* meta;
+#else
+    // Note: curl 8.x requires non-const pointer for curl_ws_recv() fifth parameter
+    // Changed from: const struct curl_ws_frame* meta;
+    // See: https://curl.se/docs/websockets.html - API changed in curl 8.0+
+    struct curl_ws_frame* meta;
+#endif
+    
+    // Frame accumulation buffers for handling fragmented messages
+    std::string ams_message_buffer;      // Buffer for AMS-related messages
+    std::string historyInfo;              // Buffer for history info (existing)
+    bool historyStart = false;
+    int again = 0;
+    
+    // Sliding window buffer for cross-frame pattern matching
+    // This helps catch patterns that span across frame boundaries
+    std::string sliding_window_buffer;
+    const size_t MAX_SLIDING_WINDOW_SIZE = 10000;  // Maximum size to prevent memory issues
+    
+#if 0
+    if( !IsFirstTimeToSendQuery() ){
+
+        // CRITICAL: libcurl easy handle is NOT thread-safe
+        // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+        // Operating the same curl handle from 2 threads may cause crash risk
+        std::lock_guard<std::mutex> lock( m_kCurlMutex );
+
+        BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock acquired, Thread ID: " << thread_id;
+
+        try {
+            double connectTime = 0;
+            curl_easy_getinfo( m_pCurlMainWebsocket, CURLINFO_CONNECT_TIME, &connectTime);
+            
+            if (connectTime > 0) {
+                res = curl_ws_recv( m_pCurlMainWebsocket, buffer, sizeof(buffer), &rlen, &meta);
+                
+                if (res == CURLE_OK) {
+                    again = 0;
+                    
+                    // ============================================
+                    // Frame Fragmentation Handling
+                    // ============================================
+                    std::string frame_data(&buffer[0], &buffer[rlen]);
+                    bool is_text_frame = (meta->flags & CURLWS_TEXT) != 0;
+                    bool is_binary_frame = (meta->flags & CURLWS_BINARY) != 0;
+                    bool is_continuation_frame = PhrozenFrameProcessor::IsContinuationFrame(meta);
+                    bool is_final_frame = PhrozenFrameProcessor::IsFinalFrame(meta);
+                    
+                    // Debug logging for frame information
+                    BOOST_LOG_TRIVIAL(debug) << "WebSocket frame received: "
+                    << "length=" << rlen
+                    << ", flags=" << meta->flags
+                    << ", text=" << is_text_frame
+                    << ", continuation=" << is_continuation_frame
+                    << ", final=" << is_final_frame
+                    << ", content_preview=" << frame_data.substr(0, 100);
+                    
+                    // If this is a continuation frame, accumulate it
+                    if (is_continuation_frame) {
+                        ams_message_buffer += frame_data;
+                        BOOST_LOG_TRIVIAL(debug) << "Accumulating continuation frame. "
+                        << "Buffer size: " << ams_message_buffer.size();
+                        
+                        // Prevent buffer from growing too large
+                        if (ams_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
+                            BOOST_LOG_TRIVIAL(warning) << "AMS message buffer exceeded max size, truncating";
+                            ams_message_buffer = ams_message_buffer.substr(ams_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
+                        }
+                        return;  // To next loop for wait for more frames
+                    }
+                    
+                    // ============================================
+                    // Complete Message Combination
+                    // ============================================
+                    std::string complete_message = PhrozenFrameProcessor::CombineFrames(frame_data, ams_message_buffer);
+                    PhrozenFrameProcessor::UpdateSlidingWindow(sliding_window_buffer, complete_message, MAX_SLIDING_WINDOW_SIZE);
+                    
+                    // ============================================
+                    // Message Conversion
+                    // ============================================
+                    std::string ws = complete_message;
+                    
+                    // ============================================
+                    // Message Type Detection
+                    // ============================================
+                    bool skip_proc_stat_processing = MessageProcessor::ShouldSkipProcStat(ws);
+                    if (skip_proc_stat_processing) {
+                        BOOST_LOG_TRIVIAL(debug) << "Found notify_proc_stat_update, skipping proc_stat processing";
+                        continue;
+                    }
+                    
+                    // ============================================
+                    // G-code Response and Printer Status Processing
+                    // ============================================
+                    if (!skip_proc_stat_processing) {
+                        BOOST_LOG_TRIVIAL(info) << "receive: " << ws << endl;
+                        MessageProcessor::ProcessGcodeResponse(ws);
+                        PrinterStatusExtractor::ProcessPrinterStatus(ws);
+                    }
+                    
+                    // ============================================
+                    // History Info Processing (independent of skip_proc_stat)
+                    // ============================================
+                    MessageProcessor::ProcessHistoryInfo(ws, historyInfo, historyStart);
+                    
+                    // ============================================
+                    // AMS Processing (independent of skip_proc_stat)
+                    // ============================================
+                    // Search in both the current complete message and sliding window buffer
+                    // This ensures we catch patterns even if they span frame boundaries
+                    std::string search_text = ws;
+                    if (sliding_window_buffer.size() > ws.size()) {
+                        search_text = sliding_window_buffer;
+                    }
+                    
+                    AMSProcessor::ProcessAMSConnectionStatus(search_text, sliding_window_buffer);
+                    AMSProcessor::ProcessAMSCommandStates(search_text, sliding_window_buffer);
+                    AMSProcessor::ProcessAMSEntryParkState(ws);
+                    
+                    // ============================================
+                    // Pause Message Processing
+                    // ============================================
+                    MessageProcessor::ProcessPauseMessage(ws);
+                }
+                else if (res == CURLE_AGAIN) {
+                    again++;
+                    // Log for macOS Xcode console
+                    BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: CURLE_AGAIN, Thread ID: " << thread_id << ", again count: " << again;
+                    
+                    if (again > 30) {
+                        // Log for macOS Xcode console (log before resetting again)
+                        BOOST_LOG_TRIVIAL(warning) << "Too many CURLE_AGAIN (count: " << again << ")";
+                        again = 0;
+                    }
+                }
+                else if (res == CURLE_RECV_ERROR) {
+                    std::terminate();
+                    BOOST_LOG_TRIVIAL(info) << "receive error: " << endl;
+                    curl_easy_cleanup(m_pCurlMainWebsocket);
+                    auto strIp = m_spWebServiceInfo->ip;
+                    InitializeConnectorImp( strIp );
+                }
+            }
+            else {
+                BOOST_LOG_TRIVIAL(info) << "connect failed " << endl;
+                SetStartReceiving(false);
+                SetStartSending(false);
+            }
+        }
+        catch (const std::runtime_error& e) {
+            DebugOutput("Error: ", e.what());
+        }
+        catch (const std::invalid_argument& e) {
+            DebugOutput("Caught std::invalid_argument: ", e.what());
+        }
+        catch (const std::exception& e) {
+            DebugOutput("Caught std::exception: ", e.what());
+        }
+        BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock released, Thread ID: " << thread_id;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    m_pPrinterInfo->state = "offline";
+    return res;
+#endif
+
 }
 
 // Get camera stream URL
@@ -590,6 +944,264 @@ CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vecto
     curl_easy_cleanup(curl);
     return res;
 }
+
+CURLcode PhrozenNetworkAgent::send_action_Command( std::string send_payload )
+{
+    //CURLcode res = curl_easy_perform(curl);
+    CURLcode result = CURLE_AGAIN;
+    double connectTime = 0;
+    try {
+        curl_easy_getinfo(m_pCurlMainWebsocket, CURLINFO_CONNECT_TIME, &connectTime);
+        if (connectTime > 0)
+        {
+            size_t sent;
+            result = curl_ws_send(m_pCurlMainWebsocket, send_payload.c_str(), strlen(send_payload.c_str()), &sent, 0, CURLWS_TEXT);
+        }
+        //curl_easy_cleanup(curl);
+    }
+    catch (const std::exception& e) {
+        DebugOutput( "send error: " , e.what());
+    }
+    return result;
+}
+
+void PhrozenNetworkAgent::DebugOutput(const std::string& prefix, const char* message  ) {
+    std::string combined = prefix + message;
+#ifdef _WIN32
+    OutputDebugStringA(combined.c_str());
+#else
+    // to do
+    // need to modify/create a version for macOS to achieve the same effect as Windows.
+    std::cout << combined << std::endl;
+#endif
+}
+
+#pragma region PhrozenMessageProcessor
+
+#if 0
+// Message processing module for message type detection and conversion
+bool PhrozenNetworkAgent::ShouldSkipProcStat(const std::string& message) 
+{
+    std::string skip_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_proc_stat_update\"";
+    return message.find(skip_message.c_str()) != std::string::npos;
+}
+   
+void PhrozenNetworkAgent::ProcessGcodeResponse(const std::string& message, Slic3r::PhrozenPrinterInfo& kInfo ) 
+{
+    std::string find_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_gcode_response\"";
+    size_t pos = message.find(find_message.c_str());
+    if (pos == std::string::npos) return;
+    
+    if (json::accept(message)) {
+        try {
+            json msg_json = json::parse(message);
+            if (!msg_json["params"].is_null()) {
+                std::string params = msg_json["params"][0].get<std::string>();
+                
+                // Check for Unhandled exception
+                size_t pos = params.find("Unhandled exception during run");
+                if (pos != std::string::npos) {
+                    m_pPrinterInfo->error = msg_json["params"][0].get<std::string>();
+                }
+
+                // Check LED State
+                std::string strLEDKeyword = "P0 LED_State=";
+                auto uLEDPos = params.find(strLEDKeyword);
+                if ( uLEDPos != std::string::npos )
+                {
+                    std::string strLEDValue = params.substr(uLEDPos + strLEDKeyword.length(), 1);
+                    kInfo.bIsLedOn = (bool)std::stoi(strLEDValue);
+                    return;
+                }
+                
+                // Check for PRZ_ADC response with fila_exist
+                if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
+                    if (params.find("fila_exist:True") != std::string::npos ||
+                        params.find("fila_exist:true") != std::string::npos) {
+                        kInfo.bIsNozzleDetectFilament = true;
+                    } else {
+                        kInfo.bIsNozzleDetectFilament = false;
+                    }
+                    BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << (kInfo.bIsNozzleDetectFilament ? "true" : "false") << " ***";
+                }
+                
+                // ============================================
+                // Calibration message processing
+                // ============================================
+                {
+                    // Auto-leveling (Calibration) messages
+                    if (params.find("Probe samples exceed samples_tolerance") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        m_calibrationProgressInfo.calibrationStatus = CalibrationState::HAS_ERROR;
+                        BOOST_LOG_TRIVIAL(warning) << "Calibration error: Probe samples exceed tolerance";
+                    } else if (params.find("Mesh Bed Leveling Complete") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        if (m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.calibrationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.calibrationProgress = 100.0f;
+                            BOOST_LOG_TRIVIAL(info) << "Calibration completed";
+                        }
+                    } else if (params.find("probe at ") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        CalibrationProgressCalculator::UpdateCalibrationProgress(params, m_calibrationProgressInfo);
+                    }
+                    
+                    // Resonance compensation messages
+                    if (params.find("// Testing axis x") != std::string::npos ||
+                        params.find("// Testing axis y") != std::string::npos ||
+                        params.find("// Testing frequency") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        CalibrationProgressCalculator::UpdateResonanceCompensationProgress(params, m_calibrationProgressInfo);
+                    } else if (params.find("with these parameters and restart the printer.") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        if (m_calibrationProgressInfo.resonanceCompensationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.resonanceCompensationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.resonanceCompensationProgress = 100.0f;
+                            BOOST_LOG_TRIVIAL(info) << "Resonance compensation completed";
+                        }
+                    }
+                    
+                    // Temperature calibration messages
+                    if (params.find("T0:") != std::string::npos && params.find("/") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        CalibrationProgressCalculator::UpdateTemperatureCalibrationProgress(params, m_calibrationProgressInfo);
+                    } else if (params.find("Klippy Disconnected") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        if (m_calibrationProgressInfo.temperatureCalibrationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.temperatureCalibrationProgress = 100.0f;
+                            BOOST_LOG_TRIVIAL(info) << "Temperature calibration completed";
+                        }
+                    }
+                    
+                    // Generic completion message
+                    if (params.find("Klipper state: Disconnect") != std::string::npos) {
+                        std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+                        if (m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.calibrationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.calibrationProgress = 100.0f;
+                        }
+                        if (m_calibrationProgressInfo.resonanceCompensationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.resonanceCompensationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.resonanceCompensationProgress = 100.0f;
+                        }
+                        if (m_calibrationProgressInfo.temperatureCalibrationStatus == CalibrationState::RUNNING) {
+                            m_calibrationProgressInfo.temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                            m_calibrationProgressInfo.temperatureCalibrationProgress = 100.0f;
+                        }
+                    }
+                }
+            }
+        } catch (const json::exception& e) {
+            BOOST_LOG_TRIVIAL(warning) << "JSON parse error in gcode_response: " << e.what();
+        }
+    }
+}
+    
+void PhrozenNetworkAgent::ProcessHistoryInfo(const std::string& message,
+                                             std::string& historyBuffer,
+                                             bool& historyStart) 
+{
+    std::string jobs_history = "\"jobs\":";
+    std::string id_history = "\"id\": 5656";
+    size_t pos_id_history = message.find(id_history.c_str());
+    size_t pos_history = message.find(jobs_history.c_str());
+    
+    if (pos_history != std::string::npos && !historyStart) {
+        historyBuffer = "";
+        historyStart = true;
+    }
+    if (historyStart) {
+        historyBuffer += message;
+    }
+    if (pos_id_history != std::string::npos) {
+        historyStart = false;
+    }
+    if (!historyBuffer.empty() && !historyStart) {
+        std::vector<HistoryInfo> _historyInfoList;
+        try {
+            json history_json;
+            if (json::accept(historyBuffer)) {
+                history_json = json::parse(historyBuffer);
+                if (history_json["result"]["jobs"].is_array()) {
+                    for (const auto& job : history_json["result"]["jobs"]) {
+                        HistoryInfo _historyInfo;
+                        std::string X = job["filename"].get<std::string>();
+                        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                        _historyInfo.gcode_name = converter.from_bytes(X);
+                        _historyInfo.status = job["status"].get<std::string>();
+                        _historyInfo.fliament_used = job["filament_used"];
+                        _historyInfo.total_duration = job["total_duration"];
+                        _historyInfoList.push_back(_historyInfo);
+                    }
+                    m_kHistoryInfoList = _historyInfoList;
+                } else {
+                    m_kHistoryInfoList.clear();
+                    DebugOutput("Invalid JSON format or missing 'jobs' array.");
+                }
+            }
+        } catch (const std::exception& e) {
+            DebugOutput("Parse error: ", e.what());
+        }
+    }
+}
+    
+void PhrozenNetworkAgent::ProcessPauseMessage(const std::string& message) 
+{
+    std::string pause_prefix = "+PAUSE:";
+    size_t pause_pos = message.find(pause_prefix);
+    if (pause_pos == std::string::npos) return;
+    
+    try {
+        std::tuple<std::string, std::string, std::string> pauseError = ParsePauseMessage(message);
+        std::string code = std::get<0>(pauseError);
+        std::string oldCh = std::get<1>(pauseError);
+        std::string newCh = std::get<2>(pauseError);
+        
+        std::cout << "Code: " << code << std::endl;
+        std::cout << "Old Channel: " << oldCh << std::endl;
+        std::cout << "New Channel: " << newCh << std::endl;
+        
+        HandlePauseCode(code);
+        
+        if (code == "4") {
+            m_kMonitorWindow.AMSselectedID = std::stoi(newCh);
+            m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+        } else if (code == "8") {
+            m_kMonitorWindow.AMSselectedID = std::stoi(oldCh);
+            m_kMonitorWindow.AMS_ID = "\xC2\xA0" + std::to_string(m_kMonitorWindow.AMSselectedID) + "\xC2\xA0";
+        }
+        
+        m_kMonitorWindow.error_code = "[" + code + "]";
+        
+        //only for test
+        if (!m_kMonitorWindow.amsReturnError.empty()) {
+            m_kMonitorWindow.amsReturnError.clear();
+        }
+    } catch (const std::invalid_argument& e) {
+        DebugOutput("Error (input1): ", e.what());
+    }
+}
+#endif
+#pragma endregion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ========== in below, just for reference ============== //
 
 // Get connected printer ID
 std::string PhrozenNetworkAgent::get_connected_printer_id()
@@ -756,4 +1368,5 @@ std::string PhrozenNetworkAgent::get_error_string(CURLcode code)
     return std::string(curl_easy_strerror(code));
 }
 
-} // namespace Slic3r
+
+#pragma endregion

@@ -5,6 +5,7 @@
 #include <atomic>
 #include <mutex>
 #include <type_traits>
+#include "../json_diff.hpp"
 
 namespace Slic3r {
 
@@ -119,6 +120,15 @@ public:
 #pragma endregion
 
 #pragma region PhrozenWebServiceInfo
+
+enum class PhrozenPrinterID : int32_t 
+{
+    printer_gcode_script = 7466,
+    printer_firmware_restart = 64627,
+    printer_restart = 22577
+};
+
+
 class PhrozenWebServiceInfo
 {
 public:
@@ -127,11 +137,6 @@ public:
     std::string port_device = ":8808";
     std::string payload;
     std::unique_ptr<std::string> responseData = make_unique<std::string>();
-    //json jsonPrinterInfoData;
-    //json jsonHistoryInfoData;
-    //json jsonReturnInfoData;
-    //json jsonThumbnailsInfoData;
-    
     void reset() {
         ip.clear();
         payload.clear();
@@ -166,9 +171,8 @@ struct PhrozenPrinterInfo
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
-
-    bool isSameIP = "";
-    std::string pre_printerIP = "";
+    bool bIsLedOn = false;
+    bool bIsNozzleDetectFilament = false;
 };
 #pragma endregion
 
@@ -204,7 +208,6 @@ public:
     bool isGcodeLoadFinish = false;
     bool singlelayer = false;
     int isWide = false;
-    bool first_time_to_send_query = true;
 };
 #pragma endregion
 
@@ -340,6 +343,32 @@ public:
     // lancaigang231202:+PAUSE:10,oldchannel,newchannel;10-The touch screen or fluidd web page automatically pauses
 };
 #pragma endregion
+
+#pragma region PhrozenSendMessageGenerator
+class PhrozenSendMessageGenerator
+{
+ public:
+    // printer status, for control panel
+    static json GenPrinterControllerPayloadMsg();
+
+    static json GenHistoryPayloadMsg();
+
+    // check ams status
+    static json GenAMSPayloadMsg();
+
+    //t o check the filament is existing in the nozzle or not
+    static json GenNozzlePayloadMsg();
+
+    // to check if led turn On/Off
+    static json GenLEDPayloadMsg();
+    
+};
+#pragma endregion
+
+
+
+
+
 
 
 } // namespace Slic3r

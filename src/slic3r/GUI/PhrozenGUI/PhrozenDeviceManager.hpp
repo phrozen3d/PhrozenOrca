@@ -111,6 +111,8 @@ public:
 
     // Recieve from machine
     bool MoveDataToWebcamSnapshot( std::vector<unsigned char>& data );
+
+    std::string GetPrinterInfo_state();
 private:
     
 
@@ -120,6 +122,10 @@ private:
 
     DoubleBufferSP< std::vector<unsigned char> >* GetWebcameSnapshotPtr() { return &m_webcame_snapshot; }
     DoubleBufferSP< std::vector<unsigned char> > m_webcame_snapshot;
+
+    DoubleBufferSP< PhrozenPrinterInfo >* GetPrinterInfoPtr() { return &m_printerInfo; }
+    DoubleBufferSP< PhrozenPrinterInfo > m_printerInfo;
+
 };
 
 

@@ -1196,6 +1196,11 @@ bool PhrozenMachineObject_Dev::MoveDataToWebcamSnapshot( std::vector<unsigned ch
     return true;
 }
 
+std::string PhrozenMachineObject_Dev::GetPrinterInfo_state()
+{
+    return m_printerInfo.read()->state;
+}
+
 bool PhrozenMachineObject_Dev::ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data )
 {
     auto pWebcam = GetWebcameSnapshotPtr();
@@ -1250,9 +1255,12 @@ PhrozenMachineObject_Dev* PhrozenDeviceManager::GetConnectingMachine()
 
 void PhrozenDeviceManager::DisconnectMachine() 
 {
-    if ( !m_spConnectedMachine ) return;
+    if ( !m_spConnectedMachine || !m_pNetworkAgent  ) return;
 
+    StopSendMessage();
     StopReceiveWebcam();
+
+    m_pNetworkAgent->CleanupWebSocketConnection();
     m_spConnectedMachine = nullptr;
 
 }
@@ -1295,18 +1303,114 @@ bool PhrozenDeviceManager::StartReceiveWebcam()
 
 void PhrozenDeviceManager::StopReceiveWebcam()
 {
-    m_spRecieveWebcam->Stop();
-    m_spRecieveWebcam = nullptr;
+    if ( m_spRecieveWebcam )
+    {
+        m_spRecieveWebcam->Stop();
+        m_spRecieveWebcam = nullptr;
+    }
 }
 
 bool PhrozenDeviceManager::StartSendMessage()
 {
+    if ( !m_spConnectedMachine || !m_pNetworkAgent ) return false;
+    auto agent = m_pNetworkAgent;
+    auto machineObj = m_spConnectedMachine;
+
+    size_t uCount = 5;
+    std::vector< json > kMessageList = {
+        PhrozenSendMessageGenerator::GenPrinterControllerPayloadMsg(),
+        PhrozenSendMessageGenerator::GenHistoryPayloadMsg(),
+        PhrozenSendMessageGenerator::GenAMSPayloadMsg(),
+        PhrozenSendMessageGenerator::GenNozzlePayloadMsg(),
+        PhrozenSendMessageGenerator::GenLEDPayloadMsg()
+    
+    };
+    std::vector< bool > kSendingList = {
+        true, 
+        true, 
+        true, 
+        true, 
+        true
+    };
+
+    auto nowTime = std::chrono::steady_clock::now();
+    auto previousTime = std::chrono::steady_clock::now();
+    m_spSendMessage = std::make_unique< WorkerFuncSafe >( 
+    [ &agent, &machineObj, &kMessageList, &kSendingList, &nowTime, &previousTime, &uCount ] {
+        
+        nowTime = std::chrono::steady_clock::now();
+        long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
+
+        // Why timeDiff: Avoid sending messages to the machine too frequently, 
+        //               as this will cause the machine's logs to fluctuate too rapidly.
+        // TODO: Allow duplicate execution until we implement a better mechanism
+        //       Temporarily allow repeated execution until better solution is found
+        //       Future maybe can remove some payload(like ams, led..) and test if it
+        //       can still be received correctly.
+        bool bSendSecondaryPayloadMessage = 
+            (timeDiff > 5 && machineObj->GetPrinterInfo_state() != "printing") || agent->IsFirstTimeToSendQuery();
+        for ( auto i = 1; i < uCount; ++i )
+        {
+            kSendingList[ i ] = bSendSecondaryPayloadMessage;
+        }
+        if ( bSendSecondaryPayloadMessage )
+        {
+            agent->SetFirstTimeToSendQuery( false );
+            previousTime = std::chrono::steady_clock::now();
+        }
+        agent->RunSendMessage( kMessageList, kSendingList );
+    }, 
+    std::chrono::milliseconds{1} );
+
+    m_spRecieveWebcam->Process();
     return true;
+
+
+#if 0   // Reserved for reference only
+        auto nowTime = std::chrono::steady_clock::now();
+        auto previousTime = std::chrono::steady_clock::now();
+        while ( IsStartSending() )
+        {
+            {
+                // CRITICAL: libcurl easy handle is NOT thread-safe
+                // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+                // Operating the same curl handle from 2 threads may cause crash risk
+                std::lock_guard<std::mutex> lock(m_kCurlMutex);
+                
+                CURLcode result = send_action_Command(payload.dump());
+                
+                nowTime = std::chrono::steady_clock::now();
+                long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
+                /*when re-connect after disconnect need to do one more time*/
+                //if (threadControl.first_time_to_send_query) {
+                    //no need to do repeat execution
+                //   result = send_action_Command(payload_AMS.dump());
+                //}
+                // TODO: Allow duplicate execution until we implement a better mechanism
+                // Temporarily allow repeated execution until better solution is found
+                if ((timeDiff > 5 && m_spPrinterInfo->state != "printing") || m_spThreadControl->first_time_to_send_query)
+                {
+                    result = send_action_Command(payload_AMS.dump());
+                    result = send_action_Command(payload_history.dump());
+                    result = send_action_Command(payload_Nozzle.dump());
+                    result = send_action_Command(payload_LED.dump());
+                    m_spThreadControl->first_time_to_send_query = false;
+                    previousTime = std::chrono::steady_clock::now();
+                }
+                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
+            }// Lock released from here before sleep to avoid blocking ReceiveResponse() thread
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+#endif
 }
 
 void PhrozenDeviceManager::StopSendMessage()
 {
-
+    if ( m_spSendMessage )
+    {
+        m_spSendMessage->Stop();
+        m_spSendMessage = nullptr;
+    }
 }
 
 

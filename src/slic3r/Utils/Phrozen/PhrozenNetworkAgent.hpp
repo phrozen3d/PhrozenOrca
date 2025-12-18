@@ -131,6 +131,7 @@ typedef std::function<void(int, std::string)> OnErrorCallback;
 typedef std::function<void(float)> OnProgressCallback;
 typedef std::function<size_t(void*, size_t, size_t, void*)> OnSnapshotWriteStreamCallback;
 
+#pragma region PhrozenNetworkAgent
 class PhrozenNetworkAgent
 {
 public:
@@ -145,10 +146,17 @@ public:
 
     void SetStartReceiving( bool bStart );
     bool IsStartReceiving();
+    
+    void SetFirstTimeToSendQuery( bool flag );
+    bool IsFirstTimeToSendQuery();
+
 
 
     // ==== function to interactive with machine === //
-    void RunSendMessage( const std::vector< json >& kMessageList );
+    void RunSendMessage( const std::vector< json >& kMessageList,
+                         const std::vector< bool >& kSendingList );
+
+    void RunReceiveResponse();
 
     bool get_camera_stream_url(std::string dev_ip, std::string* url);
     CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
@@ -194,11 +202,20 @@ public:
 private:
     
     bool InitializeConnectorImp( const std::string& strIp );
+    CURLcode send_action_Command( std::string send_payload );
+    void DebugOutput(const std::string& prefix, const char* message = ""  );
+
+    // message parser
+    //bool ShouldSkipProcStat(const std::string& message);
+    //void ProcessGcodeResponse(const std::string& message, Slic3r::PhrozenPrinterInfo& kInfo );
+    //void ProcessHistoryInfo(const std::string& message, std::string& historyBuffer, bool& historyStart);
+    //void ProcessPauseMessage(const std::string& message);
 
 
-    std::string m_strIp;
+
     CURL* m_pCurlMainWebsocket = nullptr;
     std::mutex m_kCurlMutex;
+    std::mutex m_kCalibrationProgressMutex;
 
     std::unique_ptr< PhrozenWebServiceInfo > m_spWebServiceInfo{ nullptr };
     std::unique_ptr< PhrozenPrinterInfo > m_spPrinterInfo{ nullptr };
@@ -207,6 +224,8 @@ private:
     
     std::atomic<bool> m_bStartSending{false};
     std::atomic<bool> m_bStartReceiving{false};
+    std::atomic<bool> m_bFirstTimeToSendQuery{true};
+
 
      //====== below just for reference ========== //
     // Internal state
@@ -248,10 +267,9 @@ private:
     // Error handling
     void handle_error(int error_code, const std::string& error_message);
     std::string get_error_string(CURLcode code);
-
-
-
 };
+#pragma endregion
+
 
 } // namespace Slic3r
 
