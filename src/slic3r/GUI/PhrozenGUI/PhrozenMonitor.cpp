@@ -210,14 +210,25 @@ void PhrozenMonitorPanel::update_all()
         auto pManager = wxGetApp().GetPhrozenDeviceManager();
         if ( pManager )
         {
-            m_status_info_panel->SetPhrozenMachineObject( pManager->GetConnectingMachine() );
+            auto pMachineObj = pManager->GetConnectingMachine();
+            if ( pMachineObj )
+            {
+                m_side_tools->set_current_printer_name( pMachineObj->GetMachineIp() );
+                m_status_info_panel->SetPhrozenMachineObject( pMachineObj );
+                m_status_info_panel->update_phrozen();
+            }
+            else
+            {
+                //TODO reset and disable ui
+            }
+
+            
         }
 
 
-        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
-        m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
-        m_status_info_panel->update( pPhrozenMachineObj );
-        m_side_tools->set_current_printer_name( pPhrozenMachineObj->dev_ip );
+        //auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        //m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
+        //m_status_info_panel->update( pPhrozenMachineObj );
 
         
     }

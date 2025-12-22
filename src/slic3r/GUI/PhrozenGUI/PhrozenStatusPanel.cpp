@@ -3089,6 +3089,33 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     m_machine_ctrl_panel->Thaw();
 }
 
+void PhrozenStatusPanel::update_phrozen()
+{
+    if ( !PhrozenObj() ) return;
+    m_project_task_panel->Freeze();
+    //update_subtask(obj);
+    // ======================== //
+    // 更新各項列印相關資訊與狀態入口
+    // ======================== //
+    //[TODO]update_print_states_phrozen();
+    m_project_task_panel->Thaw();
+    
+
+    m_machine_ctrl_panel->Freeze();
+    update_temp_ctrl_phrozen();
+    update_print_speed_ctrl_phrozen();
+    update_fan_cooling_speed_ctrl_phrozen();
+    update_webcam_lighting_status_phrozen();
+    
+    if ( !IsWebCamRefreshTimerInitialized() )
+    {
+        InitWebCamUiUpdateTimer();
+    }
+    update_ams_phrozen();
+
+    m_machine_ctrl_panel->Thaw();
+}
+
 void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 {
     if ( !m_spWebCam_refresh_timer )
@@ -3103,7 +3130,8 @@ void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 
 void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
-    if ( m_pMachineObj ) UpdateWebCameraView( m_pMachineObj );
+    auto pObj = PhrozenObj();
+    if ( pObj ) UpdateWebCameraView( pObj );
 }
 
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
@@ -3119,14 +3147,14 @@ void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
     }
 }
 
-void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* obj)
+void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozenObj)
 {
-    if ( !obj || IsWebcamUiEnabled() ) 
+    if ( !pPhrozenObj || IsWebcamUiEnabled() ) 
     {
         ResetWebcamView();// clear image result (black)
         return;
     }
-    if ( !m_pMachineObj->ReadDataFromWebcamSnapshot( m_kWebCameraImageData ) )
+    if ( !pPhrozenObj->ReadDataFromWebcamSnapshot( m_kWebCameraImageData ) )
     {
         return;
     }
@@ -3252,7 +3280,6 @@ void PhrozenStatusPanel::update_error_message()
     }
 }
 
-
 void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
 {
     if (!obj) return;
@@ -3328,11 +3355,99 @@ void PhrozenStatusPanel::update_temp_ctrl(MachineObject *obj)
 #endif
 }
 
+void PhrozenStatusPanel::update_temp_ctrl_phrozen()
+{
+    auto pObj = PhrozenObj();
+    if ( !pObj ) return;
+
+    // bed
+    int nTempBedCurrent = (int)pObj->GetPhrozenBedTemperature();
+    int nTempBedTarget = (int) pObj->GetPhrozenBedTargetTemperature();
+
+    update_bed_current_temp( nTempBedCurrent );
+    //todo set max bed temp
+
+    // update temprature if not input temp target
+    if (m_temp_bed_timeout > 0) {
+        m_temp_bed_timeout--;
+    } else {
+        if (!bed_temp_input) { update_bed_target_temp( nTempBedTarget ); }
+    }
+
+    if ((nTempBedTarget - nTempBedCurrent) >= TEMP_THRESHOLD_VAL) {
+        //todo m_spTemp_heatedBed set active
+        m_spTemp_heatedBed;//m_tempCtrl_bed->SetIconActive();
+    } else {
+        //todo m_spTemp_heatedBed set normal
+        m_spTemp_heatedBed;//m_tempCtrl_bed->SetIconNormal();
+    }
+
+
+    // nozzle
+    int nTempNozzleCurrent = (int)pObj->GetPhrozenNozzleTemperature();
+    int nTempNozzleTarget = (int) pObj->GetPhrozenNozzleTargetTemperature();
+
+    update_nozzle_current_temp( nTempNozzleCurrent );
+    //todo set max nozzle temp
+    //reference:
+    //if (pObj->nozzle_max_temperature > -1) {
+    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(pObj->nozzle_max_temperature);
+    //}
+    //else {
+    //    if (m_tempCtrl_nozzle) m_tempCtrl_nozzle->SetMaxTemp(nozzle_temp_range[1]);
+    //}
+
+    if (m_temp_nozzle_timeout > 0) {
+        m_temp_nozzle_timeout--;
+    } else {
+        if (!nozzle_temp_input) { update_nozzle_target_temp( nTempNozzleTarget ); }
+    }
+
+    if ((nTempNozzleTarget - nTempNozzleCurrent) >= TEMP_THRESHOLD_VAL) {
+        //todo m_spTemp_nozzle set active
+        m_spTemp_nozzle; //m_tempCtrl_nozzle->SetIconActive();
+    } else {
+        //todo m_spTemp_nozzle set normal
+        m_spTemp_nozzle; //m_tempCtrl_nozzle->SetIconNormal();
+    }
+
+#if 0 //chamber setting -> todo
+    m_tempCtrl_chamber->SetCurrTemp(pObj->chamber_temp);
+    // update temprature if not input temp target
+    if (m_temp_chamber_timeout > 0) {
+        m_temp_chamber_timeout--;
+    }
+    else {
+        if (!cham_temp_input) { m_tempCtrl_chamber->SetTagTemp(pObj->chamber_temp_target); }
+    }
+
+    if ((pObj->chamber_temp_target - pObj->chamber_temp) >= TEMP_THRESHOLD_VAL) {
+        m_tempCtrl_chamber->SetIconActive();
+    }
+    else {
+        m_tempCtrl_chamber->SetIconNormal();
+    }
+#endif
+}
+
 void PhrozenStatusPanel::update_print_speed_ctrl(MachineObject *obj)
 {
     if (!obj) return;
     
     PhrozenPrintSpeed eLevel = print_speed_percent_to_enum( obj->GetPhrozenPrintSpeed() );
+    if (m_print_speed_timeout > 0) {
+        m_print_speed_timeout--;
+    } else {
+        if (!bed_temp_input) { update_print_speed_level( eLevel ); }
+    }
+}
+
+void PhrozenStatusPanel::update_print_speed_ctrl_phrozen()
+{
+    auto pObj = PhrozenObj();
+    if (!pObj) return;
+    
+    PhrozenPrintSpeed eLevel = print_speed_percent_to_enum( pObj->GetPhrozenPrintSpeed() );
     if (m_print_speed_timeout > 0) {
         m_print_speed_timeout--;
     } else {
@@ -3371,6 +3486,38 @@ void PhrozenStatusPanel::update_fan_cooling_speed_ctrl(MachineObject *obj)
     
 }
 
+void PhrozenStatusPanel::update_fan_cooling_speed_ctrl_phrozen()
+{
+    auto pObj = PhrozenObj();
+    if (!pObj) return;
+
+    int current_auxiliary_cooling = (int)( pObj->GetPhrozenAuxiliaryCoolingSpeed()* 100 );
+    int current_part_cooling = (int)( pObj->GetPhrozenPartCoolingSpeed()* 100 );
+    int current_shield_cooling = (int)( pObj->GetPhrozenShieldCoolingSpeed()* 100 );
+
+    update_cooling_auxiliary_current_power( current_auxiliary_cooling );
+    if (m_cooling_auxiliary_timeout > 0) {
+        m_cooling_auxiliary_timeout--;
+    } else {
+        if (!cooling_auxiliary_input) { update_cooling_auxiliary_target_power( current_auxiliary_cooling ); }
+    }
+
+    update_cooling_part_current_power( current_part_cooling );
+    if (m_cooling_part_timeout > 0) {
+        m_cooling_part_timeout--;
+    } else {
+        if (!cooling_part_input) { update_cooling_part_target_power( current_part_cooling ); }
+    }
+
+    update_cooling_shield_current_power( current_shield_cooling );
+    if (m_cooling_shield_timeout > 0) {
+        m_cooling_shield_timeout--;
+    } else {
+        if (!cooling_shield_input) { update_cooling_shield_target_power( current_shield_cooling ); }
+    }
+    
+}
+
 void PhrozenStatusPanel::update_webcam_lighting_status( MachineObject *obj )
 {
     if (!obj) return;
@@ -3379,6 +3526,19 @@ void PhrozenStatusPanel::update_webcam_lighting_status( MachineObject *obj )
         m_lighting_state_timeout--;
     } else {
         bool bIsLighingEnabled = obj->GetPhrozenCommand_lighting_enabled();
+        m_pCam_light_switch_button->SetValue( bIsLighingEnabled );
+    }
+}
+
+void PhrozenStatusPanel::update_webcam_lighting_status_phrozen()
+{
+    auto pObj = PhrozenObj();
+    if (!pObj) return;
+
+    if (m_lighting_state_timeout > 0) {
+        m_lighting_state_timeout--;
+    } else {
+        bool bIsLighingEnabled = pObj->IsMachineLED_On();
         m_pCam_light_switch_button->SetValue( bIsLighingEnabled );
     }
 }
@@ -3601,7 +3761,77 @@ void PhrozenStatusPanel::update_ams(MachineObject *obj)
 
     m_pFilamentControlPanel->UpdateFilamentState( kStatus );
     return;
+}
 
+void PhrozenStatusPanel::update_ams_phrozen()
+{
+    if ( !m_pFilamentControlPanel || !m_pFilamentControlPanel->IsShown() )
+    {
+        return;
+    }
+
+    auto pObj = PhrozenObj();
+
+    FilamentSystemState kStatus;
+    if ( !pObj )
+    {
+        //initialize is disable all filament.
+        m_pFilamentControlPanel->UpdateFilamentState( kStatus );
+        return;
+    }
+
+    //┌─────────────────────────────────────────────────────┐
+    //│         update_ams() 函數中調用
+    //│
+    //│  MonitorControl::IsConnectedToAMS()
+    //│  └─> 返回 m_bIsConnetedToAMS -> bool
+    //│      └─> 機器是否連接AMS  返回 ture / false
+    //│
+    //│
+    //│  MonitorControl::GetNozzleInfo()
+    //│  └─> 返回 nozzleInfo (NozzleInfo)
+    //│          └─> 成員函數 (Member Functions)
+    //│              ├─> isFilamentExisting() -> bool
+    //│                  └─> 檢查線材是否存在於噴頭  返回 ture / false
+    //│
+    //│
+    //│  MonitorControl::GetAMSList()
+    //│  └─> 返回 m_kAMSList (vector<AMSInfo>)
+    //│      └─> ams_list[0-3] (AMSInfo)
+    //│          └─> 成員函數 (Member Functions)
+    //│              ├─> getEntryState() -> bool
+    //│              │   └─> 線材是否在AMS入口處  返回 entry 狀態 ture / false
+    //│              ├─> getParkState() -> bool
+    //│              │   └─> 線材是否在緩衝區位置  返回 park 狀態 ture / false
+    //│              ├─> getLoadingState() -> bool
+    //│              │   └─> 是否已進料  返回 loading 狀態 ture / false
+    //│              ├─> isLoadingStart() -> bool
+    //│              │   └─> 檢查進料是否開始  返回 ture / false
+    //│              ├─> isUnloadStart() -> bool
+    //│              │   └─> 檢查退料是否開始  返回 ture / false
+    //└─────────────────────────────────────────────────────┘
+    
+    kStatus.SetNozzleFilamentDetected( pObj->IsNozzleDetectFilament() );
+    if ( pObj->IsConnectedToAMS() )
+    {
+        kStatus.SetAMSSystemDetected( pObj->IsConnectedToAMS() );
+
+        std::vector< PhrozenAMSInfo > kAmsList;
+        if ( !pObj->ReadDataFromAMSInfoList( kAmsList ) ) return;
+
+        assert( kAmsList.size() == 4 && "ams slot list must be 4" );
+        for ( size_t nIndex = 0; nIndex < kAmsList.size(); ++nIndex )
+        {
+            kStatus.SetAMSSlotState( nIndex, kAmsList[nIndex].getEntryState(),
+                                             kAmsList[nIndex].getParkState(),
+                                             kAmsList[nIndex].getLoadingState(),
+                                             kAmsList[nIndex].isLoadingStart(),
+                                             kAmsList[nIndex].isUnloadStart() );
+        }
+    }
+
+    m_pFilamentControlPanel->UpdateFilamentState( kStatus );
+    return;
 }
 
 void PhrozenStatusPanel::update_cali(MachineObject *obj)
@@ -3873,6 +4103,30 @@ void PhrozenStatusPanel::update_print_states(MachineObject *obj)
     // ============================================
     // 防呆檢查：確保物件有效
     // ============================================
+    if (!obj) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: obj is nullptr";
+        return;
+    }
+    
+    update_print_status(obj);
+    update_print_progress(obj);
+    update_print_file(obj);
+    update_print_time(obj);
+    update_print_stage(obj);
+    update_print_filament(obj);
+    update_thumbnail(obj);
+}
+
+void PhrozenStatusPanel::update_print_states_phrozen()
+{
+    if ( !PhrozenObj() ) return;
+    // ============================================
+    // 防呆檢查：確保物件有效
+    // ============================================
+
+    //TODO change use phrozen obj
+    return;
+
     if (!obj) {
         BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_status: obj is nullptr";
         return;

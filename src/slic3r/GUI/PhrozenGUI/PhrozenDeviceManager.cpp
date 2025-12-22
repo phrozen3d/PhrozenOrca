@@ -1186,19 +1186,46 @@ PhrozenMachineObject_Dev::~PhrozenMachineObject_Dev()
 }
 
 
-bool PhrozenMachineObject_Dev::MoveDataToWebcamSnapshot( std::vector<unsigned char>& data )
+void PhrozenMachineObject_Dev::MoveDataToWebcamSnapshot( std::vector<unsigned char>& data )
 {
     auto pWebcam = GetWebcameSnapshotPtr();
     if ( pWebcam->move_and_write( data ) )
     {
         pWebcam->flip();
     }
-    return true;
 }
 
-std::string PhrozenMachineObject_Dev::GetPrinterInfo_state()
+void PhrozenMachineObject_Dev::MoveDataToPrinterInfo( PhrozenPrinterInfo& data )
 {
-    return m_printerInfo.read()->state;
+    if ( PrinterInfoPtr()->move_and_write( data ) )
+    {
+        PrinterInfoPtr()->flip();
+    }
+}
+
+void PhrozenMachineObject_Dev::MoveDataToAMSInfoList( std::vector< PhrozenAMSInfo >& data )
+{
+    if ( m_AMSInfoList.move_and_write( data ) ) m_AMSInfoList.flip();
+}
+
+void PhrozenMachineObject_Dev::MoveDataToCalibrationProgressInfo( PhrozenCalibrationProgressInfo& kData )
+{
+    if ( m_calibrationProgressInfo.move_and_write( kData ) ) m_calibrationProgressInfo.flip();
+}
+
+void PhrozenMachineObject_Dev::SetIsConnectedToAMS( const bool& bConnected )
+{
+    if ( m_connectedToAMS.try_write( bConnected ) ) m_connectedToAMS.flip();
+}
+
+void PhrozenMachineObject_Dev::SetIsMachineLED_On( const bool& bOn )
+{
+    if ( m_machineLED_On.try_write( bOn ) ) m_machineLED_On.flip();
+}
+
+void PhrozenMachineObject_Dev::SetIsNozzleDetectFilament( const bool& bDetected )
+{
+    if ( m_nozzleDetectFilament.try_write( bDetected ) ) m_nozzleDetectFilament.flip();
 }
 
 bool PhrozenMachineObject_Dev::ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data )
@@ -1206,6 +1233,124 @@ bool PhrozenMachineObject_Dev::ReadDataFromWebcamSnapshot( std::vector<unsigned 
     auto pWebcam = GetWebcameSnapshotPtr();
     return pWebcam->try_read( data );
 }
+
+bool PhrozenMachineObject_Dev::ReadDataFromAMSInfoList( std::vector< PhrozenAMSInfo >& data )
+{
+    return m_AMSInfoList.try_read( data );
+}
+
+bool PhrozenMachineObject_Dev::ReadDataFromCalibrationProgressInfo( PhrozenCalibrationProgressInfo& data )
+{
+    return m_calibrationProgressInfo.try_read( data );
+}
+
+bool PhrozenMachineObject_Dev::IsConnectedToAMS()
+{
+    bool bValue = false;
+    m_connectedToAMS.try_read( bValue );
+    return bValue; 
+}
+
+bool PhrozenMachineObject_Dev::IsMachineLED_On()
+{
+    bool bValue = false;
+    m_machineLED_On.try_read( bValue );
+    return bValue; 
+}
+
+bool PhrozenMachineObject_Dev::IsNozzleDetectFilament()
+{
+    bool bValue = false;
+    m_nozzleDetectFilament.try_read( bValue );
+    return bValue; 
+}
+
+#pragma region PrinterInfo
+float PhrozenMachineObject_Dev::GetPhrozenBedTemperature()
+{
+    return PrinterInfoPtr()->read()->bed_temperature;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenNozzleTemperature() 
+{
+    return PrinterInfoPtr()->read()->extruder_temperature;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenPrintSpeed()
+{
+    return PrinterInfoPtr()->read()->print_speed;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenAuxiliaryCoolingSpeed()
+{
+    return PrinterInfoPtr()->read()->auxiliary_fan_speed;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenPartCoolingSpeed()
+{
+    return PrinterInfoPtr()->read()->fan_speed;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenShieldCoolingSpeed()
+{
+    return PrinterInfoPtr()->read()->shield_fan_speed;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenBedTargetTemperature() 
+{
+    return PrinterInfoPtr()->read()->bed_temperature_target;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenNozzleTargetTemperature() 
+{
+    return PrinterInfoPtr()->read()->extruder_temperature_target;
+}
+
+std::string PhrozenMachineObject_Dev::GetPhrozenPrintStatus()
+{
+    auto pointer = PrinterInfoPtr()->read();
+    //return PrinterInfoPtr()->try_read( state ) ? 
+    return pointer->state;
+}
+
+std::string PhrozenMachineObject_Dev::GetPhrozenPrintFile()
+{
+    return PrinterInfoPtr()->read()->print_file;
+}
+
+std::string PhrozenMachineObject_Dev::GetPhrozenThumbnailPath()
+{
+    return PrinterInfoPtr()->read()->thumbnail_path;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenPrintProgress()
+{
+    return PrinterInfoPtr()->read()->print_progress;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenPrintTime()
+{
+    return PrinterInfoPtr()->read()->print_time;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenTotalTime()
+{
+    return PrinterInfoPtr()->read()->total_time;
+}
+
+float PhrozenMachineObject_Dev::GetPhrozenPrintFilamentAmount()
+{
+    return PrinterInfoPtr()->read()->print_filament;
+}
+
+bool PhrozenMachineObject_Dev::IsPrintPaused()
+{
+    return PrinterInfoPtr()->read()->is_paused;
+}
+#pragma endregion
+
+
+
 
 #pragma endregion
 
@@ -1313,95 +1458,47 @@ void PhrozenDeviceManager::StopReceiveWebcam()
 bool PhrozenDeviceManager::StartSendMessage()
 {
     if ( !m_spConnectedMachine || !m_pNetworkAgent ) return false;
-    auto agent = m_pNetworkAgent;
-    auto machineObj = m_spConnectedMachine;
 
-    size_t uCount = 5;
-    std::vector< json > kMessageList = {
+  // 建立本地資料
+    static std::vector<json> kMessageList = 
+    {
         PhrozenSendMessageGenerator::GenPrinterControllerPayloadMsg(),
         PhrozenSendMessageGenerator::GenHistoryPayloadMsg(),
         PhrozenSendMessageGenerator::GenAMSPayloadMsg(),
         PhrozenSendMessageGenerator::GenNozzlePayloadMsg(),
         PhrozenSendMessageGenerator::GenLEDPayloadMsg()
+    };
+
+    m_kSendingList = std::vector<bool>( kMessageList.size(), true );
+    auto prevPtr = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
+
+    m_spSendMessage = std::make_unique<WorkerFuncSafe>(
+        [ this, prevPtr ]
+        {
+            auto now = std::chrono::steady_clock::now();
+            long long secs = std::chrono::duration_cast<std::chrono::seconds>(now - *prevPtr).count();
     
-    };
-    std::vector< bool > kSendingList = {
-        true, 
-        true, 
-        true, 
-        true, 
-        true
-    };
+            bool shouldSendSecondary = 
+                (secs > 5 /*&& m_spConnectedMachine->GetPhrozenPrintStatus() != "printing"*/)
+                || m_pNetworkAgent->IsFirstTimeToSendQuery();
+    
+            // 從第 2 個 payload 開始才受控（第 1 個維持 true）
+            for (size_t i = 1; i < kMessageList.size(); ++i) {
+                m_kSendingList[i] = shouldSendSecondary;
+            }
+    
+            if (shouldSendSecondary) {
+                m_pNetworkAgent->SetFirstTimeToSendQuery(false);
+                *prevPtr = now;  // 更新在 lambda 內部持有的 prev
+            }
+    
+            m_pNetworkAgent->RunSendMessage(kMessageList, m_kSendingList);
+        },
+        std::chrono::milliseconds{100}
+    );
 
-    auto nowTime = std::chrono::steady_clock::now();
-    auto previousTime = std::chrono::steady_clock::now();
-    m_spSendMessage = std::make_unique< WorkerFuncSafe >( 
-    [ &agent, &machineObj, &kMessageList, &kSendingList, &nowTime, &previousTime, &uCount ] {
-        
-        nowTime = std::chrono::steady_clock::now();
-        long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
-
-        // Why timeDiff: Avoid sending messages to the machine too frequently, 
-        //               as this will cause the machine's logs to fluctuate too rapidly.
-        // TODO: Allow duplicate execution until we implement a better mechanism
-        //       Temporarily allow repeated execution until better solution is found
-        //       Future maybe can remove some payload(like ams, led..) and test if it
-        //       can still be received correctly.
-        bool bSendSecondaryPayloadMessage = 
-            (timeDiff > 5 && machineObj->GetPrinterInfo_state() != "printing") || agent->IsFirstTimeToSendQuery();
-        for ( auto i = 1; i < uCount; ++i )
-        {
-            kSendingList[ i ] = bSendSecondaryPayloadMessage;
-        }
-        if ( bSendSecondaryPayloadMessage )
-        {
-            agent->SetFirstTimeToSendQuery( false );
-            previousTime = std::chrono::steady_clock::now();
-        }
-        agent->RunSendMessage( kMessageList, kSendingList );
-    }, 
-    std::chrono::milliseconds{1} );
-
-    m_spRecieveWebcam->Process();
+    m_spSendMessage->Process();
     return true;
-
-
-#if 0   // Reserved for reference only
-        auto nowTime = std::chrono::steady_clock::now();
-        auto previousTime = std::chrono::steady_clock::now();
-        while ( IsStartSending() )
-        {
-            {
-                // CRITICAL: libcurl easy handle is NOT thread-safe
-                // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
-                // Operating the same curl handle from 2 threads may cause crash risk
-                std::lock_guard<std::mutex> lock(m_kCurlMutex);
-                
-                CURLcode result = send_action_Command(payload.dump());
-                
-                nowTime = std::chrono::steady_clock::now();
-                long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
-                /*when re-connect after disconnect need to do one more time*/
-                //if (threadControl.first_time_to_send_query) {
-                    //no need to do repeat execution
-                //   result = send_action_Command(payload_AMS.dump());
-                //}
-                // TODO: Allow duplicate execution until we implement a better mechanism
-                // Temporarily allow repeated execution until better solution is found
-                if ((timeDiff > 5 && m_spPrinterInfo->state != "printing") || m_spThreadControl->first_time_to_send_query)
-                {
-                    result = send_action_Command(payload_AMS.dump());
-                    result = send_action_Command(payload_history.dump());
-                    result = send_action_Command(payload_Nozzle.dump());
-                    result = send_action_Command(payload_LED.dump());
-                    m_spThreadControl->first_time_to_send_query = false;
-                    previousTime = std::chrono::steady_clock::now();
-                }
-                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
-            }// Lock released from here before sleep to avoid blocking ReceiveResponse() thread
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-#endif
 }
 
 void PhrozenDeviceManager::StopSendMessage()
@@ -1413,6 +1510,65 @@ void PhrozenDeviceManager::StopSendMessage()
     }
 }
 
+bool PhrozenDeviceManager::StartReceiveMessage()
+{
+    if ( !m_spConnectedMachine || !m_pNetworkAgent ) return false;
+    m_pNetworkAgent->InitializeForReceiveResponse();
+
+    m_spReceiveMessage = std::make_unique< WorkerFuncSafe >( 
+    [ this ] {
+        
+        m_pNetworkAgent->RunReceiveResponse();
+
+        // update status info
+        if ( m_pNetworkAgent->IsPrinterInfoChanged() )
+        {
+            PhrozenPrinterInfo kPrinterInfo;
+            m_pNetworkAgent->GetPrinterInfoData( kPrinterInfo );
+            m_spConnectedMachine->MoveDataToPrinterInfo( kPrinterInfo );
+        }
+
+        if ( m_pNetworkAgent->IsAMSInfoListChenaged() )
+        {
+            std::vector< PhrozenAMSInfo > kAmsInfoLIst;
+            m_pNetworkAgent->GetAMSInfoList( kAmsInfoLIst );
+            m_spConnectedMachine->MoveDataToAMSInfoList( kAmsInfoLIst );
+        }
+
+        if ( m_pNetworkAgent->IsCalibrationProgressInfoChanged() )
+        {
+            PhrozenCalibrationProgressInfo kCalibrationProgress;
+            m_pNetworkAgent->GetCalibrationProgressInfoData( kCalibrationProgress );
+            m_spConnectedMachine->ReadDataFromCalibrationProgressInfo( kCalibrationProgress );
+        }
+
+        m_spConnectedMachine->SetIsConnectedToAMS( m_pNetworkAgent->IsConnetedToAMS() );
+        m_spConnectedMachine->SetIsMachineLED_On( m_pNetworkAgent->IsMachineLED_On() );
+        m_spConnectedMachine->SetIsNozzleDetectFilament( m_pNetworkAgent->IsNozzleDetectFilament() );
+
+        //TODO
+        //bool IsMonitorWindowChanged() { return m_bIsMonitorWindowChanged; }
+
+
+
+
+    }, 
+    std::chrono::milliseconds{10} );
+
+    m_spReceiveMessage->Process();
+    return true;
+}
+
+void PhrozenDeviceManager::StopReceiveMessage()
+{
+    if ( m_spReceiveMessage )
+    {
+        m_spReceiveMessage->Stop();
+        m_spReceiveMessage = nullptr;
+    }
+    //TODO
+    //m_spPrinterInfo->state = "offline";
+}
 
 #pragma endregion
 

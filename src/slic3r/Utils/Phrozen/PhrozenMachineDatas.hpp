@@ -153,36 +153,57 @@ public:
 #pragma endregion
 
 #pragma region PhrozenPrinterInfo
-struct PhrozenPrinterInfo
+class PhrozenPrinterInfo
 {
-    float z_offsetValure;
-    int extruder_temperature;
-    int extruder_temperature_target;
-    int bed_temperature;
-    int bed_temperature_target;
-    int chamber_temperature;
-    float auxiliary_fan_speed;
-    float fan_speed;
-    float shield_fan_speed;
-    float print_speed;
-    std::string home_axes;
-    float estimated_print_time;
-    
-    std::string state;
-    float print_progress = 0;
+public:
+
+    // --- 位置/校正 ---
+    float z_offsetValue = 0.0f;
+
+    // --- 溫度資訊 ---
+    int extruder_temperature = 0;
+    int extruder_temperature_target = 0;
+    int bed_temperature = 0;
+    int bed_temperature_target = 0;
+    int chamber_temperature = 0;
+
+    // --- 風扇/速度 ---
+    float auxiliary_fan_speed = 0.0f;
+    float fan_speed = 0.0f;
+    float shield_fan_speed = 0.0f;
+    float print_speed = 0.0f;
+
+    // --- 其他狀態 ---
+    std::string home_axes;               // 預設空字串即可
+    float estimated_print_time = 0.0f;
+
+    std::string state;                   // 如 "idle"/"printing"/"paused"
+    float print_progress = 0.0f;
     bool is_paused = false;
     std::string print_file;
-    float print_time;
-    float total_time;
-    float print_filament;
+    float print_time = 0.0f;
+    float total_time = 0.0f;
+    float print_filament = 0.0f;
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
+
     bool bIsLedOn = false;
     bool bIsNozzleDetectFilament = false;
 
-    bool isSameIP = "";
-    std::string pre_printerIP = "";
+    // --- 網路相關 ---
+    bool isSameIP = false;               // 以布林表示「是否相同 IP」
+    std::string pre_printerIP = "";      // 上一次 IP
+
+    // （可選）提供明確的預設建構子，確保所有成員已初始化
+    PhrozenPrinterInfo() = default;
+
+    // （可選）提供部分初始化的建構子，方便快速設定
+    PhrozenPrinterInfo(const std::string& initialState,
+                       const std::string& ip = "")
+               : state(initialState),
+          pre_printerIP(ip) {}
+
 };
 #pragma endregion
 
@@ -323,10 +344,9 @@ public:
 
     // only for test
     // Optional: Set the label corresponding to the error type
-    const std::vector<char> errorTypes = { '4', '7', '8', 'c', 'd', 'f' };
-    const std::vector<std::string> errorLabels = {
-    	"Error 4", "Error 7", "Error 8", "Error C", "Error D", "Error F"
-    };
+    static const std::vector<char> errorTypes;
+    static const std::vector<std::string> errorLabels;
+
 
     std::string amsReturnError = "";
     std::wstring receiveMessage = L"";
@@ -377,7 +397,7 @@ class PhrozenSendMessageGenerator
 
 #pragma region PhrozenCalibrationProgressInfo
 // Calibration state enumeration
-enum class CalibrationState : int32_t {
+enum class PhrozenCalibrationState : int32_t {
     STOPPED = 0,    // 停止/未開始
     RUNNING = 1,    // 執行中
     COMPLETED = 2,  // 完成
@@ -385,12 +405,12 @@ enum class CalibrationState : int32_t {
 };
 
 
-class CalibrationProgressInfo 
+class PhrozenCalibrationProgressInfo 
 {
 public:
-    CalibrationState calibrationStatus = CalibrationState::STOPPED;
-    CalibrationState resonanceCompensationStatus = CalibrationState::STOPPED;
-    CalibrationState temperatureCalibrationStatus = CalibrationState::STOPPED;
+    PhrozenCalibrationState calibrationStatus = PhrozenCalibrationState::STOPPED;
+    PhrozenCalibrationState resonanceCompensationStatus = PhrozenCalibrationState::STOPPED;
+    PhrozenCalibrationState temperatureCalibrationStatus = PhrozenCalibrationState::STOPPED;
     
     float calibrationProgress = 0.0f;           // 0-100
     float resonanceCompensationProgress = 0.0f;   // 0-100
@@ -403,7 +423,7 @@ public:
     std::chrono::steady_clock::time_point startTime;
     
     // Initialize startTime
-    CalibrationProgressInfo() : startTime(std::chrono::steady_clock::now()) {}
+    PhrozenCalibrationProgressInfo() : startTime(std::chrono::steady_clock::now()) {}
 };
 
 #pragma endregion

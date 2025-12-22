@@ -10,6 +10,7 @@ namespace Slic3r {
 class PhrozenNetworkAgent;
 class WorkerFuncSafe;
 
+#pragma region PhrozenMachineObject
 class PhrozenMachineObject : public MachineObject
 {
 
@@ -98,23 +99,63 @@ public:
     // Check if any calibration is running
     virtual bool IsAnyCalibrationRunning() override;
 };
+#pragma endregion
 
+#pragma region PhrozenMachineObject_Dev
 class PhrozenMachineObject_Dev 
 {
 public:
     PhrozenMachineObject_Dev( std::string ip, PhrozenNetworkAgent* pAgent );
     ~PhrozenMachineObject_Dev();
 
-    // Read from ui
-    bool ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data );
     std::string GetMachineIp() { return m_strIp; }
 
-    // Recieve from machine
-    bool MoveDataToWebcamSnapshot( std::vector<unsigned char>& data );
+    // Read from ui
+    bool ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data );
+    bool ReadDataFromAMSInfoList( std::vector< PhrozenAMSInfo >& data );
+    bool ReadDataFromCalibrationProgressInfo( PhrozenCalibrationProgressInfo& data );
+    bool IsConnectedToAMS();
+    bool IsMachineLED_On();
+    bool IsNozzleDetectFilament();
 
-    std::string GetPrinterInfo_state();
+    // Recieve from machine
+    void MoveDataToWebcamSnapshot( std::vector<unsigned char>& data );
+    void MoveDataToPrinterInfo( PhrozenPrinterInfo& data );
+    void MoveDataToAMSInfoList( std::vector< PhrozenAMSInfo >& data );
+    void MoveDataToCalibrationProgressInfo( PhrozenCalibrationProgressInfo& kData );
+    void SetIsConnectedToAMS( const bool& bConnected );
+    void SetIsMachineLED_On( const bool& bOn );
+    void SetIsNozzleDetectFilament( const bool& bDetected );
+
+
+    //PrinterInfo
+    float GetPhrozenBedTemperature();
+    float GetPhrozenNozzleTemperature();
+    float GetPhrozenPrintSpeed();
+    float GetPhrozenAuxiliaryCoolingSpeed();
+    float GetPhrozenPartCoolingSpeed();
+    float GetPhrozenShieldCoolingSpeed();
+    float GetPhrozenBedTargetTemperature();
+    float GetPhrozenNozzleTargetTemperature();
+    std::string GetPhrozenPrintStatus();
+    std::string GetPhrozenPrintFile();
+    std::string GetPhrozenThumbnailPath();
+    float GetPhrozenPrintProgress();
+    float GetPhrozenPrintTime();
+    float GetPhrozenTotalTime();
+    float GetPhrozenPrintFilamentAmount();
+    bool IsPrintPaused();
+
+    int GetPhrozenBedTemperature_limit() { return 300; }
+    int GetPhrozenNozzleTemperature_limit() { return 300; }
+
+
+
+
 private:
     
+
+
 
 private:
     PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
@@ -123,11 +164,21 @@ private:
     DoubleBufferSP< std::vector<unsigned char> >* GetWebcameSnapshotPtr() { return &m_webcame_snapshot; }
     DoubleBufferSP< std::vector<unsigned char> > m_webcame_snapshot;
 
-    DoubleBufferSP< PhrozenPrinterInfo >* GetPrinterInfoPtr() { return &m_printerInfo; }
+    DoubleBufferSP< PhrozenPrinterInfo >* PrinterInfoPtr() { return &m_printerInfo; }
     DoubleBufferSP< PhrozenPrinterInfo > m_printerInfo;
 
-};
+    DoubleBufferSP< PhrozenCalibrationProgressInfo > m_calibrationProgressInfo;
 
+    DoubleBufferSP< bool > m_connectedToAMS;
+    DoubleBufferSP< bool > m_machineLED_On;
+    DoubleBufferSP< bool > m_nozzleDetectFilament;
+    DoubleBufferSP< std::vector< PhrozenAMSInfo > > m_AMSInfoList;
+     
+
+
+
+};
+#pragma endregion
 
 #pragma region PhrozenDeviceSearchResult
 class PhrozenDeviceSearchResult
@@ -218,6 +269,9 @@ public:
     bool StartSendMessage();
     void StopSendMessage();
 
+    bool StartReceiveMessage();
+    void StopReceiveMessage();
+
     bool IsMachineConnecting() { return m_spConnectedMachine != nullptr; }
 
 private:
@@ -226,12 +280,11 @@ private:
     std::shared_ptr< PhrozenMachineObject_Dev > m_spConnectedMachine{ nullptr };
     PhrozenNetworkAgent* m_pNetworkAgent { nullptr };
 
-    
-
-
+    std::vector<bool> m_kSendingList;
 private:
     std::unique_ptr< WorkerFuncSafe > m_spRecieveWebcam{ nullptr };
     std::unique_ptr< WorkerFuncSafe > m_spSendMessage{ nullptr };
+    std::unique_ptr< WorkerFuncSafe > m_spReceiveMessage{ nullptr };
 };
 #pragma endregion 
 

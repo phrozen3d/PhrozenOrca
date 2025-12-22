@@ -3,6 +3,13 @@
 
 namespace Slic3r {
 
+// only for test
+// Optional: Set the label corresponding to the error type
+const std::vector<char> PhrozenMonitorWindow::errorTypes = { '4', '7', '8', 'c', 'd', 'f' };
+const std::vector<std::string> PhrozenMonitorWindow::errorLabels = {
+    "Error 4", "Error 7", "Error 8", "Error C", "Error D", "Error F"
+};
+
 #pragma region PhrozenSendMessageGenerator
 
 json PhrozenSendMessageGenerator::GenPrinterControllerPayloadMsg()

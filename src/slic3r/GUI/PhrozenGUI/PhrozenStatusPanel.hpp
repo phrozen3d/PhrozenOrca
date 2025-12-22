@@ -360,6 +360,7 @@ public:
     MachineObject* obj{nullptr};
 
     void SetPhrozenMachineObject( PhrozenMachineObject_Dev* pObj ) { m_pMachineObj = pObj; }
+    PhrozenMachineObject_Dev* PhrozenObj() { return m_pMachineObj; }
     PhrozenMachineObject_Dev* m_pMachineObj{nullptr};
 
     void reset_temp_misc_control();
@@ -564,6 +565,7 @@ protected:
 
     /* update apis */
     void update(MachineObject* obj);
+    void update_phrozen();
     void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
     void ResetWebcamView();
     void update_left_time(int mc_left_time);
@@ -571,6 +573,7 @@ protected:
     void update_model_info();
     void update_subtask(MachineObject* obj);
     void update_print_states(MachineObject* obj);
+    void update_print_states_phrozen();
     void update_print_status(MachineObject* obj);
     void update_print_progress(MachineObject* obj);
     void update_print_file(MachineObject* obj);
@@ -581,11 +584,16 @@ protected:
     void update_cloud_subtask(MachineObject *obj);
     void update_sdcard_subtask(MachineObject *obj);
     void update_temp_ctrl(MachineObject *obj);
+    void update_temp_ctrl_phrozen();
     void update_print_speed_ctrl(MachineObject *obj);
+    void update_print_speed_ctrl_phrozen();
     void update_fan_cooling_speed_ctrl(MachineObject *obj);
+    void update_fan_cooling_speed_ctrl_phrozen();
     void update_webcam_lighting_status( MachineObject *obj );
+    void update_webcam_lighting_status_phrozen();
     void update_misc_ctrl(MachineObject *obj);
     void update_ams(MachineObject* obj);
+    void update_ams_phrozen();
     void update_extruder_status(MachineObject* obj);
     void update_cali(MachineObject* obj);
     void update_calib_bitmap();

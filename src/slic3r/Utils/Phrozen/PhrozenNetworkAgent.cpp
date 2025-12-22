@@ -108,7 +108,10 @@ struct PhrozenFrameProcessor {
 // Calibration progress calculator module
 struct CalibrationProgressCalculator {
     // Calculate calibration progress based on probe points
-    static void UpdateCalibrationProgress(const std::string& params, CalibrationProgressInfo* info, const PhrozenPrinterInfo& kPrintInfo ) {
+    static void UpdateCalibrationProgress( const std::string& params, 
+                                           PhrozenCalibrationProgressInfo* info, 
+                                           const PhrozenPrinterInfo& kPrintInfo ) 
+{
         // Check for probe at message: "// probe at X,Y is z=Z"
         size_t probe_pos = params.find("probe at ");
         if (probe_pos != std::string::npos) {
@@ -167,7 +170,7 @@ struct CalibrationProgressCalculator {
         }
         
         // Update calibration progress based on heating (if not completed)
-        if (info->calibrationStatus == CalibrationState::RUNNING && !info->heatingCompleted) {
+        if (info->calibrationStatus == PhrozenCalibrationState::RUNNING && !info->heatingCompleted) {
             float bed = 0, extruder = 0;
             if ( kPrintInfo.bed_temperature_target > 0)
                 bed = (static_cast<float>( kPrintInfo.bed_temperature) / 
@@ -186,7 +189,7 @@ struct CalibrationProgressCalculator {
     }
     
     // Calculate resonance compensation progress
-    static void UpdateResonanceCompensationProgress(const std::string& params, CalibrationProgressInfo* info) {
+    static void UpdateResonanceCompensationProgress(const std::string& params, PhrozenCalibrationProgressInfo* info) {
         // Resonance Compensation Progress Calculation
         // Background: According to machine operation and Dongguan team feedback, resonance compensation has a fixed duration.
         // The process consists of X-axis and Y-axis resonance compensation tests, which can be observed from the web console logs.
@@ -264,7 +267,7 @@ struct CalibrationProgressCalculator {
     }
     
     // Calculate temperature calibration progress
-    static void UpdateTemperatureCalibrationProgress(const std::string& params, CalibrationProgressInfo* info) {
+    static void UpdateTemperatureCalibrationProgress(const std::string& params, PhrozenCalibrationProgressInfo* info) {
         // Temperature Progress Calculation
         // Background: According to machine operation and Dongguan team feedback.
         // Match pattern: T0:XXX/YYY (e.g., "T0:210.0/210.0" or "T0:205.5/205.0")
@@ -422,14 +425,100 @@ struct PhrozenMessageProcessor {
         }
     }
     
-    static void ProcessGcodeResponse( const std::string& message, 
-                                      PhrozenPrinterInfo* pPrinterInfo, 
-                                      std::mutex& kCalibrationProgressMutex,
-                                      CalibrationProgressInfo* pCalibInfo ) {
+    /*
+        check if it gcode script response message, and get params result from whole message, 
+        input:
+            message: whole message;
+        output:
+            return if has gcode_response keyword
+    */
+    static bool IsGcodeResponseMessage( const std::string& message ) 
+    {
         std::string find_message = "{\"jsonrpc\": \"2.0\", \"method\": \"notify_gcode_response\"";
         size_t pos = message.find(find_message.c_str());
-        if (pos == std::string::npos) return;
-        
+        return pos != std::string::npos ;
+    }
+
+    /*
+        Get params result from json message, 
+        input:
+            message: whole message;
+            strParamsResult: for receive result
+        output:
+            return if it success found
+    */
+    static bool GetParamsResultMessage( const std::string& message, std::string& strParamsResult )
+    {
+        strParamsResult.clear();
+        if (json::accept(message)) {
+             try {
+                 json msg_json = json::parse(message);
+                 if (!msg_json["params"].is_null()) 
+                 {
+                     strParamsResult = msg_json["params"][0].get<std::string>();
+                     return !strParamsResult.empty();
+                 }
+             } 
+             catch (const json::exception& e) {
+                 BOOST_LOG_TRIVIAL(warning) << "JSON parse error in gcode_response: " << e.what();
+                 return false;
+             }
+        }
+        return false;
+    }
+
+    /*
+        Check LED State from param result msg
+        input:
+            strParamsResult: params from json message;
+            bIsLedOn: for receive result
+        output:
+            return if it success process
+    */
+    static bool ProcessGcodeResponse_LEDState( const std::string& strParamsResult, bool& bIsLedOn )
+    {
+        std::string strLEDKeyword = "P0 LED_State=";
+        auto uLEDPos = strParamsResult.find(strLEDKeyword);
+        if ( uLEDPos != std::string::npos )
+        {
+            std::string strLEDValue = strParamsResult.substr(uLEDPos + strLEDKeyword.length(), 1);
+            bIsLedOn = std::stoi(strLEDValue);
+            return true;
+        }
+        return false;
+    }
+
+    /*
+        Check nozzle detect filament or not
+        input:
+            strParamsResult:            params from json message;
+            bIsNozzleDetectFilament:    for receive result
+        output:
+            return if it success process
+    */
+    static bool ProcessGcodeResponse_NozzleState( const std::string& strParamsResult, bool& bIsNozzleDetectFilament )
+    {
+        if ( strParamsResult.find("PRZ_ADC:") != std::string::npos 
+             && strParamsResult.find("fila_exist") != std::string::npos) 
+        {
+            if (strParamsResult.find("fila_exist:True") != std::string::npos ||
+                strParamsResult.find("fila_exist:true") != std::string::npos) {
+                bIsNozzleDetectFilament = true;
+            } else {
+                bIsNozzleDetectFilament = false;
+            }
+            return true;
+            BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << ( bIsNozzleDetectFilament ? "true" : "false") << " ***";
+        }
+        return false;
+    }
+
+
+    static bool ProcessGcodeResponse( const std::string& message, 
+                                      PhrozenPrinterInfo* pPrinterInfo, 
+                                      std::mutex& kCalibrationProgressMutex,
+                                      PhrozenCalibrationProgressInfo* pCalibInfo ) {
+        if ( !IsGcodeResponseMessage( message ) ) return false;
         if (json::accept(message)) {
             try {
                 json msg_json = json::parse(message);
@@ -440,29 +529,8 @@ struct PhrozenMessageProcessor {
                     size_t pos = params.find("Unhandled exception during run");
                     if (pos != std::string::npos) {
                         pPrinterInfo->error = msg_json["params"][0].get<std::string>();
+                        return false;
                     }
-
-                    // Check LED State
-                    std::string strLEDKeyword = "P0 LED_State=";
-                    auto uLEDPos = params.find(strLEDKeyword);
-                    if ( uLEDPos != std::string::npos )
-                    {
-                        std::string strLEDValue = params.substr(uLEDPos + strLEDKeyword.length(), 1);
-                        pPrinterInfo->bIsLedOn = std::stoi(strLEDValue);
-                        return;
-                    }
-                    
-                    // Check for PRZ_ADC response with fila_exist
-                    if (params.find("PRZ_ADC:") != std::string::npos && params.find("fila_exist") != std::string::npos) {
-                        if (params.find("fila_exist:True") != std::string::npos ||
-                            params.find("fila_exist:true") != std::string::npos) {
-                            pPrinterInfo->bIsNozzleDetectFilament = true;
-                        } else {
-                            pPrinterInfo->bIsNozzleDetectFilament = false;
-                        }
-                        BOOST_LOG_TRIVIAL(info) << "*** PRZ_ADC response: fila_exist = " << ( pPrinterInfo->bIsNozzleDetectFilament ? "true" : "false") << " ***";
-                    }
-                    
                     // ============================================
                     // Calibration message processing
                     // ============================================
@@ -470,12 +538,12 @@ struct PhrozenMessageProcessor {
                         // Auto-leveling (Calibration) messages
                         if (params.find("Probe samples exceed samples_tolerance") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(kCalibrationProgressMutex);
-                            pCalibInfo->calibrationStatus = CalibrationState::HAS_ERROR;
+                            pCalibInfo->calibrationStatus = PhrozenCalibrationState::HAS_ERROR;
                             BOOST_LOG_TRIVIAL(warning) << "Calibration error: Probe samples exceed tolerance";
                         } else if (params.find("Mesh Bed Leveling Complete") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(kCalibrationProgressMutex);
-                            if ( pCalibInfo->calibrationStatus == CalibrationState::RUNNING) {
-                                 pCalibInfo->calibrationStatus = CalibrationState::COMPLETED;
+                            if ( pCalibInfo->calibrationStatus == PhrozenCalibrationState::RUNNING) {
+                                 pCalibInfo->calibrationStatus = PhrozenCalibrationState::COMPLETED;
                                  pCalibInfo->calibrationProgress = 100.0f;
                                 BOOST_LOG_TRIVIAL(info) << "Calibration completed";
                             }
@@ -492,8 +560,8 @@ struct PhrozenMessageProcessor {
                             CalibrationProgressCalculator::UpdateResonanceCompensationProgress(params, pCalibInfo );
                         } else if (params.find("with these parameters and restart the printer.") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(kCalibrationProgressMutex);
-                            if ( pCalibInfo->resonanceCompensationStatus == CalibrationState::RUNNING) {
-                                 pCalibInfo->resonanceCompensationStatus = CalibrationState::COMPLETED;
+                            if ( pCalibInfo->resonanceCompensationStatus == PhrozenCalibrationState::RUNNING) {
+                                 pCalibInfo->resonanceCompensationStatus = PhrozenCalibrationState::COMPLETED;
                                  pCalibInfo->resonanceCompensationProgress = 100.0f;
                                 BOOST_LOG_TRIVIAL(info) << "Resonance compensation completed";
                             }
@@ -505,8 +573,8 @@ struct PhrozenMessageProcessor {
                             CalibrationProgressCalculator::UpdateTemperatureCalibrationProgress(params, pCalibInfo);
                         } else if (params.find("Klippy Disconnected") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(kCalibrationProgressMutex);
-                            if (pCalibInfo->temperatureCalibrationStatus == CalibrationState::RUNNING) {
-                                pCalibInfo->temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                            if (pCalibInfo->temperatureCalibrationStatus == PhrozenCalibrationState::RUNNING) {
+                                pCalibInfo->temperatureCalibrationStatus = PhrozenCalibrationState::COMPLETED;
                                 pCalibInfo->temperatureCalibrationProgress = 100.0f;
                                 BOOST_LOG_TRIVIAL(info) << "Temperature calibration completed";
                             }
@@ -515,25 +583,30 @@ struct PhrozenMessageProcessor {
                         // Generic completion message
                         if (params.find("Klipper state: Disconnect") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(kCalibrationProgressMutex);
-                            if (pCalibInfo->calibrationStatus == CalibrationState::RUNNING) {
-                                pCalibInfo->calibrationStatus = CalibrationState::COMPLETED;
+                            if (pCalibInfo->calibrationStatus == PhrozenCalibrationState::RUNNING) {
+                                pCalibInfo->calibrationStatus = PhrozenCalibrationState::COMPLETED;
                                 pCalibInfo->calibrationProgress = 100.0f;
                             }
-                            if (pCalibInfo->resonanceCompensationStatus == CalibrationState::RUNNING) {
-                                pCalibInfo->resonanceCompensationStatus = CalibrationState::COMPLETED;
+                            if (pCalibInfo->resonanceCompensationStatus == PhrozenCalibrationState::RUNNING) {
+                                pCalibInfo->resonanceCompensationStatus = PhrozenCalibrationState::COMPLETED;
                                 pCalibInfo->resonanceCompensationProgress = 100.0f;
                             }
-                            if (pCalibInfo->temperatureCalibrationStatus == CalibrationState::RUNNING) {
-                                pCalibInfo->temperatureCalibrationStatus = CalibrationState::COMPLETED;
+                            if (pCalibInfo->temperatureCalibrationStatus == PhrozenCalibrationState::RUNNING) {
+                                pCalibInfo->temperatureCalibrationStatus = PhrozenCalibrationState::COMPLETED;
                                 pCalibInfo->temperatureCalibrationProgress = 100.0f;
                             }
                         }
+
+                        return true;
                     }
                 }
+                return false;
             } catch (const json::exception& e) {
                 BOOST_LOG_TRIVIAL(warning) << "JSON parse error in gcode_response: " << e.what();
+                return false;
             }
         }
+        return false;
     }
     
     static void ProcessHistoryInfo(const std::string& message,
@@ -586,11 +659,11 @@ struct PhrozenMessageProcessor {
         }
     }
     
-    static void ProcessPauseMessage(const std::string& message,  PhrozenMonitorWindow* pMonitorWindow) {
+    static bool ProcessPauseMessage(const std::string& message,  PhrozenMonitorWindow* pMonitorWindow) {
         
         std::string pause_prefix = "+PAUSE:";
         size_t pause_pos = message.find(pause_prefix);
-        if (pause_pos == std::string::npos) return;
+        if (pause_pos == std::string::npos) return false;
         
         try {
             std::tuple<std::string, std::string, std::string> pauseError = PhrozenParsePauseMessage(message);
@@ -618,8 +691,10 @@ struct PhrozenMessageProcessor {
             if (pMonitorWindow->amsReturnError.empty()) {
                 pMonitorWindow->amsReturnError.clear();
             }
+            return true;
         } catch (const std::invalid_argument& e) {
             BOOST_LOG_TRIVIAL(warning) << "Error (input1): " << e.what();
+            return false;
             //DebugOutput("Error (input1): ", e.what());
         }
     }
@@ -852,7 +927,6 @@ struct PhrozenAMSProcessor {
 };
 #pragma endregion
 
-
 #pragma region PhrozenPrinterStatusExtractor
 struct PhrozenPrinterStatusExtractor {
     static void ExtractTemperatureInfo(const json& status, PhrozenPrinterInfo* kInfo) {
@@ -901,7 +975,7 @@ struct PhrozenPrinterStatusExtractor {
             if (status["gcode_move"].contains("homing_origin") &&
                 status["gcode_move"]["homing_origin"].is_array() &&
                 status["gcode_move"]["homing_origin"].size() > 2) {
-                kInfo->z_offsetValure = status["gcode_move"]["homing_origin"][2];
+                kInfo->z_offsetValue = status["gcode_move"]["homing_origin"][2];
             }
         }
     }
@@ -976,17 +1050,18 @@ struct PhrozenPrinterStatusExtractor {
         }
     }
     
-    static void ProcessPrinterStatus(const std::string& message, 
+    static bool ProcessPrinterStatus(const std::string& message, 
                                      PhrozenWebServiceInfo* pWebService, 
                                      PhrozenPrinterInfo* pPrinterInfo,
                                      std::string& prev_state, 
                                      bool& bThumbnailChecking) 
-{
+    {
+        bool bIsUpdate = false;
         std::string id = "\"id\": 7466";
         std::string result = "result";
         size_t pos = message.find(id.c_str());
         size_t pos_result = message.find(result.c_str());
-        if (pos == std::string::npos || pos_result == std::string::npos) return;
+        if (pos == std::string::npos || pos_result == std::string::npos) return bIsUpdate;
         
         if (json::accept(message)) {
             try {
@@ -1004,6 +1079,7 @@ struct PhrozenPrinterStatusExtractor {
                         ExtractToolheadInfo(status, pPrinterInfo);
                         ExtractPrintStatusInfo(status, pPrinterInfo, prev_state, bThumbnailChecking );
                         pPrinterInfo->error = "";
+                        bIsUpdate = true;
                     }
                 }
             } catch (const json::exception& e) {
@@ -1012,24 +1088,16 @@ struct PhrozenPrinterStatusExtractor {
         } else {
             BOOST_LOG_TRIVIAL(info) << "JSON NOT ACCEPT" << endl;
         }
+        return bIsUpdate;
     }
+
 };
 #pragma endregion
 
 #pragma region PhrozenNetworkAgent
+
 // Constructor
 PhrozenNetworkAgent::PhrozenNetworkAgent(std::string log_dir)
-    : m_log_dir(log_dir)
-    , m_config_dir("")
-    , m_connected_dev_ip("")
-    , m_is_connected(false)
-    , m_timeout_ms(30000)  // 30 seconds default timeout
-    , m_curl_handle(nullptr)
-    , m_websocket_handle(nullptr)
-    , m_on_message_callback(nullptr)
-    , m_on_connection_callback(nullptr)
-    , m_on_error_callback(nullptr)
-    , m_on_progress_callback(nullptr)
 {
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Constructor called with log_dir: " << log_dir;
 
@@ -1048,8 +1116,6 @@ PhrozenNetworkAgent::PhrozenNetworkAgent(std::string log_dir)
 PhrozenNetworkAgent::~PhrozenNetworkAgent()
 {
     BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Destructor called";
-    disconnect_printer();
-    cleanup_curl();
 }
 
 bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
@@ -1059,8 +1125,15 @@ bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
     m_spPrinterInfo = std::make_unique< PhrozenPrinterInfo >();
     m_spThreadControl = std::make_unique< PhrozenThreadControl >();
     m_spMonitorWindow = std::make_unique< PhrozenMonitorWindow >();
+    m_spCalibrationProgressInfo = std::make_unique< PhrozenCalibrationProgressInfo >();
 
     if ( !m_spAmsPatterns ) m_spAmsPatterns = std::make_unique< PhrozenAMSPatterns >();
+    
+    if ( m_bIsTestMode )
+    {
+        uTestCounter = 0;
+        return true;
+    }
     
 
 
@@ -1068,6 +1141,7 @@ bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
 
     //trigger ams update query command after connect to speicified IP address (Printer)
     SetFirstTimeToSendQuery( true );
+    CleanupWebSocketConnection();
     m_spWebServiceInfo->ip = strIp;
 
     bool bSuccess = InitializeConnectorImp( strIp );
@@ -1076,8 +1150,9 @@ bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
         m_spWebServiceInfo->ip = "";
         m_spMonitorWindow->connectedMachineName = "";
         m_spMonitorWindow->isShownIPConnectNotification = true;
-        SetStartReceiving(false);
         SetStartSending(false);
+        SetStartReceiving(false);
+        
     }
     return bSuccess;
 }
@@ -1130,7 +1205,6 @@ bool PhrozenNetworkAgent::InitializeConnectorImp( const std::string& strIp )
         return fnCheckCurlSuccess( res ); // Protocol not supported
     }
 
-    CleanupWebSocketConnection();
     m_pCurlMainWebsocket = curl_easy_init();
 
     if (m_pCurlMainWebsocket) {
@@ -1295,212 +1369,32 @@ bool PhrozenNetworkAgent::IsConnetedToAMS()
     return m_bIsConnetedToAMS.load(std::memory_order_relaxed);
 }
 
-    
-
-// Initialize logging
-int PhrozenNetworkAgent::init_log()
+void PhrozenNetworkAgent::SetIsMachineLED_On( bool isOn )
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Initializing log with directory: " << m_log_dir;
-    // Log initialization logic here
-    return 0;
+    m_bIsMachineLED_On.store(isOn, std::memory_order_relaxed);
 }
 
-// Set configuration directory
-int PhrozenNetworkAgent::set_config_dir(std::string config_dir)
+bool PhrozenNetworkAgent::IsMachineLED_On()
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Setting config directory: " << config_dir;
-    m_config_dir = config_dir;
-    return 0;
+    return m_bIsMachineLED_On.load(std::memory_order_relaxed);
 }
 
-// Start the agent
-int PhrozenNetworkAgent::start()
+void PhrozenNetworkAgent::SetIsNozzleDetectFilament( bool isDetected )
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Starting agent";
-    CURLcode result = initialize_curl();
-    if (result != CURLE_OK) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Failed to initialize CURL: " << get_error_string(result);
-        return -1;
-    }
-    return 0;
+    m_bIsNozzleDetectFilament.store(isDetected, std::memory_order_relaxed);
 }
 
-// Connect to a printer
-int PhrozenNetworkAgent::connect_printer( std::string dev_ip)
+bool PhrozenNetworkAgent::IsNozzleDetectFilament()
 {
-    std::lock_guard<std::mutex> lock(m_connection_mutex);
-
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Connecting to printer - IP: " << dev_ip;
-
-    if (m_is_connected) {
-        BOOST_LOG_TRIVIAL(warning) << "PhrozenNetworkAgent: Already connected to a printer, disconnecting first";
-        disconnect_printer();
-    }
-
-    m_connected_dev_ip = dev_ip;
-    m_is_connected = true;
-
-    // Notify via callback
-    if (m_on_connection_callback) {
-        m_on_connection_callback(true);
-    }
-
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Successfully connected to printer";
-    return 0;
-}
-
-// Disconnect from printer
-int PhrozenNetworkAgent::disconnect_printer()
-{
-    std::lock_guard<std::mutex> lock(m_connection_mutex);
-
-    if (!m_is_connected) {
-        BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: No active connection to disconnect";
-        return 0;
-    }
-
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Disconnecting from printer: " << m_connected_dev_ip;
-
-    m_connected_dev_ip.clear();
-    m_is_connected = false;
-
-    // Notify via callback
-    if (m_on_connection_callback) {
-        m_on_connection_callback(false);
-    }
-
-    return 0;
-}
-
-// Check if connected
-bool PhrozenNetworkAgent::is_connected()
-{
-    std::lock_guard<std::mutex> lock(m_connection_mutex);
-    return m_is_connected;
-}
-
-// Set message callback
-void PhrozenNetworkAgent::set_on_message_callback(OnMessageCallback callback)
-{
-    m_on_message_callback = callback;
-}
-
-// Set connection callback
-void PhrozenNetworkAgent::set_on_connection_callback(OnConnectionCallback callback)
-{
-    m_on_connection_callback = callback;
-}
-
-// Set error callback
-void PhrozenNetworkAgent::set_on_error_callback(OnErrorCallback callback)
-{
-    m_on_error_callback = callback;
-}
-
-// Set progress callback
-void PhrozenNetworkAgent::set_on_progress_callback(OnProgressCallback callback)
-{
-    m_on_progress_callback = callback;
-}
-
-// Send message
-int PhrozenNetworkAgent::send_message(std::string dev_ip, std::string message)
-{
-    std::lock_guard<std::mutex> lock(m_message_mutex);
-
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending message to " << dev_ip << ": " << message;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: Send message to printer
-    // This would typically use HTTP or WebSocket communication
-
-    return 0;
-}
-
-// Send GCode command
-int PhrozenNetworkAgent::send_gcode_command(std::string dev_ip, std::string gcode)
-{
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending GCode to " << dev_ip << ": " << gcode;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: Send GCode command
-
-    return 0;
-}
-
-// Send file
-int PhrozenNetworkAgent::send_file(std::string dev_ip, std::string file_path, OnProgressCallback progress_fn)
-{
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Sending file to " << dev_ip << ": " << file_path;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: File upload logic
-
-    return 0;
-}
-
-// Download file
-int PhrozenNetworkAgent::download_file(std::string dev_ip, std::string remote_path, std::string local_path)
-{
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Downloading file from " << dev_ip
-                            << " - Remote: " << remote_path << ", Local: " << local_path;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: File download logic
-
-    return 0;
-}
-
-// Get printer info
-int PhrozenNetworkAgent::get_printer_info(std::string dev_ip, std::string* info_json)
-{
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer info for " << dev_ip;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: Query printer information
-
-    return 0;
-}
-
-// Get printer status
-int PhrozenNetworkAgent::get_printer_status(std::string dev_ip, std::string* status_json)
-{
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Getting printer status for " << dev_ip;
-
-    if (!m_is_connected || m_connected_dev_ip != dev_ip) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Not connected to device " << dev_ip;
-        return -1;
-    }
-
-    // Implementation needed: Query printer status
-
-    return 0;
+    return m_bIsNozzleDetectFilament.load(std::memory_order_relaxed);
 }
 
 
 void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageList,
                                           const std::vector< bool >& kSendingList )
 {
+
+    if ( m_bIsTestMode ) return;
 
     try {
         size_t uCount = kMessageList.size();
@@ -1530,113 +1424,23 @@ void PhrozenNetworkAgent::RunSendMessage( const std::vector< json >& kMessageLis
     } catch (const std::exception& e) {
         DebugOutput( "Caught std::exception: " , e.what() );
     }
-
-#if 0
-    //Initialconnect();
-    size_t sent;
-    json payload;
-    payload["jsonrpc"] = "2.0";
-    payload["method"] = "printer.objects.query";
-    payload["params"] = {
-        {"objects", {
-            {"extruder", {"temperature", "target"}},
-            {"temperature_sensor Chamber_sensor", {"temperature"}},
-            {"output_pin fan_assist", {"value"}},
-            {"fan_generic cooling_fan", nullptr},
-            {"fan_generic Chamber_fan", {"speed"}},
-            {"heater_bed", {"temperature", "target"}},
-            {"gcode_move", {"speed_factor", "homing_origin"}},
-            {"homing_origin", nullptr},
-            {"display_status", nullptr},
-            {"print_stats", nullptr},
-            {"pause_resume", nullptr},
-            {"error", nullptr},
-            {"toolhead", {"position", "status", "homed_axes", "estimated_print_time"}}
-        }}
-    };
-    payload["id"] = PhrozenPrinterID::printer_gcode_script;
-
-    //History
-    json payload_history;
-    payload_history["jsonrpc"] = "2.0";
-    payload_history["method"] = "server.history.list";
-    payload_history["id"] = 5656;
-
-    //AMS
-    json payload_AMS;
-    payload_AMS["jsonrpc"] = "2.0";
-    payload_AMS["method"] = "printer.gcode.script";
-    payload_AMS["params"]["script"] = "P114";
-    payload_AMS["id"] = PhrozenPrinterID::printer_gcode_script;
-    
-    //Nozzle
-    //to check the filament is existing in the nozzle or not
-    json payload_Nozzle;
-    payload_Nozzle["jsonrpc"] = "2.0";
-    payload_Nozzle["method"] = "printer.gcode.script";
-    payload_Nozzle["params"]["script"] = "PRZ_ADC";
-    payload_Nozzle["id"] = PhrozenPrinterID::printer_gcode_script;
-
-    //LED
-    json payload_LED;
-    payload_LED["jsonrpc"] = "2.0";
-    payload_LED["method"] = "printer.gcode.script";
-    payload_LED["params"]["script"] = "P0 LED_GetState";
-    payload_LED["id"] = PhrozenPrinterID::printer_gcode_script;
-
-    // Log thread ID for Xcode console debugging
-    std::thread::id thread_id = std::this_thread::get_id();
-    std::cout << "[GetAllInfo_websocket] Thread started, Thread ID: " << thread_id << std::endl;
-    BOOST_LOG_TRIVIAL(info) << "GetAllInfo_websocket: Thread started, Thread ID: " << thread_id;
-    
-    try {
-        auto nowTime = std::chrono::steady_clock::now();
-        auto previousTime = std::chrono::steady_clock::now();
-        while ( IsStartSending() )
-        {
-            {
-                // CRITICAL: libcurl easy handle is NOT thread-safe
-                // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
-                // Operating the same curl handle from 2 threads may cause crash risk
-                std::lock_guard<std::mutex> lock(m_kCurlMutex);
-                BOOST_LOG_TRIVIAL(debug) << "RunSendMessage: Lock acquired, Thread ID: " << thread_id;
-                
-                CURLcode result = send_action_Command(payload.dump());
-                
-                nowTime = std::chrono::steady_clock::now();
-                long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime).count();
-                /*when re-connect after disconnect need to do one more time*/
-                //if (threadControl.first_time_to_send_query) {
-                    //no need to do repeat execution
-                //   result = send_action_Command(payload_AMS.dump());
-                //}
-                // TODO: Allow duplicate execution until we implement a better mechanism
-                // Temporarily allow repeated execution until better solution is found
-                if ((timeDiff > 5 && m_spPrinterInfo->state != "printing") || m_spThreadControl->first_time_to_send_query)
-                {
-                    result = send_action_Command(payload_AMS.dump());
-                    result = send_action_Command(payload_history.dump());
-                    result = send_action_Command(payload_Nozzle.dump());
-                    result = send_action_Command(payload_LED.dump());
-                    m_spThreadControl->first_time_to_send_query = false;
-                    previousTime = std::chrono::steady_clock::now();
-                }
-                BOOST_LOG_TRIVIAL(debug) << "GetAllInfo_websocket: Lock released, Thread ID: " << thread_id;
-            }// Lock released from here before sleep to avoid blocking ReceiveResponse() thread
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-
-    } catch (const std::invalid_argument& e) {
-        DebugOutput( "Caught std::invalid_argument: " , e.what());
-    } catch (const std::exception& e) {
-        DebugOutput( "Caught std::exception: " , e.what() );
-    }
-
-#endif
  
 }
 
+void PhrozenNetworkAgent::InitializeForReceiveResponse()
+{
+    // local function param for RunReceiveResponse.
+    // because RunReceiveResponse will process use thread from outside
+    // so initialize here.
+    m_strAms_message_buffer.clear();
+    m_strHistoryInfo.clear();
+    m_bHistoryStart = false;
+    m_nAgain = 0;
+    m_strSliding_window_buffer.clear();
 
+    // other param
+    m_kHistoryList.clear();
+}
 
 /**
  * Optimized ReceiveResponse() Function
@@ -1671,17 +1475,10 @@ void PhrozenNetworkAgent::RunReceiveResponse()
     struct curl_ws_frame* meta;
 #endif
     
-    // Frame accumulation buffers for handling fragmented messages
-    std::string ams_message_buffer;      // Buffer for AMS-related messages
-    std::string historyInfo;              // Buffer for history info (existing)
-    bool historyStart = false;
-    int again = 0;
-    
-    // Sliding window buffer for cross-frame pattern matching
-    // This helps catch patterns that span across frame boundaries
-    std::string sliding_window_buffer;
-    const size_t MAX_SLIDING_WINDOW_SIZE = 10000;  // Maximum size to prevent memory issues
-    
+    m_bIsPrinterInfoChanged = false;
+    m_bIsCalibrationProgressInfoChanged = false;
+    m_bIsAMSInfoListChenaged = false;
+    m_bIsMonitorWindowChanged = false;
 
     if( !IsFirstTimeToSendQuery() ){
 
@@ -1700,7 +1497,7 @@ void PhrozenNetworkAgent::RunReceiveResponse()
                 res = curl_ws_recv( m_pCurlMainWebsocket, buffer, sizeof(buffer), &rlen, &meta);
                 
                 if (res == CURLE_OK) {
-                    again = 0;
+                    m_nAgain = 0;
                     
                     // ============================================
                     // Frame Fragmentation Handling
@@ -1722,14 +1519,14 @@ void PhrozenNetworkAgent::RunReceiveResponse()
                     
                     // If this is a continuation frame, accumulate it
                     if (is_continuation_frame) {
-                        ams_message_buffer += frame_data;
+                        m_strAms_message_buffer += frame_data;
                         BOOST_LOG_TRIVIAL(debug) << "Accumulating continuation frame. "
-                        << "Buffer size: " << ams_message_buffer.size();
+                        << "Buffer size: " << m_strAms_message_buffer.size();
                         
                         // Prevent buffer from growing too large
-                        if (ams_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
+                        if (m_strAms_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
                             BOOST_LOG_TRIVIAL(warning) << "AMS message buffer exceeded max size, truncating";
-                            ams_message_buffer = ams_message_buffer.substr(ams_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
+                            m_strAms_message_buffer = m_strAms_message_buffer.substr(m_strAms_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
                         }
                         return;  // To next loop for wait for more frames
                     }
@@ -1737,8 +1534,8 @@ void PhrozenNetworkAgent::RunReceiveResponse()
                     // ============================================
                     // Complete Message Combination
                     // ============================================
-                    std::string complete_message = PhrozenFrameProcessor::CombineFrames(frame_data, ams_message_buffer);
-                    PhrozenFrameProcessor::UpdateSlidingWindow(sliding_window_buffer, complete_message, MAX_SLIDING_WINDOW_SIZE);
+                    std::string complete_message = PhrozenFrameProcessor::CombineFrames(frame_data, m_strAms_message_buffer);
+                    PhrozenFrameProcessor::UpdateSlidingWindow(m_strSliding_window_buffer, complete_message, MAX_SLIDING_WINDOW_SIZE);
                     
                     // ============================================
                     // Message Conversion
@@ -1759,21 +1556,50 @@ void PhrozenNetworkAgent::RunReceiveResponse()
                     // ============================================
                     if (!skip_proc_stat_processing) {
                         BOOST_LOG_TRIVIAL(info) << "receive: " << ws << endl;
-                        std::string prev_state = m_kPrev_state.get();
-                        bool bThumbnailChecking = IsThumbnailChecking();
-                        PhrozenPrinterStatusExtractor::ProcessPrinterStatus( ws,
-                                                                             m_spWebServiceInfo.get(),
-                                                                             m_spPrinterInfo.get(), 
-                                                                             prev_state,
-                                                                             bThumbnailChecking );
-                        m_kPrev_state.set( prev_state );
-                        SetThumbnailChecking( bThumbnailChecking );
+
+                        if ( PhrozenMessageProcessor::IsGcodeResponseMessage( ws ) )
+                        {
+                            std::string strParams;
+                            bool bIsMachineLedOn;
+                            bool bIsNozzleDetectFilament;
+                            if ( PhrozenMessageProcessor::GetParamsResultMessage( ws, strParams ) )
+                            {
+                                if ( PhrozenMessageProcessor::ProcessGcodeResponse_LEDState( strParams, bIsMachineLedOn ) )
+                                {   
+                                    SetIsMachineLED_On( bIsMachineLedOn );
+                                    return;
+                                }
+                                else if ( PhrozenMessageProcessor::ProcessGcodeResponse_NozzleState( strParams, bIsNozzleDetectFilament ) )
+                                {
+                                    SetIsNozzleDetectFilament( bIsNozzleDetectFilament );
+                                    return;
+                                }
+                                else if ( PhrozenMessageProcessor::ProcessGcodeResponse(ws,
+                                                                      m_spPrinterInfo.get(),
+                                                                      m_kCalibrationProgressMutex,
+                                                                      m_spCalibrationProgressInfo.get() )  )
+                                {
+                                    m_bIsCalibrationProgressInfoChanged = true;
+                                    return;
+                                }
+                            }
+                        }
+
+                        bool bDoThumbnailCheck = IsThumbnailChecking();
+                        m_bIsPrinterInfoChanged = PhrozenPrinterStatusExtractor::ProcessPrinterStatus( ws,
+                                                                                                       m_spWebServiceInfo.get(),
+                                                                                                       m_spPrinterInfo.get(), 
+                                                                                                       m_strPrev_state,
+                                                                                                       bDoThumbnailCheck );
+                        SetThumbnailChecking( bDoThumbnailCheck );
+
                     }
                     
                     // ============================================
                     // History Info Processing (independent of skip_proc_stat)
                     // ============================================
-                    PhrozenMessageProcessor::ProcessHistoryInfo(ws, historyInfo, &m_kHistoryList, historyStart);
+                    //TODO history now just get value but no use
+                    PhrozenMessageProcessor::ProcessHistoryInfo(ws, m_strHistoryInfo, &m_kHistoryList, m_bHistoryStart);
                     
                     // ============================================
                     // AMS Processing (independent of skip_proc_stat)
@@ -1781,30 +1607,31 @@ void PhrozenNetworkAgent::RunReceiveResponse()
                     // Search in both the current complete message and sliding window buffer
                     // This ensures we catch patterns even if they span frame boundaries
                     std::string search_text = ws;
-                    if (sliding_window_buffer.size() > ws.size()) {
-                        search_text = sliding_window_buffer;
+                    if (m_strSliding_window_buffer.size() > ws.size()) {
+                        search_text = m_strSliding_window_buffer;
                     }
                     
                     bool bIsConnetedToAMS = IsConnetedToAMS();
-                    PhrozenAMSProcessor::ProcessAMSConnectionStatus(search_text, sliding_window_buffer, m_spAmsPatterns.get(), bIsConnetedToAMS );
-                    PhrozenAMSProcessor::ProcessAMSCommandStates(search_text, sliding_window_buffer,  m_spAmsPatterns.get(), &m_kAMSList );
+                    PhrozenAMSProcessor::ProcessAMSConnectionStatus(search_text, m_strSliding_window_buffer, m_spAmsPatterns.get(), bIsConnetedToAMS );
+                    PhrozenAMSProcessor::ProcessAMSCommandStates(search_text, m_strSliding_window_buffer,  m_spAmsPatterns.get(), &m_kAMSList );
                     PhrozenAMSProcessor::ProcessAMSEntryParkState(ws, bIsConnetedToAMS, &m_kAMSList );
+                    m_bIsAMSInfoListChenaged = bIsConnetedToAMS;
                     SetConnectedToAms( bIsConnetedToAMS );
                     
                     // ============================================
                     // Pause Message Processing
                     // ============================================
-                    PhrozenMessageProcessor::ProcessPauseMessage(ws, m_spMonitorWindow.get() );
+                    m_bIsMonitorWindowChanged = PhrozenMessageProcessor::ProcessPauseMessage(ws, m_spMonitorWindow.get() );
                 }
                 else if (res == CURLE_AGAIN) {
-                    again++;
+                    m_nAgain++;
                     // Log for macOS Xcode console
-                    BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: CURLE_AGAIN, Thread ID: " << thread_id << ", again count: " << again;
+                    BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: CURLE_AGAIN, Thread ID: " << thread_id << ", again count: " << m_nAgain;
                     
-                    if (again > 30) {
+                    if (m_nAgain > 30) {
                         // Log for macOS Xcode console (log before resetting again)
-                        BOOST_LOG_TRIVIAL(warning) << "Too many CURLE_AGAIN (count: " << again << ")";
-                        again = 0;
+                        BOOST_LOG_TRIVIAL(warning) << "Too many CURLE_AGAIN (count: " << m_nAgain << ")";
+                        m_nAgain = 0;
                     }
                 }
                 else if (res == CURLE_RECV_ERROR) {
@@ -1832,12 +1659,6 @@ void PhrozenNetworkAgent::RunReceiveResponse()
         }
         BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock released, Thread ID: " << thread_id;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
-    m_spPrinterInfo->state = "offline";
-    //return res;
-
-
 }
 
 // Get camera stream URL
@@ -1953,173 +1774,25 @@ void PhrozenNetworkAgent::DebugOutput(const std::string& prefix, const char* mes
 #endif
 }
 
-
-// ========== in below, just for reference ============== //
-
-// Get connected printer ID
-std::string PhrozenNetworkAgent::get_connected_printer_id()
+void PhrozenNetworkAgent::GetPrinterInfoData( PhrozenPrinterInfo& kData )
 {
-    std::lock_guard<std::mutex> lock(m_connection_mutex);
-    return m_connected_dev_ip;
+    if ( !m_spPrinterInfo ) return;
+    kData = *m_spPrinterInfo;
 }
 
-// Get connected printer IP
-std::string PhrozenNetworkAgent::get_connected_printer_ip()
+void PhrozenNetworkAgent::GetCalibrationProgressInfoData( PhrozenCalibrationProgressInfo& kData )
 {
-    std::lock_guard<std::mutex> lock(m_connection_mutex);
-    return m_connected_dev_ip;
+    if ( !m_spCalibrationProgressInfo ) return;
+    kData = *m_spCalibrationProgressInfo;
 }
-
-// Set timeout
-void PhrozenNetworkAgent::set_timeout(int timeout_ms)
+void PhrozenNetworkAgent::GetAMSInfoList( std::vector< PhrozenAMSInfo >& kData )
 {
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: Setting timeout to " << timeout_ms << "ms";
-    m_timeout_ms = timeout_ms;
-}
-
-// Get timeout
-int PhrozenNetworkAgent::get_timeout() const
+    kData = m_kAMSList;
+} 
+void PhrozenNetworkAgent::GetMonitorWindowData( PhrozenMonitorWindow& kData )
 {
-    return m_timeout_ms;
+    if ( !m_spMonitorWindow ) return;
+    kData = *m_spMonitorWindow;
 }
-
-// Initialize CURL
-CURLcode PhrozenNetworkAgent::initialize_curl()
-{
-    std::lock_guard<std::mutex> lock(m_curl_mutex);
-
-    if (m_curl_handle == nullptr) {
-        m_curl_handle = curl_easy_init();
-        if (!m_curl_handle) {
-            BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: Failed to initialize CURL handle";
-            return CURLE_FAILED_INIT;
-        }
-
-        // Set default CURL options
-        curl_easy_setopt(m_curl_handle, CURLOPT_TIMEOUT_MS, m_timeout_ms);
-        curl_easy_setopt(m_curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(m_curl_handle, CURLOPT_SSL_VERIFYPEER, 0L);
-        curl_easy_setopt(m_curl_handle, CURLOPT_SSL_VERIFYHOST, 0L);
-    }
-
-    return CURLE_OK;
-}
-
-// Cleanup CURL
-void PhrozenNetworkAgent::cleanup_curl()
-{
-    std::lock_guard<std::mutex> lock(m_curl_mutex);
-
-    if (m_curl_handle) {
-        curl_easy_cleanup(m_curl_handle);
-        m_curl_handle = nullptr;
-    }
-
-    if (m_websocket_handle) {
-        curl_easy_cleanup(m_websocket_handle);
-        m_websocket_handle = nullptr;
-    }
-}
-
-// Perform HTTP request
-CURLcode PhrozenNetworkAgent::perform_http_request(const std::string& url, const std::string& method,
-                                                     const std::string& data, std::string* response)
-{
-    std::lock_guard<std::mutex> lock(m_curl_mutex);
-
-    if (!m_curl_handle) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: CURL not initialized";
-        return CURLE_FAILED_INIT;
-    }
-
-    // Set URL
-    curl_easy_setopt(m_curl_handle, CURLOPT_URL, url.c_str());
-
-    // Set method
-    if (method == "POST") {
-        curl_easy_setopt(m_curl_handle, CURLOPT_POST, 1L);
-        curl_easy_setopt(m_curl_handle, CURLOPT_POSTFIELDS, data.c_str());
-    } else if (method == "GET") {
-        curl_easy_setopt(m_curl_handle, CURLOPT_HTTPGET, 1L);
-    }
-
-    // Set write callback
-    curl_easy_setopt(m_curl_handle, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(m_curl_handle, CURLOPT_WRITEDATA, response);
-
-    // Perform request
-    CURLcode res = curl_easy_perform(m_curl_handle);
-
-    if (res != CURLE_OK) {
-        BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent: HTTP request failed: " << get_error_string(res);
-    }
-
-    return res;
-}
-
-// Perform WebSocket request
-CURLcode PhrozenNetworkAgent::perform_websocket_request(const std::string& url, const std::string& message)
-{
-    // Implementation needed: WebSocket communication
-    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent: WebSocket request to " << url;
-    return CURLE_OK;
-}
-
-// CURL write callback
-size_t PhrozenNetworkAgent::write_callback(void* contents, size_t size, size_t nmemb, void* userp)
-{
-    size_t total_size = size * nmemb;
-    std::string* response = static_cast<std::string*>(userp);
-
-    if (response) {
-        response->append(static_cast<char*>(contents), total_size);
-    }
-
-    return total_size;
-}
-
-// CURL header callback
-size_t PhrozenNetworkAgent::header_callback(char* buffer, size_t size, size_t nitems, void* userdata)
-{
-    size_t total_size = size * nitems;
-    // Process headers if needed
-    return total_size;
-}
-
-// CURL progress callback
-int PhrozenNetworkAgent::progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
-                                           curl_off_t ultotal, curl_off_t ulnow)
-{
-    PhrozenNetworkAgent* agent = static_cast<PhrozenNetworkAgent*>(clientp);
-
-    if (agent && agent->m_on_progress_callback) {
-        float progress = 0.0f;
-        if (ultotal > 0) {
-            progress = static_cast<float>(ulnow) / static_cast<float>(ultotal) * 100.0f;
-        } else if (dltotal > 0) {
-            progress = static_cast<float>(dlnow) / static_cast<float>(dltotal) * 100.0f;
-        }
-        agent->m_on_progress_callback(progress);
-    }
-
-    return 0;
-}
-
-// Handle error
-void PhrozenNetworkAgent::handle_error(int error_code, const std::string& error_message)
-{
-    BOOST_LOG_TRIVIAL(error) << "PhrozenNetworkAgent Error [" << error_code << "]: " << error_message;
-
-    if (m_on_error_callback) {
-        m_on_error_callback(error_code, error_message);
-    }
-}
-
-// Get error string from CURL code
-std::string PhrozenNetworkAgent::get_error_string(CURLcode code)
-{
-    return std::string(curl_easy_strerror(code));
-}
-
 
 #pragma endregion

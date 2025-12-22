@@ -6939,14 +6939,16 @@ void GUI_App::ProcessPhrozenConnector()
     MonitorControl::SetStartReceiving( true );
     MonitorControl::SetStartSending( true );
     
-    std::thread _threadSendMessage(RunSendMessage);
-    _threadSendMessage.detach();
+    //std::thread _threadSendMessage(RunSendMessage);
+    //_threadSendMessage.detach();
     
-    std::thread _threadReceiveMessage(RunReceiveMessage);
-    _threadReceiveMessage.detach();
+    //std::thread _threadReceiveMessage(RunReceiveMessage);
+    //_threadReceiveMessage.detach();
 
     if ( m_spPhrozenManager->IsMachineConnecting() )
     {
+        m_spPhrozenManager->StartSendMessage();
+        m_spPhrozenManager->StartReceiveMessage();
         m_spPhrozenManager->StartReceiveWebcam();
     }
     
