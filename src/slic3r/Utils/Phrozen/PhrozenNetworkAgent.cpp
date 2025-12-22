@@ -1143,7 +1143,7 @@ bool PhrozenNetworkAgent::InitializeConnector( const std::string& strIp  )
     SetFirstTimeToSendQuery( true );
     CleanupWebSocketConnection();
     m_spWebServiceInfo->ip = strIp;
-
+    m_strPrev_state.clear();
     bool bSuccess = InitializeConnectorImp( strIp );
     if ( !bSuccess )
     {
