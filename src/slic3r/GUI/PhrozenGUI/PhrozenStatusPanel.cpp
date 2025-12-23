@@ -2989,11 +2989,6 @@ void PhrozenStatusPanel::update(MachineObject *obj)
 
     m_machine_ctrl_panel->Freeze();
 
-    //if (obj->is_in_printing() && !obj->can_resume())
-    //    show_printing_status(false, true);
-    //else
-    //    show_printing_status();
-
     update_temp_ctrl(obj);
     update_print_speed_ctrl(obj);
     update_fan_cooling_speed_ctrl(obj);
@@ -3003,10 +2998,9 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     {
         InitWebCamUiUpdateTimer();
     }
-    //update_misc_ctrl(obj);
 
     update_ams(obj);
-    //update_cali(obj);
+
 
 #if 0
     if (obj) {

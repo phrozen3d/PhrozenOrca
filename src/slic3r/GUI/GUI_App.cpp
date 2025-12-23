@@ -6927,8 +6927,10 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
         pPhrozenMachineObject = std::make_shared< PhrozenMachineObject >( "Arco", "Arco", strIp );
     }
 
-    //new flow
-    return m_spPhrozenManager->CreateAndConnectMachine( strIp ); //std::terminate();
+    //new flow for receive camera
+    m_spPhrozenManager->CreateAndConnectMachine( strIp );
+    
+    return true;
 
     
 }
@@ -6939,16 +6941,16 @@ void GUI_App::ProcessPhrozenConnector()
     MonitorControl::SetStartReceiving( true );
     MonitorControl::SetStartSending( true );
     
-    //std::thread _threadSendMessage(RunSendMessage);
-    //_threadSendMessage.detach();
+    std::thread _threadSendMessage(RunSendMessage);
+    _threadSendMessage.detach();
     
-    //std::thread _threadReceiveMessage(RunReceiveMessage);
-    //_threadReceiveMessage.detach();
+    std::thread _threadReceiveMessage(RunReceiveMessage);
+    _threadReceiveMessage.detach();
 
     if ( m_spPhrozenManager->IsMachineConnecting() )
     {
-        m_spPhrozenManager->StartSendMessage();
-        m_spPhrozenManager->StartReceiveMessage();
+        //m_spPhrozenManager->StartSendMessage();
+        //m_spPhrozenManager->StartReceiveMessage();
         m_spPhrozenManager->StartReceiveWebcam();
     }
     

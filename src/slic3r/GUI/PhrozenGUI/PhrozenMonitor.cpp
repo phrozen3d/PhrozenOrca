@@ -213,9 +213,14 @@ void PhrozenMonitorPanel::update_all()
             auto pMachineObj = pManager->GetConnectingMachine();
             if ( pMachineObj )
             {
+                // new flow for recieve webcam
                 m_side_tools->set_current_printer_name( pMachineObj->GetMachineIp() );
                 m_status_info_panel->SetPhrozenMachineObject( pMachineObj );
-                m_status_info_panel->update_phrozen();
+
+                // origin flow for other panel result
+                auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+                m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
+                m_status_info_panel->update( pPhrozenMachineObj );
             }
             else
             {
@@ -225,12 +230,6 @@ void PhrozenMonitorPanel::update_all()
             
         }
 
-
-        //auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
-        //m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
-        //m_status_info_panel->update( pPhrozenMachineObj );
-
-        
     }
     else
     {
