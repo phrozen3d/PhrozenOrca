@@ -6964,6 +6964,12 @@ void GUI_App::ProcessPhrozenDisconnect()
     MonitorControl::SetStartReceiving( false );
     MonitorControl::SetStartSending( false );
     MonitorControl::SetIp("");
+    pPhrozenMachineObject = nullptr;
+
+    if ( m_spPhrozenManager->IsMachineConnecting() )
+    {
+        m_spPhrozenManager->DisconnectMachine();
+    }
 }
 
 PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()
@@ -6979,6 +6985,11 @@ void GUI_App::GetCurrentConnectedMachineIp( std::string& strIp )
         return; 
     }
     strIp = pPhrozenMachineObject->GetPhrozenConnectedMachineIp();
+}
+
+bool GUI_App::IsConnectingMachine()
+{
+    return MonitorControl::IsStartReceiving();
 }
 
 bool GUI_App::InitPhrozenNetwork()

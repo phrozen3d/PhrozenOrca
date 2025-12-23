@@ -115,8 +115,8 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
     m_status_info_panel = new PhrozenStatusPanel(m_tabpanel);
     m_tabpanel->AddPage(m_status_info_panel, _L("Status"), "", true);
 
-    m_spPrintHistoryPanel = std::make_shared< wxPanel >( m_tabpanel );
-    m_tabpanel->AddPage(m_spPrintHistoryPanel.get(), _L("Print History"), "", false);
+    //m_spPrintHistoryPanel = std::make_shared< wxPanel >( m_tabpanel );
+    //m_tabpanel->AddPage(m_spPrintHistoryPanel.get(), _L("Print History"), "", false);
 
     m_initialized = true;
     show_status((int) MonitorStatus::MONITOR_NO_PRINTER);
@@ -203,7 +203,6 @@ void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 
 void PhrozenMonitorPanel::update_all()
 {
-    //Debug
     show_status(MONITOR_NORMAL);
     if (m_status_info_panel->IsShown() && MonitorControl::IsStartReceiving() ) 
     {
@@ -292,7 +291,8 @@ bool PhrozenMonitorPanel::Show(bool show)
         m_refresh_timer->Start(REFRESH_INTERVAL);
         wxPostEvent(this, wxTimerEvent());
 
-        if (dev) {
+        if (dev) 
+        {
             //set a default machine when obj is null
             obj = dev->get_selected_machine();
             if (obj == nullptr) {
@@ -364,18 +364,33 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
     std::string strConnectedIp;
     Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
 
-    if ( event.GetString().IsEmpty() || strConnectedIp == event.GetString() )
+    if ( event.GetString().IsEmpty() ) return;
+
+    if ( strConnectedIp == event.GetString() ) { return; }
+    else
     {
-        return;
+        OnDisconnectMachine( wxCommandEvent() );
     }
+
+    
     PhrozenIpConnectDialog kConnect( this );
     kConnect.set_ip_address( event.GetString().ToStdString() );
     kConnect.ShowModal();
+
 }
 
 void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )
 {
+    stop_update();
+
+    //Debug
+    m_status_info_panel->SetMachineObject( nullptr );
+    m_status_info_panel->SetPhrozenMachineObject( nullptr );
+    m_side_tools->set_none_printer_mode();
+
     wxGetApp().ProcessPhrozenDisconnect();
+
+    start_update();
 }
 
 #pragma endregion

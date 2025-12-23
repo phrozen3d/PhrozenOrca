@@ -191,6 +191,8 @@ private:
     
     wxSizer* create_ams_control_button( wxWindow* pParent );
     wxSizer* create_nozzle_image( wxWindow* pParent );
+
+    void OnUnloadAllButtonClicked( wxMouseEvent &evt );
     
     FilamentStatusPanel* m_filament_status_panel{nullptr};
     Button* m_ams_unload_all_btn{nullptr};

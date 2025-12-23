@@ -2,6 +2,8 @@
 #include <wx/dcbuffer.h>
 #include "../Widgets/Button.hpp"
 #include "../Widgets/Label.hpp"
+#include "../GUI_App.hpp"
+#include "PhrozenDeviceManager.hpp"
 #include "../I18N.hpp"
 
 namespace Slic3r {
@@ -780,6 +782,7 @@ wxSizer* PhrozenFilamentControl::create_ams_control_button( wxWindow* pParent )
     m_ams_unload_all_btn->SetFont(Label::Body_10);
     m_ams_unload_all_btn->SetMinSize(wxSize(-1, FromDIP(30)));
     m_ams_unload_all_btn->SetCornerRadius(FromDIP(5));
+    m_ams_unload_all_btn->Bind(wxEVT_LEFT_DOWN, &PhrozenFilamentControl::OnUnloadAllButtonClicked, this);
 
     button_sizer->Add(m_ams_unload_all_btn, 1, wxALL | wxEXPAND, FromDIP(2));
 
@@ -790,6 +793,7 @@ wxSizer* PhrozenFilamentControl::create_ams_control_button( wxWindow* pParent )
     m_unload_button->SetFont(Label::Body_10);
     m_unload_button->SetMinSize(wxSize(FromDIP(100), FromDIP(30)));
     m_unload_button->SetCornerRadius(FromDIP(5));
+    m_unload_button->Hide();
 
     m_load_button = new Button(box, _L("Load"));
     m_load_button->SetBackgroundColor(btn_bg);
@@ -797,11 +801,13 @@ wxSizer* PhrozenFilamentControl::create_ams_control_button( wxWindow* pParent )
     m_load_button->SetFont(Label::Body_10);
     m_load_button->SetMinSize(wxSize(FromDIP(100), FromDIP(30)));
     m_load_button->SetCornerRadius(FromDIP(5));
+    m_load_button->Hide();
 
     // Add two buttons in horizontal layout with right alignment
     auto lower_button_sizer = new wxBoxSizer(wxHORIZONTAL);
     lower_button_sizer->Add(m_unload_button, 1, wxALL | wxEXPAND, FromDIP(2));
     lower_button_sizer->Add(m_load_button, 1, wxALL | wxEXPAND, FromDIP(2));
+    lower_button_sizer->AddStretchSpacer();
     button_sizer->Add(lower_button_sizer, 1, wxALL | wxEXPAND );
 
     box->SetSizer( button_sizer );
@@ -833,6 +839,12 @@ wxSizer* PhrozenFilamentControl::create_nozzle_image( wxWindow* pParent )
     sizer->Add(box, 0, wxALIGN_CENTER | wxALL, FromDIP(0));
 
     return sizer;
+}
+
+void PhrozenFilamentControl::OnUnloadAllButtonClicked( wxMouseEvent &WXUNUSED(evt))
+{
+    auto pObject = Slic3r::GUI::wxGetApp().GetPhrozenMachineObject();
+    if ( pObject ) pObject->SetPhrozenCommand_unload_all_slots();
 }
 
 void PhrozenFilamentControl::msw_rescale()

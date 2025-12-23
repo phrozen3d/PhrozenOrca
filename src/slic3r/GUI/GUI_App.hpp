@@ -694,6 +694,7 @@ public:
     std::shared_ptr< PhrozenMachineObject > pPhrozenMachineObject = nullptr;
     PhrozenMachineObject* GetPhrozenMachineObject();
     void GetCurrentConnectedMachineIp( std::string& strIp );
+    bool IsConnectingMachine();
 
     std::unique_ptr< PhrozenDeviceManager > m_spPhrozenManager{ nullptr }; 
     PhrozenDeviceManager* GetPhrozenDeviceManager() { return m_spPhrozenManager ? m_spPhrozenManager.get() : nullptr; }
