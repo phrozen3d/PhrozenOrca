@@ -1681,6 +1681,11 @@ void PhrozenSelectMachineDialog::on_cancel(wxCloseEvent &event)
     if (m_mapping_popup.IsShown())
         m_mapping_popup.Dismiss();
 
+    // Clear flag when dialog is closed (user cancels or closes)
+    if (m_plater) {
+        m_plater->set_skip_apply_for_phrozen_print(false);
+    }
+
     this->EndModal(wxID_CANCEL);
 }
 
@@ -2195,6 +2200,11 @@ void PhrozenSelectMachineDialog::on_send_print()
                 BOOST_LOG_TRIVIAL(warning) << "Failed to restore m_full_print_config";
             }
         }
+    }
+    
+    // Clear flag after restoring IP (following the restore IP flow as requested)
+    if (m_plater) {
+        m_plater->set_skip_apply_for_phrozen_print(false);
     }
 
 #if 0
