@@ -20,6 +20,14 @@
 #include <net/if_dl.h>
 #include <net/if_arp.h>
 #include <netinet/if_ether.h>
+
+// Forward declarations for ARP resolution functions in MonitorControl namespace
+// TODO: Temporary setup to allow build pass on macOS. 
+//       Future adjustment needed to ensure proper compilation and function calls.
+namespace MonitorControl {
+    bool TriggerArpResolution(const std::string& target_ip);
+    bool WaitForArpResolution(const std::string& target_ip, int max_wait_ms);
+}
 #endif
 
 using namespace Slic3r;
@@ -1222,10 +1230,10 @@ bool PhrozenNetworkAgent::InitializeConnectorImp( const std::string& strIp )
 
 #ifdef __APPLE__
         // Use the socket API to trigger an ARP request and wait for it to complete (the wait is already included internally).
-        TriggerArpResolution(m_spWebServiceInfo->ip);
+        MonitorControl::TriggerArpResolution(m_spWebServiceInfo->ip);
         
         // Waiting for the ARP table to be updated and for confirmation that ARP resolution is complete (maximum wait 1000ms).
-        if (WaitForArpResolution(m_spWebServiceInfo->ip, 1000)) {
+        if (MonitorControl::WaitForArpResolution(m_spWebServiceInfo->ip, 1000)) {
             printf("ARP resolution completed, ARP entry confirmed in table\n");
         } else {
             printf("ARP resolution may not be complete, but proceeding with connection\n");

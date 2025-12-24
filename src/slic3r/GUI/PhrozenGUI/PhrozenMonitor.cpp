@@ -369,7 +369,12 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
     if ( strConnectedIp == event.GetString() ) { return; }
     else
     {
+#ifdef __WINDOWS__
         OnDisconnectMachine( wxCommandEvent() );
+#else
+        wxCommandEvent disconnectEvent;
+        OnDisconnectMachine( disconnectEvent );
+#endif
     }
 
     
