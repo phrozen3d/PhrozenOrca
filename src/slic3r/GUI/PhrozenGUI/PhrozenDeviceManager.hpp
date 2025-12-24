@@ -28,6 +28,7 @@ public:
 
     virtual float GetPhrozenBedTargetTemperature() override;
     virtual float GetPhrozenNozzleTargetTemperature() override;
+    virtual float GetPhrozenZOffset() override;
 
     virtual int GetPhrozenBedTemperature_limit() override;
     virtual int GetPhrozenNozzleTemperature_limit() override;

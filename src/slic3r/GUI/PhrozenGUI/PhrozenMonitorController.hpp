@@ -221,7 +221,7 @@ public:
 
 struct PrinterInfo
 {
-    float z_offsetValure;
+    float z_offsetValue;
     int extruder_temperature;
     int extruder_temperature_target;
     int bed_temperature;

@@ -84,6 +84,11 @@ float PhrozenMachineObject::GetPhrozenNozzleTargetTemperature()
     return MonitorControl::m_pPrinterInfo->extruder_temperature_target;
 }
 
+float PhrozenMachineObject::GetPhrozenZOffset()
+{
+    return MonitorControl::m_pPrinterInfo->z_offsetValue;
+}
+
 int PhrozenMachineObject::GetPhrozenBedTemperature_limit()
 {
     //todo get from machine?

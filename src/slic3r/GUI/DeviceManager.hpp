@@ -425,6 +425,7 @@ public:
 
     virtual float GetPhrozenBedTargetTemperature() { return 0.0f; }
     virtual float GetPhrozenNozzleTargetTemperature() { return 0.0f; }
+    virtual float GetPhrozenZOffset() { return 0.0f; }
 
     virtual int GetPhrozenBedTemperature_limit() { return 300; }
     virtual int GetPhrozenNozzleTemperature_limit() { return 300; }

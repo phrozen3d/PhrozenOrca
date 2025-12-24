@@ -80,9 +80,10 @@ static const wxString PHROZEN_TEMP_BLANK_STR = wxString("_");
 static const wxFont   PHROZEN_SWITCH_FONT    = Label::Body_10;
 
 /* const values */
-static const int phrozen_bed_temp_range[2]    = {20, 120};
-static const int phrozen_nozzle_temp_range[2] = {20, 300};
-static const int phrozen_nozzle_chamber_range[2] = {20, 60};
+static const int phrozen_bed_temp_range[2]    = {0, 120};
+static const int phrozen_nozzle_temp_range[2] = {0, 300};
+static const int phrozen_nozzle_chamber_range[2] = {0, 60};
+static const int phrozen_cooling_power_range[2] = {0, 100};  // Percentage range for all cooling fans
 
 /* colors */
 static const wxColour PHROZEN_STATUS_PANEL_BG = wxColour(238, 238, 238);
@@ -342,19 +343,23 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     #else
     sizer_percent_icon->Add(m_staticText_progress_percent_icon, 0, 0, 0);
     #endif
+    
+    m_staticText_progress_elapsed = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_progress_elapsed->Wrap(-1);
+    m_staticText_progress_elapsed->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_progress_elapsed->SetForegroundColour(wxColour(146, 146, 146));
 
-
-    m_staticText_progress_left = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
-    m_staticText_progress_left->Wrap(-1);
-    m_staticText_progress_left->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
-    m_staticText_progress_left->SetForegroundColour(wxColour(146, 146, 146));
+    //m_staticText_progress_left = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    //m_staticText_progress_left->Wrap(-1);
+    //m_staticText_progress_left->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    //m_staticText_progress_left->SetForegroundColour(wxColour(146, 146, 146));
 
     // Orca: display the end time of the print
-    m_staticText_progress_end = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
-    m_staticText_progress_end->Wrap(-1);
-    m_staticText_progress_end->SetFont(
-        wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
-    m_staticText_progress_end->SetForegroundColour(wxColour(146, 146, 146));
+    //m_staticText_progress_end = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    //m_staticText_progress_end->Wrap(-1);
+    //m_staticText_progress_end->SetFont(
+    //    wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    //m_staticText_progress_end->SetForegroundColour(wxColour(146, 146, 146));
 
     //fgSizer_task->Add(bSizer_buttons, 0, wxEXPAND, 0);
     //fgSizer_task->Add(0, 0, 0, wxEXPAND, FromDIP(5));
@@ -365,21 +370,28 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     panel_button_block->SetSize(wxSize(TASK_BUTTON_SIZE.x * 2 + FromDIP(5) * 2, -1));
     panel_button_block->SetBackgroundColour(*wxWHITE);
 
-    m_staticText_layers = new wxStaticText(penel_text, wxID_ANY, _L("Layer: N/A"));
-    m_staticText_layers->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
-    m_staticText_layers->SetForegroundColour(wxColour(146, 146, 146));
-    m_staticText_layers->Hide();
+    // Comment out layer display UI control (暫時隱藏層數顯示)
+    // m_staticText_layers = new wxStaticText(penel_text, wxID_ANY, _L("Layer: N/A"));
+    // m_staticText_layers->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    // m_staticText_layers->SetForegroundColour(wxColour(146, 146, 146));
+    // m_staticText_layers->Hide();
 
-    //bSizer_text->Add(m_staticText_progress_percent, 0,  wxALL, 0);
     bSizer_text->Add(sizer_percent, 0, wxEXPAND, 0);
     bSizer_text->Add(sizer_percent_icon, 0, wxEXPAND, 0);
+
+    //bSizer_text->Add(m_staticText_progress_percent, 0,  wxALL, 0);
+    //bSizer_text->Add(sizer_percent, 0, wxALIGN_CENTER_VERTICAL, 0);
+    // Reduce spacing between percent number and symbol (減少百分比數字與符號之間的間距)
+    //bSizer_text->Add(sizer_percent_icon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, -FromDIP(4));
     bSizer_text->Add(0, 0, 1, wxEXPAND, 0);
-    bSizer_text->Add(m_staticText_layers, 0, wxALIGN_CENTER | wxALL, 0);
+    // Comment out layer display UI control (暫時隱藏層數顯示)
+    // bSizer_text->Add(m_staticText_layers, 0, wxALIGN_CENTER | wxALL, 0);
     bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(20));
-    bSizer_text->Add(m_staticText_progress_left, 0, wxALIGN_CENTER | wxALL, 0);
+    //bSizer_text->Add(m_staticText_progress_left, 0, wxALIGN_CENTER | wxALL, 0);
+    bSizer_text->Add(m_staticText_progress_elapsed, 0, wxALIGN_CENTER | wxALL, 0);
     // Orca: display the end time of the print
-    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(8));
-    bSizer_text->Add(m_staticText_progress_end, 0, wxALIGN_CENTER | wxALL, 0);
+    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(24));
+    //bSizer_text->Add(m_staticText_progress_end, 0, wxALIGN_CENTER | wxALL, 0);
 
     penel_text->SetMaxSize(wxSize(FromDIP(600), -1));
     penel_text->SetSizer(bSizer_text);
@@ -722,16 +734,41 @@ void PhrozenPrintingTaskPanel::update_left_time(int mc_left_time)
 
 }
 
+void PhrozenPrintingTaskPanel::update_elapsed_time(wxString time)
+{
+    m_staticText_progress_elapsed->SetLabelText(time);
+}
+
+void PhrozenPrintingTaskPanel::update_elapsed_time(int elapsed_seconds)
+{
+    // Format elapsed time using format_time_dhm
+    std::string elapsed_time;
+    wxString    elapsed_time_text = PHROZEN_NA_STR;
+
+    try {
+        elapsed_time = format_time_dhm(static_cast<float>(elapsed_seconds));
+    }
+    catch (...) {
+        ;
+    }
+
+    if (!elapsed_time.empty()) {
+        elapsed_time_text = wxString::Format("%s", elapsed_time);
+    }
+    update_elapsed_time(elapsed_time_text);
+}
+
 void PhrozenPrintingTaskPanel::update_layers_num(bool show, wxString num)
 {
-    if (show) {
-        m_staticText_layers->Show(true);
-        m_staticText_layers->SetLabelText(num);
-    }
-    else {
-        m_staticText_layers->Show(false);
-        m_staticText_layers->SetLabelText(num);
-    }
+    // Comment out layer display (暫時隱藏層數顯示)
+     if (show) {
+         m_staticText_layers->Show(true);
+         m_staticText_layers->SetLabelText(num);
+     }
+     else {
+         m_staticText_layers->Show(false);
+         m_staticText_layers->SetLabelText(num);
+     }
 }
 
 void PhrozenPrintingTaskPanel::show_priting_use_info(bool show, wxString time /*= wxEmptyString*/, wxString weight /*= wxEmptyString*/)
@@ -1260,8 +1297,14 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     line6->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerBottomRight->Add( line6, 0, wxALL | wxEXPAND, 0 );
 
+    // Z-offset title with value display (title on left, value on right)
+    wxBoxSizer* sizerZOffsetTitle = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, "Z-Offset");
-    sizerBottomRight->Add(zOffsetTitle, 0, wxLEFT, 5);
+    sizerZOffsetTitle->Add(zOffsetTitle, 0, wxLEFT, 5);
+    sizerZOffsetTitle->AddStretchSpacer(1);  // Push value to the right
+    m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000");
+    sizerZOffsetTitle->Add(m_staticText_zOffset_value, 0, wxRIGHT, 5);
+    sizerBottomRight->Add(sizerZOffsetTitle, 0, wxEXPAND);
 
     // z-offset body
     wxPanel* line66 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
@@ -1850,9 +1893,44 @@ void CreateValueText( std::unique_ptr<wxStaticText>& ptr, wxWindow* pParent )
     assert( ptr );
 }
 
-void CreateValueTextCtrl( std::unique_ptr<wxSpinCtrl>& ptr, wxWindow* pParent, const PhrozenParamControl& eType )
+/**
+ * @brief Creates a wxSpinCtrl with automatic range validation.
+ * @tparam N Array size automatically deduced by compiler from rangeArray parameter.
+ * Uses template to preserve array size at compile-time via const int (&rangeArray)[N], eliminating need for manual size parameter and enabling compile-time validation.
+ */
+template<size_t N>
+void CreateValueTextCtrl( std::unique_ptr<wxSpinCtrl>& ptr, wxWindow* pParent, const PhrozenParamControl& eType, const int (&rangeArray)[N] )
 {
-    ptr = std::make_unique<wxSpinCtrl>( pParent, (int)eType, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS | wxTE_PROCESS_ENTER, 0, 100, 0  );
+    int minValue = 0;
+    int maxValue = 100;
+
+    // Safety checks for range array
+    if (N < 2) {
+        BOOST_LOG_TRIVIAL(warning) << "CreateValueTextCtrl: rangeArray size < 2 (" << N << "), using default range [0, 100]";
+    }
+    else{
+        // Extract min and max values with bounds checking
+        minValue = rangeArray[0];
+        maxValue = rangeArray[1];
+    }
+
+    // Validate min and max values
+    if (minValue < 0) {
+        BOOST_LOG_TRIVIAL(warning) << "CreateValueTextCtrl: minValue < 0 (" << minValue << "), clamping to 0";
+        minValue = 0;
+    }
+    
+    if (maxValue < 0) {
+        BOOST_LOG_TRIVIAL(warning) << "CreateValueTextCtrl: maxValue < 0 (" << maxValue << "), clamping to 100";
+        maxValue = 100;
+    }
+    
+    if (minValue > maxValue) {
+        BOOST_LOG_TRIVIAL(warning) << "CreateValueTextCtrl: minValue > maxValue (" << minValue << " > " << maxValue << "), swapping values";
+        std::swap(minValue, maxValue);
+    }
+    
+    ptr = std::make_unique<wxSpinCtrl>( pParent, (int)eType, "", wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS | wxTE_PROCESS_ENTER, minValue, maxValue, minValue  );
 
     // kill focus and press enter will trigger event
     //ptr->Bind(wxEVT_SPINCTRL, [&](wxSpinEvent& event ){
@@ -1891,7 +1969,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenNozzleTempControllor(wxWindow* pPare
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
-    CreateValueTextCtrl( m_spTemp_nozzle_ctrl, pParent, PhrozenParamControl::Temperature_Nozzle );
+    CreateValueTextCtrl( m_spTemp_nozzle_ctrl, pParent, PhrozenParamControl::Temperature_Nozzle, phrozen_nozzle_temp_range );
     sizerFlex->Add( m_spTemp_nozzle_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
@@ -1913,7 +1991,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenHeatedBedTempControllor(wxWindow* pP
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
-    CreateValueTextCtrl( m_spTemp_heatedBed_ctrl, pParent, PhrozenParamControl::Temperature_HeatedBed ); 
+    CreateValueTextCtrl( m_spTemp_heatedBed_ctrl, pParent, PhrozenParamControl::Temperature_HeatedBed, phrozen_bed_temp_range ); 
     sizerFlex->Add( m_spTemp_heatedBed_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Dot_c.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
@@ -1996,7 +2074,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Auxiliary(wxWindow* pParent)
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
-    CreateValueTextCtrl( m_spCooling_auxiliary_ctrl, pParent, PhrozenParamControl::Cooling_Auxiliary ); 
+    CreateValueTextCtrl( m_spCooling_auxiliary_ctrl, pParent, PhrozenParamControl::Cooling_Auxiliary, phrozen_cooling_power_range ); 
     sizerFlex->Add( m_spCooling_auxiliary_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
@@ -2017,7 +2095,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Part(wxWindow* pParent)
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
-    CreateValueTextCtrl( m_spCooling_part_ctrl, pParent, PhrozenParamControl::Cooling_Part ); 
+    CreateValueTextCtrl( m_spCooling_part_ctrl, pParent, PhrozenParamControl::Cooling_Part, phrozen_cooling_power_range ); 
     sizerFlex->Add( m_spCooling_part_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
@@ -2038,7 +2116,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Shield(wxWindow* pParent)
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_ParamSeparator.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 5 );
 
-    CreateValueTextCtrl( m_spCooling_shield_ctrl, pParent, PhrozenParamControl::Cooling_Shield ); 
+    CreateValueTextCtrl( m_spCooling_shield_ctrl, pParent, PhrozenParamControl::Cooling_Shield, phrozen_cooling_power_range ); 
     sizerFlex->Add( m_spCooling_shield_ctrl.get(), 0, wxLEFT | wxALIGN_CENTER_VERTICAL, 0 );
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Percent.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
@@ -2237,6 +2315,13 @@ void PhrozenStatusBasePanel::update_bed_current_temp( int nTemp )
 void PhrozenStatusBasePanel::update_bed_target_temp( int nTemp )
 {
     m_spTemp_heatedBed_ctrl->SetValue( nTemp );
+}
+
+void PhrozenStatusBasePanel::update_z_offset_value( float fZOffset )
+{
+    if (m_staticText_zOffset_value) {
+        m_staticText_zOffset_value->SetLabel(wxString::Format("%.3f", fZOffset));
+    }
 }
 
 void PhrozenStatusBasePanel::update_cooling_auxiliary_current_power( int nPower )
@@ -2992,6 +3077,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     update_temp_ctrl(obj);
     update_print_speed_ctrl(obj);
     update_fan_cooling_speed_ctrl(obj);
+    update_z_offset_ctrl(obj);
     update_webcam_lighting_status( obj );
     
     if ( !IsWebCamRefreshTimerInitialized() )
@@ -3484,32 +3570,39 @@ void PhrozenStatusPanel::update_fan_cooling_speed_ctrl_phrozen()
 {
     auto pObj = PhrozenObj();
     if (!pObj) return;
-
+    
     int current_auxiliary_cooling = (int)( pObj->GetPhrozenAuxiliaryCoolingSpeed()* 100 );
     int current_part_cooling = (int)( pObj->GetPhrozenPartCoolingSpeed()* 100 );
     int current_shield_cooling = (int)( pObj->GetPhrozenShieldCoolingSpeed()* 100 );
-
+    
     update_cooling_auxiliary_current_power( current_auxiliary_cooling );
     if (m_cooling_auxiliary_timeout > 0) {
         m_cooling_auxiliary_timeout--;
     } else {
         if (!cooling_auxiliary_input) { update_cooling_auxiliary_target_power( current_auxiliary_cooling ); }
     }
-
+    
     update_cooling_part_current_power( current_part_cooling );
     if (m_cooling_part_timeout > 0) {
         m_cooling_part_timeout--;
     } else {
         if (!cooling_part_input) { update_cooling_part_target_power( current_part_cooling ); }
     }
-
+    
     update_cooling_shield_current_power( current_shield_cooling );
     if (m_cooling_shield_timeout > 0) {
         m_cooling_shield_timeout--;
     } else {
         if (!cooling_shield_input) { update_cooling_shield_target_power( current_shield_cooling ); }
     }
+}
+
+void PhrozenStatusPanel::update_z_offset_ctrl(MachineObject *obj)
+{
+    if (!obj) return;
     
+    float fZOffset = obj->GetPhrozenZOffset();
+    update_z_offset_value(fZOffset);
 }
 
 void PhrozenStatusPanel::update_webcam_lighting_status( MachineObject *obj )
@@ -4228,7 +4321,14 @@ void PhrozenStatusPanel::update_print_progress(MachineObject *obj)
     // ============================================
     // 獲取列印進度
     // ============================================
-    float print_progress = obj->GetPhrozenPrintProgress();
+    // Check if print status is "complete", set progress to 1.0 (100%)
+    // Reason: Sometimes the machine returns 0.99900... instead of 1.0 when printing is complete,
+    // which causes the progress to display as 99% instead of 100%. By checking the print status
+    // and setting progress to 1.0 when status is "complete", we ensure the UI correctly displays
+    // 100% when printing is finished.
+    float print_progress = (obj->GetPhrozenPrintStatus() == "complete") 
+                          ? 1.0f 
+                          : obj->GetPhrozenPrintProgress();
     
     // ============================================
     // 驗證進度值範圍並更新 UI
@@ -4369,11 +4469,8 @@ void PhrozenStatusPanel::update_print_time(MachineObject *obj)
             print_time_seconds = 0;
         }
         
-        // TODO: 顯示已列印時間（已耗費時間）
-        // 例如：將 print_time_seconds 格式化為 "時:分:秒" 或 "X小時Y分鐘" 格式
-        // 然後更新到 UI 控件（需要確認 PrintingTaskPanel 是否有對應的 API）
-        // 例如：m_project_task_panel->update_elapsed_time(print_time_seconds);
-        // 或：m_project_task_panel->update_elapsed_time(format_time_string(print_time_seconds));
+        // 顯示已列印時間（已耗費時間）
+        m_project_task_panel->update_elapsed_time(print_time_seconds);
         
         BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
                                  << "Elapsed time: " << print_time_seconds << " seconds";
@@ -4385,44 +4482,44 @@ void PhrozenStatusPanel::update_print_time(MachineObject *obj)
     }
     
     // ============================================
-    // 驗證時間值並計算剩餘時間
+    // 驗證時間值並計算剩餘時間（已註釋，不再更新剩餘時間顯示）
     // ============================================
-    if (total_time > 0.0f && print_time >= 0.0f) {
-        // 有效時間值：計算剩餘時間
-        float left_time = total_time - print_time;
-        
-        if (left_time > 0.0f) {
-            // 剩餘時間為正：轉換為秒數並更新 UI
-            int left_time_seconds = static_cast<int>(print_time);
-            
-            // 確保秒數為非負數（防呆設計）
-            if (left_time_seconds < 0) {
-                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
-                                           << "Left time seconds < 0, clamping to 0. "
-                                           << "print_time=" << print_time 
-                                           << ", total_time=" << total_time
-                                           << ", left_time=" << left_time;
-                left_time_seconds = 0;
-            }
-            
-            m_project_task_panel->update_left_time(left_time_seconds);
-        } else {
-            // 剩餘時間為負或零：顯示 N/A
-            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
-                                       << "Left time <= 0, displaying N/A. "
-                                       << "print_time=" << print_time 
-                                       << ", total_time=" << total_time
-                                       << ", left_time=" << left_time;
-            m_project_task_panel->update_left_time(PHROZEN_NA_STR);
-        }
-    } else {
-        // 無效時間值：顯示 N/A
-        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
-                                    << "Invalid time values, displaying N/A. "
-                                    << "print_time=" << print_time 
-                                    << ", total_time=" << total_time;
-        m_project_task_panel->update_left_time(PHROZEN_NA_STR);
-    }
+    // if (total_time > 0.0f && print_time >= 0.0f) {
+    //     // 有效時間值：計算剩餘時間
+    //     float left_time = total_time - print_time;
+    //     
+    //     if (left_time > 0.0f) {
+    //         // 剩餘時間為正：轉換為秒數並更新 UI
+    //         int left_time_seconds = static_cast<int>(print_time);
+    //         
+    //         // 確保秒數為非負數（防呆設計）
+    //         if (left_time_seconds < 0) {
+    //             BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+    //                                        << "Left time seconds < 0, clamping to 0. "
+    //                                        << "print_time=" << print_time 
+    //                                        << ", total_time=" << total_time
+    //                                        << ", left_time=" << left_time;
+    //             left_time_seconds = 0;
+    //         }
+    //         
+    //         m_project_task_panel->update_left_time(left_time_seconds);
+    //     } else {
+    //         // 剩餘時間為負或零：顯示 N/A
+    //         BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+    //                                    << "Left time <= 0, displaying N/A. "
+    //                                    << "print_time=" << print_time 
+    //                                    << ", total_time=" << total_time
+    //                                    << ", left_time=" << left_time;
+    //         m_project_task_panel->update_left_time(PHROZEN_NA_STR);
+    //     }
+    // } else {
+    //     // 無效時間值：顯示 N/A
+    //     BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+    //                                 << "Invalid time values, displaying N/A. "
+    //                                 << "print_time=" << print_time 
+    //                                 << ", total_time=" << total_time;
+    //     m_project_task_panel->update_left_time(PHROZEN_NA_STR);
+    // }
     
     // ============================================
     // 調試日誌
@@ -4471,6 +4568,12 @@ void PhrozenStatusPanel::update_print_stage(MachineObject *obj)
     }
     else if (print_status == "complete") {
         stage_text = _L("Print Complete");
+        // Check if print status is "complete", set progress to 1.0 (100%)
+        // Reason: Sometimes the machine returns 0.99900... instead of 1.0 when printing is complete,
+        // which causes the progress to display as 99% instead of 100%. By checking the print status
+        // and setting progress to 1.0 when status is "complete", we ensure the UI correctly displays
+        // 100% when printing is finished.
+        print_progress = 1.0f;
     }
     else if (print_status == "cancelled") {
         stage_text = _L("Print Cancelled");
@@ -4546,6 +4649,22 @@ void PhrozenStatusPanel::update_thumbnail(MachineObject *obj)
     if (!m_project_task_panel) {
         std::cout << "[PhrozenStatusPanel] update_thumbnail: ERROR - m_project_task_panel is nullptr" << std::endl;
         BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::update_thumbnail: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    std::string print_status = obj->GetPhrozenPrintStatus();
+    
+    // 防呆檢查：確保狀態不為空
+    if (print_status.empty()) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_thumbnail: print_status is empty";
+        print_status = "offline";  // 使用預設狀態
+    }
+    
+    // ============================================
+    // 根據列印狀態顯示對應的縮圖
+    // ============================================
+    if ((print_status == "offline") || (print_status == "standby") || (print_status == "cancelled")) {
+        m_project_task_panel->set_thumbnail_img(m_project_task_panel->get_bitmap_thumbnail_placeholder().bmp());
         return;
     }
     
@@ -4847,8 +4966,8 @@ void PhrozenStatusPanel::reset_printing_values()
     m_project_task_panel->market_scoring_hide();
     m_project_task_panel->get_request_failed_panel()->Hide();
     update_basic_print_data(false);
-    m_project_task_panel->update_left_time(PHROZEN_NA_STR);
-    m_project_task_panel->update_layers_num(true, wxString::Format(_L("Layer: %s"), PHROZEN_NA_STR));
+    //m_project_task_panel->update_left_time(PHROZEN_NA_STR);
+    //m_project_task_panel->update_layers_num(true, wxString::Format(_L("Layer: %s"), PHROZEN_NA_STR));
     update_calib_bitmap();
     
     task_thumbnail_state = ThumbnailState::PLACE_HOLDER;

@@ -23,6 +23,8 @@
 #include <wx/mstream.h>
 #include <miniz.h>
 #include <algorithm>
+#include <fstream>
+#include <chrono>
 #include "../Plater.hpp"
 #include "../Notebook.hpp"
 #include "../BitmapCache.hpp"
@@ -2066,7 +2068,90 @@ void PhrozenSelectMachineDialog::on_send_print()
     bool bIsUseChroma_Kit   = m_checkbox_list[ EPhrozenPrintOption::Chroma_Kit ]->GetValue();
 
     //[TODO] use ip to send print
+    // 決定使用哪種格式
+    bool use_3mf=false;// 根據需求設定
+    // 例如：如果需要保留完整專案資訊，設為 true
 
+    // 1. 確保 m_print_plate_idx 對應的列印板是當前列印板
+    int target_plate_idx = m_print_plate_idx;
+    
+    // 處理特殊值
+    if (target_plate_idx == PLATE_CURRENT_IDX || target_plate_idx < 0) {
+        // 使用當前列印板
+        target_plate_idx = m_plater->get_partplate_list().get_curr_plate_index();
+    } else if (target_plate_idx == PLATE_ALL_IDX) {
+        // PLATE_ALL_IDX 的情況需要特殊處理，這裡先使用當前列印板
+        target_plate_idx = m_plater->get_partplate_list().get_curr_plate_index();
+    }
+    
+    // 檢查目標列印板索引是否有效
+    int current_plate_idx = m_plater->get_partplate_list().get_curr_plate_index();
+    if (target_plate_idx != current_plate_idx) {
+        // 切換到目標列印板
+        BOOST_LOG_TRIVIAL(info) << "Switching from plate " << current_plate_idx 
+                                 << " to plate " << target_plate_idx;
+        m_plater->select_plate(target_plate_idx, false);
+    }
+    
+    // 3. 獲取當前列印板並檢查切片狀態
+    PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
+    // 確保切片已完成，否則檔案名稱中的 {print_time} 等變數無法正確解析
+    // 如果切片還沒完成，先觸發切片並等待完成（非阻塞方式）
+    if (plate && !plate->is_slice_result_valid()) {
+        // 尚未切片，send_gcode_legacy 會自動觸發切片
+        // 或者可以選擇預先切片以加快上傳速度
+        // m_plater->slice();
+        BOOST_LOG_TRIVIAL(info) << "Plate " << target_plate_idx << " is not sliced yet";
+    }
+    
+    // 4. 動態設定列印機配置
+    // 注意：print_host 變更會導致 apply() 返回 APPLY_STATUS_INVALIDATED，
+    // 進而將切片結果標記為無效。但如果值沒有改變，就不會觸發 apply()。
+    DynamicPrintConfig* new_printer_config =
+        &wxGetApp().preset_bundle->printers.get_edited_preset().config;
+    std::string original_print_host = new_printer_config->opt_string("print_host");
+    
+    // 確保 m_printer_last_select_ip 包含端口號
+    std::string target_print_host = m_printer_last_select_ip;
+    if (target_print_host.find(":") == std::string::npos) {
+        target_print_host += ":8808";
+    }
+    
+    // 保存當前切片結果狀態
+    bool was_slice_result_valid = plate ? plate->is_slice_result_valid() : false;
+    bool print_host_changed = (original_print_host != target_print_host);
+    
+    // 只有在值真的改變時才設置 print_host，避免不必要的 apply()
+    if (print_host_changed) {
+        new_printer_config->set("print_host", target_print_host);
+        BOOST_LOG_TRIVIAL(info) << "print_host changed from '" << original_print_host
+                                 << "' to '" << target_print_host << "'";
+        
+        // 同步更新 Print 對象的 m_full_print_config，避免 send_gcode_legacy() 內部檢測到變更
+        // 這樣可以避免切片結果被標記為無效
+        // 注意：m_full_print_config 是 protected 成員，我們通過 background_process 訪問
+        try {
+            // 獲取當前列印板對應的 Print 對象
+            Print& current_print = m_plater->get_partplate_list().get_current_fff_print();
+            // 獲取當前的 m_full_print_config 並更新 print_host
+            DynamicPrintConfig old_printer_config = current_print.full_print_config();
+            old_printer_config.set("print_host", target_print_host);
+            // 通過 const_cast 更新 m_full_print_config（因為 full_print_config() 返回 const 引用）
+            // 注意：這是一個 workaround，因為 m_full_print_config 是 protected 成員
+            const_cast<DynamicPrintConfig&>(current_print.full_print_config()) = std::move(old_printer_config);
+            BOOST_LOG_TRIVIAL(info) << "Updated m_full_print_config.print_host to '" << target_print_host << "'";
+        } catch (const std::exception& e) {
+            BOOST_LOG_TRIVIAL(warning) << "Failed to update m_full_print_config: " << e.what() 
+                                       << ", will rely on apply() to sync";
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << "Failed to update m_full_print_config, will rely on apply() to sync";
+        }
+    } else {
+        BOOST_LOG_TRIVIAL(info) << "print_host unchanged: '" << target_print_host << "'";
+    }
+    
+    // 5. 使用當前列印板索引並進行檔案上傳與送印
+    m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
 
 #if 0

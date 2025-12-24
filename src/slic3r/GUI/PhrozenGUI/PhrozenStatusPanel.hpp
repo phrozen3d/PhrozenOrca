@@ -124,6 +124,7 @@ private:
     wxStaticText*   m_staticText_progress_left;
     // Orca: show print end time
     wxStaticText * m_staticText_progress_end;
+    wxStaticText*   m_staticText_progress_elapsed;
     wxStaticText*   m_staticText_layers;
     wxStaticText *  m_has_rated_prompt;
     wxStaticText *  m_request_failed_info;
@@ -165,6 +166,8 @@ public:
     void update_progress_percent(wxString percent, wxString icon);
     void update_left_time(wxString time);
     void update_left_time(int mc_left_time);
+    void update_elapsed_time(wxString time);
+    void update_elapsed_time(int elapsed_seconds);
     void update_layers_num(bool show, wxString num = wxEmptyString);
     void show_priting_use_info(bool show, wxString time = wxEmptyString, wxString weight = wxEmptyString);
     void show_profile_info(bool show, wxString profile = wxEmptyString);
@@ -284,6 +287,7 @@ public:
     TempInput* m_tempCtrl_nozzle;
     TempInput *     m_tempCtrl_bed; //remove later
     TempInput *     m_tempCtrl_chamber; //remove later
+    wxStaticText*   m_staticText_zOffset_value;
     int             m_temp_chamber_timeout {0};
     bool             m_current_support_cham_fan{true};
     bool             m_current_support_aux_fan{true};
@@ -449,6 +453,7 @@ public:
 
     void update_bed_current_temp( int nTemp );
     void update_bed_target_temp( int nTemp );
+    void update_z_offset_value( float fZOffset );
 
     void update_cooling_auxiliary_current_power( int nPower );
     void update_cooling_auxiliary_target_power( int nPower );
@@ -589,6 +594,7 @@ protected:
     void update_print_speed_ctrl_phrozen();
     void update_fan_cooling_speed_ctrl(MachineObject *obj);
     void update_fan_cooling_speed_ctrl_phrozen();
+    void update_z_offset_ctrl(MachineObject *obj);
     void update_webcam_lighting_status( MachineObject *obj );
     void update_webcam_lighting_status_phrozen();
     void update_misc_ctrl(MachineObject *obj);

@@ -1126,7 +1126,7 @@ struct PrinterStatusExtractor {
             if (status["gcode_move"].contains("homing_origin") &&
                 status["gcode_move"]["homing_origin"].is_array() &&
                 status["gcode_move"]["homing_origin"].size() > 2) {
-                m_pPrinterInfo->z_offsetValure = status["gcode_move"]["homing_origin"][2];
+                m_pPrinterInfo->z_offsetValue = status["gcode_move"]["homing_origin"][2];
             }
         }
     }
@@ -2535,7 +2535,7 @@ void GetPrinterInfo()
                         m_pPrinterInfo->total_time = status["print_stats"]["total_duration"];
                         m_pPrinterInfo->print_filament = status["print_stats"]["filament_used"];
                         m_pPrinterInfo->error = "";
-                        m_pPrinterInfo->z_offsetValure = status["gcode_move"]["homing_origin"][2];
+                        m_pPrinterInfo->z_offsetValue = status["gcode_move"]["homing_origin"][2];
 
                     }
                 }
