@@ -1523,7 +1523,7 @@ bool PhrozenDeviceManager::StartReceiveMessage()
     m_spReceiveMessage = std::make_unique< WorkerFuncSafe >( 
     [ this ] {
         
-        m_pNetworkAgent->RunReceiveResponse();
+        //m_pNetworkAgent->RunReceiveResponse(); //TODO Need check curl_ws_frame* type for win & mac
 
         // update status info
         if ( m_pNetworkAgent->IsPrinterInfoChanged() )

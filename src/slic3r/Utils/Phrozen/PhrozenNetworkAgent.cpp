@@ -1466,8 +1466,12 @@ void PhrozenNetworkAgent::InitializeForReceiveResponse()
  *
  * Refactored into modular structure for better readability and maintainability
  */
+ #if 0 //TODO Need check curl_ws_frame* type for win & mac
 void PhrozenNetworkAgent::RunReceiveResponse()
 {
+
+
+
     // Log thread ID for Xcode console debugging
     std::thread::id thread_id = std::this_thread::get_id();
     std::cout << "[ReceiveResponse] Thread started, Thread ID: " << thread_id << std::endl;
@@ -1671,7 +1675,10 @@ void PhrozenNetworkAgent::RunReceiveResponse()
         }
         BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock released, Thread ID: " << thread_id;
     }
+
 }
+#endif
+
 
 // Get camera stream URL
 bool PhrozenNetworkAgent::get_camera_stream_url(std::string dev_ip, std::string* url)

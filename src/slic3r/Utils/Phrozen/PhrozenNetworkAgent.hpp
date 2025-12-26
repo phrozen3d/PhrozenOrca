@@ -186,7 +186,7 @@ public:
                          const std::vector< bool >& kSendingList );
     
     void InitializeForReceiveResponse();
-    void RunReceiveResponse();
+    //void RunReceiveResponse();
 
     bool get_camera_stream_url(std::string dev_ip, std::string* url);
     CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
