@@ -535,32 +535,10 @@ void HandlePauseCode(const std::string& pauseCode)
 
 // Frame processing module for WebSocket frame handling
 struct FrameProcessor {
-
-#ifndef __APPLE__
-    static bool IsContinuationFrame(const struct curl_ws_frame* meta) {
-        bool is_continuation_frame = false;
-        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
-        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-        #elif defined(CURLWS_CONT)
-        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-        #else
-        is_continuation_frame = ((meta->flags & 0x80) == 0);
-        #endif
-        return is_continuation_frame;
-    }
-    
-    static bool IsFinalFrame(const struct curl_ws_frame* meta) {
-        bool is_final_frame = true;
-        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
-        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
-        #elif defined(CURLWS_CONT)
-        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
-        #else
-        is_final_frame = ((meta->flags & 0x80) != 0);
-        #endif
-        return is_final_frame;
-    }
-#else
+    // Platform-specific function signatures to match curl_ws_recv() parameter type:
+    // - macOS Intel (x86_64): non-const pointer
+    // - macOS ARM (arm64) and Windows: const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
     static bool IsContinuationFrame(struct curl_ws_frame* meta) {
         bool is_continuation_frame = false;
         #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
@@ -574,6 +552,30 @@ struct FrameProcessor {
     }
     
     static bool IsFinalFrame(struct curl_ws_frame* meta) {
+        bool is_final_frame = true;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
+        #elif defined(CURLWS_CONT)
+        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
+        #else
+        is_final_frame = ((meta->flags & 0x80) != 0);
+        #endif
+        return is_final_frame;
+    }
+#else
+    static bool IsContinuationFrame(const struct curl_ws_frame* meta) {
+        bool is_continuation_frame = false;
+        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #elif defined(CURLWS_CONT)
+        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
+        #else
+        is_continuation_frame = ((meta->flags & 0x80) == 0);
+        #endif
+        return is_continuation_frame;
+    }
+    
+    static bool IsFinalFrame(const struct curl_ws_frame* meta) {
         bool is_final_frame = true;
         #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
         is_final_frame = (meta->flags & CURLWS_FIN) != 0;
@@ -1481,13 +1483,14 @@ CURLcode ReceiveResponse() {
     size_t rlen;
     CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
     
-#ifndef __APPLE__
-    const struct curl_ws_frame* meta;
-#else
-    // Note: curl 8.x requires non-const pointer for curl_ws_recv() fifth parameter
-    // Changed from: const struct curl_ws_frame* meta;
-    // See: https://curl.se/docs/websockets.html - API changed in curl 8.0+
+    // Platform-specific curl_ws_recv() parameter type:
+    // - macOS Intel (x86_64): requires non-const pointer
+    // - macOS ARM (arm64): requires const pointer
+    // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
     struct curl_ws_frame* meta;
+#else
+    const struct curl_ws_frame* meta;
 #endif
     
     // Frame accumulation buffers for handling fragmented messages
@@ -1692,13 +1695,14 @@ CURLcode CheckAMSConnection() {
                 // Set up a buffer to store received data
                 // Use curl_ws_recv or similar WebSocket function to receive data
 
-#ifndef __APPLE__
-                const struct curl_ws_frame* meta;
+                // Platform-specific curl_ws_recv() parameter type:
+                // - macOS Intel (x86_64): requires non-const pointer
+                // - macOS ARM (arm64): requires const pointer
+                // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
+                struct curl_ws_frame* meta;
 #else
-                    // Note: curl 8.x requires non-const pointer for curl_ws_recv() fifth parameter
-                    // Changed from: const struct curl_ws_frame* meta;
-                    // See: https://curl.se/docs/websockets.html - API changed in curl 8.0+
-                    struct curl_ws_frame* meta;
+                const struct curl_ws_frame* meta;
 #endif
                 char buffer[2048];
                 size_t rlen;
@@ -1808,11 +1812,14 @@ CURLcode CheckReceiveValue(const char* exected_payload)
 {
     size_t rlen;
 
-#ifndef __APPLE__
-    const struct curl_ws_frame* meta;
-#else
-    // Note: curl 8.x requires non-const pointer - API breaking change
+    // Platform-specific curl_ws_recv() parameter type:
+    // - macOS Intel (x86_64): requires non-const pointer
+    // - macOS ARM (arm64): requires const pointer
+    // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
     struct curl_ws_frame* meta;
+#else
+    const struct curl_ws_frame* meta;
 #endif
     char buffer[256];
     CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
@@ -1851,11 +1858,14 @@ std::wstring CheckReceiveValue_new(std::wstring expected)
         long long timeDiff = std::chrono::duration_cast<std::chrono::seconds>(nowTime - previousTime_printinfo).count();
 
         size_t rlen;
-#ifndef __APPLE__
-        const struct curl_ws_frame* meta;
-#else
-        // Note: curl 8.x requires non-const pointer - API breaking change
+        // Platform-specific curl_ws_recv() parameter type:
+        // - macOS Intel (x86_64): requires non-const pointer
+        // - macOS ARM (arm64): requires const pointer
+        // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
         struct curl_ws_frame* meta;
+#else
+        const struct curl_ws_frame* meta;
 #endif
         char buffer[2048];
         CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
@@ -1930,11 +1940,14 @@ std::wstring CheckReceiveValue_new(std::wstring expected)
 CURLcode CheckReceiveValue_AMS(const char* exected_payload)
 {
     size_t rlen;
-#ifndef __APPLE__
-    const struct curl_ws_frame* meta;
-#else
-    // Note: curl 8.x requires non-const pointer - API breaking change
+    // Platform-specific curl_ws_recv() parameter type:
+    // - macOS Intel (x86_64): requires non-const pointer
+    // - macOS ARM (arm64): requires const pointer
+    // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
     struct curl_ws_frame* meta;
+#else
+    const struct curl_ws_frame* meta;
 #endif
     char buffer[2048];
     CURLcode result = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
@@ -3461,21 +3474,27 @@ CURLcode GetLEDState() {
                 // Set up a buffer to store received data
                 // Use curl_ws_recv or similar WebSocket function to receive data
                 // first response
-#ifndef __APPLE__
-                const struct curl_ws_frame* meta;
-#else
-                // Note: curl 8.x requires non-const pointer - API breaking change
+                // Platform-specific curl_ws_recv() parameter type:
+                // - macOS Intel (x86_64): requires non-const pointer
+                // - macOS ARM (arm64): requires const pointer
+                // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
                 struct curl_ws_frame* meta;
+#else
+                const struct curl_ws_frame* meta;
 #endif
                 char buffer[2048] = { 0 };;
                 size_t rlen;
                 res = curl_ws_recv(m_pCurl, buffer, sizeof(buffer), &rlen, &meta);
                 // second response
-#ifndef __APPLE__
-                const struct curl_ws_frame* meta2;
-#else
-                // Note: curl 8.x requires non-const pointer - API breaking change
+                // Platform-specific curl_ws_recv() parameter type:
+                // - macOS Intel (x86_64): requires non-const pointer
+                // - macOS ARM (arm64): requires const pointer
+                // - Windows: requires const pointer
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
                 struct curl_ws_frame* meta2;
+#else
+                const struct curl_ws_frame* meta2;
 #endif
                 char buffer2[2048] = { 0 };;
                 size_t rlen2;
