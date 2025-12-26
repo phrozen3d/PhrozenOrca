@@ -39,34 +39,6 @@ using namespace Slic3r;
 // 
 // Frame processing module for WebSocket frame handling
 struct PhrozenFrameProcessor {
-    // Platform-specific function signatures to match curl_ws_recv() parameter type:
-    // - macOS Intel (x86_64): non-const pointer
-    // - macOS ARM (arm64) and Windows: const pointer
-#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
-    static bool IsContinuationFrame(struct curl_ws_frame* meta) {
-        bool is_continuation_frame = false;
-        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
-        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-        #elif defined(CURLWS_CONT)
-        is_continuation_frame = (meta->flags & CURLWS_CONT) != 0;
-        #else
-        is_continuation_frame = ((meta->flags & 0x80) == 0);
-        #endif
-        return is_continuation_frame;
-    }
-    
-    static bool IsFinalFrame(struct curl_ws_frame* meta) {
-        bool is_final_frame = true;
-        #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
-        is_final_frame = (meta->flags & CURLWS_FIN) != 0;
-        #elif defined(CURLWS_CONT)
-        is_final_frame = (meta->flags & CURLWS_CONT) == 0;
-        #else
-        is_final_frame = ((meta->flags & 0x80) != 0);
-        #endif
-        return is_final_frame;
-    }
-#else
     static bool IsContinuationFrame(const struct curl_ws_frame* meta) {
         bool is_continuation_frame = false;
         #if defined(CURLWS_CONT) && defined(CURLWS_FIN)
@@ -90,7 +62,6 @@ struct PhrozenFrameProcessor {
         #endif
         return is_final_frame;
     }
-#endif
 
     
     static std::string CombineFrames(const std::string& frame_data, 
@@ -1481,15 +1452,8 @@ void PhrozenNetworkAgent::RunReceiveResponse()
     size_t rlen;
     CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
     
-    // Platform-specific curl_ws_recv() parameter type:
-    // - macOS Intel (x86_64): requires non-const pointer
-    // - macOS ARM (arm64): requires const pointer
-    // - Windows: requires const pointer
-#if defined(__APPLE__) && (defined(__x86_64__) || defined(__i386__))
-    struct curl_ws_frame* meta;
-#else
+    // curl_ws_recv() requires const struct curl_ws_frame** for the fifth parameter
     const struct curl_ws_frame* meta;
-#endif
     
     m_bIsPrinterInfoChanged = false;
     m_bIsCalibrationProgressInfoChanged = false;
