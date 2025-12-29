@@ -38,25 +38,58 @@ else()
     endif ()
 endif()
 
-ExternalProject_Add(dep_OpenSSL
-    #EXCLUDE_FROM_ALL ON
-    URL "https://github.com/openssl/openssl/archive/OpenSSL_1_1_1w.tar.gz"
-    URL_HASH SHA256=2130E8C2FB3B79D1086186F78E59E8BC8D1A6AEDF17AB3907F4CB9AE20918C41
-    # URL "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.1.2.tar.gz"
-    # URL_HASH SHA256=8c776993154652d0bb393f506d850b811517c8bd8d24b1008aef57fbe55d3f31
-    DOWNLOAD_DIR ${DEP_DOWNLOAD_DIR}/OpenSSL
-	CONFIGURE_COMMAND ${_conf_cmd} ${_cross_arch}
-        "--openssldir=${DESTDIR}"
-        "--prefix=${DESTDIR}"
-        ${_cross_comp_prefix_line}
-        no-shared
-        no-asm
-        no-ssl3-method
-        no-dynamic-engine
-    BUILD_IN_SOURCE ON
-    BUILD_COMMAND ${_make_cmd}
-    INSTALL_COMMAND ${_install_cmd}
-)
+if(WIN32)
+	ExternalProject_Add(dep_OpenSSL
+		URL "https://github.com/openssl/openssl/archive/OpenSSL_1_1_1w.tar.gz"
+		URL_HASH SHA256=2130E8C2FB3B79D1086186F78E59E8BC8D1A6AEDF17AB3907F4CB9AE20918C41
+		
+		DOWNLOAD_DIR ${DEP_DOWNLOAD_DIR}/OpenSSL
+		CONFIGURE_COMMAND ${_conf_cmd} ${_cross_arch}
+			"--openssldir=${DESTDIR}"
+			"--prefix=${DESTDIR}"
+			${_cross_comp_prefix_line}
+			no-shared
+			no-asm
+			no-ssl3-method
+			no-dynamic-engine
+		BUILD_IN_SOURCE ON
+		BUILD_COMMAND ${_make_cmd}
+		INSTALL_COMMAND ${_install_cmd}
+	)
+
+else()
+
+	ExternalProject_Add(dep_OpenSSL
+		#EXCLUDE_FROM_ALL ON
+		# For Mac:
+		# curl 8.11.0 with WebSocket support requires OpenSSL 3.0+ 
+		# The old OpenSSL 1.1.1w does not provide the new EVP API functions required by curl 8.x
+		# Missing symbols in OpenSSL 1.x that caused linker errors:
+		# - EVP_PKEY_get0_type_name, EVP_PKEY_get_bits, EVP_PKEY_get_id
+		# - SSL_get1_peer_cert waiting
+		# 
+		# OpenSSL 3.1.2 provides all required APIs and maintains compatibility таблицыexisting code
+		# References: https://www.openssl.org/docs/man3.0/man7/migration_guide.html
+		# URL "https://github.com/openssl/openssl/archive/OpenSSL_1_1_1w.tar.gz"
+		# URL_HASH SHA256=2130E8C2FB3B79D1086186F78E59E8BC8D1A6AEDF17AB3907F4CB9AE20918C41
+		URL "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.1.2.tar.gz"
+		URL_HASH SHA256=8c776993154652d0bb393f506d850b811517c8bd8d24b1008aef57fbe55d3f31
+		
+		DOWNLOAD_DIR ${DEP_DOWNLOAD_DIR}/OpenSSL
+		CONFIGURE_COMMAND ${_conf_cmd} ${_cross_arch}
+			"--openssldir=${DESTDIR}"
+			"--prefix=${DESTDIR}"
+			${_cross_comp_prefix_line}
+			no-shared
+			no-asm
+			no-ssl3-method
+			no-dynamic-engine
+		BUILD_IN_SOURCE ON
+		BUILD_COMMAND ${_make_cmd}
+		INSTALL_COMMAND ${_install_cmd}
+	)
+
+endif()
 
 ExternalProject_Add_Step(dep_OpenSSL install_cmake_files
     DEPENDEES install

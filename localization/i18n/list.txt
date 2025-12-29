@@ -184,3 +184,5 @@ src/slic3r/GUI/PhrozenGUI/PhrozenMonitor.hpp
 src/slic3r/GUI/PhrozenGUI/PhrozenMonitor.cpp
 src/slic3r/GUI/PhrozenGUI/PhrozenBrowserDialog.hpp
 src/slic3r/GUI/PhrozenGUI/PhrozenBrowserDialog.cpp
+src/slic3r/GUI/PhrozenGUI/PhrozenMonitorController.hpp
+src/slic3r/GUI/PhrozenGUI/PhrozenMonitorController.cpp

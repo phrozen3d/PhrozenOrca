@@ -1,8 +1,9 @@
-set(_curl_platform_flags 
+set(_curl_platform_flags
   -DENABLE_IPV6:BOOL=ON
   -DENABLE_VERSIONED_SYMBOLS:BOOL=ON
   -DENABLE_THREADED_RESOLVER:BOOL=ON
   -DENABLE_MANUAL:BOOL=OFF
+  -DENABLE_WEBSOCKETS:BOOL=ON
   -DCURL_DISABLE_LDAP:BOOL=ON
   -DCURL_DISABLE_LDAPS:BOOL=ON
   -DCURL_DISABLE_RTSP:BOOL=ON
@@ -19,6 +20,10 @@ set(_curl_platform_flags
 
   -DCMAKE_USE_GSSAPI:BOOL=OFF
   -DCMAKE_USE_LIBSSH2:BOOL=OFF
+  -DCURL_USE_LIBSSH2:BOOL=OFF
+  -DCURL_DISABLE_SCP:BOOL=ON
+  -DCURL_DISABLE_SFTP:BOOL=ON
+  -DUSE_LIBIDN2:BOOL=OFF
   -DUSE_RTMP:BOOL=OFF
   -DUSE_NGHTTP2:BOOL=OFF
   -DUSE_MBEDTLS:BOOL=OFF
@@ -59,8 +64,10 @@ endif()
 phrozenorca_add_cmake_project(CURL
   # GIT_REPOSITORY      https://github.com/curl/curl.git
   # GIT_TAG             curl-7_75_0
-  URL                 https://github.com/curl/curl/archive/refs/tags/curl-7_75_0.zip
-  URL_HASH            SHA256=a63ae025bb0a14f119e73250f2c923f4bf89aa93b8d4fafa4a9f5353a96a765a
+  #URL                 https://github.com/curl/curl/archive/refs/tags/curl-7_75_0.zip
+  #URL_HASH            SHA256=a63ae025bb0a14f119e73250f2c923f4bf89aa93b8d4fafa4a9f5353a96a765a
+  URL                 https://curl.se/download/curl-8.11.0.zip
+  URL_HASH            SHA256=3efe0ec3ec585d4cfa44d2a9f63704240e467bb48bcec52da42e0d5a1ed5362d
   DEPENDS             ${ZLIB_PKG}
   # PATCH_COMMAND       ${GIT_EXECUTABLE} checkout -f -- . && git clean -df && 
   #                     ${GIT_EXECUTABLE} apply --whitespace=fix ${CMAKE_CURRENT_LIST_DIR}/curl-mods.patch

@@ -17,6 +17,10 @@
 #include "CameraPopup.hpp"
 #include "libslic3r/calib.hpp"
 #include "libslic3r/Utils.hpp"
+
+// Forward declaration for wxBitmap & GetPhrozenThumbnailAsBitmap 虛擬函式用
+class wxBitmap;
+
 #define USE_LOCAL_SOCKET_BIND 0
 
 #define DISCONNECT_TIMEOUT      30000.f     // milliseconds
@@ -410,6 +414,95 @@ private:
     // type, time stamp, delay
     std::vector<std::tuple<std::string, uint64_t, uint64_t>> message_delay;
 
+#pragma region PhrozenMachineInfo
+public:
+    virtual float GetPhrozenBedTemperature() { return 0.0f; }
+    virtual float GetPhrozenNozzleTemperature() { return 0.0f; }
+    virtual float GetPhrozenPrintSpeed() { return 0.0f; }
+    virtual float GetPhrozenAuxiliaryCoolingSpeed() { return 0.0f; }
+    virtual float GetPhrozenPartCoolingSpeed() { return 0.0f; }
+    virtual float GetPhrozenShieldCoolingSpeed() { return 0.0f; }
+
+    virtual float GetPhrozenBedTargetTemperature() { return 0.0f; }
+    virtual float GetPhrozenNozzleTargetTemperature() { return 0.0f; }
+    virtual float GetPhrozenZOffset() { return 0.0f; }
+
+    virtual int GetPhrozenBedTemperature_limit() { return 300; }
+    virtual int GetPhrozenNozzleTemperature_limit() { return 300; }
+    virtual int GetPhrozenCoolingPower_limit() { return 100; }
+    // print states
+    virtual std::string GetPhrozenPrintStatus() { return ""; }
+    virtual std::string GetPhrozenPrintFile() { return ""; }
+    virtual std::string GetPhrozenThumbnailPath() { return ""; }
+    virtual void GetPhrozenThumbnailInfo(std::string) {  }
+    virtual void GetPhrozenThumbnailImage(std::string) {  }
+    // 透過前向宣告 class wxBitmap; 
+    // 這裡只需要宣告函數原型，編譯器就會知道 wxBitmap 是一個類別名稱
+    virtual bool GetPhrozenThumbnailAsBitmap(const std::string& gcodeName, wxBitmap& thumbnailBitmap) { return false; }
+    virtual float GetPhrozenPrintProgress() { return 0.0f; }
+    virtual float GetPhrozenPrintTime() { return 0.0f; }
+    virtual float GetPhrozenTotalTime() { return 0.0f; }
+    virtual float GetPhrozenPrintFilamentAmount() { return 0.0f; }
+    virtual bool IsPrintPaused() { return false; }
+    
+    virtual double GetPhrozenSendFileProgress() { return 0.0; }
+
+    virtual bool GetPhrozenCommand_lighting_enabled() { return false; }
+
+    //set command to machine
+    //control
+    virtual void SetPhrozenCommand_bed_temp( int nTemp ) {}
+    virtual void SetPhrozenCommand_nozzle_temp( int nTemp ) {}
+    virtual void SetPhrozenCommand_cooling_auxiliary( int nPower ) {}
+    virtual void SetPhrozenCommand_cooling_part( int nPower ) {}
+    virtual void SetPhrozenCommand_cooling_shield( int nPower ) {}
+    virtual void SetPhrozenCommand_print_speed( float fValue ) {}
+    virtual void SetPhrozenCommand_nozzle_movement(std::string ,float fValue ) {}
+    virtual void SetPhrozenCommand_nozzle_offset(float fValue ) {}
+    //ams
+    virtual void SetPhrozenCommand_load(int filament_id) {};
+    virtual void SetPhrozenCommand_unload(int filament_id) {};
+    virtual void SetPhrozenCommand_unload_all_slots() {}
+    virtual void SetPhrozenCommand_nozzle_filament_check() {};
+    //print control pause, resume,abort
+    virtual bool SetPhrozenCommand_pause()  {return false;};
+    virtual bool SetPhrozenCommand_resume()  {return false;};
+    virtual bool SetPhrozenCommand_abort()  {return false;};
+    virtual bool SetPhrozenCommand_sendandprint(std::string) { return false; };
+
+    virtual bool IsPhrozenConnected(){ return false; }
+    virtual bool IsPhrozenStartReceiving() { return false; }
+    virtual std::string GetPhrozenConnectedMachineIp() { return ""; }
+
+    virtual void SetPhrozenCommand_lighting_enabled(  bool bEnabled ) {}
+    
+    // Calibration functions
+    // Note: CalibrationState is defined in PhrozenMonitorController.hpp
+    // Using int as return type to avoid forward declaration issues with enum class
+    // PhrozenMachineObject will cast to proper CalibrationState type
+    // Start calibration (async)
+    virtual bool StartCalibration() { return false; }
+    
+    // Start resonance compensation (async)
+    virtual bool StartResonanceCompensation() { return false; }
+    
+    // Start temperature calibration (async)
+    virtual bool StartTemperatureCalibration() { return false; }
+    
+    // Get calibration status (returns int: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR)
+    virtual int GetCalibrationStatus() { return 0; }
+    virtual int GetResonanceCompensationStatus() { return 0; }
+    virtual int GetTemperatureCalibrationStatus() { return 0; }
+    
+    // Get calibration progress (0-100)
+    virtual float GetCalibrationProgress() { return 0.0f; }
+    virtual float GetResonanceCompensationProgress() { return 0.0f; }
+    virtual float GetTemperatureCalibrationProgress() { return 0.0f; }
+    
+    // Check if any calibration is running
+    virtual bool IsAnyCalibrationRunning() { return false; }
+#pragma endregion
+
 public:
 
     enum LIGHT_EFFECT {
@@ -710,6 +803,10 @@ public:
     int     total_layers = 0;
     bool    is_support_layer_num { false };
     bool    nozzle_blob_detection_enabled{ false };
+    
+    // Thumbnail cache: key is gcode filename, value is the original wxBitmap (before scaling)
+    std::map<std::string, wxBitmap> m_thumbnail_cache;
+    std::string m_cached_gcode_name; // Track the last gcode name to avoid unnecessary updates
 
     int last_cali_version = -1;
     int cali_version = -1;

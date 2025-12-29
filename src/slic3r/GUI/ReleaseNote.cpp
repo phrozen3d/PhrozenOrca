@@ -14,6 +14,7 @@
 #include "Widgets/WebView.hpp"
 #include "Jobs/BoostThreadWorker.hpp"
 #include "Jobs/PlaterWorker.hpp"
+#include "PhrozenGUI/PhrozenMonitorController.hpp"
 
 #include <wx/regex.h>
 #include <wx/progdlg.h>
@@ -1914,7 +1915,17 @@ void InputIpAddressDialog::on_ok(wxMouseEvent& evt)
     Refresh();
     Layout();
     Fit();
-    m_thread = new boost::thread(boost::bind(&InputIpAddressDialog::workerThreadFunc, this, str_ip, str_access_code, str_sn, str_model_id, str_name));
+
+    if ( m_bPhrozenMonitor )
+    {
+        m_thread = new boost::thread(boost::bind(&InputIpAddressDialog::workerPhrozenMonitorThreadFunc, this, str_ip));
+    }
+    else
+    {
+        m_thread = new boost::thread(boost::bind(&InputIpAddressDialog::workerThreadFunc, this, str_ip, str_access_code, str_sn, str_model_id, str_name));
+    }
+    
+    
 }
 
 void InputIpAddressDialog::update_test_msg_event(wxCommandEvent& evt)
@@ -2015,6 +2026,49 @@ void InputIpAddressDialog::workerThreadFunc(std::string str_ip, std::string str_
         closeTimer->Start(1000);
 #endif
     });
+}
+
+void InputIpAddressDialog::workerPhrozenMonitorThreadFunc(std::string str_ip )
+{
+    if ( str_ip.empty() )
+    {
+        return;
+    }
+    post_update_test_msg(_L("connecting..."), true);
+
+    bool bSuccess = wxGetApp().InitPhrozenConnector(str_ip);
+    if ( !bSuccess )
+    {
+        closeCount = 1;
+
+        post_update_test_msg(wxEmptyString, true);
+        post_update_test_msg(wxString::Format(_L("Connecting to printer... The dialog will close later"), closeCount), true);
+
+#ifdef __APPLE__
+        wxCommandEvent event(EVT_CLOSE_IPADDRESS_DLG);
+        wxPostEvent(this, event);
+#else
+        closeTimer->Start(1000);
+#endif
+        return;
+    }
+
+    CallAfter([this]() {
+        wxGetApp().ProcessPhrozenConnector();
+        closeCount = 1;
+
+        post_update_test_msg(wxEmptyString, true);
+        post_update_test_msg(wxString::Format(_L("Connecting to printer... The dialog will close later"), closeCount), true);
+
+#ifdef __APPLE__
+        wxCommandEvent event(EVT_CLOSE_IPADDRESS_DLG);
+        wxPostEvent(this, event);
+#else
+        closeTimer->Start(1000);
+#endif
+    });
+
+
 }
 
 void InputIpAddressDialog::OnTimer(wxTimerEvent& event) {

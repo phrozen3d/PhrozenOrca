@@ -42,9 +42,11 @@
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "PhrozenStatusPanel.hpp"
+#include "PhrozenSideTools.hpp"
 
 namespace Slic3r {
 namespace GUI {
+class PhrozenSelectMachinePopup;
 
 class PhrozenMonitorPanel : public wxPanel
 {
@@ -56,13 +58,14 @@ private:
     std::shared_ptr< wxPanel > m_spPrintHistoryPanel{ nullptr };
 
 	/* side tools */
-    SideTools*      m_side_tools{nullptr};
+    PhrozenSideTools*      m_side_tools{nullptr};
     wxStaticBitmap* m_bitmap_printer_type;
     wxStaticBitmap* m_bitmap_arrow;
     wxStaticText*   m_staticText_printer_name;
     wxStaticBitmap* m_bitmap_wifi_signal;
     wxBoxSizer *    m_side_tools_sizer;
-    SelectMachinePopup m_select_machine;
+    //SelectMachinePopup m_select_machine;
+    PhrozenSelectMachinePopup* m_select_machine{nullptr};
       
 	/* images */
     wxBitmap m_signal_strong_img;
@@ -108,7 +111,7 @@ public:
     void on_update_all(wxMouseEvent &event);
     void on_timer(wxTimerEvent& event);
     //void on_select_printer(wxCommandEvent& event);
-    //void on_printer_clicked(wxMouseEvent &event);
+    void on_printer_clicked(wxMouseEvent &event);
     void on_size(wxSizeEvent &event);
 
     /* update apis */
@@ -128,6 +131,10 @@ public:
 
     void stop_update() {update_flag = false;};
     void start_update() {update_flag = true;};
+
+    //event
+    void OnConnectMachineByIp( wxCommandEvent& event );
+    void OnDisconnectMachine( wxCommandEvent& event );
 
     //void jump_to_HMS(wxCommandEvent& e);
 };

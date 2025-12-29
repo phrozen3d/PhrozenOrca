@@ -62,6 +62,10 @@ class UserManager;
 class DeviceManager;
 class NetworkAgent;
 class TaskManager;
+class PhrozenMachineObject;
+class PhrozenDeviceManager;
+class PhrozenMachineObject_Dev;
+class PhrozenNetworkAgent;
 
 namespace GUI{
 
@@ -682,6 +686,27 @@ public:
     void            restart_networking();
     void            check_config_updates_from_updater() { check_updates(false); }
 
+#pragma region Phrozen
+    bool InitPhrozenNetwork();
+    bool InitPhrozenConnector( const std::string& strIp );
+    void ProcessPhrozenConnector();
+    void ProcessPhrozenDisconnect();
+    std::shared_ptr< PhrozenMachineObject > pPhrozenMachineObject = nullptr;
+    PhrozenMachineObject* GetPhrozenMachineObject();
+    void GetCurrentConnectedMachineIp( std::string& strIp );
+    bool IsConnectingMachine();
+
+    std::unique_ptr< PhrozenDeviceManager > m_spPhrozenManager{ nullptr }; 
+    PhrozenDeviceManager* GetPhrozenDeviceManager() { return m_spPhrozenManager ? m_spPhrozenManager.get() : nullptr; }
+
+    std::unique_ptr< PhrozenNetworkAgent > m_spPhrozenAgent{ nullptr };
+    PhrozenNetworkAgent* GetPhrozenNetworkAgent() { return m_spPhrozenAgent ? m_spPhrozenAgent.get() : nullptr; }
+
+
+#pragma endregion
+
+
+
 private:
     int             updating_bambu_networking();
     bool            on_init_inner();
@@ -712,6 +737,16 @@ private:
     bool                    m_config_corrupted { false };
     std::string             m_open_method;
 };
+
+#pragma region Phrozen
+void RunGetPrinterInfo( );
+void RunReceiveMessage( );
+void RunReceiveThumbnail();
+void RunSendMessage( );
+
+// kResult{ machineIp, machineName }
+bool SearchPhrozenPrinter( std::unordered_map< std::string, std::string >& kResult );
+#pragma endregion
 
 DECLARE_APP(GUI_App)
 wxDECLARE_EVENT(EVT_CONNECT_LAN_MODE_PRINT, wxCommandEvent);

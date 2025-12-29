@@ -580,7 +580,11 @@ set(SLIC3R_GUI_SOURCES
     Utils/Obico.hpp
     Utils/Flashforge.cpp
     Utils/Flashforge.hpp
-
+	Utils/Phrozen/PhrozenNetworkAgent.hpp
+	Utils/Phrozen/PhrozenNetworkAgent.cpp
+	Utils/Phrozen/PhrozenMachineDatas.hpp
+	Utils/Phrozen/PhrozenMachineDatas.cpp
+	
     GUI/OAuthDialog.cpp
     GUI/OAuthDialog.hpp
     GUI/Jobs/OAuthJob.cpp
@@ -597,6 +601,22 @@ set(SLIC3R_GUI_SOURCES
     GUI/PhrozenGUI/PhrozenStatusPanel.cpp
     GUI/PhrozenGUI/PhrozenBrowserDialog.hpp
     GUI/PhrozenGUI/PhrozenBrowserDialog.cpp
+	GUI/PhrozenGUI/PhrozenMonitorController.hpp
+    GUI/PhrozenGUI/PhrozenMonitorController.cpp
+	GUI/PhrozenGUI/PhrozenDeviceManager.hpp
+    GUI/PhrozenGUI/PhrozenDeviceManager.cpp
+	GUI/PhrozenGUI/PhrozenFilamentControl.hpp
+    GUI/PhrozenGUI/PhrozenFilamentControl.cpp
+	GUI/PhrozenGUI/PhrozenSelectMachine.hpp
+    GUI/PhrozenGUI/PhrozenSelectMachine.cpp
+	GUI/PhrozenGUI/PhrozenSideTools.hpp
+    GUI/PhrozenGUI/PhrozenSideTools.cpp
+	GUI/PhrozenGUI/PhrozenSelectMachinePopup.hpp
+    GUI/PhrozenGUI/PhrozenSelectMachinePopup.cpp
+	GUI/PhrozenGUI/PhrozenCalibrationDlg.hpp
+    GUI/PhrozenGUI/PhrozenCalibrationDlg.cpp
+    GUI/Widgets/PhrozenTempInput.hpp
+    GUI/Widgets/PhrozenTempInput.cpp
 
 )
 
@@ -670,6 +690,28 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
 elseif (APPLE)
     target_link_libraries(libslic3r_gui ${DISKARBITRATION_LIBRARY})
+    # curl 8.11.0 with WebSocket support requires additional dependencies on macOS
+    # These libraries are required for proper WebSocket functionality:
+    # - SystemConfiguration: Provides macOS system proxy settings (required by curl)
+    # - libidn2, libpsl, libssh2: Optional but may be needed depending on curl build config
+    find_library(SYSTEMCONFIGURATION_FRAMEWORK SystemConfiguration)
+    if(SYSTEMCONFIGURATION_FRAMEWORK)
+        target_link_libraries(libslic3r_gui ${SYSTEMCONFIGURATION_FRAMEWORK})
+    endif()
+    # Optional curl dependencies - may be required depending on curl build configuration
+    # These are linked as optional since they may not be available on all macOS installations
+    find_library(LIBIDN2_LIB NAMES idn2)
+    if(LIBIDN2_LIB)
+        target_link_libraries(libslic3r_gui ${LIBIDN2_LIB})
+    endif()
+    find_library(LIBPSL_LIB NAMES psl)
+    if(LIBPSL_LIB)
+        target_link_libraries(libslic3r_gui ${LIBPSL_LIB})
+    endif()
+    find_library(LIBSSH2_LIB NAMES ssh2)
+    if(LIBSSH2_LIB)
+        target_link_libraries(libslic3r_gui ${LIBSSH2_LIB})
+    endif()
 endif()
 
 if (SLIC3R_STATIC)

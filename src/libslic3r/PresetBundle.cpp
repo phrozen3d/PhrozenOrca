@@ -341,6 +341,8 @@ VendorType PresetBundle::get_current_vendor_type()
     {
         if(vendor_name.compare("BBL") == 0)
             t = VendorType::Marlin_BBL;
+        else if ( vendor_name.compare("Phrozen") == 0 )
+            t = VendorType::Phrozen;
     }
     return t;
 }

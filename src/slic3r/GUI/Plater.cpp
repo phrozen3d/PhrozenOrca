@@ -155,6 +155,9 @@
 #include "StepMeshDialog.hpp"
 #include "CloneDialog.hpp"
 
+//Phrozen
+#include "PhrozenGUI/PhrozenSelectMachine.hpp"
+
 using boost::optional;
 namespace fs = boost::filesystem;
 using Slic3r::_3DScene;
@@ -2248,6 +2251,8 @@ struct Plater::priv
     SendToPrinterDialog* m_send_to_sdcard_dlg = nullptr;
     PublishDialog *m_publish_dlg = nullptr;
 
+    PhrozenSelectMachineDialog* m_phrozen_select_machine_dlg = nullptr;
+
     // Data
     Slic3r::DynamicPrintConfig *config;        // FIXME: leak?
     Slic3r::Print               fff_print;
@@ -2281,6 +2286,8 @@ struct Plater::priv
     int m_cur_slice_plate;
     //BBS: m_slice_all in .gcode.3mf file case, set true when slice all
     bool m_slice_all_only_has_gcode{ false };
+    //PhrozenOrca: flag to skip apply comparison when printing from single plate button
+    bool m_skip_apply_for_phrozen_print{false};
 
     bool m_need_update{false};
     //BBS: add popup object table logic
@@ -2423,14 +2430,20 @@ struct Plater::priv
     // BBS
     void hide_select_machine_dlg()
     {
-        if (m_select_machine_dlg)
+        if (m_select_machine_dlg) {
             m_select_machine_dlg->EndModal(wxID_OK);
+        }
+        else if ( m_phrozen_select_machine_dlg ) {
+            m_phrozen_select_machine_dlg->EndModal(wxID_OK);
+        }
     }
 
     void enter_prepare_mode()
     {
         if (m_select_machine_dlg)
             m_select_machine_dlg->prepare_mode();
+        else if ( m_phrozen_select_machine_dlg )
+            m_phrozen_select_machine_dlg->prepare_mode();
     }
 
     void hide_send_to_printer_dlg() { m_send_to_sdcard_dlg->EndModal(wxID_OK); }
@@ -5292,8 +5305,22 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         this->partplate_list.update_slice_context_to_current_plate(background_process);
         this->preview->update_gcode_result(partplate_list.get_current_slice_result());
     }
-    Print::ApplyStatus invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
-
+    //    Print::ApplyStatus invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
+    Print::ApplyStatus invalidated;
+    // PhrozenOrca vendor specific handling
+    // 當軟體商是 PhrozenOrca 且用戶透過「列印單一按鈕」來送印檔案時，不執行列印配置檔案的比對（跳過 background_process.apply()），
+    // 直接返回 APPLY_STATUS_UNCHANGED，以避免切片結果被標記為無效。
+    // 這是為了讓目前送印的功能可以正常運作，避免因配置差異（如 print_host、different_settings_to_system）
+    // 導致的切片無效化問題。
+    // 注意：未來如果要支援各類 Phrozen Arco 機器時，可能就需要恢復這段的設定，
+    // 重新執行列印配置檔案的比對邏輯。
+    if(wxGetApp().preset_bundle->is_phrozen_vendor() && m_skip_apply_for_phrozen_print){
+        invalidated = Print::APPLY_STATUS_UNCHANGED;
+    }
+    else{
+        invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
+    }
+    
     if ((invalidated == Print::APPLY_STATUS_CHANGED) || (invalidated == Print::APPLY_STATUS_INVALIDATED))
         // BBS: add only gcode mode
         q->set_only_gcode(false);
@@ -7247,7 +7274,7 @@ void Plater::priv::on_action_print_plate(SimpleEvent&)
     }
 
     PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
-    if (preset_bundle.use_bbl_network()) {
+    if (preset_bundle.use_bbl_network() ) {
         // BBS
         if (!m_select_machine_dlg)
             m_select_machine_dlg = new SelectMachineDialog(q);
@@ -7255,7 +7282,18 @@ void Plater::priv::on_action_print_plate(SimpleEvent&)
         m_select_machine_dlg->prepare(partplate_list.get_curr_plate_index());
         m_select_machine_dlg->ShowModal();
         record_start_print_preset("print_plate");
-    } else {
+    } 
+    else if ( preset_bundle.is_phrozen_vendor() ) {
+        if (!m_phrozen_select_machine_dlg)
+            m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        m_phrozen_select_machine_dlg->set_print_type(PhrozenPrintFromType::FROM_NORMAL);
+        m_phrozen_select_machine_dlg->prepare(partplate_list.get_curr_plate_index());
+        // Set flag to skip apply comparison when printing from single plate button
+        m_skip_apply_for_phrozen_print = true;
+        m_phrozen_select_machine_dlg->ShowModal();
+        record_start_print_preset("print_plate");
+    }
+    else {
         q->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, true);
     }
 }
@@ -7270,6 +7308,19 @@ void Plater::priv::on_action_send_to_multi_machine(SimpleEvent&)
 
 void Plater::priv::on_action_print_plate_from_sdcard(SimpleEvent&)
 {
+#ifdef _WIN32
+    // Windows platform
+    auto result = MessageBox(q->GetHandle(),
+                             wxString::Format(_L("Phrozen Orca not supply this action")),
+                             _L("Phrozen Orca"), MB_OK | MB_ICONWARNING );
+#else
+    // Apple platform (macOS)
+    // TODO: Implement cross-platform message box for Apple platform, and wxMessageBox is used as a temporary solution
+    wxMessageBox(wxString::Format(_L("Phrozen Orca not supply this action")),
+                 _L("Phrozen Orca"), wxOK | wxICON_WARNING);
+#endif
+    return;
+
     if (q != nullptr) {
         BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ":received print plate event\n";
     }
@@ -7316,6 +7367,13 @@ void Plater::priv::on_tab_selection_changing(wxBookCtrlEvent& e)
 
 int Plater::priv::update_print_required_data(Slic3r::DynamicPrintConfig config, Slic3r::Model model, Slic3r::PlateDataPtrs plate_data_list, std::string file_name, std::string file_path)
 {
+    PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
+    if ( preset_bundle.is_phrozen_vendor() )
+    {
+        if (!m_phrozen_select_machine_dlg) m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        return m_phrozen_select_machine_dlg->update_print_required_data(config, model, plate_data_list, file_name, file_path);
+    }
+
     if (!m_select_machine_dlg) m_select_machine_dlg = new SelectMachineDialog(q);
     return m_select_machine_dlg->update_print_required_data(config, model, plate_data_list, file_name, file_path);
 }
@@ -7357,7 +7415,16 @@ void Plater::priv::on_action_print_all(SimpleEvent&)
         m_select_machine_dlg->prepare(PLATE_ALL_IDX);
         m_select_machine_dlg->ShowModal();
         record_start_print_preset("print_all");
-    } else {
+    } 
+    else if (preset_bundle.is_phrozen_vendor()) {
+        if (!m_phrozen_select_machine_dlg)
+            m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        m_phrozen_select_machine_dlg->set_print_type(PhrozenPrintFromType::FROM_NORMAL);
+        m_phrozen_select_machine_dlg->prepare(PLATE_ALL_IDX);
+        m_phrozen_select_machine_dlg->ShowModal();
+        record_start_print_preset("print_all");
+    }
+    else {
         q->send_gcode_legacy(PLATE_ALL_IDX, nullptr, true);
     }
 }
@@ -8909,6 +8976,12 @@ const Print&    Plater::fff_print() const   { return p->fff_print; }
 Print&          Plater::fff_print()         { return p->fff_print; }
 const SLAPrint& Plater::sla_print() const   { return p->sla_print; }
 SLAPrint&       Plater::sla_print()         { return p->sla_print; }
+
+//BBS: PhrozenOrca: set flag to skip apply comparison when printing from single plate button
+void Plater::set_skip_apply_for_phrozen_print(bool skip)
+{
+    p->m_skip_apply_for_phrozen_print = skip;
+}
 
 int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_name)
 {
@@ -13328,11 +13401,22 @@ std::vector<std::string> Plater::get_colors_for_color_print(const GCodeProcessor
 
 wxWindow* Plater::get_select_machine_dialog()
 {
+    PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
+    if (preset_bundle.is_phrozen_vendor()) {
+        return p->m_phrozen_select_machine_dlg;
+    } 
+
     return p->m_select_machine_dlg;
 }
 
 void Plater::update_print_error_info(int code, std::string msg, std::string extra)
 {
+    if ( p->m_phrozen_select_machine_dlg ){
+        // current phrozen only support this object to send print task
+        p->m_phrozen_select_machine_dlg->update_print_error_info(code, msg, extra);
+        return;
+    }
+
     if (p->m_select_machine_dlg) {
         p->m_select_machine_dlg->update_print_error_info(code, msg, extra);
     }
@@ -13722,6 +13806,7 @@ void Plater::sys_color_changed()
     p->sidebar->sys_color_changed();
     p->menus.sys_color_changed();
     if (p->m_select_machine_dlg) p->m_select_machine_dlg->sys_color_changed();
+    if (p->m_phrozen_select_machine_dlg) p->m_phrozen_select_machine_dlg->sys_color_changed();
 
     Layout();
     GetParent()->Layout();

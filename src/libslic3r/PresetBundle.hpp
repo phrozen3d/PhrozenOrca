@@ -24,7 +24,8 @@ enum class VendorType {
     Unknown = 0,
     Klipper,
     Marlin,
-    Marlin_BBL
+    Marlin_BBL,
+    Phrozen
 };
 namespace Slic3r {
 
@@ -92,6 +93,7 @@ public:
     VendorType get_current_vendor_type();
     // Vendor related handy functions
     bool is_bbl_vendor() { return get_current_vendor_type() == VendorType::Marlin_BBL; }
+    bool is_phrozen_vendor() { return get_current_vendor_type() == VendorType::Phrozen; }
     // Whether using bbl network for print upload
     bool use_bbl_network();
     // Whether using bbl's device tab
