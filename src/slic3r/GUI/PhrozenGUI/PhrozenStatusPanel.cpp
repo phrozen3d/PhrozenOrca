@@ -2543,33 +2543,45 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
 
 #ifdef __APPLE__
+    // Bind all events to GetText() to ensure single event source and prevent duplicate triggers
     m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
     m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
+    m_spTemp_nozzle_ctrl->GetText()->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_temp_text_enter), NULL, this);
     m_spTemp_heatedBed_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
     m_spTemp_heatedBed_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
+    m_spTemp_heatedBed_ctrl->GetText()->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_bed_temp_text_enter), NULL, this);
 
     m_spCooling_auxiliary_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_kill_focus), NULL, this);
     m_spCooling_auxiliary_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_set_focus), NULL, this);
+    m_spCooling_auxiliary_ctrl->GetText()->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_text_enter), NULL, this);
 
     m_spCooling_part_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_kill_focus), NULL, this);
     m_spCooling_part_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_set_focus), NULL, this);
+    m_spCooling_part_ctrl->GetText()->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_part_text_enter), NULL, this);
 
     m_spCooling_shield_ctrl->GetText()->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_kill_focus), NULL, this);
     m_spCooling_shield_ctrl->GetText()->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_set_focus), NULL, this);
+    m_spCooling_shield_ctrl->GetText()->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_shield_text_enter), NULL, this);
 #else
+    // On non-Apple platforms, bind to wxSpinCtrl itself (no GetText() method available)
     m_spTemp_nozzle_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_kill_focus), NULL, this);
     m_spTemp_nozzle_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_nozzle_temp_set_focus), NULL, this);
+    m_spTemp_nozzle_ctrl->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_temp_text_enter), NULL, this);
     m_spTemp_heatedBed_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_kill_focus), NULL, this);
     m_spTemp_heatedBed_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_bed_temp_set_focus), NULL, this);
+    m_spTemp_heatedBed_ctrl->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_bed_temp_text_enter), NULL, this);
 
     m_spCooling_auxiliary_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_kill_focus), NULL, this);
     m_spCooling_auxiliary_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_set_focus), NULL, this);
+    m_spCooling_auxiliary_ctrl->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_auxiliary_text_enter), NULL, this);
 
     m_spCooling_part_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_kill_focus), NULL, this);
     m_spCooling_part_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_part_set_focus), NULL, this);
+    m_spCooling_part_ctrl->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_part_text_enter), NULL, this);
 
     m_spCooling_shield_ctrl->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_kill_focus), NULL, this);
     m_spCooling_shield_ctrl->Connect(wxEVT_SET_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cooling_shield_set_focus), NULL, this);
+    m_spCooling_shield_ctrl->Connect(wxEVT_TEXT_ENTER, wxCommandEventHandler(PhrozenStatusPanel::on_cooling_shield_text_enter), NULL, this);
 
 #endif
     //m_tempCtrl_chamber->Connect(wxEVT_KILL_FOCUS, wxFocusEventHandler(PhrozenStatusPanel::on_cham_temp_kill_focus), NULL, this);
@@ -5579,14 +5591,28 @@ void PhrozenStatusPanel::msw_rescale()
 
 // =============== phrozen checked done =============== //
 
-void PhrozenStatusPanel::on_nozzle_temp_kill_focus(wxFocusEvent &event)
+void PhrozenStatusPanel::handle_nozzle_temp_finish()
 {
-    event.Skip();
     nozzle_temp_input = false;
-
+    
+    // Ensure we read the new value from text control before committing
+#ifdef __APPLE__
+    wxString textValue = m_spTemp_nozzle_ctrl->GetText()->GetValue();
+    long newValue;
+    if (textValue.ToLong(&newValue)) {
+        m_spTemp_nozzle_ctrl->SetValue(newValue);
+    }
+#endif
+    
     wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
     finishEvent.SetInt( (int)PhrozenParamControl::Temperature_Nozzle );
     wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_nozzle_temp_kill_focus(wxFocusEvent &event)
+{
+    // Only Enter key triggers finish event, kill_focus does nothing
+    event.Skip();
 }
 
 void PhrozenStatusPanel::on_nozzle_temp_set_focus(wxFocusEvent &event)
@@ -5595,14 +5621,37 @@ void PhrozenStatusPanel::on_nozzle_temp_set_focus(wxFocusEvent &event)
     nozzle_temp_input = true;
 }
 
-void PhrozenStatusPanel::on_bed_temp_kill_focus(wxFocusEvent &event)
+void PhrozenStatusPanel::on_nozzle_temp_text_enter(wxCommandEvent &event)
 {
     event.Skip();
-    bed_temp_input = false;
+    handle_nozzle_temp_finish();
+    
+    // Remove focus from input field after Enter is pressed (works even when value hasn't changed)
+    CallAfter([this]() { this->SetFocus(); });
+}
 
+void PhrozenStatusPanel::handle_bed_temp_finish()
+{
+    bed_temp_input = false;
+    
+    // Ensure we read the new value from text control before committing
+#ifdef __APPLE__
+    wxString textValue = m_spTemp_heatedBed_ctrl->GetText()->GetValue();
+    long newValue;
+    if (textValue.ToLong(&newValue)) {
+        m_spTemp_heatedBed_ctrl->SetValue(newValue);
+    }
+#endif
+    
     wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
     finishEvent.SetInt( (int)PhrozenParamControl::Temperature_HeatedBed );
     wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_bed_temp_kill_focus(wxFocusEvent &event)
+{
+    // Only Enter key triggers finish event, kill_focus does nothing
+    event.Skip();
 }
 
 void PhrozenStatusPanel::on_bed_temp_set_focus(wxFocusEvent &event)
@@ -5611,14 +5660,37 @@ void PhrozenStatusPanel::on_bed_temp_set_focus(wxFocusEvent &event)
     bed_temp_input = true;
 }
 
-void PhrozenStatusPanel::on_cooling_auxiliary_kill_focus(wxFocusEvent &event)
+void PhrozenStatusPanel::on_bed_temp_text_enter(wxCommandEvent &event)
 {
     event.Skip();
-    cooling_auxiliary_input = false;
+    handle_bed_temp_finish();
+    
+    // Remove focus from input field after Enter is pressed (works even when value hasn't changed)
+    CallAfter([this]() { this->SetFocus(); });
+}
 
+void PhrozenStatusPanel::handle_cooling_auxiliary_finish()
+{
+    cooling_auxiliary_input = false;
+    
+    // Ensure we read the new value from text control before committing
+#ifdef __APPLE__
+    wxString textValue = m_spCooling_auxiliary_ctrl->GetText()->GetValue();
+    long newValue;
+    if (textValue.ToLong(&newValue)) {
+        m_spCooling_auxiliary_ctrl->SetValue(newValue);
+    }
+#endif
+    
     wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
     finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Auxiliary );
     wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_auxiliary_kill_focus(wxFocusEvent &event)
+{
+    // Only Enter key triggers finish event, kill_focus does nothing
+    event.Skip();
 }
 
 void PhrozenStatusPanel::on_cooling_auxiliary_set_focus(wxFocusEvent &event)
@@ -5627,14 +5699,37 @@ void PhrozenStatusPanel::on_cooling_auxiliary_set_focus(wxFocusEvent &event)
     cooling_auxiliary_input = true;
 }
 
-void PhrozenStatusPanel::on_cooling_part_kill_focus(wxFocusEvent &event)
+void PhrozenStatusPanel::on_cooling_auxiliary_text_enter(wxCommandEvent &event)
 {
     event.Skip();
-    cooling_part_input = false;
+    handle_cooling_auxiliary_finish();
+    
+    // Remove focus from input field after Enter is pressed (works even when value hasn't changed)
+    CallAfter([this]() { this->SetFocus(); });
+}
 
+void PhrozenStatusPanel::handle_cooling_part_finish()
+{
+    cooling_part_input = false;
+    
+    // Ensure we read the new value from text control before committing
+#ifdef __APPLE__
+    wxString textValue = m_spCooling_part_ctrl->GetText()->GetValue();
+    long newValue;
+    if (textValue.ToLong(&newValue)) {
+        m_spCooling_part_ctrl->SetValue(newValue);
+    }
+#endif
+    
     wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
     finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Part );
     wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_part_kill_focus(wxFocusEvent &event)
+{
+    // Only Enter key triggers finish event, kill_focus does nothing
+    event.Skip();
 }
 
 void PhrozenStatusPanel::on_cooling_part_set_focus(wxFocusEvent &event)
@@ -5643,20 +5738,52 @@ void PhrozenStatusPanel::on_cooling_part_set_focus(wxFocusEvent &event)
     cooling_part_input = true;
 }
 
-void PhrozenStatusPanel::on_cooling_shield_kill_focus(wxFocusEvent &event)
+void PhrozenStatusPanel::on_cooling_part_text_enter(wxCommandEvent &event)
 {
     event.Skip();
-    cooling_shield_input = false;
+    handle_cooling_part_finish();
+    
+    // Remove focus from input field after Enter is pressed (works even when value hasn't changed)
+    CallAfter([this]() { this->SetFocus(); });
+}
 
+void PhrozenStatusPanel::handle_cooling_shield_finish()
+{
+    cooling_shield_input = false;
+    
+    // Ensure we read the new value from text control before committing
+#ifdef __APPLE__
+    wxString textValue = m_spCooling_shield_ctrl->GetText()->GetValue();
+    long newValue;
+    if (textValue.ToLong(&newValue)) {
+        m_spCooling_shield_ctrl->SetValue(newValue);
+    }
+#endif
+    
     wxCommandEvent finishEvent(wxCUSTOMEVT_SET_TEMP_FINISH);
     finishEvent.SetInt( (int)PhrozenParamControl::Cooling_Shield );
     wxPostEvent(this, finishEvent);
+}
+
+void PhrozenStatusPanel::on_cooling_shield_kill_focus(wxFocusEvent &event)
+{
+    // Only Enter key triggers finish event, kill_focus does nothing
+    event.Skip();
 }
 
 void PhrozenStatusPanel::on_cooling_shield_set_focus(wxFocusEvent &event)
 {
     event.Skip();
     cooling_shield_input = true;
+}
+
+void PhrozenStatusPanel::on_cooling_shield_text_enter(wxCommandEvent &event)
+{
+    event.Skip();
+    handle_cooling_shield_finish();
+    
+    // Remove focus from input field after Enter is pressed (works even when value hasn't changed)
+    CallAfter([this]() { this->SetFocus(); });
 }
 
 

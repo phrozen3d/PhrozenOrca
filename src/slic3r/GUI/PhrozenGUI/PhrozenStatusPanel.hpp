@@ -638,23 +638,35 @@ protected:
 #pragma region Event_from_ui
     void on_nozzle_temp_kill_focus(wxFocusEvent &event);
     void on_nozzle_temp_set_focus(wxFocusEvent &event);
+    void on_nozzle_temp_text_enter(wxCommandEvent &event);
     void on_set_nozzle_temp();
 
     void on_bed_temp_kill_focus(wxFocusEvent &event);
     void on_bed_temp_set_focus(wxFocusEvent &event);
+    void on_bed_temp_text_enter(wxCommandEvent &event);
     void on_set_bed_temp();
     
     void on_cooling_auxiliary_kill_focus(wxFocusEvent &event);
     void on_cooling_auxiliary_set_focus(wxFocusEvent &event);
+    void on_cooling_auxiliary_text_enter(wxCommandEvent &event);
     void on_set_cooling_auxiliary();
 
     void on_cooling_part_kill_focus(wxFocusEvent &event);
     void on_cooling_part_set_focus(wxFocusEvent &event);
+    void on_cooling_part_text_enter(wxCommandEvent &event);
     void on_set_cooling_part();
 
     void on_cooling_shield_kill_focus(wxFocusEvent &event);
     void on_cooling_shield_set_focus(wxFocusEvent &event);
+    void on_cooling_shield_text_enter(wxCommandEvent &event);
     void on_set_cooling_shield();
+    
+    // Common handlers to prevent duplicate event processing
+    void handle_nozzle_temp_finish();
+    void handle_bed_temp_finish();
+    void handle_cooling_auxiliary_finish();
+    void handle_cooling_part_finish();
+    void handle_cooling_shield_finish();
 
     void on_print_speed_changed( PhrozenPrintSpeed eLevel ); 
 
