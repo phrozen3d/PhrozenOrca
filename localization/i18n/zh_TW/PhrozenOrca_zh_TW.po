@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-12 00:14+0800\n"
+"POT-Creation-Date: 2025-12-30 10:35+0800\n"
 "PO-Revision-Date: 2025-03-27 19:32+0800\n"
 "Last-Translator: 5idereal <hi@5idereal.cc>\n"
 "Language-Team: \n"
@@ -36,6 +36,14 @@ msgid "Temperature"
 msgstr "溫度"
 
 msgid "Left Time"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%.1f ℃"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d : %d"
 msgstr ""
 
 msgid "Serial:"
@@ -189,15 +197,6 @@ msgstr "Alt + Shift + Enter"
 msgid "Toggle Wireframe"
 msgstr "顯示/隱藏線框"
 
-msgid "Remap filaments"
-msgstr ""
-
-msgid "Remap"
-msgstr ""
-
-msgid "Cancel"
-msgstr "取消"
-
 msgid "Shortcut Key "
 msgstr "快捷鍵 "
 
@@ -219,9 +218,6 @@ msgstr "移除已繪製的顏色"
 #, boost-format
 msgid "Painted using: Filament %1%"
 msgstr "上色：線材 %1%"
-
-msgid "Filament remapping finished."
-msgstr ""
 
 msgid "Move"
 msgstr "移動"
@@ -491,6 +487,9 @@ msgstr "與半徑相關的空間佔比"
 
 msgid "Confirm connectors"
 msgstr "確認"
+
+msgid "Cancel"
+msgstr "取消"
 
 msgid "Build Volume"
 msgstr "列印體積"
@@ -1485,12 +1484,12 @@ msgid ""
 "Configuration file \"%1%\" was loaded, but some values were not recognized."
 msgstr "設定檔「%1%」 已被載入，但部分數值無法識別。"
 
-msgid "Based on PrusaSlicer and BambuStudio"
+msgid "Based on OrcaSlicer, PrusaSlicer and BambuStudio"
 msgstr ""
 
 msgid ""
-"PhrozenOrca will terminate because of running out of memory. It may be a bug. "
-"It will be appreciated if you report the issue to our team."
+"PhrozenOrca will terminate because of running out of memory. It may be a "
+"bug. It will be appreciated if you report the issue to our team."
 msgstr ""
 "系統記憶體耗盡，Phrozen Orca 即將停止並且結束。這可能是個錯誤，希望您可以回報"
 "此問題，我們非常感激。"
@@ -1533,8 +1532,8 @@ msgid ""
 "features.\n"
 "Click Yes to install it now."
 msgstr ""
-"Phrozen Orca 需要 Microsoft WebView2 Runtime 才能操作某些功能，請點擊 Yes 進行"
-"安裝。"
+"Phrozen Orca 需要 Microsoft WebView2 Runtime 才能操作某些功能，請點擊 Yes 進"
+"行安裝。"
 
 msgid "WebView2 Runtime"
 msgstr "WebView2 Runtime"
@@ -1668,6 +1667,12 @@ msgid ""
 "Could not start URL download. Destination folder is not set. Please choose "
 "destination folder in Configuration Wizard."
 msgstr "無法開始 URL 下載。未設置目標資料夾。請在設定精靈中選擇目標資料夾。"
+
+msgid "Insufficient memory, network agent initialize fail"
+msgstr ""
+
+msgid "Insufficient memory, machine manager initialize fail"
+msgstr ""
 
 msgid "Import File"
 msgstr "匯入檔案"
@@ -1814,12 +1819,6 @@ msgstr "圓盤"
 msgid "Torus"
 msgstr "環面"
 
-msgid "PhrozenOrca Cube"
-msgstr "PhrozenOrca 立方體"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "PhrozenOrca 誤差測試"
-
 msgid "3DBenchy"
 msgstr "測試小船"
 
@@ -1831,6 +1830,9 @@ msgstr "Voron 立方體"
 
 msgid "Stanford Bunny"
 msgstr "斯坦福兔子"
+
+msgid "PhrozenOrca Cube"
+msgstr "PhrozenOrca 立方體"
 
 msgid "PhrozenOrca String Hell"
 msgstr "PhrozenOrca 拉絲測試"
@@ -2786,8 +2788,8 @@ msgstr "下載中"
 msgid "Download failed"
 msgstr "下載失敗"
 
-msgid "Canceled"
-msgstr "已取消"
+msgid "Cancelled"
+msgstr ""
 
 msgid "Installed successfully"
 msgstr "安裝成功。"
@@ -2813,8 +2815,8 @@ msgstr "Phrozen Orca 授權於"
 msgid "GNU Affero General Public License, version 3"
 msgstr "GNU Affero 通用公共許可證，版本 3"
 
-msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
-msgstr "Phrozen Orca 基於 PrusaSlicer 與 BambuStudio"
+msgid "Phrozen Orca is based on Orca Slicer"
+msgstr ""
 
 msgid "Libraries"
 msgstr "Libraries"
@@ -2828,8 +2830,11 @@ msgstr "本軟體採用了開源組件，其版權及相關專有權歸屬於各
 msgid "About %s"
 msgstr "關於 %s"
 
-msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
-msgstr "Phrozen Orca 是基於 BambuStudio, PrusaSlicer, 與 SuperSlicer 的開發。"
+msgid "Phrozen Orca is based on OrcaSlicer."
+msgstr ""
+
+msgid "OrcaSlicer is based on BambuStudio, PrusaSlicer, and SuperSlicer."
+msgstr ""
 
 msgid "BambuStudio is originally based on PrusaSlicer by PrusaResearch."
 msgstr "BambuStudio 最初是基於 PrusaResearch 的 PrusaSlicer。"
@@ -2984,10 +2989,10 @@ msgstr "步驟"
 msgid "AMS Slots"
 msgstr "AMS 槽內線材"
 
-msgid "Left AMS"
+msgid "Left Ams"
 msgstr ""
 
-msgid "Right AMS"
+msgid "Right Ams"
 msgstr ""
 
 msgid ""
@@ -3591,10 +3596,8 @@ msgstr "該線材的推薦噴嘴溫度是攝氏 [%d, %d] 度"
 
 msgid ""
 "Too small max volumetric speed.\n"
-"Reset to 0.5."
+"Reset to 0.5"
 msgstr ""
-"最大體積速度設定過小\n"
-"重設為 0.5"
 
 #, c-format, boost-format
 msgid ""
@@ -3607,17 +3610,13 @@ msgstr ""
 
 msgid ""
 "Too small layer height.\n"
-"Reset to 0.2."
+"Reset to 0.2"
 msgstr ""
-"層高過小。\n"
-"將重設為 0.2"
 
 msgid ""
 "Too small ironing spacing.\n"
-"Reset to 0.1."
+"Reset to 0.1"
 msgstr ""
-"熨燙線距過小。\n"
-"將重設為 0.1"
 
 msgid ""
 "Zero initial layer height is invalid.\n"
@@ -3709,21 +3708,10 @@ msgstr ""
 "seam_slope_start_height 必須小於 layer_height。\n"
 "重設為 0。"
 
+#, c-format, boost-format
 msgid ""
-"Lock depth should smaller than skin depth.\n"
-"Reset to 50% of skin depth."
-msgstr ""
-
-msgid ""
-"Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
-"Generator to be enabled."
-msgstr ""
-
-msgid ""
-"Change these settings automatically?\n"
-"Yes - Enable Arachne Wall Generator\n"
-"No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
-"Fuzzy Skin"
+"lock depth should smaller than skin depth.\n"
+"Reset to 50% of skin depth"
 msgstr ""
 
 msgid ""
@@ -4041,7 +4029,8 @@ msgstr "輸入值超出範圍"
 msgid "Some extension in the input is invalid"
 msgstr "輸入的副檔名無效"
 
-msgid "This parameter expects a valid template."
+msgid ""
+"This parameter expects a comma-delimited list of numbers. E.g, \"0,90\"."
 msgstr ""
 
 #, boost-format
@@ -4282,7 +4271,7 @@ msgstr "順序"
 msgid "object selection"
 msgstr ""
 
-msgid "part selection"
+msgid "part selectiont"
 msgstr ""
 
 msgid "number keys"
@@ -4393,6 +4382,9 @@ msgstr "剖面視圖"
 
 msgid "Assemble Control"
 msgstr "拼裝視角控制"
+
+msgid "part selection"
+msgstr ""
 
 msgid "Selection Mode"
 msgstr ""
@@ -4539,8 +4531,8 @@ msgstr "預覽"
 msgid "Multi-device"
 msgstr "多臺設備"
 
-msgid "Project"
-msgstr "專案項目"
+msgid "Device_Console"
+msgstr ""
 
 msgid "Yes"
 msgstr "是"
@@ -4589,9 +4581,6 @@ msgstr "顯示每日小提示"
 
 msgid "Check for Update"
 msgstr "檢查新版本"
-
-msgid "Open Network Test"
-msgstr "打開網路測試"
 
 #, c-format, boost-format
 msgid "&About %s"
@@ -4874,23 +4863,20 @@ msgstr "PhrozenOrca YOLO 流量校正，0.005 步"
 msgid "Flow rate"
 msgstr "流量"
 
+msgid "Retraction test"
+msgstr "回抽測試"
+
 msgid "Pressure advance"
 msgstr "壓力提前"
 
-msgid "Retraction test"
-msgstr "回抽測試"
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Max flowrate"
 msgstr "最大體積流量"
 
-msgid "Junction Deviation"
-msgstr ""
-
-msgid "Junction Deviation calibration"
-msgstr ""
-
-msgid "Cornering"
-msgstr ""
+msgid "VFA"
+msgstr "VFA"
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -4901,14 +4887,27 @@ msgstr ""
 msgid "Input Shaping"
 msgstr ""
 
-msgid "VFA"
-msgstr "VFA"
+msgid "Junction Deviation"
+msgstr ""
+
+msgid "Junction Deviation calibration"
+msgstr ""
+
+# Phrozen
+msgid "More..."
+msgstr "更多…"
 
 msgid "Tutorial"
 msgstr "教學"
 
 msgid "Calibration help"
 msgstr "校正幫助"
+
+msgid "PhrozenOrca Tolerance Test"
+msgstr "PhrozenOrca 誤差測試"
+
+msgid "More calibrations"
+msgstr "更多校正"
 
 msgid "&Open G-code"
 msgstr "打開 G-code"
@@ -5162,6 +5161,11 @@ msgstr "從列印機重新載入檔案清單。"
 msgid "No printers."
 msgstr "未選擇列印設備。"
 
+msgid ""
+"Please check the network and try again, You can restart or update the "
+"printer if the issue persists."
+msgstr ""
+
 msgid "Loading file list..."
 msgstr "載入檔案清單..."
 
@@ -5213,11 +5217,9 @@ msgid "Failed to parse model information."
 msgstr "解析模型資訊失敗。"
 
 msgid ""
-"The .gcode.3mf file contains no G-code data. Please slice it with Orca "
-"Slicer and export a new .gcode.3mf file."
+"The .gcode.3mf file contains no G-code data. Please slice it with Phrozen "
+"Orca and export a new .gcode.3mf file."
 msgstr ""
-".gcode.3mf 檔案中不包含 G-code 資料。請使用 Phrozen Orca 進行切片並匯出新"
-"的 .gcode.3mf 檔案。"
 
 #, c-format, boost-format
 msgid "File '%s' was lost! Please download it again."
@@ -5586,7 +5588,8 @@ msgstr "下載測試版"
 msgid "The 3mf file version is newer than the current Phrozen Orca version."
 msgstr "該 3mf 檔案版本較目前的 Phrozen Orca 版本更新。"
 
-msgid "Update your Phrozen Orca could enable all functionality in the 3mf file."
+msgid ""
+"Update your Phrozen Orca could enable all functionality in the 3mf file."
 msgstr "更新您的 Phrozen Orca 以啟用 3mf 檔案中的所有功能。"
 
 msgid "Current Version: "
@@ -5953,8 +5956,8 @@ msgstr "沒有任何相容的線材，同步操作未執行。"
 
 msgid ""
 "There are some unknown filaments mapped to generic preset. Please update "
-"Phrozen Orca or restart Phrozen Orca to check if there is an update to system "
-"presets."
+"Phrozen Orca or restart Phrozen Orca to check if there is an update to "
+"system presets."
 msgstr ""
 "有一些未知型號的線材套用於通用預設上。請更新或者重啟 Phrozen Orca，以檢查系統"
 "預設檔有無更新。"
@@ -6210,6 +6213,12 @@ msgstr "正在切片列印板 %d"
 
 msgid "Please resolve the slicing errors and publish again."
 msgstr "請解決切片錯誤後再重新發布。"
+
+msgid "Phrozen Orca not supply this action"
+msgstr ""
+
+msgid "Phrozen Orca"
+msgstr "Phrozen Orca"
 
 msgid ""
 "Network Plug-in is not detected. Network related features are unavailable."
@@ -6599,8 +6608,8 @@ msgid ""
 "same PhrozenOrca is already running, that instance will be reactivated "
 "instead."
 msgstr ""
-"啟用後，嘗試開起 PhrozenOrca 時若有另一個 PhrozenOrca 程序已在執行時，已在執行"
-"的程序會被重新啟動。"
+"啟用後，嘗試開起 PhrozenOrca 時若有另一個 PhrozenOrca 程序已在執行時，已在執"
+"行的程序會被重新啟動。"
 
 msgid "Home"
 msgstr "首頁"
@@ -6757,6 +6766,9 @@ msgstr "將網頁連結關聯到 PhrozenOrca"
 
 msgid "Associate URLs to PhrozenOrca"
 msgstr "將 URL 關聯到 PhrozenOrca"
+
+msgid "Project"
+msgstr "專案項目"
 
 msgid "Load All"
 msgstr "載入全部"
@@ -8404,11 +8416,12 @@ msgid "Flushing volumes for filament change"
 msgstr "線材更換時產生的廢料體積"
 
 msgid ""
-"PhrozenOrca would re-calculate your flushing volumes every time the filaments color "
-"changed. You could disable the auto-calculate in Phrozen Orca > Preferences"
+"PhrozenOrca would re-calculate your flushing volumes every time the "
+"filaments color changed. You could disable the auto-calculate in Phrozen "
+"Orca > Preferences"
 msgstr ""
-"PhrozenOrca 會在每次線材顏色變更時重新計算沖洗量。您可以在 Phrozen Orca 的『偏好設"
-"置』中關閉自動計算功能"
+"PhrozenOrca 會在每次線材顏色變更時重新計算沖洗量。您可以在 Phrozen Orca 的"
+"『偏好設置』中關閉自動計算功能"
 
 msgid "Flushing volume (mm³) for each filament pair."
 msgstr "在兩個線材間切換所需的廢料體積（mm³）"
@@ -8900,10 +8913,10 @@ msgstr ""
 msgid "Air Pump"
 msgstr ""
 
-msgid "Laser 10 W"
+msgid "Laser 10w"
 msgstr ""
 
-msgid "Laser 40 W"
+msgid "Laser 40w"
 msgstr ""
 
 msgid "Cutting Module"
@@ -9412,19 +9425,16 @@ msgstr "抖動速度設置過低可能會在曲面上產生缺陷"
 msgid ""
 "The jerk setting exceeds the printer's maximum jerk (machine_max_jerk_x/"
 "machine_max_jerk_y).\n"
-"PhrozenOrca will automatically cap the jerk speed to ensure it doesn't surpass the "
+"Orca will automatically cap the jerk speed to ensure it doesn't surpass the "
 "printer's capabilities.\n"
 "You can adjust the maximum jerk setting in your printer's configuration to "
 "get higher speeds."
 msgstr ""
-"抖動設定已超過印表機的最大急動值（machine_max_jerk_x/machine_max_jerk_y）。\n"
-"PhrozenOrca 將自動限制急動速度，以確保不超出列印設備的性能範圍。\n"
-"如需更高速度，您可以在列印設備配置中調整最大急動值。"
 
 msgid ""
 "Junction deviation setting exceeds the printer's maximum value "
 "(machine_max_junction_deviation).\n"
-"PhrozenOrca will automatically cap the junction deviation to ensure it doesn't "
+"Orca will automatically cap the junction deviation to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_junction_deviation value in your printer's "
 "configuration to get higher limits."
@@ -9433,28 +9443,20 @@ msgstr ""
 msgid ""
 "The acceleration setting exceeds the printer's maximum acceleration "
 "(machine_max_acceleration_extruding).\n"
-"PhrozenOrca will automatically cap the acceleration speed to ensure it doesn't "
+"Orca will automatically cap the acceleration speed to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_extruding value in your "
 "printer's configuration to get higher speeds."
 msgstr ""
-"加速度設定已超過列印設備的最大加速度值 (machine_max_acceleration_travel)。\n"
-"PhrozenOrca 將自動限制加速度，以確保不超出列印設備的性能範圍。\n"
-"如需更高速度，您可以在列印設備配置中調整 machine_max_acceleration_extruding "
-"值。"
 
 msgid ""
 "The travel acceleration setting exceeds the printer's maximum travel "
 "acceleration (machine_max_acceleration_travel).\n"
-"PhrozenOrca will automatically cap the travel acceleration speed to ensure it "
+"Orca will automatically cap the travel acceleration speed to ensure it "
 "doesn't surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_travel value in your printer's "
 "configuration to get higher speeds."
 msgstr ""
-"移動加速度設定已超過列印設備的最大移動加速度值"
-"（machine_max_acceleration_travel）。\n"
-"PhrozenOrca 將自動限制移動加速度，以確保不超出列印設備的性能範圍。\n"
-"如需更高速度，您可以在列印設備配置中調整 machine_max_acceleration_travel 值。"
 
 msgid ""
 "Filament shrinkage will not be used because filament shrinkage for the used "
@@ -9533,8 +9535,8 @@ msgstr "受列印設備硬體限制的最大可列印高度"
 msgid "Preferred orientation"
 msgstr "首選方向"
 
-msgid "Automatically orient stls on the Z axis upon initial import."
-msgstr "匯入 STL 時自動對齊 Z 軸"
+msgid "Automatically orient stls on the Z-axis upon initial import."
+msgstr ""
 
 msgid "Printer preset names"
 msgstr "列印設備預設名稱"
@@ -9573,8 +9575,8 @@ msgid ""
 "Phrozen Orca can upload G-code files to a printer host. This field should "
 "contain the API Key or the password required for authentication."
 msgstr ""
-"Phrozen Orca 可以將 G-code 檔案上傳到列印設備。此欄位應包含用於身份驗證的 API "
-"金鑰或密碼。"
+"Phrozen Orca 可以將 G-code 檔案上傳到列印設備。此欄位應包含用於身份驗證的 "
+"API 金鑰或密碼。"
 
 msgid "Name of the printer."
 msgstr "列印設備名稱"
@@ -9718,13 +9720,6 @@ msgstr "低溫平滑列印板"
 
 msgid "Smooth High Temp Plate"
 msgstr "高溫平滑列印板"
-
-msgid "Default bed type"
-msgstr ""
-
-msgid ""
-"Default bed type for the printer (supports both numeric and string format)."
-msgstr ""
 
 msgid "First layer print sequence"
 msgstr "首層列印順序"
@@ -10252,11 +10247,9 @@ msgstr "耳狀 Brim 偵測半徑"
 
 msgid ""
 "The geometry will be decimated before detecting sharp angles. This parameter "
-"indicates the minimum length of the deviation for the decimation.\n"
+"indicates the minimum length of the deviation for the decimation. \n"
 "0 to deactivate."
 msgstr ""
-"在偵測尖銳角度之前，幾何形狀將被簡化。此參數表示簡化的最小偏差長度。\n"
-"設為 0 以停用"
 
 msgid "Select printers"
 msgstr ""
@@ -11036,7 +11029,7 @@ msgid "Default color"
 msgstr "預設顏色"
 
 msgid ""
-"Default filament color.\n"
+"Default filament color\n"
 "Right click to reset value to system default."
 msgstr ""
 
@@ -11345,15 +11338,6 @@ msgstr ""
 "設定內部稀疏填充的密度，當密度為 100% 時，所有稀疏填充將變為實心填充，並套用"
 "內部實心填充的圖案"
 
-msgid "Align infill direction to model"
-msgstr ""
-
-msgid ""
-"Aligns infill and surface fill directions to follow the model's orientation "
-"on the build plate. When enabled, fill directions rotate with the model to "
-"maintain optimal strength characteristics."
-msgstr ""
-
 msgid "Fill Multiline"
 msgstr ""
 
@@ -11406,11 +11390,11 @@ msgstr "蜂窩"
 msgid "3D Honeycomb"
 msgstr "3D 蜂窩"
 
-msgid "Lateral Honeycomb"
+msgid "2D Honeycomb"
 msgstr ""
 
-msgid "Lateral Lattice"
-msgstr "2D 網格結構"
+msgid "2D Lattice"
+msgstr ""
 
 msgid "Cross Hatch"
 msgstr "交叉填充"
@@ -11418,27 +11402,24 @@ msgstr "交叉填充"
 msgid "TPMS-D"
 msgstr ""
 
-msgid "TPMS-FK"
-msgstr ""
-
 msgid "Gyroid"
 msgstr "螺旋體"
 
-msgid "Lateral lattice angle 1"
-msgstr "網格結構角度 1"
+msgid "Lattice angle 1"
+msgstr ""
 
 msgid ""
-"The angle of the first set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the first set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
-msgstr "Z 軸方向第一組 2D 網格結構的角度，0° 表示垂直方向。"
+msgstr ""
 
-msgid "Lateral lattice angle 2"
-msgstr "網格結構角度 2"
+msgid "Lattice angle 2"
+msgstr ""
 
 msgid ""
-"The angle of the second set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the second set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
-msgstr "Z 軸方向第二組 2D 網格結構的角度，0° 表示垂直方向。"
+msgstr ""
 
 msgid "Infill overhang angle"
 msgstr ""
@@ -11562,7 +11543,7 @@ msgid "Default jerk."
 msgstr ""
 
 msgid ""
-"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)."
+"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)"
 msgstr ""
 
 msgid "Jerk of outer walls."
@@ -11721,42 +11702,6 @@ msgstr "在第一層啟用絨毛表面"
 
 msgid "Whether to apply fuzzy skin on the first layer."
 msgstr "是否啟用絨毛表面於第一層"
-
-msgid "Fuzzy skin generator mode"
-msgstr ""
-
-#, c-format, boost-format
-msgid ""
-"Fuzzy skin generation mode. Works only with Arachne!\n"
-"Displacement: Сlassic mode when the pattern is formed by shifting the nozzle "
-"sideways from the original path.\n"
-"Extrusion: The mode when the pattern formed by the amount of extruded "
-"plastic. This is the fast and straight algorithm without unnecessary nozzle "
-"shake that gives a smooth pattern. But it is more useful for forming loose "
-"walls in the entire they array.\n"
-"Combined: Joint mode [Displacement] + [Extrusion]. The appearance of the "
-"walls is similar to [Displacement] Mode, but it leaves no pores between the "
-"perimeters.\n"
-"\n"
-"Attention! The [Extrusion] and [Combined] modes works only the "
-"fuzzy_skin_thickness parameter not more than the thickness of printed "
-"loop. At the same time, the width of the extrusion for a particular layer "
-"should also not be below a certain level. It is usually equal 15-25%% of a "
-"layer height. Therefore, the maximum fuzzy skin thickness with a perimeter "
-"width of 0.4 mm and a layer height of 0.2 mm will be 0.4-(0.2*0.25)=±0.35mm! "
-"If you enter a higher parameter than this, the error Flow::spacing() will "
-"displayed, and the model will not be sliced. You can choose this number "
-"until this error is repeated."
-msgstr ""
-
-msgid "Displacement"
-msgstr ""
-
-msgid "Extrusion"
-msgstr ""
-
-msgid "Combined"
-msgstr "合併"
 
 msgid "Fuzzy skin noise type"
 msgstr "模糊表面紋理噪聲類型"
@@ -12116,9 +12061,9 @@ msgstr ""
 msgid ""
 "The remaining part of the model contour after removing a certain depth from "
 "the surface is called the skeleton. This parameter is used to adjust the "
-"density of this section. When two regions have the same sparse infill "
+"density of this section.When two regions have the same sparse infill "
 "settings but different skeleton densities, their skeleton areas will develop "
-"overlapping sections. Default is as same as infill density."
+"overlapping sections.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill density"
@@ -12127,9 +12072,9 @@ msgstr ""
 msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
-"section. When two regions have the same sparse infill settings but different "
-"skin densities, this area will not be split into two separate regions. "
-"Default is as same as infill density."
+"section.When two regions have the same sparse infill settings but different "
+"skin densities, This area will not be split into two separate "
+"regions.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -12156,11 +12101,11 @@ msgstr ""
 msgid "Adjust the line width of the selected skeleton paths."
 msgstr ""
 
-msgid "Symmetric infill Y axis"
+msgid "Symmetric infill y axis"
 msgstr ""
 
 msgid ""
-"If the model has two parts that are symmetric about the Y axis, and you want "
+"If the model has two parts that are symmetric about the y-axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
@@ -12373,8 +12318,8 @@ msgstr "與邊緣保持的距離。設定為 0 時，距離將自動設為噴嘴
 msgid "Ironing speed"
 msgstr "熨燙速度"
 
-msgid "Print speed of ironing lines."
-msgstr "熨燙的列印速度"
+msgid "Print speed of ironing lines"
+msgstr ""
 
 msgid "Ironing angle"
 msgstr "熨燙角度"
@@ -12509,7 +12454,8 @@ msgid "Maximum Junction Deviation"
 msgstr ""
 
 msgid ""
-"Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
+"Maximum junction deviation (M205 J, only apply if  JD > 0 for Marlin "
+"Firmware)"
 msgstr ""
 
 msgid "Minimum speed for extruding"
@@ -12672,8 +12618,8 @@ msgstr ""
 "當啟用了為改善層冷卻而減速的功能時，這個參數設定列印設備能減速到的最低列印速"
 "度，以確保達到上面設定的最短層時間。"
 
-msgid "The diameter of nozzle."
-msgstr "噴嘴直徑"
+msgid "Diameter of nozzle"
+msgstr ""
 
 msgid "Configuration notes"
 msgstr "設定備註"
@@ -12807,8 +12753,8 @@ msgstr ""
 "偵測懸空相對於線寬的百分比，並套用不同的速度列印。100%% 的懸空將使用橋接速"
 "度。"
 
-msgid "Filament to print walls."
-msgstr "用於列印牆體的線材"
+msgid "Filament to print walls"
+msgstr ""
 
 msgid ""
 "Line width of inner wall. If expressed as a %, it will be computed over the "
@@ -12856,8 +12802,8 @@ msgstr ""
 msgid "Printer type"
 msgstr "列印設備類型"
 
-msgid "Type of the printer."
-msgstr "列印設備類型"
+msgid "Type of the printer"
+msgstr ""
 
 msgid "Printer notes"
 msgstr "列印設備備註"
@@ -13104,9 +13050,6 @@ msgstr "最近"
 msgid "Aligned"
 msgstr "對齊"
 
-msgid "Aligned back"
-msgstr ""
-
 msgid "Back"
 msgstr "背面"
 
@@ -13289,8 +13232,8 @@ msgstr ""
 msgid "Skirt distance"
 msgstr "Skirt 距離"
 
-msgid "The distance from the skirt to the brim or the object."
-msgstr "從 Skirt 到模型或者 Brim 的距離"
+msgid "Distance from skirt to brim or object"
+msgstr ""
 
 msgid "Skirt start point"
 msgstr "Skirt 起始位置"
@@ -13350,6 +13293,9 @@ msgid ""
 "skirt."
 msgstr "合併 - 所有物件共用一個 Skirt；逐件 - 每個物件使用獨立的 Skirt」"
 
+msgid "Combined"
+msgstr "合併"
+
 msgid "Per object"
 msgstr "逐件"
 
@@ -13400,8 +13346,8 @@ msgstr "小於設定閾值的稀疏填充區域將替換為內部實心填充"
 msgid "Solid infill"
 msgstr "實心填充"
 
-msgid "Filament to print solid infill."
-msgstr "列印實心填充所使用的線材"
+msgid "Filament to print solid infill"
+msgstr ""
 
 msgid ""
 "Line width of internal solid infill. If expressed as a %, it will be "
@@ -14203,8 +14149,8 @@ msgstr "換料塔寬度"
 msgid "Wipe tower rotation angle"
 msgstr "換料塔旋轉角度"
 
-msgid "Wipe tower rotation angle with respect to X axis."
-msgstr "換料塔相對於 x 軸的旋轉角度。"
+msgid "Wipe tower rotation angle with respect to x-axis."
+msgstr ""
 
 msgid "Width of the brim."
 msgstr ""
@@ -14272,7 +14218,7 @@ msgstr ""
 
 msgid ""
 "Positive values can increase the size of the rib wall, while negative values "
-"can reduce the size. However, the size of the rib wall can not be smaller "
+"can reduce the size.However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
 
@@ -14850,8 +14796,8 @@ msgstr "載入自訂 G-code"
 msgid "Load custom G-code from json."
 msgstr "從 json 載入自訂 G-code"
 
-msgid "Load filament IDs"
-msgstr "載入耗材識別碼"
+msgid "Load filament ids"
+msgstr ""
 
 msgid "Load filament IDs for each object."
 msgstr ""
@@ -14885,26 +14831,26 @@ msgstr "忽略 3MF 檔案內來自印表機或耗材預設的已修改 G-code"
 msgid "MakerLab name"
 msgstr "MakerLab 名稱"
 
-msgid "MakerLab name to generate this 3mf."
-msgstr "產生此 3MF 檔案時所使用的 MakerLab 名稱"
+msgid "MakerLab name to generate this 3mf"
+msgstr ""
 
 msgid "MakerLab version"
 msgstr "MakerLab 版本"
 
-msgid "MakerLab version to generate this 3mf."
-msgstr "產生此 3MF 檔案時所使用的 MakerLab 版本"
+msgid "MakerLab version to generate this 3mf"
+msgstr ""
 
 msgid "metadata name list"
 msgstr "中繼資料名稱清單"
 
-msgid "metadata name list added into 3mf."
-msgstr "新增至 3MF 檔案的中繼資料名稱清單"
+msgid "metadata name list added into 3mf"
+msgstr ""
 
 msgid "metadata value list"
 msgstr "中繼資料值清單"
 
-msgid "metadata value list added into 3mf."
-msgstr "新增至 3MF 檔案的中繼資料值清單"
+msgid "metadata value list added into 3mf"
+msgstr ""
 
 msgid "Allow 3mf with newer version to be sliced"
 msgstr ""
@@ -15161,16 +15107,16 @@ msgstr "層數"
 msgid "Index of the current layer. One-based (i.e. first layer is number 1)."
 msgstr "當層數 (第一層為一)"
 
-msgid "Layer Z"
-msgstr "層 z 高"
+msgid "Layer z"
+msgstr ""
 
 msgid ""
 "Height of the current layer above the print bed, measured to the top of the "
 "layer."
 msgstr "目前這一層距離熱床的高度，從層頂開始計算。"
 
-msgid "Maximal layer Z"
-msgstr "層的最大 Z 軸高度"
+msgid "Maximal layer z"
+msgstr ""
 
 msgid "Height of the last layer above the print bed."
 msgstr "最後一層距列印床的高度。"
@@ -15262,6 +15208,9 @@ msgstr "檔案格式未知。輸入的檔案必須是 .stl、.obj 或 .amf(.xml)
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr "未知的檔案格式。輸入檔案的副檔名必須為 .3mf 或 .zip .amf。"
+
+msgid "Canceled"
+msgstr "已取消"
 
 msgid "load_obj: failed to parse"
 msgstr "載入物件：解析失敗"
@@ -15361,13 +15310,8 @@ msgid ""
 "Start value: >= %.1f\n"
 "End value: <= %.1f\n"
 "End value: > Start value\n"
-"Value step: >= %.3f"
+"Value step: >= %.3f)"
 msgstr ""
-"請輸入有效值：\n"
-"起始值：>= %.1f\n"
-"終止值：<= %.1f\n"
-"終止值：> 起始值\n"
-"步距：>= %.3f）"
 
 msgid "The name cannot be empty."
 msgstr "名稱不能為空。"
@@ -15859,12 +15803,8 @@ msgid ""
 "Please input valid values:\n"
 "Start PA: >= 0.0\n"
 "End PA: > Start PA\n"
-"PA step: >= 0.001"
+"PA step: >= 0.001)"
 msgstr ""
-"請輸入有效值：\n"
-"起始 PA：>= 0.0\n"
-"結束 PA：> 起始PA\n"
-"PA 步距：>= 0.001）"
 
 msgid "Temperature calibration"
 msgstr "溫度校正"
@@ -15906,12 +15846,8 @@ msgid ""
 "Please input valid values:\n"
 "Start temp: <= 350\n"
 "End temp: >= 170\n"
-"Start temp > End temp + 5"
+"Start temp > End temp + 5)"
 msgstr ""
-"請輸入有效值：\n"
-"起始溫度：<= 350\n"
-"終止溫度：>= 170\n"
-"開始溫度 > 終止溫度 + 5）"
 
 msgid "Max volumetric speed test"
 msgstr "最大體積速度測試"
@@ -15924,14 +15860,10 @@ msgstr "結束流量："
 
 msgid ""
 "Please input valid values:\n"
-"start > 0\n"
+"start > 0 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
-"請輸入有效值：\n"
-"開始 > 0\n"
-"步距 >= 0\n"
-"結束 > 開始 + 步距）"
 
 msgid "VFA test"
 msgstr "VFA 震紋測試"
@@ -15944,14 +15876,10 @@ msgstr "結束速度："
 
 msgid ""
 "Please input valid values:\n"
-"start > 10\n"
+"start > 10 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
-"請輸入有效值：\n"
-"開始 > 10\n"
-"步距 >= 0\n"
-"結束 > 開始 + 步距）"
 
 msgid "Start retraction length: "
 msgstr "起始回抽長度："
@@ -15977,6 +15905,9 @@ msgstr ""
 msgid "Frequency settings"
 msgstr ""
 
+msgid "hz"
+msgstr ""
+
 msgid "Damp: "
 msgstr ""
 
@@ -15986,8 +15917,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < FreqStart < FreqEnd < 500)"
+"Please input valid values\n"
+"(0 < FreqStart < FreqEnd < 500"
 msgstr ""
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
@@ -16006,8 +15937,8 @@ msgid "Note: Use previously calculated frequencies."
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < Freq < 500)"
+"Please input valid values\n"
+"(0 < Freq < 500"
 msgstr ""
 
 msgid ""
@@ -16030,7 +15961,7 @@ msgid "Note: Lower values = sharper corners but slower speeds"
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
+"Please input valid values\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
 
@@ -16090,8 +16021,8 @@ msgstr "已加入佇列"
 msgid "Uploading"
 msgstr "正在上傳"
 
-msgid "Canceling"
-msgstr "取消中"
+msgid "Cancelling"
+msgstr ""
 
 msgid "Error uploading to print host"
 msgstr "上傳到列印設備時發生錯誤"
@@ -16470,15 +16401,15 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"PhrozenOrca has detected that your user presets synchronization function is not "
-"enabled, which may result in unsuccessful Filament settings on the Device "
-"page.\n"
+"PhrozenOrca has detected that your user presets synchronization function is "
+"not enabled, which may result in unsuccessful Filament settings on the "
+"Device page.\n"
 "Click \"Sync user presets\" to enable the synchronization function."
 msgstr ""
 "\n"
 "\n"
-"PhrozenOrca 偵測到您的使用者預設同步功能尚未啟用，這可能導致線材設定在裝置頁面上無法"
-"正常使用。\n"
+"PhrozenOrca 偵測到您的使用者預設同步功能尚未啟用，這可能導致線材設定在裝置頁"
+"面上無法正常使用。\n"
 "請點擊『同步使用者預設』以啟用同步功能。"
 
 msgid "Printer Setting"
@@ -16529,8 +16460,8 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"The file: %s\n"
-"may have been opened by another program.\n"
+"The file: %s \n"
+"may have been opened by another program. \n"
 "Please close it and try again."
 msgstr ""
 
@@ -16843,8 +16774,8 @@ msgstr "與 Repetier 的連接工作正常。"
 msgid "Could not connect to Repetier"
 msgstr "無法連接到 Repetier"
 
-msgid "Note: Repetier version 0.90.0 or higher is required."
-msgstr "注意：Repetier 版本至少需要 0.90.0。"
+msgid "Note: Repetier version 0.90.0 ir higher is required."
+msgstr ""
 
 #, boost-format
 msgid ""
@@ -17110,6 +17041,12 @@ msgstr ""
 msgid "Could not connect to Flashforge via serial"
 msgstr ""
 
+msgid "Connection to PhrozenConnect is working correctly."
+msgstr ""
+
+msgid "Could not connect to PhrozenConnect"
+msgstr ""
+
 msgid "The provided state is not correct."
 msgstr "提供的狀態不正確。"
 
@@ -17168,6 +17105,93 @@ msgstr "邊緣支撐 (Brim)"
 
 msgid "Please select single object."
 msgstr "請選擇一個物件。"
+
+msgid "Turn On/Off Camera"
+msgstr ""
+
+msgid "Turn On/Off Light"
+msgstr ""
+
+msgid "Filament Tips"
+msgstr ""
+
+msgid "Printing..."
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Print Complete"
+msgstr ""
+
+msgid "Print Cancelled"
+msgstr ""
+
+msgid "Print Error"
+msgstr ""
+
+msgid "Standby"
+msgstr ""
+
+msgid "Waiting..."
+msgstr ""
+
+msgid ""
+"Automatically check your 3D printer conditions and detect\n"
+"any errors to maintain its optimal performance."
+msgstr ""
+
+msgid "Auto-Leveling"
+msgstr ""
+
+msgid "Resonance Compensation"
+msgstr ""
+
+msgid "Not supported operator!!!"
+msgstr ""
+
+msgid "Please connect to a Phrozen printer first."
+msgstr ""
+
+msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid "Unload All Slots"
+msgstr ""
+
+msgid "Auto Leveling"
+msgstr ""
+
+msgid "Chroma Kit"
+msgstr ""
+
+msgid "Searching..."
+msgstr ""
+
+msgid ""
+"Step 2. Check ip address from your phrozen machine and key in to connect."
+msgstr ""
+
+msgid "IP address not set"
+msgstr ""
+
+msgid "Connecting to printer success... The dialog will close later"
+msgstr ""
+
+msgid "Search"
+msgstr "搜尋"
+
+msgid "My Device"
+msgstr "我的設備"
+
+msgid "History Device"
+msgstr ""
+
+msgid "Modifying the device name"
+msgstr "修改列印設備名稱"
+
+msgid "Bind with IP"
+msgstr ""
 
 #: resources/data/hints.ini: [hint:Precise wall]
 msgid ""
@@ -17243,11 +17267,9 @@ msgstr ""
 #: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
 msgid ""
 "How to use keyboard shortcuts\n"
-"Did you know that Phrozen Orca offers a wide range of keyboard shortcuts and "
+"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
 "3D scene operations?"
 msgstr ""
-"如何使用鍵盤快捷鍵\n"
-"您知道嗎？ Phrozen Orca 提供了廣泛的鍵盤快捷鍵和 3D 場景操作。"
 
 #: resources/data/hints.ini: [hint:Reverse on odd]
 msgid ""
@@ -17326,11 +17348,9 @@ msgstr ""
 #: resources/data/hints.ini: [hint:Search Functionality]
 msgid ""
 "Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific Orca "
-"Slicer setting?"
+"Did you know that you use the Search tool to quickly find a specific "
+"PhrozenOrca setting?"
 msgstr ""
-"搜尋功能\n"
-"您知道嗎？使用「搜尋工具」可以快速定位特定的 Phrozen Orca 設定。"
 
 #: resources/data/hints.ini: [hint:Simplify Model]
 msgid ""
@@ -17367,24 +17387,17 @@ msgid ""
 "Subtract a Part\n"
 "Did you know that you can subtract one mesh from another using the Negative "
 "part modifier? That way you can, for example, create easily resizable holes "
-"directly in Phrozen Orca."
+"directly in PhrozenOrca."
 msgstr ""
-"減去零件\n"
-"您知道嗎？您可以使用「負零件修飾器」將一個網格從另一個網格中減\n"
-"去。這樣，就能直接在 Phrozen Orca 裡輕鬆建立尺寸可調的孔洞。"
 
 #: resources/data/hints.ini: [hint:STEP]
 msgid ""
 "STEP\n"
 "Did you know that you can improve your print quality by slicing a STEP file "
 "instead of an STL?\n"
-"Phrozen Orca supports slicing STEP files, providing smoother results than a "
+"PhrozenOrca supports slicing STEP files, providing smoother results than a "
 "lower resolution STL. Give it a try!"
 msgstr ""
-"STEP檔案\n"
-"您知道嗎？通過切片 STEP 檔案而不是 STL 檔案可以提高列印品質。\n"
-"Phrozen Orca 支援切片 STEP 檔案，提供比低解析度 STL 更平滑的結果。\n"
-"試試看！"
 
 #: resources/data/hints.ini: [hint:Z seam location]
 msgid ""
@@ -17535,6 +17548,260 @@ msgstr ""
 "您知道嗎？當列印容易翹曲的材料（如 ABS）時，適當提高熱床溫度\n"
 "可以降低翹曲的機率。"
 
+#~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
+#~ msgstr "Phrozen Orca 基於 PrusaSlicer 與 BambuStudio"
+
+#~ msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
+#~ msgstr ""
+#~ "Phrozen Orca 是基於 BambuStudio, PrusaSlicer, 與 SuperSlicer 的開發。"
+
+#~ msgid ""
+#~ "Too small max volumetric speed.\n"
+#~ "Reset to 0.5."
+#~ msgstr ""
+#~ "最大體積速度設定過小\n"
+#~ "重設為 0.5"
+
+#~ msgid ""
+#~ "Too small layer height.\n"
+#~ "Reset to 0.2."
+#~ msgstr ""
+#~ "層高過小。\n"
+#~ "將重設為 0.2"
+
+#~ msgid ""
+#~ "Too small ironing spacing.\n"
+#~ "Reset to 0.1."
+#~ msgstr ""
+#~ "熨燙線距過小。\n"
+#~ "將重設為 0.1"
+
+#~ msgid "Open Network Test"
+#~ msgstr "打開網路測試"
+
+#~ msgid ""
+#~ "The .gcode.3mf file contains no G-code data. Please slice it with Orca "
+#~ "Slicer and export a new .gcode.3mf file."
+#~ msgstr ""
+#~ ".gcode.3mf 檔案中不包含 G-code 資料。請使用 Phrozen Orca 進行切片並匯出新"
+#~ "的 .gcode.3mf 檔案。"
+
+#~ msgid ""
+#~ "The jerk setting exceeds the printer's maximum jerk (machine_max_jerk_x/"
+#~ "machine_max_jerk_y).\n"
+#~ "PhrozenOrca will automatically cap the jerk speed to ensure it doesn't "
+#~ "surpass the printer's capabilities.\n"
+#~ "You can adjust the maximum jerk setting in your printer's configuration "
+#~ "to get higher speeds."
+#~ msgstr ""
+#~ "抖動設定已超過印表機的最大急動值（machine_max_jerk_x/"
+#~ "machine_max_jerk_y）。\n"
+#~ "PhrozenOrca 將自動限制急動速度，以確保不超出列印設備的性能範圍。\n"
+#~ "如需更高速度，您可以在列印設備配置中調整最大急動值。"
+
+#~ msgid ""
+#~ "The acceleration setting exceeds the printer's maximum acceleration "
+#~ "(machine_max_acceleration_extruding).\n"
+#~ "PhrozenOrca will automatically cap the acceleration speed to ensure it "
+#~ "doesn't surpass the printer's capabilities.\n"
+#~ "You can adjust the machine_max_acceleration_extruding value in your "
+#~ "printer's configuration to get higher speeds."
+#~ msgstr ""
+#~ "加速度設定已超過列印設備的最大加速度值 "
+#~ "(machine_max_acceleration_travel)。\n"
+#~ "PhrozenOrca 將自動限制加速度，以確保不超出列印設備的性能範圍。\n"
+#~ "如需更高速度，您可以在列印設備配置中調整 "
+#~ "machine_max_acceleration_extruding 值。"
+
+#~ msgid ""
+#~ "The travel acceleration setting exceeds the printer's maximum travel "
+#~ "acceleration (machine_max_acceleration_travel).\n"
+#~ "PhrozenOrca will automatically cap the travel acceleration speed to "
+#~ "ensure it doesn't surpass the printer's capabilities.\n"
+#~ "You can adjust the machine_max_acceleration_travel value in your "
+#~ "printer's configuration to get higher speeds."
+#~ msgstr ""
+#~ "移動加速度設定已超過列印設備的最大移動加速度值"
+#~ "（machine_max_acceleration_travel）。\n"
+#~ "PhrozenOrca 將自動限制移動加速度，以確保不超出列印設備的性能範圍。\n"
+#~ "如需更高速度，您可以在列印設備配置中調整 machine_max_acceleration_travel "
+#~ "值。"
+
+#~ msgid "Automatically orient stls on the Z axis upon initial import."
+#~ msgstr "匯入 STL 時自動對齊 Z 軸"
+
+#~ msgid ""
+#~ "The geometry will be decimated before detecting sharp angles. This "
+#~ "parameter indicates the minimum length of the deviation for the "
+#~ "decimation.\n"
+#~ "0 to deactivate."
+#~ msgstr ""
+#~ "在偵測尖銳角度之前，幾何形狀將被簡化。此參數表示簡化的最小偏差長度。\n"
+#~ "設為 0 以停用"
+
+#~ msgid "Lateral Lattice"
+#~ msgstr "2D 網格結構"
+
+#~ msgid "Lateral lattice angle 1"
+#~ msgstr "網格結構角度 1"
+
+#~ msgid ""
+#~ "The angle of the first set of Lateral lattice elements in the Z "
+#~ "direction. Zero is vertical."
+#~ msgstr "Z 軸方向第一組 2D 網格結構的角度，0° 表示垂直方向。"
+
+#~ msgid "Lateral lattice angle 2"
+#~ msgstr "網格結構角度 2"
+
+#~ msgid ""
+#~ "The angle of the second set of Lateral lattice elements in the Z "
+#~ "direction. Zero is vertical."
+#~ msgstr "Z 軸方向第二組 2D 網格結構的角度，0° 表示垂直方向。"
+
+#~ msgid "Print speed of ironing lines."
+#~ msgstr "熨燙的列印速度"
+
+#~ msgid "The diameter of nozzle."
+#~ msgstr "噴嘴直徑"
+
+#~ msgid "Filament to print walls."
+#~ msgstr "用於列印牆體的線材"
+
+#~ msgid "Type of the printer."
+#~ msgstr "列印設備類型"
+
+#~ msgid "The distance from the skirt to the brim or the object."
+#~ msgstr "從 Skirt 到模型或者 Brim 的距離"
+
+#~ msgid "Filament to print solid infill."
+#~ msgstr "列印實心填充所使用的線材"
+
+#~ msgid "Wipe tower rotation angle with respect to X axis."
+#~ msgstr "換料塔相對於 x 軸的旋轉角度。"
+
+#~ msgid "Load filament IDs"
+#~ msgstr "載入耗材識別碼"
+
+#~ msgid "MakerLab name to generate this 3mf."
+#~ msgstr "產生此 3MF 檔案時所使用的 MakerLab 名稱"
+
+#~ msgid "MakerLab version to generate this 3mf."
+#~ msgstr "產生此 3MF 檔案時所使用的 MakerLab 版本"
+
+#~ msgid "metadata name list added into 3mf."
+#~ msgstr "新增至 3MF 檔案的中繼資料名稱清單"
+
+#~ msgid "metadata value list added into 3mf."
+#~ msgstr "新增至 3MF 檔案的中繼資料值清單"
+
+#~ msgid "Layer Z"
+#~ msgstr "層 z 高"
+
+#~ msgid "Maximal layer Z"
+#~ msgstr "層的最大 Z 軸高度"
+
+#, c-format, boost-format
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start value: >= %.1f\n"
+#~ "End value: <= %.1f\n"
+#~ "End value: > Start value\n"
+#~ "Value step: >= %.3f"
+#~ msgstr ""
+#~ "請輸入有效值：\n"
+#~ "起始值：>= %.1f\n"
+#~ "終止值：<= %.1f\n"
+#~ "終止值：> 起始值\n"
+#~ "步距：>= %.3f）"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start PA: >= 0.0\n"
+#~ "End PA: > Start PA\n"
+#~ "PA step: >= 0.001"
+#~ msgstr ""
+#~ "請輸入有效值：\n"
+#~ "起始 PA：>= 0.0\n"
+#~ "結束 PA：> 起始PA\n"
+#~ "PA 步距：>= 0.001）"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start temp: <= 350\n"
+#~ "End temp: >= 170\n"
+#~ "Start temp > End temp + 5"
+#~ msgstr ""
+#~ "請輸入有效值：\n"
+#~ "起始溫度：<= 350\n"
+#~ "終止溫度：>= 170\n"
+#~ "開始溫度 > 終止溫度 + 5）"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "start > 0\n"
+#~ "step >= 0\n"
+#~ "end > start + step"
+#~ msgstr ""
+#~ "請輸入有效值：\n"
+#~ "開始 > 0\n"
+#~ "步距 >= 0\n"
+#~ "結束 > 開始 + 步距）"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "start > 10\n"
+#~ "step >= 0\n"
+#~ "end > start + step"
+#~ msgstr ""
+#~ "請輸入有效值：\n"
+#~ "開始 > 10\n"
+#~ "步距 >= 0\n"
+#~ "結束 > 開始 + 步距）"
+
+#~ msgid "Canceling"
+#~ msgstr "取消中"
+
+#~ msgid "Note: Repetier version 0.90.0 or higher is required."
+#~ msgstr "注意：Repetier 版本至少需要 0.90.0。"
+
+#~ msgid ""
+#~ "How to use keyboard shortcuts\n"
+#~ "Did you know that Phrozen Orca offers a wide range of keyboard shortcuts "
+#~ "and 3D scene operations?"
+#~ msgstr ""
+#~ "如何使用鍵盤快捷鍵\n"
+#~ "您知道嗎？ Phrozen Orca 提供了廣泛的鍵盤快捷鍵和 3D 場景操作。"
+
+#~ msgid ""
+#~ "Search Functionality\n"
+#~ "Did you know that you use the Search tool to quickly find a specific Orca "
+#~ "Slicer setting?"
+#~ msgstr ""
+#~ "搜尋功能\n"
+#~ "您知道嗎？使用「搜尋工具」可以快速定位特定的 Phrozen Orca 設定。"
+
+#~ msgid ""
+#~ "Subtract a Part\n"
+#~ "Did you know that you can subtract one mesh from another using the "
+#~ "Negative part modifier? That way you can, for example, create easily "
+#~ "resizable holes directly in Phrozen Orca."
+#~ msgstr ""
+#~ "減去零件\n"
+#~ "您知道嗎？您可以使用「負零件修飾器」將一個網格從另一個網格中減\n"
+#~ "去。這樣，就能直接在 Phrozen Orca 裡輕鬆建立尺寸可調的孔洞。"
+
+#~ msgid ""
+#~ "STEP\n"
+#~ "Did you know that you can improve your print quality by slicing a STEP "
+#~ "file instead of an STL?\n"
+#~ "Phrozen Orca supports slicing STEP files, providing smoother results than "
+#~ "a lower resolution STL. Give it a try!"
+#~ msgstr ""
+#~ "STEP檔案\n"
+#~ "您知道嗎？通過切片 STEP 檔案而不是 STL 檔案可以提高列印品質。\n"
+#~ "Phrozen Orca 支援切片 STEP 檔案，提供比低解析度 STL 更平滑的結果。\n"
+#~ "試試看！"
+
 #~ msgid "Set Position"
 #~ msgstr "設定位置"
 
@@ -17578,13 +17845,6 @@ msgstr ""
 #~ msgid "1080p"
 #~ msgstr "1080p"
 
-# Phrozen
-#~ msgid "More..."
-#~ msgstr "更多…"
-
-#~ msgid "More calibrations"
-#~ msgstr "更多校正"
-
 #~ msgid "0"
 #~ msgstr "0"
 
@@ -17620,12 +17880,6 @@ msgstr ""
 #~ msgid "Publish was canceled"
 #~ msgstr "發布已取消"
 
-#~ msgid "Search"
-#~ msgstr "搜尋"
-
-#~ msgid "My Device"
-#~ msgstr "我的設備"
-
 #~ msgid "Other Device"
 #~ msgstr "其他設備"
 
@@ -17635,9 +17889,6 @@ msgstr ""
 #, c-format, boost-format
 #~ msgid "nozzle memorized: %.2f %s"
 #~ msgstr "記憶中的噴嘴：%.2f %s"
-
-#~ msgid "Modifying the device name"
-#~ msgstr "修改列印設備名稱"
 
 #~ msgid "Bind with Access Code"
 #~ msgstr "透過存取碼綁定"
@@ -17971,9 +18222,6 @@ msgstr ""
 #~ "當懸垂超過此設定的閾值時，冷卻風扇將強制以「懸垂風扇轉速」運行。該閾值以百"
 #~ "分比表示，代表每條列印線寬中未受下層支撐的比例。若將此值設為 0%%，則冷卻風"
 #~ "扇將對所有外牆啟動，不論懸垂角度大小。"
-
-#~ msgid "Phrozen Orca"
-#~ msgstr "Phrozen Orca"
 
 #~ msgid "Current Cabin humidity"
 #~ msgstr "濕度"

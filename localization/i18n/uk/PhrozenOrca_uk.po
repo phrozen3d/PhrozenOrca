@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrcaua\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-12 00:14+0800\n"
+"POT-Creation-Date: 2025-12-30 10:35+0800\n"
 "PO-Revision-Date: 2025-03-07 09:30+0200\n"
 "Last-Translator: \n"
 "Language-Team: Ukrainian\n"
@@ -36,6 +36,14 @@ msgid "Temperature"
 msgstr "Температура"
 
 msgid "Left Time"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%.1f ℃"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d : %d"
 msgstr ""
 
 msgid "Serial:"
@@ -192,15 +200,6 @@ msgstr "Alt + Shift + Enter"
 msgid "Toggle Wireframe"
 msgstr "Перемикання каркасу"
 
-msgid "Remap filaments"
-msgstr ""
-
-msgid "Remap"
-msgstr ""
-
-msgid "Cancel"
-msgstr "Скасувати"
-
 msgid "Shortcut Key "
 msgstr "Комбінація клавіш "
 
@@ -222,9 +221,6 @@ msgstr "Видалити зафарбований колір"
 #, boost-format
 msgid "Painted using: Filament %1%"
 msgstr "Забарвлений за допомогою: Філамент %1%"
-
-msgid "Filament remapping finished."
-msgstr ""
 
 msgid "Move"
 msgstr "Перемістити"
@@ -494,6 +490,9 @@ msgstr "Пропорція простору в залежності від ра�
 
 msgid "Confirm connectors"
 msgstr "Підтвердити з'єднувачі"
+
+msgid "Cancel"
+msgstr "Скасувати"
 
 msgid "Build Volume"
 msgstr "Робочий об'єм"
@@ -1518,12 +1517,12 @@ msgstr ""
 "Файл конфігурації “%1%” був завантажений, але деякі значення не були "
 "розпізнані."
 
-msgid "Based on PrusaSlicer and BambuStudio"
+msgid "Based on OrcaSlicer, PrusaSlicer and BambuStudio"
 msgstr ""
 
 msgid ""
-"PhrozenOrca will terminate because of running out of memory. It may be a bug. "
-"It will be appreciated if you report the issue to our team."
+"PhrozenOrca will terminate because of running out of memory. It may be a "
+"bug. It will be appreciated if you report the issue to our team."
 msgstr ""
 "PhrozenOrca завершить роботу через брак пам'яті. Можливо, це помилка. Ми "
 "будемо вдячні, якщо ви повідомите про проблему нашій команді."
@@ -1713,6 +1712,12 @@ msgstr ""
 "Не вдалося розпочати завантаження URL-адреси. Папка призначення не "
 "встановлена. Будь ласка, виберіть папку призначення у Майстрі конфігурації."
 
+msgid "Insufficient memory, network agent initialize fail"
+msgstr ""
+
+msgid "Insufficient memory, machine manager initialize fail"
+msgstr ""
+
 msgid "Import File"
 msgstr "Імпортувати файл"
 
@@ -1858,12 +1863,6 @@ msgstr "Диск"
 msgid "Torus"
 msgstr "Тороїд"
 
-msgid "PhrozenOrca Cube"
-msgstr "PhrozenOrca Куб"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Тест на допуски ORCA"
-
 msgid "3DBenchy"
 msgstr "3DBenchy"
 
@@ -1875,6 +1874,9 @@ msgstr "Voron Куб"
 
 msgid "Stanford Bunny"
 msgstr "Стенфордський кролик"
+
+msgid "PhrozenOrca Cube"
+msgstr "PhrozenOrca Куб"
 
 msgid "PhrozenOrca String Hell"
 msgstr "«Струнне пекло» Orca"
@@ -2884,8 +2886,8 @@ msgstr "Завантаження"
 msgid "Download failed"
 msgstr "Помилка завантаження"
 
-msgid "Canceled"
-msgstr "Скасовано"
+msgid "Cancelled"
+msgstr ""
 
 msgid "Installed successfully"
 msgstr "Успішне встановлення."
@@ -2911,8 +2913,8 @@ msgstr "Phrozen Orca знаходиться під ліцензією "
 msgid "GNU Affero General Public License, version 3"
 msgstr "Стандартна громадська ліцензія GNU Affero, версія 3"
 
-msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
-msgstr "Phrozen Orca базується на PrusaSlicer та BambuStudio"
+msgid "Phrozen Orca is based on Orca Slicer"
+msgstr ""
 
 msgid "Libraries"
 msgstr "Бібліотеки"
@@ -2929,8 +2931,11 @@ msgstr ""
 msgid "About %s"
 msgstr "Про %s"
 
-msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
-msgstr "PhrozenOrca базується на BambuStudio, PrusaSlicer та SuperSlicer."
+msgid "Phrozen Orca is based on OrcaSlicer."
+msgstr ""
+
+msgid "OrcaSlicer is based on BambuStudio, PrusaSlicer, and SuperSlicer."
+msgstr ""
 
 msgid "BambuStudio is originally based on PrusaSlicer by PrusaResearch."
 msgstr "BambuStudio спочатку базується на PrusaSlicer від PrusaResearch."
@@ -3090,10 +3095,10 @@ msgstr "Крок"
 msgid "AMS Slots"
 msgstr "Слоти AMS"
 
-msgid "Left AMS"
+msgid "Left Ams"
 msgstr ""
 
-msgid "Right AMS"
+msgid "Right Ams"
 msgstr ""
 
 msgid ""
@@ -3753,10 +3758,8 @@ msgstr ""
 
 msgid ""
 "Too small max volumetric speed.\n"
-"Reset to 0.5."
+"Reset to 0.5"
 msgstr ""
-"Надто маленька максимальна об'ємна швидкість.\n"
-"Скинути до 0,5"
 
 #, c-format, boost-format
 msgid ""
@@ -3770,17 +3773,13 @@ msgstr ""
 
 msgid ""
 "Too small layer height.\n"
-"Reset to 0.2."
+"Reset to 0.2"
 msgstr ""
-"Надто маленька висота шару.\n"
-"Скинути на 0.2"
 
 msgid ""
 "Too small ironing spacing.\n"
-"Reset to 0.1."
+"Reset to 0.1"
 msgstr ""
-"Занадто маленька відстань між розглажуванням.\n"
-"Скинути на 0,1"
 
 msgid ""
 "Zero initial layer height is invalid.\n"
@@ -3881,21 +3880,10 @@ msgstr ""
 "seam_slope_start_height має бути менше висоти шару.\n"
 "Значення скинуто на 0."
 
+#, c-format, boost-format
 msgid ""
-"Lock depth should smaller than skin depth.\n"
-"Reset to 50% of skin depth."
-msgstr ""
-
-msgid ""
-"Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
-"Generator to be enabled."
-msgstr ""
-
-msgid ""
-"Change these settings automatically?\n"
-"Yes - Enable Arachne Wall Generator\n"
-"No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
-"Fuzzy Skin"
+"lock depth should smaller than skin depth.\n"
+"Reset to 50% of skin depth"
 msgstr ""
 
 msgid ""
@@ -4224,7 +4212,8 @@ msgstr "Вхідне значення виходить за межі діапа�
 msgid "Some extension in the input is invalid"
 msgstr "Якесь з розширень вводу некоректне"
 
-msgid "This parameter expects a valid template."
+msgid ""
+"This parameter expects a comma-delimited list of numbers. E.g, \"0,90\"."
 msgstr ""
 
 #, boost-format
@@ -4465,7 +4454,7 @@ msgstr "Послідовність"
 msgid "object selection"
 msgstr ""
 
-msgid "part selection"
+msgid "part selectiont"
 msgstr ""
 
 msgid "number keys"
@@ -4575,6 +4564,9 @@ msgstr "Розріз"
 
 msgid "Assemble Control"
 msgstr "Складання керування"
+
+msgid "part selection"
+msgstr ""
 
 msgid "Selection Mode"
 msgstr ""
@@ -4723,8 +4715,8 @@ msgstr "Попередній перегляд"
 msgid "Multi-device"
 msgstr "Багато пристроїв"
 
-msgid "Project"
-msgstr "Проєкт"
+msgid "Device_Console"
+msgstr ""
 
 msgid "Yes"
 msgstr "Так"
@@ -4773,9 +4765,6 @@ msgstr "Показати пораду дня"
 
 msgid "Check for Update"
 msgstr "Перевірити оновлення"
-
-msgid "Open Network Test"
-msgstr "Відкритий мережевий тест"
 
 #, c-format, boost-format
 msgid "&About %s"
@@ -5058,23 +5047,20 @@ msgstr "Калібрування потоку Orca YOLO, крок 0.005"
 msgid "Flow rate"
 msgstr "Потік"
 
+msgid "Retraction test"
+msgstr "Тест на втягування"
+
 msgid "Pressure advance"
 msgstr "Випередження тиску (PA)"
 
-msgid "Retraction test"
-msgstr "Тест на втягування"
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Max flowrate"
 msgstr "Максимальний потік"
 
-msgid "Junction Deviation"
-msgstr ""
-
-msgid "Junction Deviation calibration"
-msgstr ""
-
-msgid "Cornering"
-msgstr ""
+msgid "VFA"
+msgstr "Вертикальні дрібні артефакти (VFA)"
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5085,14 +5071,26 @@ msgstr ""
 msgid "Input Shaping"
 msgstr ""
 
-msgid "VFA"
-msgstr "Вертикальні дрібні артефакти (VFA)"
+msgid "Junction Deviation"
+msgstr ""
+
+msgid "Junction Deviation calibration"
+msgstr ""
+
+msgid "More..."
+msgstr "Більше..."
 
 msgid "Tutorial"
 msgstr "Посібник"
 
 msgid "Calibration help"
 msgstr "Довідка з калібрування"
+
+msgid "PhrozenOrca Tolerance Test"
+msgstr "Тест на допуски ORCA"
+
+msgid "More calibrations"
+msgstr "Більше калібрування"
 
 msgid "&Open G-code"
 msgstr "&Відкрити G-код"
@@ -5379,6 +5377,11 @@ msgstr "Перезавантажте список файлів з принтер
 msgid "No printers."
 msgstr "Ніяких принтерів."
 
+msgid ""
+"Please check the network and try again, You can restart or update the "
+"printer if the issue persists."
+msgstr ""
+
 msgid "Loading file list..."
 msgstr "Завантаження списку файлів..."
 
@@ -5443,11 +5446,9 @@ msgid "Failed to parse model information."
 msgstr "Не вдалося розібрати інформацію про модель."
 
 msgid ""
-"The .gcode.3mf file contains no G-code data. Please slice it with Orca "
-"Slicer and export a new .gcode.3mf file."
+"The .gcode.3mf file contains no G-code data. Please slice it with Phrozen "
+"Orca and export a new .gcode.3mf file."
 msgstr ""
-"Файл .gcode.3mf не містить даних G-коду. Будь ласка, розріжте його за "
-"допомогою Phrozen Orca і експортуйте новий файл .gcode.3mf."
 
 #, c-format, boost-format
 msgid "File '%s' was lost! Please download it again."
@@ -5833,9 +5834,11 @@ msgstr "Завантажити бета-версію"
 msgid "The 3mf file version is newer than the current Phrozen Orca version."
 msgstr "Версія файлу 3mf новіша, ніж поточна версія Phrozen Orca."
 
-msgid "Update your Phrozen Orca could enable all functionality in the 3mf file."
+msgid ""
+"Update your Phrozen Orca could enable all functionality in the 3mf file."
 msgstr ""
-"Оновлення вашого Phrozen Orca може увімкнути всю функціональність у файлі 3mf."
+"Оновлення вашого Phrozen Orca може увімкнути всю функціональність у файлі "
+"3mf."
 
 msgid "Current Version: "
 msgstr "Поточна версія: "
@@ -6227,12 +6230,12 @@ msgstr "Немає сумісних філаментів, а синхроніз�
 
 msgid ""
 "There are some unknown filaments mapped to generic preset. Please update "
-"Phrozen Orca or restart Phrozen Orca to check if there is an update to system "
-"presets."
+"Phrozen Orca or restart Phrozen Orca to check if there is an update to "
+"system presets."
 msgstr ""
 "Є кілька невідомих ниток, зіставлених із загальною передустановкою.Будь "
-"ласка, оновіть Phrozen Orca або перезапустіть Phrozen Orca, щоб перевірити, чи "
-"є оновлення для системи пресети."
+"ласка, оновіть Phrozen Orca або перезапустіть Phrozen Orca, щоб перевірити, "
+"чи є оновлення для системи пресети."
 
 #, boost-format
 msgid "Do you want to save changes to \"%1%\"?"
@@ -6506,6 +6509,12 @@ msgstr "Пластина для нарізки %d"
 
 msgid "Please resolve the slicing errors and publish again."
 msgstr "Виправте помилки нарізки та опублікуйте знову."
+
+msgid "Phrozen Orca not supply this action"
+msgstr ""
+
+msgid "Phrozen Orca"
+msgstr ""
 
 msgid ""
 "Network Plug-in is not detected. Network related features are unavailable."
@@ -7099,6 +7108,9 @@ msgstr "Асоціювати веб-посилання з PhrozenOrca"
 
 msgid "Associate URLs to PhrozenOrca"
 msgstr "Асоціювати URL-адреси з PhrozenOrca"
+
+msgid "Project"
+msgstr "Проєкт"
 
 msgid "Load All"
 msgstr "Завантажити все"
@@ -8852,8 +8864,9 @@ msgid "Flushing volumes for filament change"
 msgstr "Об'єми промивки для зміни філаменту"
 
 msgid ""
-"PhrozenOrca would re-calculate your flushing volumes every time the filaments color "
-"changed. You could disable the auto-calculate in Phrozen Orca > Preferences"
+"PhrozenOrca would re-calculate your flushing volumes every time the "
+"filaments color changed. You could disable the auto-calculate in Phrozen "
+"Orca > Preferences"
 msgstr ""
 "PhrozenOrca буде перераховувати об'єми промивки філаменту кожного разу, коли "
 "змінюється колір філаменту. Ви можете вимкнути автоматичний розрахунок у "
@@ -9361,10 +9374,10 @@ msgstr ""
 msgid "Air Pump"
 msgstr ""
 
-msgid "Laser 10 W"
+msgid "Laser 10w"
 msgstr ""
 
-msgid "Laser 40 W"
+msgid "Laser 40w"
 msgstr ""
 
 msgid "Cutting Module"
@@ -9925,22 +9938,16 @@ msgstr ""
 msgid ""
 "The jerk setting exceeds the printer's maximum jerk (machine_max_jerk_x/"
 "machine_max_jerk_y).\n"
-"PhrozenOrca will automatically cap the jerk speed to ensure it doesn't surpass the "
+"Orca will automatically cap the jerk speed to ensure it doesn't surpass the "
 "printer's capabilities.\n"
 "You can adjust the maximum jerk setting in your printer's configuration to "
 "get higher speeds."
 msgstr ""
-"Налаштування ривка перевищує максимальний ривок принтера (machine_max_jerk_x/"
-"machine_max_jerk_y).\n"
-"PhrozenOrca автоматично обмежує швидкість ривка, щоб вона не перевищувала "
-"можливості принтера.\n"
-"Ви можете змінити налаштування максимального ривка у конфігурації принтера, "
-"щоб отримати вищу швидкість."
 
 msgid ""
 "Junction deviation setting exceeds the printer's maximum value "
 "(machine_max_junction_deviation).\n"
-"PhrozenOrca will automatically cap the junction deviation to ensure it doesn't "
+"Orca will automatically cap the junction deviation to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_junction_deviation value in your printer's "
 "configuration to get higher limits."
@@ -9949,32 +9956,20 @@ msgstr ""
 msgid ""
 "The acceleration setting exceeds the printer's maximum acceleration "
 "(machine_max_acceleration_extruding).\n"
-"PhrozenOrca will automatically cap the acceleration speed to ensure it doesn't "
+"Orca will automatically cap the acceleration speed to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_extruding value in your "
 "printer's configuration to get higher speeds."
 msgstr ""
-"Налаштування прискорення перевищує максимальне прискорення принтера "
-"(machine_max_acceleration_extruding).\n"
-"PhrozenOrca автоматично обмежує швидкість прискорення, щоб вона не перевищувала "
-"можливості принтера.\n"
-"Ви можете змінити значення machine_max_acceleration_extruding у конфігурації "
-"принтера, щоб отримати вищу швидкість."
 
 msgid ""
 "The travel acceleration setting exceeds the printer's maximum travel "
 "acceleration (machine_max_acceleration_travel).\n"
-"PhrozenOrca will automatically cap the travel acceleration speed to ensure it "
+"Orca will automatically cap the travel acceleration speed to ensure it "
 "doesn't surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_travel value in your printer's "
 "configuration to get higher speeds."
 msgstr ""
-"Налаштування прискорення руху перевищує максимальне прискорення руху "
-"принтера (machine_max_acceleration_travel).\n"
-"PhrozenOrca автоматично обмежує швидкість прискорення руху, щоб вона не "
-"перевищувала можливості принтера.\n"
-"Ви можете змінити значення machine_max_acceleration_travel у конфігурації "
-"принтера, щоб отримати вищу швидкість."
 
 msgid ""
 "Filament shrinkage will not be used because filament shrinkage for the used "
@@ -10062,8 +10057,8 @@ msgstr "Максимальна висота друку, яка обмежена 
 msgid "Preferred orientation"
 msgstr "Бажана орієнтація"
 
-msgid "Automatically orient stls on the Z axis upon initial import."
-msgstr "Автоматичне орієнтування stl за віссю Z під час першого імпорту"
+msgid "Automatically orient stls on the Z-axis upon initial import."
+msgstr ""
 
 msgid "Printer preset names"
 msgstr "Імена налаштувань принтера"
@@ -10281,13 +10276,6 @@ msgstr "Гладка Холодна Пластина"
 
 msgid "Smooth High Temp Plate"
 msgstr "Гладка Високотемпературна Пластина"
-
-msgid "Default bed type"
-msgstr ""
-
-msgid ""
-"Default bed type for the printer (supports both numeric and string format)."
-msgstr ""
 
 msgid "First layer print sequence"
 msgstr "Послідовність друку першого шару"
@@ -10896,12 +10884,9 @@ msgstr "Радіус виявлення вушка кайма"
 
 msgid ""
 "The geometry will be decimated before detecting sharp angles. This parameter "
-"indicates the minimum length of the deviation for the decimation.\n"
+"indicates the minimum length of the deviation for the decimation. \n"
 "0 to deactivate."
 msgstr ""
-"Геометрія буде оброблена перед детектуванням гострих кутів. Цей параметр "
-"вказує мінімальну довжину відхилення для обробки.\n"
-"0 для вимкнення"
 
 msgid "Select printers"
 msgstr ""
@@ -11797,7 +11782,7 @@ msgid "Default color"
 msgstr "Колір за замовчуванням"
 
 msgid ""
-"Default filament color.\n"
+"Default filament color\n"
 "Right click to reset value to system default."
 msgstr ""
 
@@ -12149,15 +12134,6 @@ msgstr ""
 "заповнення на суцільне заповнення, і буде застосовано шаблон внутрішнього "
 "суцільного заповнення"
 
-msgid "Align infill direction to model"
-msgstr ""
-
-msgid ""
-"Aligns infill and surface fill directions to follow the model's orientation "
-"on the build plate. When enabled, fill directions rotate with the model to "
-"maintain optimal strength characteristics."
-msgstr ""
-
 msgid "Fill Multiline"
 msgstr ""
 
@@ -12210,11 +12186,11 @@ msgstr "Медові стільники"
 msgid "3D Honeycomb"
 msgstr "3D медові стільники"
 
-msgid "Lateral Honeycomb"
+msgid "2D Honeycomb"
 msgstr ""
 
-msgid "Lateral Lattice"
-msgstr "2D Решітка"
+msgid "2D Lattice"
+msgstr ""
 
 msgid "Cross Hatch"
 msgstr "Перехресний штрих"
@@ -12222,31 +12198,24 @@ msgstr "Перехресний штрих"
 msgid "TPMS-D"
 msgstr ""
 
-msgid "TPMS-FK"
-msgstr ""
-
 msgid "Gyroid"
 msgstr "Гіроїд"
 
-msgid "Lateral lattice angle 1"
-msgstr "Кут решітки 1"
+msgid "Lattice angle 1"
+msgstr ""
 
 msgid ""
-"The angle of the first set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the first set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
 msgstr ""
-"Кут першого набору 2D-решіткових елементів у напрямку Z. Нуль означає "
-"вертикальне розташування."
 
-msgid "Lateral lattice angle 2"
-msgstr "Кут решітки 1"
+msgid "Lattice angle 2"
+msgstr ""
 
 msgid ""
-"The angle of the second set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the second set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
 msgstr ""
-"Кут другого набору 2D-решіткових елементів у напрямку Z. Нуль означає "
-"вертикальне розташування."
 
 msgid "Infill overhang angle"
 msgstr ""
@@ -12390,7 +12359,7 @@ msgid "Default jerk."
 msgstr ""
 
 msgid ""
-"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)."
+"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)"
 msgstr ""
 
 msgid "Jerk of outer walls."
@@ -12567,42 +12536,6 @@ msgstr "Застосувати Шорстку Поверхню до першог
 
 msgid "Whether to apply fuzzy skin on the first layer."
 msgstr "Чи потрібно застосовувати Шорстку Поверхню до першого шару"
-
-msgid "Fuzzy skin generator mode"
-msgstr ""
-
-#, c-format, boost-format
-msgid ""
-"Fuzzy skin generation mode. Works only with Arachne!\n"
-"Displacement: Сlassic mode when the pattern is formed by shifting the nozzle "
-"sideways from the original path.\n"
-"Extrusion: The mode when the pattern formed by the amount of extruded "
-"plastic. This is the fast and straight algorithm without unnecessary nozzle "
-"shake that gives a smooth pattern. But it is more useful for forming loose "
-"walls in the entire they array.\n"
-"Combined: Joint mode [Displacement] + [Extrusion]. The appearance of the "
-"walls is similar to [Displacement] Mode, but it leaves no pores between the "
-"perimeters.\n"
-"\n"
-"Attention! The [Extrusion] and [Combined] modes works only the "
-"fuzzy_skin_thickness parameter not more than the thickness of printed "
-"loop. At the same time, the width of the extrusion for a particular layer "
-"should also not be below a certain level. It is usually equal 15-25%% of a "
-"layer height. Therefore, the maximum fuzzy skin thickness with a perimeter "
-"width of 0.4 mm and a layer height of 0.2 mm will be 0.4-(0.2*0.25)=±0.35mm! "
-"If you enter a higher parameter than this, the error Flow::spacing() will "
-"displayed, and the model will not be sliced. You can choose this number "
-"until this error is repeated."
-msgstr ""
-
-msgid "Displacement"
-msgstr ""
-
-msgid "Extrusion"
-msgstr ""
-
-msgid "Combined"
-msgstr "Об'єднана"
 
 msgid "Fuzzy skin noise type"
 msgstr "Тип шуму Шорсткої Поверхні"
@@ -12999,9 +12932,9 @@ msgstr ""
 msgid ""
 "The remaining part of the model contour after removing a certain depth from "
 "the surface is called the skeleton. This parameter is used to adjust the "
-"density of this section. When two regions have the same sparse infill "
+"density of this section.When two regions have the same sparse infill "
 "settings but different skeleton densities, their skeleton areas will develop "
-"overlapping sections. Default is as same as infill density."
+"overlapping sections.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill density"
@@ -13010,9 +12943,9 @@ msgstr ""
 msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
-"section. When two regions have the same sparse infill settings but different "
-"skin densities, this area will not be split into two separate regions. "
-"Default is as same as infill density."
+"section.When two regions have the same sparse infill settings but different "
+"skin densities, This area will not be split into two separate "
+"regions.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -13039,11 +12972,11 @@ msgstr ""
 msgid "Adjust the line width of the selected skeleton paths."
 msgstr ""
 
-msgid "Symmetric infill Y axis"
+msgid "Symmetric infill y axis"
 msgstr ""
 
 msgid ""
-"If the model has two parts that are symmetric about the Y axis, and you want "
+"If the model has two parts that are symmetric about the y-axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
@@ -13277,8 +13210,8 @@ msgstr ""
 msgid "Ironing speed"
 msgstr "Швидкість розглажування"
 
-msgid "Print speed of ironing lines."
-msgstr "Швидкість друку прасувальних ліній"
+msgid "Print speed of ironing lines"
+msgstr ""
 
 msgid "Ironing angle"
 msgstr "Кут прасування"
@@ -13420,7 +13353,8 @@ msgid "Maximum Junction Deviation"
 msgstr ""
 
 msgid ""
-"Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
+"Maximum junction deviation (M205 J, only apply if  JD > 0 for Marlin "
+"Firmware)"
 msgstr ""
 
 msgid "Minimum speed for extruding"
@@ -13619,8 +13553,8 @@ msgstr ""
 "мінімального часу шару, визначеного вище, коли увімкнено уповільнення для "
 "кращого охолодження шару."
 
-msgid "The diameter of nozzle."
-msgstr "Діаметр сопла"
+msgid "Diameter of nozzle"
+msgstr ""
 
 msgid "Configuration notes"
 msgstr "Примітки до конфігурації"
@@ -13771,8 +13705,8 @@ msgstr ""
 "друку іншу швидкість. Для 100%%-вого нависання використовується швидкість "
 "моста."
 
-msgid "Filament to print walls."
-msgstr "Філамент для друку стінок"
+msgid "Filament to print walls"
+msgstr ""
 
 msgid ""
 "Line width of inner wall. If expressed as a %, it will be computed over the "
@@ -13827,8 +13761,8 @@ msgstr ""
 msgid "Printer type"
 msgstr "Тип принтеру"
 
-msgid "Type of the printer."
-msgstr "Тип принтера"
+msgid "Type of the printer"
+msgstr ""
 
 msgid "Printer notes"
 msgstr "Нотатки для принтера"
@@ -14104,9 +14038,6 @@ msgstr "Найближче"
 msgid "Aligned"
 msgstr "Вирівняне"
 
-msgid "Aligned back"
-msgstr ""
-
 msgid "Back"
 msgstr "Ззаду"
 
@@ -14321,8 +14252,8 @@ msgstr ""
 msgid "Skirt distance"
 msgstr "Відступ спідниці"
 
-msgid "The distance from the skirt to the brim or the object."
-msgstr "Відстань між спідницею та каймою або моделлю"
+msgid "Distance from skirt to brim or object"
+msgstr ""
 
 msgid "Skirt start point"
 msgstr "Початкова точка спідниці"
@@ -14386,6 +14317,9 @@ msgstr ""
 "Об'єднана - одна спідниця для всіх об'єктів, Пооб'єктна - окрема спідниця "
 "для кожного об'єкта."
 
+msgid "Combined"
+msgstr "Об'єднана"
+
 msgid "Per object"
 msgstr "Роздільна"
 
@@ -14445,8 +14379,8 @@ msgstr ""
 msgid "Solid infill"
 msgstr "Суцільне заповнення"
 
-msgid "Filament to print solid infill."
-msgstr "Філамент для друку суцільного заповнення"
+msgid "Filament to print solid infill"
+msgstr ""
 
 msgid ""
 "Line width of internal solid infill. If expressed as a %, it will be "
@@ -15327,8 +15261,8 @@ msgstr "Ширина підготовчої вежі"
 msgid "Wipe tower rotation angle"
 msgstr "Кут повороту вежі протирання"
 
-msgid "Wipe tower rotation angle with respect to X axis."
-msgstr "Кут повороту вежі протирання за віссю Х."
+msgid "Wipe tower rotation angle with respect to x-axis."
+msgstr ""
 
 msgid "Width of the brim."
 msgstr ""
@@ -15405,7 +15339,7 @@ msgstr ""
 
 msgid ""
 "Positive values can increase the size of the rib wall, while negative values "
-"can reduce the size. However, the size of the rib wall can not be smaller "
+"can reduce the size.However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
 
@@ -16024,8 +15958,8 @@ msgstr "Завантажити користувацький gcode"
 msgid "Load custom G-code from json."
 msgstr "Завантажити користувацький код з json"
 
-msgid "Load filament IDs"
-msgstr "Завантажувати id філаментів"
+msgid "Load filament ids"
+msgstr ""
 
 msgid "Load filament IDs for each object."
 msgstr ""
@@ -16063,26 +15997,26 @@ msgstr ""
 msgid "MakerLab name"
 msgstr "Назва MakerLab"
 
-msgid "MakerLab name to generate this 3mf."
-msgstr "Назва MakerLab для створення цього 3mf"
+msgid "MakerLab name to generate this 3mf"
+msgstr ""
 
 msgid "MakerLab version"
 msgstr "Версія MakerLab"
 
-msgid "MakerLab version to generate this 3mf."
-msgstr "Версія MakerLab для створення цього 3mf"
+msgid "MakerLab version to generate this 3mf"
+msgstr ""
 
 msgid "metadata name list"
 msgstr "список назв метаданих"
 
-msgid "metadata name list added into 3mf."
-msgstr "список назв метаданих додано в 3mf"
+msgid "metadata name list added into 3mf"
+msgstr ""
 
 msgid "metadata value list"
 msgstr "список значень метаданих"
 
-msgid "metadata value list added into 3mf."
-msgstr "список значень метаданих додано в 3mf"
+msgid "metadata value list added into 3mf"
+msgstr ""
 
 msgid "Allow 3mf with newer version to be sliced"
 msgstr ""
@@ -16361,8 +16295,8 @@ msgstr "Номер шару"
 msgid "Index of the current layer. One-based (i.e. first layer is number 1)."
 msgstr "Індекс поточного шару. На одній основі (тобто перший шар номер 1)."
 
-msgid "Layer Z"
-msgstr "Шар Z"
+msgid "Layer z"
+msgstr ""
 
 msgid ""
 "Height of the current layer above the print bed, measured to the top of the "
@@ -16370,8 +16304,8 @@ msgid ""
 msgstr ""
 "Висота поточного шару над поверхнею стола, виміряна до верхньої частини шару."
 
-msgid "Maximal layer Z"
-msgstr "Максимальний шар Z"
+msgid "Maximal layer z"
+msgstr ""
 
 msgid "Height of the last layer above the print bed."
 msgstr "Висота останнього шару над друкарським столом."
@@ -16470,6 +16404,9 @@ msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
 "Невідомий формат файлу: вхідний файл повинен мати розширення .3mf "
 "або .zip.amf."
+
+msgid "Canceled"
+msgstr "Скасовано"
 
 msgid "load_obj: failed to parse"
 msgstr "помилка завантаження файлу OBJ: не вдалося розпізнати формат"
@@ -16572,13 +16509,8 @@ msgid ""
 "Start value: >= %.1f\n"
 "End value: <= %.1f\n"
 "End value: > Start value\n"
-"Value step: >= %.3f"
+"Value step: >= %.3f)"
 msgstr ""
-"Будь ласка, введіть дійсні значення:\n"
-"Початкове значення: >= %.1f\n"
-"Кінцеве значення: <= %.1f\n"
-"Кінцеве значення: > Початкового значення\n"
-"Крок значення: >= %.3f)"
 
 msgid "The name cannot be empty."
 msgstr "Ім’я не може бути порожнім."
@@ -17113,12 +17045,8 @@ msgid ""
 "Please input valid values:\n"
 "Start PA: >= 0.0\n"
 "End PA: > Start PA\n"
-"PA step: >= 0.001"
+"PA step: >= 0.001)"
 msgstr ""
-"Введіть допустимі значення:\n"
-"Початковий PA: >= 0,0\n"
-"Кінцевий PA: > Початок PA\n"
-"Крок PA: >= 0,001)"
 
 msgid "Temperature calibration"
 msgstr "Калібрування температури"
@@ -17160,12 +17088,8 @@ msgid ""
 "Please input valid values:\n"
 "Start temp: <= 350\n"
 "End temp: >= 170\n"
-"Start temp > End temp + 5"
+"Start temp > End temp + 5)"
 msgstr ""
-"Будь ласка, введіть правильні значення:\n"
-"Початкова температура: <= 350\n"
-"Кінцева температура: >= 170\n"
-"Початкова температура > Кінцева температура + 5)"
 
 msgid "Max volumetric speed test"
 msgstr "Тест максимальної об'ємної швидкості"
@@ -17178,14 +17102,10 @@ msgstr "Кінцева об'ємна швидкість: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 0\n"
+"start > 0 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
-"Будь ласка, введіть дійсні значення:\n"
-"старт > 0 \n"
-"крок >= 0\n"
-"кінець > початок + крок)"
 
 msgid "VFA test"
 msgstr "ВДА (VFA) тест"
@@ -17198,14 +17118,10 @@ msgstr "Кінцева швидкість: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 10\n"
+"start > 10 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
-"Будь ласка, введіть коректні значення:\n"
-"початок > 10\n"
-"крок >= 0\n"
-"кінець > початок + крок)"
 
 msgid "Start retraction length: "
 msgstr "Початкова довжина ретракту: "
@@ -17231,6 +17147,9 @@ msgstr ""
 msgid "Frequency settings"
 msgstr ""
 
+msgid "hz"
+msgstr ""
+
 msgid "Damp: "
 msgstr ""
 
@@ -17240,8 +17159,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < FreqStart < FreqEnd < 500)"
+"Please input valid values\n"
+"(0 < FreqStart < FreqEnd < 500"
 msgstr ""
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
@@ -17260,8 +17179,8 @@ msgid "Note: Use previously calculated frequencies."
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < Freq < 500)"
+"Please input valid values\n"
+"(0 < Freq < 500"
 msgstr ""
 
 msgid ""
@@ -17284,7 +17203,7 @@ msgid "Note: Lower values = sharper corners but slower speeds"
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
+"Please input valid values\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
 
@@ -17346,8 +17265,8 @@ msgstr "У черзі"
 msgid "Uploading"
 msgstr "Завантаження"
 
-msgid "Canceling"
-msgstr "Скасування"
+msgid "Cancelling"
+msgstr ""
 
 msgid "Error uploading to print host"
 msgstr "Помилка завантаження на хост друку"
@@ -17763,9 +17682,9 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"PhrozenOrca has detected that your user presets synchronization function is not "
-"enabled, which may result in unsuccessful Filament settings on the Device "
-"page.\n"
+"PhrozenOrca has detected that your user presets synchronization function is "
+"not enabled, which may result in unsuccessful Filament settings on the "
+"Device page.\n"
 "Click \"Sync user presets\" to enable the synchronization function."
 msgstr ""
 "\n"
@@ -17826,8 +17745,8 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"The file: %s\n"
-"may have been opened by another program.\n"
+"The file: %s \n"
+"may have been opened by another program. \n"
 "Please close it and try again."
 msgstr ""
 
@@ -18177,8 +18096,8 @@ msgstr "Підключення до Repetier працює правильно."
 msgid "Could not connect to Repetier"
 msgstr "Не вдалося підключитися до Repetier"
 
-msgid "Note: Repetier version 0.90.0 or higher is required."
-msgstr "Примітка: потрібна версія Repetier принаймні 0.90.0."
+msgid "Note: Repetier version 0.90.0 ir higher is required."
+msgstr ""
 
 #, boost-format
 msgid ""
@@ -18476,6 +18395,12 @@ msgstr ""
 msgid "Could not connect to Flashforge via serial"
 msgstr ""
 
+msgid "Connection to PhrozenConnect is working correctly."
+msgstr ""
+
+msgid "Could not connect to PhrozenConnect"
+msgstr ""
+
 msgid "The provided state is not correct."
 msgstr "Наданий стан невірний."
 
@@ -18537,6 +18462,93 @@ msgstr "Краєчки"
 msgid "Please select single object."
 msgstr "Будь ласка, виберіть один об’єкт."
 
+msgid "Turn On/Off Camera"
+msgstr ""
+
+msgid "Turn On/Off Light"
+msgstr ""
+
+msgid "Filament Tips"
+msgstr ""
+
+msgid "Printing..."
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Print Complete"
+msgstr ""
+
+msgid "Print Cancelled"
+msgstr ""
+
+msgid "Print Error"
+msgstr ""
+
+msgid "Standby"
+msgstr ""
+
+msgid "Waiting..."
+msgstr ""
+
+msgid ""
+"Automatically check your 3D printer conditions and detect\n"
+"any errors to maintain its optimal performance."
+msgstr ""
+
+msgid "Auto-Leveling"
+msgstr ""
+
+msgid "Resonance Compensation"
+msgstr ""
+
+msgid "Not supported operator!!!"
+msgstr ""
+
+msgid "Please connect to a Phrozen printer first."
+msgstr ""
+
+msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid "Unload All Slots"
+msgstr ""
+
+msgid "Auto Leveling"
+msgstr ""
+
+msgid "Chroma Kit"
+msgstr ""
+
+msgid "Searching..."
+msgstr ""
+
+msgid ""
+"Step 2. Check ip address from your phrozen machine and key in to connect."
+msgstr ""
+
+msgid "IP address not set"
+msgstr ""
+
+msgid "Connecting to printer success... The dialog will close later"
+msgstr ""
+
+msgid "Search"
+msgstr "Пошук"
+
+msgid "My Device"
+msgstr "Мій пристрій"
+
+msgid "History Device"
+msgstr ""
+
+msgid "Modifying the device name"
+msgstr "Зміна імені пристрою"
+
+msgid "Bind with IP"
+msgstr ""
+
 #: resources/data/hints.ini: [hint:Precise wall]
 msgid ""
 "Precise wall\n"
@@ -18592,7 +18604,8 @@ msgid ""
 "Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
 msgstr ""
 "Фільтрація повітря/витяжний вентилятор\n"
-"Чи знаєте ви, що PhrozenOrca підтримує фільтрацію повітря/витяжний вентилятор?"
+"Чи знаєте ви, що PhrozenOrca підтримує фільтрацію повітря/витяжний "
+"вентилятор?"
 
 #: resources/data/hints.ini: [hint:G-code window]
 msgid ""
@@ -18615,12 +18628,9 @@ msgstr ""
 #: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
 msgid ""
 "How to use keyboard shortcuts\n"
-"Did you know that Phrozen Orca offers a wide range of keyboard shortcuts and "
+"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
 "3D scene operations?"
 msgstr ""
-"Як використовувати комбінації клавіш\n"
-"Чи знаєте ви, що Phrozen Orca пропонує широкий спектр комбінацій клавіш для "
-"роботи з 3D-сценами?"
 
 #: resources/data/hints.ini: [hint:Reverse on odd]
 msgid ""
@@ -18703,12 +18713,9 @@ msgstr ""
 #: resources/data/hints.ini: [hint:Search Functionality]
 msgid ""
 "Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific Orca "
-"Slicer setting?"
+"Did you know that you use the Search tool to quickly find a specific "
+"PhrozenOrca setting?"
 msgstr ""
-"Функція пошуку\n"
-"Чи знаєте ви, що для швидкого пошуку певних налаштувань Phrozen Orca ви "
-"можете скористатися інструментом \"Пошук\"?"
 
 #: resources/data/hints.ini: [hint:Simplify Model]
 msgid ""
@@ -18746,26 +18753,17 @@ msgid ""
 "Subtract a Part\n"
 "Did you know that you can subtract one mesh from another using the Negative "
 "part modifier? That way you can, for example, create easily resizable holes "
-"directly in Phrozen Orca."
+"directly in PhrozenOrca."
 msgstr ""
-"Відняти частину\n"
-"Чи знаєте ви, що можна віднімати одну сіть від іншої за допомогою "
-"модифікатора \"Від'ємна частина\"? Таким чином, ви можете, наприклад, "
-"створювати отвори зі змінним розміром безпосередньо в Phrozen Orca."
 
 #: resources/data/hints.ini: [hint:STEP]
 msgid ""
 "STEP\n"
 "Did you know that you can improve your print quality by slicing a STEP file "
 "instead of an STL?\n"
-"Phrozen Orca supports slicing STEP files, providing smoother results than a "
+"PhrozenOrca supports slicing STEP files, providing smoother results than a "
 "lower resolution STL. Give it a try!"
 msgstr ""
-"STEP\n"
-"Чи знаєте ви, що ви можете покращити якість друку, нарізавши файл "
-"STEPзамість STL?\n"
-"Phrozen Orca підтримує нарізання файлів STEP, забезпечуючи більш "
-"плавнірезультати порівняно з нижчою роздільною здатністю STL. Спробуй!"
 
 #: resources/data/hints.ini: [hint:Z seam location]
 msgid ""
@@ -18924,6 +18922,272 @@ msgstr ""
 "ABS, відповідне підвищення температури гарячого ліжка може зменшити "
 "ймовірність деформації?"
 
+#~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
+#~ msgstr "Phrozen Orca базується на PrusaSlicer та BambuStudio"
+
+#~ msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
+#~ msgstr "PhrozenOrca базується на BambuStudio, PrusaSlicer та SuperSlicer."
+
+#~ msgid ""
+#~ "Too small max volumetric speed.\n"
+#~ "Reset to 0.5."
+#~ msgstr ""
+#~ "Надто маленька максимальна об'ємна швидкість.\n"
+#~ "Скинути до 0,5"
+
+#~ msgid ""
+#~ "Too small layer height.\n"
+#~ "Reset to 0.2."
+#~ msgstr ""
+#~ "Надто маленька висота шару.\n"
+#~ "Скинути на 0.2"
+
+#~ msgid ""
+#~ "Too small ironing spacing.\n"
+#~ "Reset to 0.1."
+#~ msgstr ""
+#~ "Занадто маленька відстань між розглажуванням.\n"
+#~ "Скинути на 0,1"
+
+#~ msgid "Open Network Test"
+#~ msgstr "Відкритий мережевий тест"
+
+#~ msgid ""
+#~ "The .gcode.3mf file contains no G-code data. Please slice it with Orca "
+#~ "Slicer and export a new .gcode.3mf file."
+#~ msgstr ""
+#~ "Файл .gcode.3mf не містить даних G-коду. Будь ласка, розріжте його за "
+#~ "допомогою Phrozen Orca і експортуйте новий файл .gcode.3mf."
+
+#~ msgid ""
+#~ "The jerk setting exceeds the printer's maximum jerk (machine_max_jerk_x/"
+#~ "machine_max_jerk_y).\n"
+#~ "PhrozenOrca will automatically cap the jerk speed to ensure it doesn't "
+#~ "surpass the printer's capabilities.\n"
+#~ "You can adjust the maximum jerk setting in your printer's configuration "
+#~ "to get higher speeds."
+#~ msgstr ""
+#~ "Налаштування ривка перевищує максимальний ривок принтера "
+#~ "(machine_max_jerk_x/machine_max_jerk_y).\n"
+#~ "PhrozenOrca автоматично обмежує швидкість ривка, щоб вона не перевищувала "
+#~ "можливості принтера.\n"
+#~ "Ви можете змінити налаштування максимального ривка у конфігурації "
+#~ "принтера, щоб отримати вищу швидкість."
+
+#~ msgid ""
+#~ "The acceleration setting exceeds the printer's maximum acceleration "
+#~ "(machine_max_acceleration_extruding).\n"
+#~ "PhrozenOrca will automatically cap the acceleration speed to ensure it "
+#~ "doesn't surpass the printer's capabilities.\n"
+#~ "You can adjust the machine_max_acceleration_extruding value in your "
+#~ "printer's configuration to get higher speeds."
+#~ msgstr ""
+#~ "Налаштування прискорення перевищує максимальне прискорення принтера "
+#~ "(machine_max_acceleration_extruding).\n"
+#~ "PhrozenOrca автоматично обмежує швидкість прискорення, щоб вона не "
+#~ "перевищувала можливості принтера.\n"
+#~ "Ви можете змінити значення machine_max_acceleration_extruding у "
+#~ "конфігурації принтера, щоб отримати вищу швидкість."
+
+#~ msgid ""
+#~ "The travel acceleration setting exceeds the printer's maximum travel "
+#~ "acceleration (machine_max_acceleration_travel).\n"
+#~ "PhrozenOrca will automatically cap the travel acceleration speed to "
+#~ "ensure it doesn't surpass the printer's capabilities.\n"
+#~ "You can adjust the machine_max_acceleration_travel value in your "
+#~ "printer's configuration to get higher speeds."
+#~ msgstr ""
+#~ "Налаштування прискорення руху перевищує максимальне прискорення руху "
+#~ "принтера (machine_max_acceleration_travel).\n"
+#~ "PhrozenOrca автоматично обмежує швидкість прискорення руху, щоб вона не "
+#~ "перевищувала можливості принтера.\n"
+#~ "Ви можете змінити значення machine_max_acceleration_travel у конфігурації "
+#~ "принтера, щоб отримати вищу швидкість."
+
+#~ msgid "Automatically orient stls on the Z axis upon initial import."
+#~ msgstr "Автоматичне орієнтування stl за віссю Z під час першого імпорту"
+
+#~ msgid ""
+#~ "The geometry will be decimated before detecting sharp angles. This "
+#~ "parameter indicates the minimum length of the deviation for the "
+#~ "decimation.\n"
+#~ "0 to deactivate."
+#~ msgstr ""
+#~ "Геометрія буде оброблена перед детектуванням гострих кутів. Цей параметр "
+#~ "вказує мінімальну довжину відхилення для обробки.\n"
+#~ "0 для вимкнення"
+
+#~ msgid "Lateral Lattice"
+#~ msgstr "2D Решітка"
+
+#~ msgid "Lateral lattice angle 1"
+#~ msgstr "Кут решітки 1"
+
+#~ msgid ""
+#~ "The angle of the first set of Lateral lattice elements in the Z "
+#~ "direction. Zero is vertical."
+#~ msgstr ""
+#~ "Кут першого набору 2D-решіткових елементів у напрямку Z. Нуль означає "
+#~ "вертикальне розташування."
+
+#~ msgid "Lateral lattice angle 2"
+#~ msgstr "Кут решітки 1"
+
+#~ msgid ""
+#~ "The angle of the second set of Lateral lattice elements in the Z "
+#~ "direction. Zero is vertical."
+#~ msgstr ""
+#~ "Кут другого набору 2D-решіткових елементів у напрямку Z. Нуль означає "
+#~ "вертикальне розташування."
+
+#~ msgid "Print speed of ironing lines."
+#~ msgstr "Швидкість друку прасувальних ліній"
+
+#~ msgid "The diameter of nozzle."
+#~ msgstr "Діаметр сопла"
+
+#~ msgid "Filament to print walls."
+#~ msgstr "Філамент для друку стінок"
+
+#~ msgid "Type of the printer."
+#~ msgstr "Тип принтера"
+
+#~ msgid "The distance from the skirt to the brim or the object."
+#~ msgstr "Відстань між спідницею та каймою або моделлю"
+
+#~ msgid "Filament to print solid infill."
+#~ msgstr "Філамент для друку суцільного заповнення"
+
+#~ msgid "Wipe tower rotation angle with respect to X axis."
+#~ msgstr "Кут повороту вежі протирання за віссю Х."
+
+#~ msgid "Load filament IDs"
+#~ msgstr "Завантажувати id філаментів"
+
+#~ msgid "MakerLab name to generate this 3mf."
+#~ msgstr "Назва MakerLab для створення цього 3mf"
+
+#~ msgid "MakerLab version to generate this 3mf."
+#~ msgstr "Версія MakerLab для створення цього 3mf"
+
+#~ msgid "metadata name list added into 3mf."
+#~ msgstr "список назв метаданих додано в 3mf"
+
+#~ msgid "metadata value list added into 3mf."
+#~ msgstr "список значень метаданих додано в 3mf"
+
+#~ msgid "Layer Z"
+#~ msgstr "Шар Z"
+
+#~ msgid "Maximal layer Z"
+#~ msgstr "Максимальний шар Z"
+
+#, c-format, boost-format
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start value: >= %.1f\n"
+#~ "End value: <= %.1f\n"
+#~ "End value: > Start value\n"
+#~ "Value step: >= %.3f"
+#~ msgstr ""
+#~ "Будь ласка, введіть дійсні значення:\n"
+#~ "Початкове значення: >= %.1f\n"
+#~ "Кінцеве значення: <= %.1f\n"
+#~ "Кінцеве значення: > Початкового значення\n"
+#~ "Крок значення: >= %.3f)"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start PA: >= 0.0\n"
+#~ "End PA: > Start PA\n"
+#~ "PA step: >= 0.001"
+#~ msgstr ""
+#~ "Введіть допустимі значення:\n"
+#~ "Початковий PA: >= 0,0\n"
+#~ "Кінцевий PA: > Початок PA\n"
+#~ "Крок PA: >= 0,001)"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "Start temp: <= 350\n"
+#~ "End temp: >= 170\n"
+#~ "Start temp > End temp + 5"
+#~ msgstr ""
+#~ "Будь ласка, введіть правильні значення:\n"
+#~ "Початкова температура: <= 350\n"
+#~ "Кінцева температура: >= 170\n"
+#~ "Початкова температура > Кінцева температура + 5)"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "start > 0\n"
+#~ "step >= 0\n"
+#~ "end > start + step"
+#~ msgstr ""
+#~ "Будь ласка, введіть дійсні значення:\n"
+#~ "старт > 0 \n"
+#~ "крок >= 0\n"
+#~ "кінець > початок + крок)"
+
+#~ msgid ""
+#~ "Please input valid values:\n"
+#~ "start > 10\n"
+#~ "step >= 0\n"
+#~ "end > start + step"
+#~ msgstr ""
+#~ "Будь ласка, введіть коректні значення:\n"
+#~ "початок > 10\n"
+#~ "крок >= 0\n"
+#~ "кінець > початок + крок)"
+
+#~ msgid "Canceling"
+#~ msgstr "Скасування"
+
+#~ msgid "Note: Repetier version 0.90.0 or higher is required."
+#~ msgstr "Примітка: потрібна версія Repetier принаймні 0.90.0."
+
+#~ msgid ""
+#~ "How to use keyboard shortcuts\n"
+#~ "Did you know that Phrozen Orca offers a wide range of keyboard shortcuts "
+#~ "and 3D scene operations?"
+#~ msgstr ""
+#~ "Як використовувати комбінації клавіш\n"
+#~ "Чи знаєте ви, що Phrozen Orca пропонує широкий спектр комбінацій клавіш "
+#~ "для роботи з 3D-сценами?"
+
+#~ msgid ""
+#~ "Search Functionality\n"
+#~ "Did you know that you use the Search tool to quickly find a specific Orca "
+#~ "Slicer setting?"
+#~ msgstr ""
+#~ "Функція пошуку\n"
+#~ "Чи знаєте ви, що для швидкого пошуку певних налаштувань Phrozen Orca ви "
+#~ "можете скористатися інструментом \"Пошук\"?"
+
+#~ msgid ""
+#~ "Subtract a Part\n"
+#~ "Did you know that you can subtract one mesh from another using the "
+#~ "Negative part modifier? That way you can, for example, create easily "
+#~ "resizable holes directly in Phrozen Orca."
+#~ msgstr ""
+#~ "Відняти частину\n"
+#~ "Чи знаєте ви, що можна віднімати одну сіть від іншої за допомогою "
+#~ "модифікатора \"Від'ємна частина\"? Таким чином, ви можете, наприклад, "
+#~ "створювати отвори зі змінним розміром безпосередньо в Phrozen Orca."
+
+#~ msgid ""
+#~ "STEP\n"
+#~ "Did you know that you can improve your print quality by slicing a STEP "
+#~ "file instead of an STL?\n"
+#~ "Phrozen Orca supports slicing STEP files, providing smoother results than "
+#~ "a lower resolution STL. Give it a try!"
+#~ msgstr ""
+#~ "STEP\n"
+#~ "Чи знаєте ви, що ви можете покращити якість друку, нарізавши файл "
+#~ "STEPзамість STL?\n"
+#~ "Phrozen Orca підтримує нарізання файлів STEP, забезпечуючи більш "
+#~ "плавнірезультати порівняно з нижчою роздільною здатністю STL. Спробуй!"
+
 #~ msgid "Set Position"
 #~ msgstr "Встановити позицію"
 
@@ -18967,12 +19231,6 @@ msgstr ""
 #~ msgid "1080p"
 #~ msgstr "1080p"
 
-#~ msgid "More..."
-#~ msgstr "Більше..."
-
-#~ msgid "More calibrations"
-#~ msgstr "Більше калібрування"
-
 #~ msgid "SD Card"
 #~ msgstr "SD картка"
 
@@ -19007,12 +19265,6 @@ msgstr ""
 #~ msgid "Publish was canceled"
 #~ msgstr "Публікація скасована"
 
-#~ msgid "Search"
-#~ msgstr "Пошук"
-
-#~ msgid "My Device"
-#~ msgstr "Мій пристрій"
-
 #~ msgid "Other Device"
 #~ msgstr "Інші пристрої"
 
@@ -19022,9 +19274,6 @@ msgstr ""
 #, c-format, boost-format
 #~ msgid "nozzle memorized: %.2f %s"
 #~ msgstr "сопло у пам'яті: %.2f %s"
-
-#~ msgid "Modifying the device name"
-#~ msgstr "Зміна імені пристрою"
 
 #~ msgid "Bind with Access Code"
 #~ msgstr "Прив’язати з кодом доступу"

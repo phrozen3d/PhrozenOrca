@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-12 00:14+0800\n"
+"POT-Creation-Date: 2025-12-30 10:35+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -30,6 +30,14 @@ msgid "Temperature"
 msgstr "温度"
 
 msgid "Left Time"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%.1f ℃"
+msgstr ""
+
+#, c-format, boost-format
+msgid "%d : %d"
 msgstr ""
 
 msgid "Serial:"
@@ -184,15 +192,6 @@ msgstr "Alt + Shift + Enter"
 msgid "Toggle Wireframe"
 msgstr "ワイヤフレームの表示/非表示"
 
-msgid "Remap filaments"
-msgstr ""
-
-msgid "Remap"
-msgstr ""
-
-msgid "Cancel"
-msgstr "取消し"
-
 msgid "Shortcut Key "
 msgstr "ショートカット"
 
@@ -214,9 +213,6 @@ msgstr "塗った色を消去"
 #, boost-format
 msgid "Painted using: Filament %1%"
 msgstr "フィラメント %1%でペイントします"
-
-msgid "Filament remapping finished."
-msgstr ""
 
 msgid "Move"
 msgstr "移動"
@@ -486,6 +482,9 @@ msgstr "半径に関係する空間の割合"
 
 msgid "Confirm connectors"
 msgstr ""
+
+msgid "Cancel"
+msgstr "取消し"
 
 msgid "Build Volume"
 msgstr "ビルドボリューム"
@@ -1491,12 +1490,12 @@ msgid ""
 "Configuration file \"%1%\" was loaded, but some values were not recognized."
 msgstr "構成ファイル %1% がロードされましたが、一部の値が認識できませんでした"
 
-msgid "Based on PrusaSlicer and BambuStudio"
+msgid "Based on OrcaSlicer, PrusaSlicer and BambuStudio"
 msgstr ""
 
 msgid ""
-"PhrozenOrca will terminate because of running out of memory. It may be a bug. "
-"It will be appreciated if you report the issue to our team."
+"PhrozenOrca will terminate because of running out of memory. It may be a "
+"bug. It will be appreciated if you report the issue to our team."
 msgstr ""
 
 msgid "Fatal error"
@@ -1623,8 +1622,8 @@ msgid ""
 "The version of Phrozen Orca is too low and needs to be updated to the latest "
 "version before it can be used normally."
 msgstr ""
-"現在のPhrozen Orcaはバージョンが古いため使用できません、アップデートしてくださ"
-"い。"
+"現在のPhrozen Orcaはバージョンが古いため使用できません、アップデートしてくだ"
+"さい。"
 
 msgid "Privacy Policy Update"
 msgstr ""
@@ -1670,6 +1669,12 @@ msgid ""
 msgstr ""
 "URLのダウンロードを開始できませんでした。保存先フォルダが設定されていません。"
 "設定ウィザードで保存先フォルダーを選択してください。"
+
+msgid "Insufficient memory, network agent initialize fail"
+msgstr ""
+
+msgid "Insufficient memory, machine manager initialize fail"
+msgstr ""
 
 msgid "Import File"
 msgstr "ファイルインポート"
@@ -1816,12 +1821,6 @@ msgstr "Disc"
 msgid "Torus"
 msgstr "Torus"
 
-msgid "PhrozenOrca Cube"
-msgstr ""
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr ""
-
 msgid "3DBenchy"
 msgstr "3DBenchy"
 
@@ -1832,6 +1831,9 @@ msgid "Voron Cube"
 msgstr ""
 
 msgid "Stanford Bunny"
+msgstr ""
+
+msgid "PhrozenOrca Cube"
 msgstr ""
 
 msgid "PhrozenOrca String Hell"
@@ -2785,8 +2787,8 @@ msgstr "ダウンロード中"
 msgid "Download failed"
 msgstr "ダウンロード失敗"
 
-msgid "Canceled"
-msgstr "取消し済"
+msgid "Cancelled"
+msgstr ""
 
 msgid "Installed successfully"
 msgstr "インストール完了"
@@ -2812,7 +2814,7 @@ msgstr "Phrozen Orcaのライセンス"
 msgid "GNU Affero General Public License, version 3"
 msgstr ""
 
-msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
+msgid "Phrozen Orca is based on Orca Slicer"
 msgstr ""
 
 msgid "Libraries"
@@ -2829,7 +2831,10 @@ msgstr ""
 msgid "About %s"
 msgstr "%s について"
 
-msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
+msgid "Phrozen Orca is based on OrcaSlicer."
+msgstr ""
+
+msgid "OrcaSlicer is based on BambuStudio, PrusaSlicer, and SuperSlicer."
 msgstr ""
 
 msgid "BambuStudio is originally based on PrusaSlicer by PrusaResearch."
@@ -2982,10 +2987,10 @@ msgstr "手順"
 msgid "AMS Slots"
 msgstr "AMSスロット"
 
-msgid "Left AMS"
+msgid "Left Ams"
 msgstr ""
 
-msgid "Right AMS"
+msgid "Right Ams"
 msgstr ""
 
 msgid ""
@@ -3590,8 +3595,8 @@ msgstr "このフィラメントで推奨ノズル温度は %d ~ %d ℃です。
 
 msgid ""
 "Too small max volumetric speed.\n"
-"Reset to 0.5."
-msgstr "値が小さすぎます、0.5に戻します"
+"Reset to 0.5"
+msgstr ""
 
 #, c-format, boost-format
 msgid ""
@@ -3602,13 +3607,13 @@ msgstr ""
 
 msgid ""
 "Too small layer height.\n"
-"Reset to 0.2."
-msgstr "積層ピッチが小さすぎます、0.2にリセットされました"
+"Reset to 0.2"
+msgstr ""
 
 msgid ""
 "Too small ironing spacing.\n"
-"Reset to 0.1."
-msgstr "値が小さいです、0.1にリセットします"
+"Reset to 0.1"
+msgstr ""
 
 msgid ""
 "Zero initial layer height is invalid.\n"
@@ -3694,21 +3699,10 @@ msgid ""
 "Reset to 0."
 msgstr ""
 
+#, c-format, boost-format
 msgid ""
-"Lock depth should smaller than skin depth.\n"
-"Reset to 50% of skin depth."
-msgstr ""
-
-msgid ""
-"Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
-"Generator to be enabled."
-msgstr ""
-
-msgid ""
-"Change these settings automatically?\n"
-"Yes - Enable Arachne Wall Generator\n"
-"No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
-"Fuzzy Skin"
+"lock depth should smaller than skin depth.\n"
+"Reset to 50% of skin depth"
 msgstr ""
 
 msgid ""
@@ -4017,7 +4011,8 @@ msgstr "入力値が範囲を超えています"
 msgid "Some extension in the input is invalid"
 msgstr "入力の一部の拡張子が無効"
 
-msgid "This parameter expects a valid template."
+msgid ""
+"This parameter expects a comma-delimited list of numbers. E.g, \"0,90\"."
 msgstr ""
 
 #, boost-format
@@ -4258,7 +4253,7 @@ msgstr "順番"
 msgid "object selection"
 msgstr ""
 
-msgid "part selection"
+msgid "part selectiont"
 msgstr ""
 
 msgid "number keys"
@@ -4368,6 +4363,9 @@ msgstr "断面"
 
 msgid "Assemble Control"
 msgstr "組立て"
+
+msgid "part selection"
+msgstr ""
 
 msgid "Selection Mode"
 msgstr ""
@@ -4511,8 +4509,8 @@ msgstr "プレビュー"
 msgid "Multi-device"
 msgstr "Multi-device"
 
-msgid "Project"
-msgstr "プロジェクト"
+msgid "Device_Console"
+msgstr ""
 
 msgid "Yes"
 msgstr "はい"
@@ -4561,9 +4559,6 @@ msgstr "「毎日のヒント」を表示"
 
 msgid "Check for Update"
 msgstr "更新を確認"
-
-msgid "Open Network Test"
-msgstr "ネットワークテストを開く"
 
 #, c-format, boost-format
 msgid "&About %s"
@@ -4846,22 +4841,19 @@ msgstr ""
 msgid "Flow rate"
 msgstr ""
 
+msgid "Retraction test"
+msgstr ""
+
 msgid "Pressure advance"
 msgstr ""
 
-msgid "Retraction test"
+msgid "Orca Tolerance Test"
 msgstr ""
 
 msgid "Max flowrate"
 msgstr ""
 
-msgid "Junction Deviation"
-msgstr ""
-
-msgid "Junction Deviation calibration"
-msgstr ""
-
-msgid "Cornering"
+msgid "VFA"
 msgstr ""
 
 msgid "Input Shaping Frequency"
@@ -4873,13 +4865,25 @@ msgstr ""
 msgid "Input Shaping"
 msgstr ""
 
-msgid "VFA"
+msgid "Junction Deviation"
+msgstr ""
+
+msgid "Junction Deviation calibration"
+msgstr ""
+
+msgid "More..."
 msgstr ""
 
 msgid "Tutorial"
 msgstr ""
 
 msgid "Calibration help"
+msgstr ""
+
+msgid "PhrozenOrca Tolerance Test"
+msgstr ""
+
+msgid "More calibrations"
 msgstr ""
 
 msgid "&Open G-code"
@@ -5128,6 +5132,11 @@ msgstr ""
 msgid "No printers."
 msgstr "プリンタなし"
 
+msgid ""
+"Please check the network and try again, You can restart or update the "
+"printer if the issue persists."
+msgstr ""
+
 msgid "Loading file list..."
 msgstr "ファイルリストを読込み中"
 
@@ -5179,8 +5188,8 @@ msgid "Failed to parse model information."
 msgstr ""
 
 msgid ""
-"The .gcode.3mf file contains no G-code data. Please slice it with Orca "
-"Slicer and export a new .gcode.3mf file."
+"The .gcode.3mf file contains no G-code data. Please slice it with Phrozen "
+"Orca and export a new .gcode.3mf file."
 msgstr ""
 
 #, c-format, boost-format
@@ -5539,7 +5548,8 @@ msgstr ""
 msgid "The 3mf file version is newer than the current Phrozen Orca version."
 msgstr ""
 
-msgid "Update your Phrozen Orca could enable all functionality in the 3mf file."
+msgid ""
+"Update your Phrozen Orca could enable all functionality in the 3mf file."
 msgstr ""
 
 msgid "Current Version: "
@@ -5908,8 +5918,8 @@ msgstr "適用できるフィラメントがありません、同期を行えま
 
 msgid ""
 "There are some unknown filaments mapped to generic preset. Please update "
-"Phrozen Orca or restart Phrozen Orca to check if there is an update to system "
-"presets."
+"Phrozen Orca or restart Phrozen Orca to check if there is an update to "
+"system presets."
 msgstr "不明なフィラメントがあります、Phrozen Orcaを更新してください。"
 
 #, boost-format
@@ -6161,6 +6171,12 @@ msgstr "プレート%dをスライス"
 
 msgid "Please resolve the slicing errors and publish again."
 msgstr "スライシングエラーを解決して、もう一度公開していください"
+
+msgid "Phrozen Orca not supply this action"
+msgstr ""
+
+msgid "Phrozen Orca"
+msgstr ""
 
 msgid ""
 "Network Plug-in is not detected. Network related features are unavailable."
@@ -6432,8 +6448,8 @@ msgid ""
 "\"Fix Model\" feature is currently only on Windows. Please repair the model "
 "on Phrozen Orca(windows) or CAD softwares."
 msgstr ""
-"「モデル修復」はWindowsのみご利用できます。Phrozen Orca (Windows)か他のCADソフ"
-"トウェアで修復してください。"
+"「モデル修復」はWindowsのみご利用できます。Phrozen Orca (Windows)か他のCADソ"
+"フトウェアで修復してください。"
 
 #, c-format, boost-format
 msgid ""
@@ -6709,6 +6725,9 @@ msgstr ""
 
 msgid "Associate URLs to PhrozenOrca"
 msgstr ""
+
+msgid "Project"
+msgstr "プロジェクト"
 
 msgid "Load All"
 msgstr ""
@@ -8318,8 +8337,9 @@ msgid "Flushing volumes for filament change"
 msgstr "フィラメントを入替える為のフラッシュ量"
 
 msgid ""
-"PhrozenOrca would re-calculate your flushing volumes every time the filaments color "
-"changed. You could disable the auto-calculate in Phrozen Orca > Preferences"
+"PhrozenOrca would re-calculate your flushing volumes every time the "
+"filaments color changed. You could disable the auto-calculate in Phrozen "
+"Orca > Preferences"
 msgstr ""
 
 msgid "Flushing volume (mm³) for each filament pair."
@@ -8802,10 +8822,10 @@ msgstr ""
 msgid "Air Pump"
 msgstr ""
 
-msgid "Laser 10 W"
+msgid "Laser 10w"
 msgstr ""
 
-msgid "Laser 40 W"
+msgid "Laser 40w"
 msgstr ""
 
 msgid "Cutting Module"
@@ -9342,7 +9362,7 @@ msgstr ""
 msgid ""
 "The jerk setting exceeds the printer's maximum jerk (machine_max_jerk_x/"
 "machine_max_jerk_y).\n"
-"PhrozenOrca will automatically cap the jerk speed to ensure it doesn't surpass the "
+"Orca will automatically cap the jerk speed to ensure it doesn't surpass the "
 "printer's capabilities.\n"
 "You can adjust the maximum jerk setting in your printer's configuration to "
 "get higher speeds."
@@ -9351,7 +9371,7 @@ msgstr ""
 msgid ""
 "Junction deviation setting exceeds the printer's maximum value "
 "(machine_max_junction_deviation).\n"
-"PhrozenOrca will automatically cap the junction deviation to ensure it doesn't "
+"Orca will automatically cap the junction deviation to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_junction_deviation value in your printer's "
 "configuration to get higher limits."
@@ -9360,7 +9380,7 @@ msgstr ""
 msgid ""
 "The acceleration setting exceeds the printer's maximum acceleration "
 "(machine_max_acceleration_extruding).\n"
-"PhrozenOrca will automatically cap the acceleration speed to ensure it doesn't "
+"Orca will automatically cap the acceleration speed to ensure it doesn't "
 "surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_extruding value in your "
 "printer's configuration to get higher speeds."
@@ -9369,7 +9389,7 @@ msgstr ""
 msgid ""
 "The travel acceleration setting exceeds the printer's maximum travel "
 "acceleration (machine_max_acceleration_travel).\n"
-"PhrozenOrca will automatically cap the travel acceleration speed to ensure it "
+"Orca will automatically cap the travel acceleration speed to ensure it "
 "doesn't surpass the printer's capabilities.\n"
 "You can adjust the machine_max_acceleration_travel value in your printer's "
 "configuration to get higher speeds."
@@ -9451,7 +9471,7 @@ msgstr "造形可能の最大高さです。"
 msgid "Preferred orientation"
 msgstr ""
 
-msgid "Automatically orient stls on the Z axis upon initial import."
+msgid "Automatically orient stls on the Z-axis upon initial import."
 msgstr ""
 
 msgid "Printer preset names"
@@ -9644,13 +9664,6 @@ msgid "Smooth Cool Plate"
 msgstr ""
 
 msgid "Smooth High Temp Plate"
-msgstr ""
-
-msgid "Default bed type"
-msgstr ""
-
-msgid ""
-"Default bed type for the printer (supports both numeric and string format)."
 msgstr ""
 
 msgid "First layer print sequence"
@@ -10077,7 +10090,7 @@ msgstr ""
 
 msgid ""
 "The geometry will be decimated before detecting sharp angles. This parameter "
-"indicates the minimum length of the deviation for the decimation.\n"
+"indicates the minimum length of the deviation for the decimation. \n"
 "0 to deactivate."
 msgstr ""
 
@@ -10737,7 +10750,7 @@ msgid "Default color"
 msgstr "デフォルト色"
 
 msgid ""
-"Default filament color.\n"
+"Default filament color\n"
 "Right click to reset value to system default."
 msgstr ""
 
@@ -11043,15 +11056,6 @@ msgid ""
 "infill and internal solid infill pattern will be used."
 msgstr ""
 
-msgid "Align infill direction to model"
-msgstr ""
-
-msgid ""
-"Aligns infill and surface fill directions to follow the model's orientation "
-"on the build plate. When enabled, fill directions rotate with the model to "
-"maintain optimal strength characteristics."
-msgstr ""
-
 msgid "Fill Multiline"
 msgstr ""
 
@@ -11104,10 +11108,10 @@ msgstr "ハニカム"
 msgid "3D Honeycomb"
 msgstr "3D ハニカム"
 
-msgid "Lateral Honeycomb"
+msgid "2D Honeycomb"
 msgstr ""
 
-msgid "Lateral Lattice"
+msgid "2D Lattice"
 msgstr ""
 
 msgid "Cross Hatch"
@@ -11116,25 +11120,22 @@ msgstr "Cross Hatch"
 msgid "TPMS-D"
 msgstr ""
 
-msgid "TPMS-FK"
-msgstr ""
-
 msgid "Gyroid"
 msgstr "ジャイロイド"
 
-msgid "Lateral lattice angle 1"
+msgid "Lattice angle 1"
 msgstr ""
 
 msgid ""
-"The angle of the first set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the first set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
 msgstr ""
 
-msgid "Lateral lattice angle 2"
+msgid "Lattice angle 2"
 msgstr ""
 
 msgid ""
-"The angle of the second set of Lateral lattice elements in the Z direction. Zero "
+"The angle of the second set of 2D lattice elements in the Z direction. Zero "
 "is vertical."
 msgstr ""
 
@@ -11248,7 +11249,7 @@ msgid "Default jerk."
 msgstr ""
 
 msgid ""
-"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)."
+"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)"
 msgstr ""
 
 msgid "Jerk of outer walls."
@@ -11395,42 +11396,6 @@ msgid "Apply fuzzy skin to first layer"
 msgstr ""
 
 msgid "Whether to apply fuzzy skin on the first layer."
-msgstr ""
-
-msgid "Fuzzy skin generator mode"
-msgstr ""
-
-#, c-format, boost-format
-msgid ""
-"Fuzzy skin generation mode. Works only with Arachne!\n"
-"Displacement: Сlassic mode when the pattern is formed by shifting the nozzle "
-"sideways from the original path.\n"
-"Extrusion: The mode when the pattern formed by the amount of extruded "
-"plastic. This is the fast and straight algorithm without unnecessary nozzle "
-"shake that gives a smooth pattern. But it is more useful for forming loose "
-"walls in the entire they array.\n"
-"Combined: Joint mode [Displacement] + [Extrusion]. The appearance of the "
-"walls is similar to [Displacement] Mode, but it leaves no pores between the "
-"perimeters.\n"
-"\n"
-"Attention! The [Extrusion] and [Combined] modes works only the "
-"fuzzy_skin_thickness parameter not more than the thickness of printed "
-"loop. At the same time, the width of the extrusion for a particular layer "
-"should also not be below a certain level. It is usually equal 15-25%% of a "
-"layer height. Therefore, the maximum fuzzy skin thickness with a perimeter "
-"width of 0.4 mm and a layer height of 0.2 mm will be 0.4-(0.2*0.25)=±0.35mm! "
-"If you enter a higher parameter than this, the error Flow::spacing() will "
-"displayed, and the model will not be sliced. You can choose this number "
-"until this error is repeated."
-msgstr ""
-
-msgid "Displacement"
-msgstr ""
-
-msgid "Extrusion"
-msgstr ""
-
-msgid "Combined"
 msgstr ""
 
 msgid "Fuzzy skin noise type"
@@ -11764,9 +11729,9 @@ msgstr ""
 msgid ""
 "The remaining part of the model contour after removing a certain depth from "
 "the surface is called the skeleton. This parameter is used to adjust the "
-"density of this section. When two regions have the same sparse infill "
+"density of this section.When two regions have the same sparse infill "
 "settings but different skeleton densities, their skeleton areas will develop "
-"overlapping sections. Default is as same as infill density."
+"overlapping sections.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill density"
@@ -11775,9 +11740,9 @@ msgstr ""
 msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
-"section. When two regions have the same sparse infill settings but different "
-"skin densities, this area will not be split into two separate regions. "
-"Default is as same as infill density."
+"section.When two regions have the same sparse infill settings but different "
+"skin densities, This area will not be split into two separate "
+"regions.default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -11804,11 +11769,11 @@ msgstr ""
 msgid "Adjust the line width of the selected skeleton paths."
 msgstr ""
 
-msgid "Symmetric infill Y axis"
+msgid "Symmetric infill y axis"
 msgstr ""
 
 msgid ""
-"If the model has two parts that are symmetric about the Y axis, and you want "
+"If the model has two parts that are symmetric about the y-axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
@@ -12005,8 +11970,8 @@ msgstr ""
 msgid "Ironing speed"
 msgstr "アイロン時の移動速度"
 
-msgid "Print speed of ironing lines."
-msgstr "アイロン時の造形速度です。"
+msgid "Print speed of ironing lines"
+msgstr ""
 
 msgid "Ironing angle"
 msgstr ""
@@ -12140,7 +12105,8 @@ msgid "Maximum Junction Deviation"
 msgstr ""
 
 msgid ""
-"Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
+"Maximum junction deviation (M205 J, only apply if  JD > 0 for Marlin "
+"Firmware)"
 msgstr ""
 
 msgid "Minimum speed for extruding"
@@ -12285,8 +12251,8 @@ msgid ""
 "is enabled."
 msgstr ""
 
-msgid "The diameter of nozzle."
-msgstr "ノズル直径"
+msgid "Diameter of nozzle"
+msgstr ""
 
 msgid "Configuration notes"
 msgstr "設定上の注意"
@@ -12424,7 +12390,7 @@ msgstr ""
 "この設定により、線幅に対するオーバーハングの割合を検出し、異なる速度で造形し"
 "ます。100%%のオーバーハングの場合、ブリッジの速度が使用されます。"
 
-msgid "Filament to print walls."
+msgid "Filament to print walls"
 msgstr ""
 
 msgid ""
@@ -12463,7 +12429,7 @@ msgstr ""
 msgid "Printer type"
 msgstr "プリンタータイプ"
 
-msgid "Type of the printer."
+msgid "Type of the printer"
 msgstr ""
 
 msgid "Printer notes"
@@ -12716,9 +12682,6 @@ msgstr "最寄り"
 msgid "Aligned"
 msgstr "整列"
 
-msgid "Aligned back"
-msgstr ""
-
 msgid "Back"
 msgstr "背面"
 
@@ -12883,8 +12846,8 @@ msgstr ""
 msgid "Skirt distance"
 msgstr "スカート距離"
 
-msgid "The distance from the skirt to the brim or the object."
-msgstr "スカートからブリム或はオブジェクトまでの距離です。"
+msgid "Distance from skirt to brim or object"
+msgstr ""
 
 msgid "Skirt start point"
 msgstr ""
@@ -12935,6 +12898,9 @@ msgid ""
 "skirt."
 msgstr ""
 
+msgid "Combined"
+msgstr ""
+
 msgid "Per object"
 msgstr ""
 
@@ -12983,7 +12949,7 @@ msgstr ""
 msgid "Solid infill"
 msgstr "ソリッドインフィル"
 
-msgid "Filament to print solid infill."
+msgid "Filament to print solid infill"
 msgstr ""
 
 msgid ""
@@ -13745,8 +13711,8 @@ msgstr "プライムタワーの幅です。"
 msgid "Wipe tower rotation angle"
 msgstr "ワイプタワーの回転角"
 
-msgid "Wipe tower rotation angle with respect to X axis."
-msgstr "x軸に対するワイプタワーの回転角度。"
+msgid "Wipe tower rotation angle with respect to x-axis."
+msgstr ""
 
 msgid "Width of the brim."
 msgstr ""
@@ -13803,7 +13769,7 @@ msgstr ""
 
 msgid ""
 "Positive values can increase the size of the rib wall, while negative values "
-"can reduce the size. However, the size of the rib wall can not be smaller "
+"can reduce the size.However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
 
@@ -14359,7 +14325,7 @@ msgstr ""
 msgid "Load custom G-code from json."
 msgstr ""
 
-msgid "Load filament IDs"
+msgid "Load filament ids"
 msgstr ""
 
 msgid "Load filament IDs for each object."
@@ -14394,25 +14360,25 @@ msgstr ""
 msgid "MakerLab name"
 msgstr ""
 
-msgid "MakerLab name to generate this 3mf."
+msgid "MakerLab name to generate this 3mf"
 msgstr ""
 
 msgid "MakerLab version"
 msgstr ""
 
-msgid "MakerLab version to generate this 3mf."
+msgid "MakerLab version to generate this 3mf"
 msgstr ""
 
 msgid "metadata name list"
 msgstr ""
 
-msgid "metadata name list added into 3mf."
+msgid "metadata name list added into 3mf"
 msgstr ""
 
 msgid "metadata value list"
 msgstr ""
 
-msgid "metadata value list added into 3mf."
+msgid "metadata value list added into 3mf"
 msgstr ""
 
 msgid "Allow 3mf with newer version to be sliced"
@@ -14687,7 +14653,7 @@ msgstr "レイヤーナンバー"
 msgid "Index of the current layer. One-based (i.e. first layer is number 1)."
 msgstr ""
 
-msgid "Layer Z"
+msgid "Layer z"
 msgstr ""
 
 msgid ""
@@ -14695,7 +14661,7 @@ msgid ""
 "layer."
 msgstr "プリント ベッド上の現在のレイヤーの高さ (レイヤーの最上部までの計測)。"
 
-msgid "Maximal layer Z"
+msgid "Maximal layer z"
 msgstr ""
 
 msgid "Height of the last layer above the print bed."
@@ -14784,6 +14750,9 @@ msgstr ""
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
+
+msgid "Canceled"
+msgstr "取消し済"
 
 msgid "load_obj: failed to parse"
 msgstr ""
@@ -14881,7 +14850,7 @@ msgid ""
 "Start value: >= %.1f\n"
 "End value: <= %.1f\n"
 "End value: > Start value\n"
-"Value step: >= %.3f"
+"Value step: >= %.3f)"
 msgstr ""
 
 msgid "The name cannot be empty."
@@ -15348,7 +15317,7 @@ msgid ""
 "Please input valid values:\n"
 "Start PA: >= 0.0\n"
 "End PA: > Start PA\n"
-"PA step: >= 0.001"
+"PA step: >= 0.001)"
 msgstr ""
 
 msgid "Temperature calibration"
@@ -15391,7 +15360,7 @@ msgid ""
 "Please input valid values:\n"
 "Start temp: <= 350\n"
 "End temp: >= 170\n"
-"Start temp > End temp + 5"
+"Start temp > End temp + 5)"
 msgstr ""
 
 msgid "Max volumetric speed test"
@@ -15405,9 +15374,9 @@ msgstr ""
 
 msgid ""
 "Please input valid values:\n"
-"start > 0\n"
+"start > 0 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
 
 msgid "VFA test"
@@ -15421,9 +15390,9 @@ msgstr ""
 
 msgid ""
 "Please input valid values:\n"
-"start > 10\n"
+"start > 10 \n"
 "step >= 0\n"
-"end > start + step"
+"end > start + step)"
 msgstr ""
 
 msgid "Start retraction length: "
@@ -15450,6 +15419,9 @@ msgstr ""
 msgid "Frequency settings"
 msgstr ""
 
+msgid "hz"
+msgstr ""
+
 msgid "Damp: "
 msgstr ""
 
@@ -15459,8 +15431,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < FreqStart < FreqEnd < 500)"
+"Please input valid values\n"
+"(0 < FreqStart < FreqEnd < 500"
 msgstr ""
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
@@ -15479,8 +15451,8 @@ msgid "Note: Use previously calculated frequencies."
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
-"(0 < Freq < 500)"
+"Please input valid values\n"
+"(0 < Freq < 500"
 msgstr ""
 
 msgid ""
@@ -15503,7 +15475,7 @@ msgid "Note: Lower values = sharper corners but slower speeds"
 msgstr ""
 
 msgid ""
-"Please input valid values:\n"
+"Please input valid values\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
 
@@ -15563,8 +15535,8 @@ msgstr ""
 msgid "Uploading"
 msgstr "アップロード中"
 
-msgid "Canceling"
-msgstr "キャンセル中"
+msgid "Cancelling"
+msgstr ""
 
 msgid "Error uploading to print host"
 msgstr "プリントホストへのアップロードに失敗"
@@ -15930,9 +15902,9 @@ msgstr ""
 msgid ""
 "\n"
 "\n"
-"PhrozenOrca has detected that your user presets synchronization function is not "
-"enabled, which may result in unsuccessful Filament settings on the Device "
-"page.\n"
+"PhrozenOrca has detected that your user presets synchronization function is "
+"not enabled, which may result in unsuccessful Filament settings on the "
+"Device page.\n"
 "Click \"Sync user presets\" to enable the synchronization function."
 msgstr ""
 
@@ -15982,8 +15954,8 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"The file: %s\n"
-"may have been opened by another program.\n"
+"The file: %s \n"
+"may have been opened by another program. \n"
 "Please close it and try again."
 msgstr ""
 
@@ -16282,7 +16254,7 @@ msgstr "Repetierへの接続は正常に動作しています"
 msgid "Could not connect to Repetier"
 msgstr "Repetierに接続できませんでした。"
 
-msgid "Note: Repetier version 0.90.0 or higher is required."
+msgid "Note: Repetier version 0.90.0 ir higher is required."
 msgstr ""
 
 #, boost-format
@@ -16501,6 +16473,12 @@ msgstr ""
 msgid "Could not connect to Flashforge via serial"
 msgstr ""
 
+msgid "Connection to PhrozenConnect is working correctly."
+msgstr ""
+
+msgid "Could not connect to PhrozenConnect"
+msgstr ""
+
 msgid "The provided state is not correct."
 msgstr ""
 
@@ -16560,6 +16538,93 @@ msgstr "ブリム"
 
 msgid "Please select single object."
 msgstr "単一のオブジェクトを選択してください"
+
+msgid "Turn On/Off Camera"
+msgstr ""
+
+msgid "Turn On/Off Light"
+msgstr ""
+
+msgid "Filament Tips"
+msgstr ""
+
+msgid "Printing..."
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Print Complete"
+msgstr ""
+
+msgid "Print Cancelled"
+msgstr ""
+
+msgid "Print Error"
+msgstr ""
+
+msgid "Standby"
+msgstr ""
+
+msgid "Waiting..."
+msgstr ""
+
+msgid ""
+"Automatically check your 3D printer conditions and detect\n"
+"any errors to maintain its optimal performance."
+msgstr ""
+
+msgid "Auto-Leveling"
+msgstr ""
+
+msgid "Resonance Compensation"
+msgstr ""
+
+msgid "Not supported operator!!!"
+msgstr ""
+
+msgid "Please connect to a Phrozen printer first."
+msgstr ""
+
+msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid "Unload All Slots"
+msgstr ""
+
+msgid "Auto Leveling"
+msgstr ""
+
+msgid "Chroma Kit"
+msgstr ""
+
+msgid "Searching..."
+msgstr ""
+
+msgid ""
+"Step 2. Check ip address from your phrozen machine and key in to connect."
+msgstr ""
+
+msgid "IP address not set"
+msgstr ""
+
+msgid "Connecting to printer success... The dialog will close later"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "My Device"
+msgstr "私のデバイス"
+
+msgid "History Device"
+msgstr ""
+
+msgid "Modifying the device name"
+msgstr "デバイス名を変更"
+
+msgid "Bind with IP"
+msgstr ""
 
 #: resources/data/hints.ini: [hint:Precise wall]
 msgid ""
@@ -16624,7 +16689,7 @@ msgstr ""
 #: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
 msgid ""
 "How to use keyboard shortcuts\n"
-"Did you know that Phrozen Orca offers a wide range of keyboard shortcuts and "
+"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
 "3D scene operations?"
 msgstr ""
 
@@ -16699,8 +16764,8 @@ msgstr ""
 #: resources/data/hints.ini: [hint:Search Functionality]
 msgid ""
 "Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific Orca "
-"Slicer setting?"
+"Did you know that you use the Search tool to quickly find a specific "
+"PhrozenOrca setting?"
 msgstr ""
 
 #: resources/data/hints.ini: [hint:Simplify Model]
@@ -16734,7 +16799,7 @@ msgid ""
 "Subtract a Part\n"
 "Did you know that you can subtract one mesh from another using the Negative "
 "part modifier? That way you can, for example, create easily resizable holes "
-"directly in Phrozen Orca."
+"directly in PhrozenOrca."
 msgstr ""
 
 #: resources/data/hints.ini: [hint:STEP]
@@ -16742,7 +16807,7 @@ msgid ""
 "STEP\n"
 "Did you know that you can improve your print quality by slicing a STEP file "
 "instead of an STL?\n"
-"Phrozen Orca supports slicing STEP files, providing smoother results than a "
+"PhrozenOrca supports slicing STEP files, providing smoother results than a "
 "lower resolution STL. Give it a try!"
 msgstr ""
 
@@ -16886,6 +16951,39 @@ msgstr ""
 "ABSのような反りやすい素材を印刷する場合、ヒートベッドの温度を適切に上げること"
 "で、反りが発生する確率を下げることができることをご存知ですか？"
 
+#~ msgid ""
+#~ "Too small max volumetric speed.\n"
+#~ "Reset to 0.5."
+#~ msgstr "値が小さすぎます、0.5に戻します"
+
+#~ msgid ""
+#~ "Too small layer height.\n"
+#~ "Reset to 0.2."
+#~ msgstr "積層ピッチが小さすぎます、0.2にリセットされました"
+
+#~ msgid ""
+#~ "Too small ironing spacing.\n"
+#~ "Reset to 0.1."
+#~ msgstr "値が小さいです、0.1にリセットします"
+
+#~ msgid "Open Network Test"
+#~ msgstr "ネットワークテストを開く"
+
+#~ msgid "Print speed of ironing lines."
+#~ msgstr "アイロン時の造形速度です。"
+
+#~ msgid "The diameter of nozzle."
+#~ msgstr "ノズル直径"
+
+#~ msgid "The distance from the skirt to the brim or the object."
+#~ msgstr "スカートからブリム或はオブジェクトまでの距離です。"
+
+#~ msgid "Wipe tower rotation angle with respect to X axis."
+#~ msgstr "x軸に対するワイプタワーの回転角度。"
+
+#~ msgid "Canceling"
+#~ msgstr "キャンセル中"
+
 #~ msgid "Set Position"
 #~ msgstr "位置を設定"
 
@@ -16957,17 +17055,11 @@ msgstr ""
 #~ msgid "Publish was canceled"
 #~ msgstr "公開は取り消しました"
 
-#~ msgid "My Device"
-#~ msgstr "私のデバイス"
-
 #~ msgid "Other Device"
 #~ msgstr "その他のデバイス"
 
 #~ msgid "Can't find my devices?"
 #~ msgstr "デバイスが見つからない？"
-
-#~ msgid "Modifying the device name"
-#~ msgstr "デバイス名を変更"
 
 #~ msgid "Bind with Access Code"
 #~ msgstr "アクセスコードと紐付け"
@@ -17392,8 +17484,8 @@ msgstr ""
 
 #~ msgid "The 3mf is generated by old Phrozen Orca, load geometry data only."
 #~ msgstr ""
-#~ "3mfは古いバージョンのPhrozen Orcaで作成されています、ジオメトリーデータのみ"
-#~ "読込みます。"
+#~ "3mfは古いバージョンのPhrozen Orcaで作成されています、ジオメトリーデータの"
+#~ "み読込みます。"
 
 #~ msgid "Movement:"
 #~ msgstr "移動"
