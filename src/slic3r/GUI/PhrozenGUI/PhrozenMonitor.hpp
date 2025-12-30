@@ -76,6 +76,7 @@ private:
 
     bool m_initialized { false };
     bool update_flag{false};
+    int m_last_status{0};
     wxTimer* m_refresh_timer = nullptr;
 
 public:

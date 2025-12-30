@@ -5477,6 +5477,7 @@ void PhrozenStatusPanel::set_default()
     m_lighting_state_timeout = 0;
     m_show_ams_group = true;
     reset_printing_values();
+    UpdateWebCameraView( nullptr );
 
     #if HideOriginUiWidget
     m_pCam_switch_button->Show();
@@ -5492,6 +5493,10 @@ void PhrozenStatusPanel::set_default()
 void PhrozenStatusPanel::show_status(int status)
 {
     this->Enable( status > 0 );
+    if ( status <= 0 )
+    {
+        set_default();
+    }
 }
 
 void PhrozenStatusPanel::set_hold_count(int& count)

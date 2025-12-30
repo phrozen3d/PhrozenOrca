@@ -294,7 +294,8 @@ bool PhrozenMonitorPanel::Show(bool show)
 void PhrozenMonitorPanel::show_status(int status)
 {
     if (!m_initialized) return;
-
+    if ( m_last_status == status ) return;
+    m_last_status = status;
 Freeze();
     // update panels
     m_status_info_panel->show_status(status);
