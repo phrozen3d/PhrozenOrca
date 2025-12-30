@@ -5,6 +5,7 @@
 //#include "libslic3r/Thread.hpp"
 //#include "slic3r/Utils/ColorSpaceConvert.hpp"
 #include "PhrozenMonitorController.hpp"
+#include "slic3r/GUI/I18N.hpp"
 #include <algorithm>
 #include <cmath>
 #include <wx/image.h>

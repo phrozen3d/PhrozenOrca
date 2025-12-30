@@ -1,4 +1,5 @@
 #include "PhrozenMonitorController.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <codecvt>
 #include <cctype>

@@ -1,6 +1,7 @@
 #include "PhrozenNetworkAgent.hpp"
 #include "libslic3r/AppConfig.hpp"
 #include "PhrozenMachineDatas.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <sstream>

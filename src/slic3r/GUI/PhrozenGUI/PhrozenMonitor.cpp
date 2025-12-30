@@ -1,5 +1,6 @@
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/Model.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <wx/app.h>
 #include <wx/button.h>
