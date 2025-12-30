@@ -6920,7 +6920,7 @@ bool GUI_App::InitPhrozenConnector( const std::string& strIp )
         MonitorControl::m_kMonitorWindow.isShownIPConnectNotification = true;
         MonitorControl::SetStartReceiving(false);
         MonitorControl::SetStartSending(false);
-    
+        return false;
     }
     else
     {

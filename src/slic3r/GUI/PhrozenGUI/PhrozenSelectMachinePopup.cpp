@@ -383,7 +383,7 @@ PhrozenIpConnectDialog::PhrozenIpConnectDialog(wxWindow *parent)
                 _L("Connecting to printer"),
                 wxDefaultPosition,
                 wxDefaultSize,
-                wxCAPTION | wxCLOSE_BOX)
+                wxCAPTION )
 {
     SetBackgroundColour(*wxWHITE);
 
@@ -418,7 +418,6 @@ PhrozenIpConnectDialog::PhrozenIpConnectDialog(wxWindow *parent)
     Bind(wxEVT_TIMER, &PhrozenIpConnectDialog::OnTimer, this);
 
     Bind(EVT_PHROZEN_IP_CONNECT_SUCCESS, [this](auto& e) {
-        m_bSuccess = true;
         m_status_bar->reset();
         EndModal(wxID_YES);
     });
@@ -510,20 +509,23 @@ void PhrozenIpConnectDialog::workerConnectThreadFunc(std::string str_ip)
 
     post_update_msg(_L("connecting..."), false);
 
-    bool bSuccess = wxGetApp().InitPhrozenConnector(str_ip);
-    if (!bSuccess) {
-        post_update_msg(_L("Failed to connect to printer."), true);
-        return;
-    }
+    m_bSuccess = wxGetApp().InitPhrozenConnector(str_ip);
 
     CallAfter([this]() {
-        wxGetApp().ProcessPhrozenConnector();
         
-
-        post_update_msg(wxString::Format(_L("Connecting to printer success... The dialog will close later"), closeCount), false);
-
-        // Cross-platform support: use the same close flow for all platforms
         closeCount = 1;
+
+        if ( m_bSuccess )
+        {
+            wxGetApp().ProcessPhrozenConnector();
+            post_update_msg(wxString::Format(_L("Connecting to printer success! The dialog will close later"), closeCount), false);
+        }
+        else
+        {
+            post_update_msg(wxString::Format(_L("Failed to connect to printer... The dialog will close later"), closeCount), true);
+        }
+        
+        // Cross-platform support: use the same close flow for all platforms
         m_kSuccessCloseTimer->Start(1000);
     });
 }
@@ -535,8 +537,16 @@ void PhrozenIpConnectDialog::OnTimer(wxTimerEvent& event)
     }
     else {
         m_kSuccessCloseTimer->Stop();
-        wxCommandEvent event(EVT_PHROZEN_IP_CONNECT_SUCCESS);
-        wxPostEvent(this, event);
+
+        if ( m_bSuccess )
+        {
+            wxCommandEvent event(EVT_PHROZEN_IP_CONNECT_SUCCESS);
+            wxPostEvent(this, event);
+        }
+        else
+        {
+            EndModal(wxID_CANCEL);
+        }
     }
 }
 
