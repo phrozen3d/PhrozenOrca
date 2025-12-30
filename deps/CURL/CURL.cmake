@@ -43,10 +43,6 @@ elseif (APPLE)
     -DCMAKE_USE_OPENSSL:BOOL=ON
 
     -DCURL_CA_PATH:STRING=none
-
-    # Ensure no system library dependencies
-    -DCMAKE_FIND_FRAMEWORK:STRING=NEVER
-    -DCMAKE_FIND_APPBUNDLE:STRING=NEVER
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(_curl_platform_flags 
