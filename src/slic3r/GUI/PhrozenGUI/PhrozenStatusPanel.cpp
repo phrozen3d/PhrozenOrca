@@ -5464,6 +5464,7 @@ void PhrozenStatusPanel::set_default()
 {
     BOOST_LOG_TRIVIAL(trace) << "status_panel: set_default";
     obj                  = nullptr;
+    m_pMachineObj        = nullptr;
     speed_lvl         = 1;
     speed_lvl_timeout = 0;
     m_switch_lamp_timeout = 0;
@@ -5474,7 +5475,7 @@ void PhrozenStatusPanel::set_default()
     m_switch_printing_fan_timeout = 0;
     m_switch_cham_fan_timeout = 0;
     m_lighting_state_timeout = 0;
-    m_show_ams_group = false;
+    m_show_ams_group = true;
     reset_printing_values();
 
     #if HideOriginUiWidget
@@ -5490,23 +5491,7 @@ void PhrozenStatusPanel::set_default()
 
 void PhrozenStatusPanel::show_status(int status)
 {
-    //[TODO] setting button enable
-    //if (last_status == status) return;
-    //last_status = status;
-    //
-    //if (((status & (int) MonitorStatus::MONITOR_DISCONNECTED) != 0)
-    // || ((status & (int) MonitorStatus::MONITOR_DISCONNECTED_SERVER) != 0)
-    // || ((status & (int)MonitorStatus::MONITOR_CONNECTING) != 0)
-    // || ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0)
-    //    ) {
-    //    show_printing_status(false, false);
-    //    m_calibration_btn->Disable();
-    //    m_panel_monitoring_title->Disable();
-    //} else if ((status & (int) MonitorStatus::MONITOR_NORMAL) != 0) {
-    //    show_printing_status(true, true);
-    //    m_calibration_btn->Disable();
-    //    m_panel_monitoring_title->Enable();
-    //}
+    this->Enable( status > 0 );
 }
 
 void PhrozenStatusPanel::set_hold_count(int& count)

@@ -125,14 +125,8 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
 
 void PhrozenMonitorPanel::set_default()
 {
-    obj = nullptr;
-    last_conn_type = "undefined";
-
     /* reset status panel*/
     m_status_info_panel->set_default();
-
-    /* reset side tool*/
-    //m_bitmap_wifi_signal->SetBitmap(wxNullBitmap);
 
     wxGetApp().sidebar().load_ams_list({}, {});
 }
@@ -204,9 +198,11 @@ void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 
 void PhrozenMonitorPanel::update_all()
 {
-    show_status(MONITOR_NORMAL);
+    if ( !m_status_info_panel->IsShown() ) return;
+
     if (m_status_info_panel->IsShown() && MonitorControl::IsStartReceiving() ) 
     {
+        show_status(MONITOR_NORMAL);
         auto pManager = wxGetApp().GetPhrozenDeviceManager();
         if ( pManager )
         {
@@ -226,14 +222,13 @@ void PhrozenMonitorPanel::update_all()
             {
                 //TODO reset and disable ui
             }
-
-            
         }
 
     }
     else
     {
         m_side_tools->set_none_printer_mode();
+        show_status(MONITOR_UNKNOWN);
     }
     return;
 
@@ -282,8 +277,6 @@ bool PhrozenMonitorPanel::Show(bool show)
     wxGetApp().mainframe->SetMinSize(wxGetApp().plater()->GetMinSize());
 #endif
 
-    NetworkAgent* m_agent = wxGetApp().getAgent();
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (show) {
         start_update();
 
@@ -291,20 +284,6 @@ bool PhrozenMonitorPanel::Show(bool show)
         m_refresh_timer->SetOwner(this);
         m_refresh_timer->Start(REFRESH_INTERVAL);
         wxPostEvent(this, wxTimerEvent());
-
-        if (dev) 
-        {
-            //set a default machine when obj is null
-            obj = dev->get_selected_machine();
-            if (obj == nullptr) {
-                dev->load_last_machine();
-                obj = dev->get_selected_machine();
-                if (obj)
-                    GUI::wxGetApp().sidebar().load_ams_list(obj->dev_id, obj);
-            } else {
-                obj->reset_update_time();
-            }
-        }
     } else {
         stop_update();
         m_refresh_timer->Stop();
@@ -315,23 +294,6 @@ bool PhrozenMonitorPanel::Show(bool show)
 void PhrozenMonitorPanel::show_status(int status)
 {
     if (!m_initialized) return;
-    if (last_status == status)return;
-    if ((last_status & (int)MonitorStatus::MONITOR_CONNECTING) != 0) {
-        NetworkAgent* agent = wxGetApp().getAgent();
-        json j;
-        j["dev_id"] = obj ? obj->dev_id : "obj_nullptr";
-        if ((status & (int)MonitorStatus::MONITOR_DISCONNECTED) != 0) {
-            j["result"] = "failed";
-        }
-        else if ((status & (int)MonitorStatus::MONITOR_NORMAL) != 0) {
-            j["result"] = "success";
-        }
-    }
-    last_status = status;
-
-    BOOST_LOG_TRIVIAL(info) << "monitor: show_status = " << status;
-
-
 
 Freeze();
     // update panels
