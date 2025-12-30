@@ -24,6 +24,8 @@ set(_curl_platform_flags
   -DCURL_DISABLE_SCP:BOOL=ON
   -DCURL_DISABLE_SFTP:BOOL=ON
   -DUSE_LIBIDN2:BOOL=OFF
+  -DCURL_USE_LIBIDN2:BOOL=OFF
+  -DHAVE_LIBIDN2:BOOL=OFF
   -DUSE_RTMP:BOOL=OFF
   -DUSE_NGHTTP2:BOOL=OFF
   -DUSE_MBEDTLS:BOOL=OFF
@@ -33,14 +35,18 @@ if (WIN32)
   #set(_curl_platform_flags  ${_curl_platform_flags} -DCMAKE_USE_SCHANNEL=ON)
   set(_curl_platform_flags  ${_curl_platform_flags} -DCMAKE_USE_OPENSSL=ON -DCURL_CA_PATH:STRING=none)
 elseif (APPLE)
-  set(_curl_platform_flags 
-    
+  set(_curl_platform_flags
+
     ${_curl_platform_flags}
 
-    #-DCMAKE_USE_SECTRANSP:BOOL=ON 
+    #-DCMAKE_USE_SECTRANSP:BOOL=ON
     -DCMAKE_USE_OPENSSL:BOOL=ON
 
     -DCURL_CA_PATH:STRING=none
+
+    # Ensure no system library dependencies
+    -DCMAKE_FIND_FRAMEWORK:STRING=NEVER
+    -DCMAKE_FIND_APPBUNDLE:STRING=NEVER
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(_curl_platform_flags 
