@@ -134,15 +134,7 @@ jobs:
           hdiutil create -volname "PhrozenOrca" -srcfolder ${{ github.workspace }}/build/universal/PhrozenOrca -ov -format UDZO PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
           codesign --deep --force --verbose --options runtime --timestamp --entitlements ${{ github.workspace }}/scripts/disable_validation.entitlements --sign "$CERTIFICATE_ID" PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}"
-          SUBMISSION_ID=$(xcrun notarytool submit "PhrozenOrca_Mac_universal_${{ env.ver }}.dmg" --keychain-profile "notarytool-profile" --wait --output-format json | jq -r '.id')
-          echo "Notarization submission ID: $SUBMISSION_ID"
-          NOTARY_STATUS=$(xcrun notarytool info "$SUBMISSION_ID" --keychain-profile "notarytool-profile" --output-format json | jq -r '.status')
-          echo "Notarization status: $NOTARY_STATUS"
-          if [ "$NOTARY_STATUS" != "Accepted" ]; then
-            echo "Notarization failed! Getting detailed log..."
-            xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "notarytool-profile"
-            exit 1
-          fi
+          xcrun notarytool submit "PhrozenOrca_Mac_universal_${{ env.ver }}.dmg" --keychain-profile "notarytool-profile" --wait
           xcrun stapler staple PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
 
       - name: Create DMG without notary
