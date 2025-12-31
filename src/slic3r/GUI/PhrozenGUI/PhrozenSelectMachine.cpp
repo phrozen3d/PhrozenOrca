@@ -15,7 +15,8 @@
 #include "../ConnectPrinter.hpp"
 #include "../Jobs/BoostThreadWorker.hpp"
 #include "../Jobs/PlaterWorker.hpp"
-
+#include "../OptionsGroup.hpp"
+#include "PhrozenSelectMachinePopup.hpp"
 
 #include <wx/progdlg.h>
 #include <wx/clipbrd.h>
@@ -455,6 +456,7 @@ wxString PhrozenSelectMachineDialog::format_text(wxString &m_msg)
     }
     return out_txt;
 }
+
 PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     : DPIDialog(static_cast<wxWindow *>(wxGetApp().mainframe), wxID_ANY, _L("Send print job to"), wxDefaultPosition, wxDefaultSize, wxCAPTION | wxCLOSE_BOX)
     , m_plater(plater), m_export_3mf_cancel(false)
@@ -655,8 +657,18 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_button_refresh->SetCornerRadius(FromDIP(10));
     m_button_refresh->Bind(wxEVT_BUTTON, &PhrozenSelectMachineDialog::on_refresh, this);
 
+    m_button_keyin = new Button(m_basic_panel, _L("Key In"));
+    m_button_keyin->SetBackgroundColor(m_btn_bg_enable);
+    m_button_keyin->SetBorderColor(m_btn_bg_enable);
+    m_button_keyin->SetTextColor(StateColor::darkModeColorFor("#FFFFFE"));
+    m_button_keyin->SetSize(PHROZEN_SELECT_MACHINE_DIALOG_BUTTON_SIZE);
+    m_button_keyin->SetMinSize(PHROZEN_SELECT_MACHINE_DIALOG_BUTTON_SIZE);
+    m_button_keyin->SetCornerRadius(FromDIP(10));
+    m_button_keyin->Bind(wxEVT_BUTTON, &PhrozenSelectMachineDialog::on_keyin, this);
+
     m_sizer_printer->Add(m_comboBox_printer, 0, wxEXPAND, 0);
     m_sizer_printer->Add(m_button_refresh, 0, wxALL | wxLEFT, FromDIP(5));
+    m_sizer_printer->Add(m_button_keyin, 0, wxALL | wxLEFT, FromDIP(0));
 
     m_text_printer_msg = new wxStaticText(m_basic_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
     m_text_printer_msg->SetMinSize(wxSize(FromDIP(420), -1));
@@ -2064,7 +2076,6 @@ void PhrozenSelectMachineDialog::on_send_print()
     if (m_print_type == PhrozenPrintFromType::FROM_NORMAL && m_is_in_sending_mode)
         return;
 
-    int result = 0;
     if (m_printer_last_select_ip.empty()) {
         return;
     }
@@ -2173,7 +2184,12 @@ void PhrozenSelectMachineDialog::on_send_print()
     }
     
     // 5. 使用當前列印板索引並進行檔案上傳與送印
-    m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
+    bool bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
+    if ( bSuccessSend )
+    {
+        
+    }
+
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
     
     // 6. 還原各自列印配置檔案的原始 print_host 值（只有在值真的改變時才需要還原）
@@ -2418,6 +2434,54 @@ void PhrozenSelectMachineDialog::on_refresh(wxCommandEvent &event)
     show_status(PhrozenPrintDialogStatus::PrintStatusRefreshingMachineList);
 
     update_user_machine_list();
+}
+
+void PhrozenSelectMachineDialog::on_keyin(wxCommandEvent &event)
+{
+    bool bIpValid = false;
+    std::string strReceiveIp;
+    auto fnTestConnect =[&]( std::string strIp ) -> bool
+    {
+        strReceiveIp = strIp;
+        //test printer connect
+        DynamicPrintConfig kConfig = wxGetApp().preset_bundle->printers.get_edited_preset().config;
+        kConfig.set_key_value( "print_host",  new ConfigOptionString( strIp ) );
+        std::unique_ptr<PrintHost> host(PrintHost::get_print_host(&kConfig));
+        if (!host) {
+            const wxString text = _L("Could not get a valid Printer Host reference");
+            show_error(this, text);
+            return bIpValid;
+        }
+
+        wxString msg;
+        bool result;
+        {
+            // Show a wait cursor during the connection test, as it is blocking UI.
+            wxBusyCursor wait;
+            result = host->test(msg);
+        }
+
+        if (result) {
+            bIpValid = true;
+            return true;
+        }
+        else
+        {
+            show_error(this, host->get_test_failed_msg(msg));
+            bIpValid = false;
+            return false;
+        }
+    };
+
+    PhrozenInputIpAddressDialog kIpSelect( this );
+    kIpSelect.SetProcessFunction( fnTestConnect );
+    kIpSelect.ShowModal();
+
+    if ( bIpValid )
+    {
+        m_printer_last_select_ip = strReceiveIp;
+        on_send_print();
+    }
 }
 
 void PhrozenSelectMachineDialog::on_print_job_cancel(wxCommandEvent &evt)

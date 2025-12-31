@@ -23,6 +23,7 @@
 #include <wx/artprov.h>
 #include <wx/wrapsizer.h>
 #include <wx/srchctrl.h>
+#include <functional>
 
 //#include "../ReleaseNote.hpp"
 #include "../GUI_Utils.hpp"
@@ -113,6 +114,9 @@ public:
     void on_ok(wxMouseEvent& evt);
     void on_text(wxCommandEvent& evt);
     void on_dpi_changed(const wxRect& suggested_rect) override;
+
+    void SetProcessFunction( std::function<bool( std::string )> func );
+    std::function<bool( std::string )> m_fnProcessOnOk = nullptr;
 };
 #pragma endregion
 

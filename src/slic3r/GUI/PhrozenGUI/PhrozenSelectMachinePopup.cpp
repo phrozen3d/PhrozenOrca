@@ -305,11 +305,21 @@ void PhrozenInputIpAddressDialog::on_ok(wxMouseEvent& evt)
     Layout();
     Fit();
 
-    PhrozenIpConnectDialog kConnect(this);
-    kConnect.set_ip_address( str_ip );
-    kConnect.Show();
-    //auto kState = kConnect.ShowModal();
-    if (  kConnect.ShowModal() == wxID_YES  )//( kConnect.IsConnectSuccess() )
+    bool bConnectOk = false;
+    if ( m_fnProcessOnOk )
+    {
+        bConnectOk = m_fnProcessOnOk( str_ip );
+    }
+    else
+    {
+        //basic process: connect to phrozen machine
+        PhrozenIpConnectDialog kConnect(this);
+        kConnect.set_ip_address( str_ip );
+        kConnect.Show();
+        bConnectOk = kConnect.ShowModal() == wxID_YES;
+    }
+
+    if (  bConnectOk  )
     {
         on_cancel();
     }
@@ -333,8 +343,6 @@ void PhrozenInputIpAddressDialog::on_ok(wxMouseEvent& evt)
         Layout();
         Fit();
     }
-
-    //m_thread = new boost::thread(boost::bind(&PhrozenInputIpAddressDialog::workerPhrozenMonitorThreadFunc, this, str_ip));
 }
 
 void PhrozenInputIpAddressDialog::on_text(wxCommandEvent &evt)
@@ -374,6 +382,12 @@ void PhrozenInputIpAddressDialog::on_dpi_changed(const wxRect& suggested_rect)
 {
 
 }
+
+void PhrozenInputIpAddressDialog::SetProcessFunction( std::function<bool(std::string )> func )
+{
+    m_fnProcessOnOk = func;
+}
+
 #pragma endregion 
 
  #pragma region  PhrozenIpConnectDialog

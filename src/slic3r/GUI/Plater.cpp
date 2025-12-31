@@ -12824,17 +12824,17 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
     // and let the background processing start.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
 }
-void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf)
+bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf)
 {
     // if physical_printer is selected, send gcode for this printer
     // DynamicPrintConfig* physical_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
     DynamicPrintConfig* physical_printer_config = &Slic3r::GUI::wxGetApp().preset_bundle->printers.get_edited_preset().config;
     if (! physical_printer_config || p->model.objects.empty())
-        return;
+        return false;
 
     PrintHostJob upload_job(physical_printer_config);
     if (upload_job.empty())
-        return;
+        return false;
 
     upload_job.upload_data.use_3mf = use_3mf;
 
@@ -12845,15 +12845,15 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
         // Also if there is something wrong with the current configuration, a pop-up dialog will be shown and the export will not be performed.
         unsigned int state = this->p->update_restart_background_process(false, false);
         if (state & priv::UPDATE_BACKGROUND_PROCESS_INVALID)
-            return;
+            return false;
         default_output_file = this->p->background_process.output_filepath_for_project("");
     } catch (const Slic3r::PlaceholderParserError& ex) {
         // Show the error with monospaced font.
         show_error(this, ex.what(), true);
-        return;
+        return false;
     } catch (const std::exception& ex) {
         show_error(this, ex.what(), false);
-        return;
+        return false;
     }
     default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.string()));
     if (use_3mf) {
@@ -12876,7 +12876,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
             upload_job.printhost->get_storage(storage_paths, storage_names);
         } catch (const Slic3r::IOError& ex) {
             show_error(this, ex.what(), false);
-            return;
+            return false;
         }
     }
 
@@ -12898,7 +12898,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
 
         pDlg->init();
         if (pDlg->ShowModal() != wxID_OK) {
-            return;
+            return false;
         }
 
         config->set_bool("open_device_tab_post_upload", pDlg->switch_to_device_tab());
@@ -12915,7 +12915,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
     if (std::string(upload_job.printhost->get_name()) == "PrusaConnect" && upload_job.upload_data.post_action == PrintHostPostUploadAction::StartPrint) {
         GUI::MessageDialog dlg(nullptr, _L("Is the printer ready? Is the print sheet in place, empty and clean?"), _L("Upload and Print"), wxOK | wxCANCEL);
         if (dlg.ShowModal() != wxID_OK)
-            return;
+            return false;
     }
 
     if (use_3mf) {
@@ -12925,13 +12925,14 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
         if (result < 0) {
             wxString msg = _L("Abnormal print file data. Please slice again");
             show_error(this, msg, false);
-            return;
+            return false;
         }
 
         upload_job.upload_data.source_path = p->m_print_job_data._3mf_path;
     }
 
     p->export_gcode(fs::path(), false, std::move(upload_job));
+    return true;
 }
 int Plater::send_gcode(int plate_idx, Export3mfProgressFn proFn)
 {

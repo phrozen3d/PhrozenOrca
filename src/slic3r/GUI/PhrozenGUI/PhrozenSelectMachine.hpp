@@ -273,6 +273,7 @@ protected:
     wxBoxSizer*                         rename_sizer_h{ nullptr };
     wxBoxSizer*                         m_sizer_autorefill{ nullptr };
     Button*                             m_button_refresh{ nullptr };
+    Button*                             m_button_keyin{ nullptr };
     Button*                             m_button_ensure{ nullptr };
     wxStaticBitmap *                    m_rename_button{nullptr};
     ComboBox*                           m_comboBox_printer{ nullptr };
@@ -365,6 +366,7 @@ public:
     void Enable_Auto_Refill(bool enable);
     void clear_ip_address_config(wxCommandEvent& e);
     void on_refresh(wxCommandEvent& event);
+    void on_keyin(wxCommandEvent& event);
     void on_print_job_cancel(wxCommandEvent& evt);
     void set_default();
     void reset_and_sync_ams_list();
