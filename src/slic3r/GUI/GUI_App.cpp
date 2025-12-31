@@ -1881,6 +1881,12 @@ GUI_App::~GUI_App()
         delete preset_updater;
     }
 
+    if ( IsConnectingMachine() )
+    {
+        ProcessPhrozenDisconnect();
+    }
+    
+
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< boost::format(": exit");
 }
 

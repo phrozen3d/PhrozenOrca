@@ -1299,7 +1299,11 @@ void PhrozenNetworkAgent::CleanupWebSocketConnection()
         m_pCurlMainWebsocket = nullptr;
     }
 
-    m_spWebServiceInfo->reset();
+    if ( m_spWebServiceInfo )
+    {
+        m_spWebServiceInfo->reset();
+    }
+    
 }
 
 void PhrozenNetworkAgent::SetStartSending( bool bStart )
