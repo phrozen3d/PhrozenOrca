@@ -1789,7 +1789,7 @@ bool PhrozenSelectMachineDialog::is_same_printer_model()
 
     MachineObject* obj_ = dev->get_selected_machine();
 
-    assert(obj_->dev_id == m_printer_last_select);
+    assert(obj_->dev_id == m_printer_last_select_ip);
     if (obj_ == nullptr) {
         return result;
     }
