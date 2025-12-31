@@ -43,10 +43,6 @@ elseif (APPLE)
     -DCMAKE_USE_OPENSSL:BOOL=ON
 
     -DCURL_CA_PATH:STRING=none
-
-    # Explicitly prevent libidn2 auto-detection by setting paths to empty
-    -DLibidn2_LIBRARY:FILEPATH=""
-    -DLibidn2_INCLUDE_DIR:PATH=""
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(_curl_platform_flags 
