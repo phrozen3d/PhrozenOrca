@@ -533,6 +533,29 @@ find_package(TBB REQUIRED)
 # add_definitions(-DTBB_USE_CAPTURED_EXCEPTION=0)
 
 find_package(OpenSSL REQUIRED)
+
+# Prefer curl from deps directory if CMAKE_PREFIX_PATH is set
+# This ensures both Release and Debug builds use the project's internal curl
+if(CMAKE_PREFIX_PATH)
+    # Extract the first path from CMAKE_PREFIX_PATH
+    list(GET CMAKE_PREFIX_PATH 0 DEPS_PREFIX)
+    set(DEPS_CURL_LIB "${DEPS_PREFIX}/lib/libcurl.a")
+    set(DEPS_CURL_INCLUDE "${DEPS_PREFIX}/include")
+    
+    # Check if deps curl exists and set it explicitly before find_package
+    if(EXISTS "${DEPS_CURL_LIB}" AND EXISTS "${DEPS_CURL_INCLUDE}/curl/curl.h")
+        message(STATUS "Using curl from deps: ${DEPS_CURL_LIB}")
+        # Set variables in CACHE with FORCE to override any existing values
+        # This must be done before find_package to prevent it from finding system curl
+        set(CURL_INCLUDE_DIR "${DEPS_CURL_INCLUDE}" CACHE PATH "CURL include directory" FORCE)
+        set(CURL_LIBRARY_RELEASE "${DEPS_CURL_LIB}" CACHE FILEPATH "CURL library (Release)" FORCE)
+        set(CURL_LIBRARY_DEBUG "${DEPS_CURL_LIB}" CACHE FILEPATH "CURL library (Debug)" FORCE)
+        set(CURL_LIBRARY "${DEPS_CURL_LIB}" CACHE FILEPATH "CURL library" FORCE)
+        # Mark as advanced to prevent CMake GUI from showing them
+        mark_as_advanced(CURL_INCLUDE_DIR CURL_LIBRARY_RELEASE CURL_LIBRARY_DEBUG CURL_LIBRARY)
+    endif()
+endif()
+
 find_package(CURL REQUIRED)
 
 

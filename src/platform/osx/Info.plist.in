@@ -22,8 +22,6 @@
   <string>????</string>
   <key>CFBundleVersion</key>
   <string>@SLIC3R_BUILD_ID@</string>
-  <key>ATSApplicationFontsPath</key>
-  <string>fonts/</string>
   <key>CFBundleURLTypes</key>
   <array>
     <dict>
@@ -36,6 +34,8 @@
       </array>
     </dict>
   </array>
+  <key>ATSApplicationFontsPath</key>
+  <string>fonts/</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>

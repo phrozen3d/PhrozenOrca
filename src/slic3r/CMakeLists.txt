@@ -693,13 +693,14 @@ elseif (APPLE)
     # curl 8.11.0 with WebSocket support requires additional dependencies on macOS
     # These libraries are required for proper WebSocket functionality:
     # - SystemConfiguration: Provides macOS system proxy settings (required by curl)
-    # - libidn2, libpsl, libssh2: Optional but may be needed depending on curl build config
+    # - libidn2, libpsl, libssh2: Disabled - not needed when curl uses Secure Transport instead of OpenSSL
     find_library(SYSTEMCONFIGURATION_FRAMEWORK SystemConfiguration)
     if(SYSTEMCONFIGURATION_FRAMEWORK)
         target_link_libraries(libslic3r_gui ${SYSTEMCONFIGURATION_FRAMEWORK})
     endif()
     # Optional curl dependencies - may be required depending on curl build configuration
     # These are linked as optional since they may not be available on all macOS installations
+    # NOTE: Disabled because curl now uses Secure Transport instead of OpenSSL, these libraries are no longer needed
     # find_library(LIBIDN2_LIB NAMES idn2)
     # if(LIBIDN2_LIB)
     #     target_link_libraries(libslic3r_gui ${LIBIDN2_LIB})

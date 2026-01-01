@@ -1,4 +1,4 @@
-set(_curl_platform_flags
+set(_curl_platform_flags 
   -DENABLE_IPV6:BOOL=ON
   -DENABLE_VERSIONED_SYMBOLS:BOOL=ON
   -DENABLE_THREADED_RESOLVER:BOOL=ON
@@ -16,16 +16,17 @@ set(_curl_platform_flags
   -DCURL_DISABLE_GOPHER:BOOL=ON
   -DCURL_DISABLE_TFTP:BOOL=ON
   -DCURL_DISABLE_MQTT:BOOL=ON
+  -DCURL_DISABLE_IDN:BOOL=ON
+  -DCURL_DISABLE_PSL:BOOL=ON
+  -DCURL_DISABLE_SCP:BOOL=ON
+  -DCURL_DISABLE_SFTP:BOOL=ON
+  -DCURL_USE_LIBPSL:BOOL=OFF
+  -DUSE_LIBIDN2:BOOL=OFF
+  -DCURL_USE_LIBSSH2:BOOL=OFF
   #-DHTTP_ONLY=ON
 
   -DCMAKE_USE_GSSAPI:BOOL=OFF
   -DCMAKE_USE_LIBSSH2:BOOL=OFF
-  -DCURL_USE_LIBSSH2:BOOL=OFF
-  -DCURL_DISABLE_SCP:BOOL=ON
-  -DCURL_DISABLE_SFTP:BOOL=ON
-  -DUSE_LIBIDN2:BOOL=OFF
-  -DCURL_USE_LIBIDN2:BOOL=OFF
-  -DHAVE_LIBIDN2:BOOL=OFF
   -DUSE_RTMP:BOOL=OFF
   -DUSE_NGHTTP2:BOOL=OFF
   -DUSE_MBEDTLS:BOOL=OFF
@@ -35,18 +36,14 @@ if (WIN32)
   #set(_curl_platform_flags  ${_curl_platform_flags} -DCMAKE_USE_SCHANNEL=ON)
   set(_curl_platform_flags  ${_curl_platform_flags} -DCMAKE_USE_OPENSSL=ON -DCURL_CA_PATH:STRING=none)
 elseif (APPLE)
-  set(_curl_platform_flags
-
+  set(_curl_platform_flags 
+    
     ${_curl_platform_flags}
 
-    #-DCMAKE_USE_SECTRANSP:BOOL=ON
+    #-DCMAKE_USE_SECTRANSP:BOOL=ON 
     -DCMAKE_USE_OPENSSL:BOOL=ON
 
     -DCURL_CA_PATH:STRING=none
-
-    # Explicitly prevent libidn2 auto-detection by setting paths to empty
-    -DLibidn2_LIBRARY:FILEPATH=""
-    -DLibidn2_INCLUDE_DIR:PATH=""
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(_curl_platform_flags 
