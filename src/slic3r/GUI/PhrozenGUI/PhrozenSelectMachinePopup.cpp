@@ -467,10 +467,22 @@ int PhrozenIpConnectDialog::ShowModal()
     return DPIDialog::ShowModal();
 }
 
+void PhrozenIpConnectDialog::ConnectWithoutModal()
+{
+    m_bWithoutShowModal = true;
+    start_connect();
+}
+
 void PhrozenIpConnectDialog::start_connect()
 {
     if (m_ip_address.empty()) {
         post_update_msg(_L("IP address not set"), true);
+        return;
+    }
+
+    if ( m_bWithoutShowModal )
+    {
+        workerConnectThreadFunc( m_ip_address );
         return;
     }
 
@@ -491,6 +503,7 @@ void PhrozenIpConnectDialog::on_cancel()
 
 void PhrozenIpConnectDialog::post_update_msg(wxString text, bool is_error)
 {
+    if ( m_bWithoutShowModal ) return;
     wxCommandEvent event(EVT_PHROZEN_UPDATE_CONNECT_MSG);
     event.SetEventObject(this);
     event.SetString(text);
@@ -525,10 +538,15 @@ void PhrozenIpConnectDialog::workerConnectThreadFunc(std::string str_ip)
 
     m_bSuccess = wxGetApp().InitPhrozenConnector(str_ip);
 
-    CallAfter([this]() {
-        
-        closeCount = 1;
+    if ( m_bWithoutShowModal && m_bSuccess )
+    {
+        wxGetApp().ProcessPhrozenConnector();
+        return;
+    }
 
+    CallAfter([this]() {
+
+        closeCount = 1;
         if ( m_bSuccess )
         {
             wxGetApp().ProcessPhrozenConnector();

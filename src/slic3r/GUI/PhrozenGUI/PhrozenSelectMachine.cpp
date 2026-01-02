@@ -2084,7 +2084,6 @@ void PhrozenSelectMachineDialog::on_send_print()
     bool bIsAutoLeveling    = m_checkbox_list[ EPhrozenPrintOption::Auto_Leveling ]->GetValue();
     bool bIsUseChroma_Kit   = m_checkbox_list[ EPhrozenPrintOption::Chroma_Kit ]->GetValue();
 
-    //[TODO] use ip to send print
     // 決定使用哪種格式
     bool use_3mf=false;// 根據需求設定
     // 例如：如果需要保留完整專案資訊，設為 true
@@ -2196,7 +2195,10 @@ void PhrozenSelectMachineDialog::on_send_print()
     }
     if ( bSuccessSend )
     {
-        
+    	//確認送印成功，要同步連接device page的ip connect
+        PhrozenIpConnectDialog kConnect( this );
+        kConnect.set_ip_address( m_printer_last_select_ip );
+        kConnect.ConnectWithoutModal();
     }
 
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";

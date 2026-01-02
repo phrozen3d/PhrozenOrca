@@ -130,6 +130,7 @@ public:
 
     void set_ip_address(const std::string& ip);
     int ShowModal() wxOVERRIDE;
+    void ConnectWithoutModal();
     bool IsConnectSuccess() { return m_bSuccess; }
 
 private:
@@ -142,6 +143,7 @@ private:
     int closeCount{3};
     std::shared_ptr<BBLStatusBarSend> m_status_bar;
     bool m_bSuccess = false;
+    bool m_bWithoutShowModal = false;
 
     void on_cancel();
     void post_update_msg(wxString text, bool is_error);
