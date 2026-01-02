@@ -30,6 +30,7 @@
 #include "../Notebook.hpp"
 #include "../BitmapCache.hpp"
 #include "../BindDialog.hpp"
+#include "../MsgDialog.hpp"
 
 namespace Slic3r { namespace GUI {
 
@@ -2184,7 +2185,15 @@ void PhrozenSelectMachineDialog::on_send_print()
     }
     
     // 5. 使用當前列印板索引並進行檔案上傳與送印
-    bool bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
+    // Hide this dialog before showing the upload dialog (PrintHostSendDialog)
+    this->Hide();
+    bool bSuccessSend = false;
+    try {
+        bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
+    } catch (...) {
+        // Ensure print_host restoration happens even if send_gcode_legacy throws an exception
+        BOOST_LOG_TRIVIAL(error) << "Exception occurred in send_gcode_legacy()";
+    }
     if ( bSuccessSend )
     {
         
@@ -2222,6 +2231,9 @@ void PhrozenSelectMachineDialog::on_send_print()
     if (m_plater) {
         m_plater->set_skip_apply_for_phrozen_print(false);
     }
+    
+    // 7. 關閉對話框，將控制權還給主畫面（無論成功或取消）
+    this->EndModal(wxID_OK);
 
 #if 0
     MachineObject* obj_ = dev->get_selected_machine();
@@ -2440,7 +2452,9 @@ void PhrozenSelectMachineDialog::on_keyin(wxCommandEvent &event)
 {
     bool bIpValid = false;
     std::string strReceiveIp;
-    auto fnTestConnect =[&]( std::string strIp ) -> bool
+    PhrozenInputIpAddressDialog kIpSelect( this );
+
+    auto fnTestConnect = [&]( std::string strIp ) -> bool
     {
         strReceiveIp = strIp;
         //test printer connect
@@ -2449,7 +2463,10 @@ void PhrozenSelectMachineDialog::on_keyin(wxCommandEvent &event)
         std::unique_ptr<PrintHost> host(PrintHost::get_print_host(&kConfig));
         if (!host) {
             const wxString text = _L("Could not get a valid Printer Host reference");
-            show_error(this, text);
+            // Directly create and show error dialog synchronously, without using CallAfter
+            // This ensures the error dialog appears on top of the modal dialog
+            ErrorDialog errorDlg(&kIpSelect, text, false);
+            errorDlg.ShowModal();
             return bIpValid;
         }
 
@@ -2467,13 +2484,15 @@ void PhrozenSelectMachineDialog::on_keyin(wxCommandEvent &event)
         }
         else
         {
-            show_error(this, host->get_test_failed_msg(msg));
+            // Directly create and show error dialog synchronously, without using CallAfter
+            // This ensures the error dialog appears on top of the modal dialog
+            ErrorDialog errorDlg(&kIpSelect, host->get_test_failed_msg(msg), false);
+            errorDlg.ShowModal();
             bIpValid = false;
             return false;
         }
     };
 
-    PhrozenInputIpAddressDialog kIpSelect( this );
     kIpSelect.SetProcessFunction( fnTestConnect );
     kIpSelect.ShowModal();
 
