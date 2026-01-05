@@ -2009,13 +2009,6 @@ bool Sidebar::is_collapsed() { return p->plater->is_sidebar_collapsed(); }
 
 void Sidebar::collapse(bool collapse) { p->plater->collapse_sidebar(collapse); }
 
-#ifdef _MSW_DARK_MODE
-void Sidebar::show_mode_sizer(bool show)
-{
-    //p->mode_sizer->Show(show);
-}
-#endif
-
 void Sidebar::update_ui_from_settings()
 {
     // BBS

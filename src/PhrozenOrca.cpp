@@ -81,6 +81,7 @@ using namespace nlohmann;
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/Camera.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/GUI_App.hpp"
 #include <GLFW/glfw3.h>
 
 #ifdef __WXGTK__

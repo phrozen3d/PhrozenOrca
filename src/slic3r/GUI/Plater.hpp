@@ -19,7 +19,6 @@
 #include "Jobs/Worker.hpp"
 #include "Search.hpp"
 #include "PartPlate.hpp"
-#include "GUI_App.hpp"
 #include "Jobs/PrintJob.hpp"
 #include "Jobs/SendJob.hpp"
 #include "libslic3r/Model.hpp"
@@ -53,6 +52,7 @@ class SlicingStatusEvent;
 enum SLAPrintObjectStep : unsigned int;
 enum class ConversionType : int;
 class Ams;
+class MachineObject;
 
 using ModelInstancePtrs = std::vector<ModelInstance*>;
 
@@ -191,9 +191,6 @@ public:
     void                    auto_calc_flushing_volumes(const int modify_id);
     void                    jump_to_object(ObjectDataViewModelNode* item);
     void                    can_search();
-#ifdef _MSW_DARK_MODE
-    void                    show_mode_sizer(bool show);
-#endif
 
     std::vector<PlaterPresetComboBox*>&   combos_filament();
     Search::OptionsSearcher&        get_searcher();

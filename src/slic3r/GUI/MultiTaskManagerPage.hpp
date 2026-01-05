@@ -1,7 +1,6 @@
 #ifndef slic3r_MultiTaskManagerPage_hpp_
 #define slic3r_MultiTaskManagerPage_hpp_
 
-#include "GUI_App.hpp"
 #include "GUI_Utils.hpp"
 #include "MultiMachine.hpp"
 #include "DeviceManager.hpp"
