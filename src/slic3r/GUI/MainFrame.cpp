@@ -1206,9 +1206,13 @@ void MainFrame::show_device(bool bBBLPrinter) {
                 m_printer_view->load_url(url, key);
             });
         }
-        m_printer_view->Show(false);
-        m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device_Console"), std::string("tab_monitor_active"),
+
+        if (GUI::wxGetApp().IsPhrozenDeveloperMode() )
+        {
+            m_printer_view->Show(false);
+            m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device_Console"), std::string("tab_monitor_active"),
                                std::string("tab_monitor_active"));
+        }
     }
 }
 

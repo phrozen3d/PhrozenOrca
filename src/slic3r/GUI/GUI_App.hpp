@@ -701,7 +701,8 @@ public:
 
     std::unique_ptr< PhrozenNetworkAgent > m_spPhrozenAgent{ nullptr };
     PhrozenNetworkAgent* GetPhrozenNetworkAgent() { return m_spPhrozenAgent ? m_spPhrozenAgent.get() : nullptr; }
-
+    bool m_bPhrozenDeveloperMode{ false };
+    bool IsPhrozenDeveloperMode() { return m_bPhrozenDeveloperMode; } 
 
 #pragma endregion
 

@@ -780,7 +780,14 @@ Sidebar::Sidebar(Plater *parent)
         vsizer_printer->AddSpacer(FromDIP(16));
         hsizer_printer->Add(combo_printer, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
         hsizer_printer->Add(edit_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
-        hsizer_printer->Add(connection_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        if (GUI::wxGetApp().IsPhrozenDeveloperMode() )
+        {
+            hsizer_printer->Add(connection_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        }
+        else
+        {
+            connection_btn->Hide();
+        }
         hsizer_printer->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
         vsizer_printer->Add(hsizer_printer, 0, wxEXPAND, 0);
 
