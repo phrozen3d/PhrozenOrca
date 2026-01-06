@@ -919,6 +919,7 @@ struct HttpErrorInfo {
     bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data);
     int GetMachineList();
     CURLcode GetLEDState();
+    void ResetAMSList();
 
     const std::vector<AMSInfo>& GetAMSList();
     const bool& IsConnectedToAMS();

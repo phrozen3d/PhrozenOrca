@@ -2325,6 +2325,11 @@ void PhrozenStatusBasePanel::update_bed_target_temp( int nTemp )
 void PhrozenStatusBasePanel::update_z_offset_value( float fZOffset )
 {
     if (m_staticText_zOffset_value) {
+        // Fix: When z-offset changes from negative to zero, it might be -0.0 due to floating point precision
+        // Set to 0.0 if the absolute value is very small to avoid displaying "-0.000"
+        if (fZOffset > -0.0001f && fZOffset < 0.0001f) {
+            fZOffset = 0.0f;
+        }
         m_staticText_zOffset_value->SetLabel(wxString::Format("%.3f", fZOffset));
     }
 }
@@ -5496,6 +5501,13 @@ void PhrozenStatusPanel::set_default()
     #endif
 
     reset_temp_misc_control();
+    // Reset AMS slot and External spool state when hiding panel
+    if (m_pFilamentControlPanel) {
+        FilamentSystemState kStatus;  // Empty state resets all slots and external spool
+        m_pFilamentControlPanel->UpdateFilamentState(kStatus);
+    }
+    // Reset m_kAMSList
+    MonitorControl::ResetAMSList();
     m_pFilamentControlPanel->Hide();
     error_info_reset();
     SetFocus();
@@ -5507,6 +5519,9 @@ void PhrozenStatusPanel::show_status(int status)
     if ( status <= 0 )
     {
         set_default();
+    }
+    else{
+        m_pFilamentControlPanel->Show(true);
     }
 }
 

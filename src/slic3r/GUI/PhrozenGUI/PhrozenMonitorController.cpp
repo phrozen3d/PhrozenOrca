@@ -1585,9 +1585,9 @@ CURLcode ReceiveResponse() {
                     }
                     else if (res == CURLE_RECV_ERROR) {
                         BOOST_LOG_TRIVIAL(info) << "receive error: " << endl;
-                        curl_easy_cleanup(m_pCurl_websocket);
-                        curl_global_cleanup();
-                        Initialconnect();
+                        //curl_easy_cleanup(m_pCurl_websocket);
+                        //curl_global_cleanup();
+                        //Initialconnect();
                     }
                 }
                 else {
@@ -3484,6 +3484,11 @@ CURLcode GetLEDState() {
     curl_global_cleanup();
 
     return res;
+}
+
+void ResetAMSList()
+{
+    m_kAMSList.clear();
 }
 
 CURLcode NozzleFilamentCheck()
