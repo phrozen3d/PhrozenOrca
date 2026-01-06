@@ -971,6 +971,11 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_staticText_monitoring->SetForegroundColour(PHROZEN_PAGE_TITLE_FONT_COL);
     bSizer_monitoring_title->Add(m_staticText_monitoring, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, PAGE_TITLE_LEFT_MARGIN);
 
+    m_pConsoleControllerPage = new wxHyperlinkCtrl(m_panel_monitoring_title, wxID_ANY, _L("Console Page"), wxT(""), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
+    m_pConsoleControllerPage->SetBackgroundColour( m_pConsoleControllerPage->GetParent()->GetBackgroundColour() );
+    m_pConsoleControllerPage->SetURL( wxT("") );
+    m_pConsoleControllerPage->Show();
+    bSizer_monitoring_title->Add(m_pConsoleControllerPage, 0, wxALIGN_CENTER | wxALL, FromDIP(5));
 
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0, 0);
     bSizer_monitoring_title->AddStretchSpacer();
@@ -984,7 +989,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_bmToggleBtn_timelapse->SetMinSize(SWITCH_BUTTON_SIZE);
     m_bmToggleBtn_timelapse->Hide();
     bSizer_monitoring_title->Add(m_bmToggleBtn_timelapse, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
-
+    
 #if !BBL_RELEASE_TO_PUBLIC
     m_staticText_timelapse->Show();
     m_bmToggleBtn_timelapse->Show();
@@ -3091,7 +3096,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     update_fan_cooling_speed_ctrl(obj);
     update_z_offset_ctrl(obj);
     update_webcam_lighting_status( obj );
-    
+    update_console_hyperlink( obj->GetConsolePageHyperlink() );
     if ( !IsWebCamRefreshTimerInitialized() )
     {
         InitWebCamUiUpdateTimer();
@@ -3224,6 +3229,12 @@ void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
     auto pObj = PhrozenObj();
     if ( pObj ) UpdateWebCameraView( pObj );
+}
+
+void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
+{
+    m_pConsoleControllerPage->Show();
+    m_pConsoleControllerPage->SetURL( strLink );
 }
 
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )

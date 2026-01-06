@@ -995,6 +995,13 @@ bool PhrozenMachineObject::IsAnyCalibrationRunning()
 {
     return MonitorControl::IsAnyCalibrationRunning();
 }
+
+std::string PhrozenMachineObject::GetConsolePageHyperlink()
+{
+    if ( dev_ip.empty() ) return "";
+    return dev_ip + ":8808";
+}
+
 #pragma endregion 
 
 

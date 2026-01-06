@@ -501,6 +501,9 @@ public:
     
     // Check if any calibration is running
     virtual bool IsAnyCalibrationRunning() { return false; }
+
+    // link to console page by local webside
+    virtual std::string GetConsolePageHyperlink() { return ""; }
 #pragma endregion
 
 public:

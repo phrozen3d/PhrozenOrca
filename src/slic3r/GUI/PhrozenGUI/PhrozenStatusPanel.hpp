@@ -32,6 +32,8 @@
 #include "../HMS.hpp"
 #include "../StatusPanel.hpp"
 
+class wxHyperlinkCtrl;
+
 namespace Slic3r {
 namespace GUI {
 class PhrozenFilamentControl;
@@ -221,7 +223,7 @@ public:
     wxBitmap m_kCurrentWebCamBitmap;
     std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
     bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
-
+    wxHyperlinkCtrl* m_pConsoleControllerPage{ nullptr };
 #pragma region OrcaOriginalMember
     protected:
     ScalableBitmap m_thumbnail_placeholder;
@@ -614,6 +616,7 @@ protected:
 
     void on_update_webcam_ui_timer(wxTimerEvent& event);
     void InitWebCamUiUpdateTimer();
+    void update_console_hyperlink( const std::string& strLink );
 
     /* lighting(LED) */
     void on_lighting_button_triggered( wxCommandEvent& event ) override;
