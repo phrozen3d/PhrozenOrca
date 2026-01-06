@@ -1669,8 +1669,8 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     auto frame_sizer = new wxBoxSizer(wxHORIZONTAL);
 
     // Left side - Tips panel
-    auto tips_panel = new wxPanel(frame_panel, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(200), FromDIP(296)));
-    tips_panel->SetBackgroundColour(*wxBLACK);
+    auto tips_panel = new wxPanel(frame_panel, wxID_ANY, wxDefaultPosition, wxSize(FromDIP(200), FromDIP(296)), wxBORDER_SIMPLE);
+    tips_panel->SetBackgroundColour( tips_panel->GetParent()->GetBackgroundColour() );
 
     auto tips_sizer = new wxBoxSizer(wxVERTICAL);
 
@@ -1679,17 +1679,18 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     tips_title->SetForegroundColour(*wxWHITE);
     tips_sizer->Add(tips_title, 0, wxALL, FromDIP(12));
 
-    auto tips_text = new wxStaticText(tips_panel, wxID_ANY, _L("Filament Tips"), wxDefaultPosition, wxSize(FromDIP(176), -1), wxST_NO_AUTORESIZE);
+    auto tips_text = new wxStaticText(tips_panel, wxID_ANY, _L("Please insert the filament wire into the slot and wait until it's on standby"), wxDefaultPosition, wxSize(FromDIP(176), -1), wxST_NO_AUTORESIZE);
     tips_text->SetFont(Label::Body_12);
     tips_text->SetForegroundColour(*wxWHITE);
     tips_text->Wrap(FromDIP(176));
     tips_sizer->Add(tips_text, 1, wxLEFT | wxRIGHT | wxEXPAND, FromDIP(12));
 
-    auto tips_warning = new wxStaticText(tips_panel, wxID_ANY, _L("Filament Tips"), wxDefaultPosition, wxSize(FromDIP(176), -1), wxST_NO_AUTORESIZE);
-    tips_warning->SetFont(Label::Body_12);
-    tips_warning->SetForegroundColour(wxColour(255, 182, 73));
-    tips_warning->Wrap(FromDIP(176));
-    tips_sizer->Add(tips_warning, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(12));
+    // secondary tips, but now not use
+    //auto tips_warning = new wxStaticText(tips_panel, wxID_ANY, _L("Filament Tips"), wxDefaultPosition, wxSize(FromDIP(176), -1), wxST_NO_AUTORESIZE);
+    //tips_warning->SetFont(Label::Body_12);
+    //tips_warning->SetForegroundColour(wxColour(255, 182, 73));
+    //tips_warning->Wrap(FromDIP(176));
+    //tips_sizer->Add(tips_warning, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(12));
 
     tips_panel->SetSizer(tips_sizer);
     frame_sizer->Add(tips_panel, 0, wxALL, FromDIP(12));
