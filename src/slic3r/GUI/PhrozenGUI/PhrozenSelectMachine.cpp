@@ -646,7 +646,7 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_comboBox_printer->Bind(wxEVT_COMBOBOX, &PhrozenSelectMachineDialog::on_selection_changed, this);
 
 
-    m_btn_bg_enable = StateColor(std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed), std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
+    m_btn_bg_enable = StateColor(std::pair<wxColour, int>(wxColour(221, 80, 19), StateColor::Pressed), std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
                                std::pair<wxColour, int>(wxColour(255, 124, 63), StateColor::Normal));
 
     m_button_refresh = new Button(m_basic_panel, _L("Refresh"));
@@ -1842,6 +1842,11 @@ void PhrozenSelectMachineDialog::on_send_btn_pressed(wxCommandEvent &event)
 {
 
     this->on_send_print();
+    
+    // 重置按鈕狀態到 Normal，確保視覺上恢復正常
+    if (m_button_ensure && m_button_ensure->IsEnabled()) {
+        m_button_ensure->Refresh();  // 強制重繪，清除 pressed 狀態
+    }
 
 #if 0 //Temporarily closed because there is not enough time to improve it for phrozen style.
     bool has_slice_warnings = false;
@@ -3144,6 +3149,14 @@ void PhrozenSelectMachineDialog::set_default()
     }
     else if (m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW) {
         ShowMessageNotSupportSdCardView();
+    }
+    
+    // 清除「傳送」按鈕的 Hovered 狀態，確保重新打開對話框時按鈕不會保持 hovered 狀態
+    if (m_button_ensure) {
+        // 模擬 wxEVT_LEAVE_WINDOW 事件來清除 Hovered 狀態
+        wxMouseEvent evt_leave(wxEVT_LEAVE_WINDOW);
+        m_button_ensure->GetEventHandler()->ProcessEvent(evt_leave);
+        m_button_ensure->Refresh();
     }
 
     Layout();
