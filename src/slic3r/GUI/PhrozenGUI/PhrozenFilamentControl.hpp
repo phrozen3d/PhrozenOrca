@@ -160,6 +160,9 @@ private:
 
     FilamentSystemState m_kFilamentState;
 
+    wxStaticBitmap* m_spool_tip = {nullptr};
+    wxStaticBitmap* m_ams_tip = {nullptr};
+
     wxDECLARE_EVENT_TABLE();
 };
 
