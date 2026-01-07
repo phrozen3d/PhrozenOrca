@@ -1675,14 +1675,12 @@ wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
     auto tips_sizer = new wxBoxSizer(wxVERTICAL);
 
     auto tips_title = new wxStaticText(tips_panel, wxID_ANY, _L("Tips"), wxDefaultPosition, wxDefaultSize, 0);
-    tips_title->SetFont(Label::Head_13);
-    tips_title->SetForegroundColour(*wxWHITE);
+    tips_title->SetFont(Label::Head_14);
     tips_sizer->Add(tips_title, 0, wxALL, FromDIP(12));
 
     auto tips_text = new wxStaticText(tips_panel, wxID_ANY, _L("Please insert the filament wire into the slot and wait until it's on standby"), wxDefaultPosition, wxSize(FromDIP(176), -1), wxST_NO_AUTORESIZE);
-    tips_text->SetFont(Label::Body_12);
-    tips_text->SetForegroundColour(*wxWHITE);
-    tips_text->Wrap(FromDIP(176));
+    tips_text->SetFont(Label::Body_13);
+    tips_text->Show();
     tips_sizer->Add(tips_text, 1, wxLEFT | wxRIGHT | wxEXPAND, FromDIP(12));
 
     // secondary tips, but now not use
