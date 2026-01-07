@@ -39,13 +39,13 @@ FilamentStatusPanel::FilamentStatusPanel(wxWindow* parent, wxWindowID id, const 
     }
     SetMinSize(wxSize(375, 168));  // 76 (SpoolHolder) + 10 (gap) + 289 (original panel)
     
-    auto kbmp_Cartridge = ScalableBitmap(this, "PhrozenImages/AMS_Tooltips_Cartridge", 200);
-    m_spool_tip = new wxStaticBitmap(this, wxID_ANY, wxNullBitmap);
-    m_spool_tip->SetBitmap( kbmp_Cartridge.bmp() );
+    //auto kbmp_Cartridge = ScalableBitmap(this, "PhrozenImages/AMS_Tooltips_Cartridge", 200);
+    //m_spool_tip = new wxStaticBitmap(this, wxID_ANY, wxNullBitmap);
+    //m_spool_tip->SetBitmap( kbmp_Cartridge.bmp() );
 
-    auto kbmp_Ams = ScalableBitmap(this, "PhrozenImages/AMS_Tooltips_Ams", 200);
-    m_ams_tip = new wxStaticBitmap(this, wxID_ANY, wxNullBitmap);
-    m_ams_tip->SetBitmap( kbmp_Ams.bmp() );
+    //auto kbmp_Ams = ScalableBitmap(this, "PhrozenImages/AMS_Tooltips_Ams", 200);
+    //m_ams_tip = new wxStaticBitmap(this, wxID_ANY, wxNullBitmap);
+    //m_ams_tip->SetBitmap( kbmp_Ams.bmp() );
 }
 
 FilamentStatusPanel::~FilamentStatusPanel()
