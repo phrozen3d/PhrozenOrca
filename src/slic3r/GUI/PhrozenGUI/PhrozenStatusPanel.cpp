@@ -3107,6 +3107,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     }
 
     update_ams(obj);
+    update_cali_phrozen(obj);
 
 
 #if 0
@@ -3970,6 +3971,23 @@ void PhrozenStatusPanel::update_cali(MachineObject *obj)
     //        m_calibration_btn->Enable();
     //    }
     //}
+}
+
+void PhrozenStatusPanel::update_cali_phrozen(MachineObject *obj)
+{
+    if (!obj) return;
+    
+    // ============================================
+    // 更新校準按鈕狀態：列印中時禁用，其他狀態啟用
+    // ============================================
+    if (m_calibration_btn) {
+        std::string print_status = obj->GetPhrozenPrintStatus();
+        if (print_status == "printing") {
+            m_calibration_btn->Disable();
+        } else {
+            m_calibration_btn->Enable();
+        }
+    }
 }
 
 void PhrozenStatusPanel::update_calib_bitmap() {

@@ -604,6 +604,7 @@ protected:
     void update_ams_phrozen();
     void update_extruder_status(MachineObject* obj);
     void update_cali(MachineObject* obj);
+    void update_cali_phrozen(MachineObject* obj);
     void update_calib_bitmap();
 
     void reset_printing_values();
