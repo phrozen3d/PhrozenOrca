@@ -82,6 +82,8 @@ public:
 
     // Cooperative stopping: Notify the loop to end, join without holding locks, set to nullptr
     void Stop() {
+        if ( m_stopping.load(std::memory_order_acquire) ) return;
+
         std::unique_ptr<std::thread> localThread;
 
         {
@@ -116,7 +118,10 @@ public:
     }
 
     ~WorkerFuncSafe() {
-        Stop(); // Ensure resource recycling
+        if ( m_thread ) 
+        {
+            Stop(); // Ensure resource recycling
+        }
     }
 
 private:

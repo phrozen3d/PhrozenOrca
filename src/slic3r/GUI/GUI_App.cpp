@@ -7059,6 +7059,12 @@ void RunReceiveThumbnail()
     while(MonitorControl::IsStartSending()){
         if(MonitorControl::IsStartThumbnailChecking() && MonitorControl::isReadFromGcodeFinished){
             auto pObject = wxGetApp().GetPhrozenMachineObject();
+            if ( !pObject ) 
+            {
+                std::cout << "[GUI_App] RunReceiveThumbnail: machine object is null!" << std::endl;
+                break;
+            }
+
             std::string gcode_name = pObject->GetPhrozenPrintFile();
             if ( pObject && !gcode_name.empty())
             {
