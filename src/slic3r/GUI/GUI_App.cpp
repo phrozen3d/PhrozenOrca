@@ -6970,12 +6970,12 @@ void GUI_App::ProcessPhrozenDisconnect()
     MonitorControl::SetStartReceiving( false );
     MonitorControl::SetStartSending( false );
     MonitorControl::SetIp("");
-    pPhrozenMachineObject = nullptr;
-
     if ( m_spPhrozenManager->IsMachineConnecting() )
     {
         m_spPhrozenManager->DisconnectMachine();
     }
+
+    pPhrozenMachineObject = nullptr;
 }
 
 PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()

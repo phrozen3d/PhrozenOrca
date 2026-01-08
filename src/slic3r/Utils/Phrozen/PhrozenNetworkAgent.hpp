@@ -37,7 +37,8 @@ public:
         : m_runFunc(std::move(runFunc)),
           m_loopSleep(loopSleep),
           m_running(false),
-          m_stopping(false) {}
+          m_stopping(false),
+          m_processing(false){}
 
     bool Process( bool bNonBlockingIfStopping = false ) {
         std::unique_lock<std::mutex> lk(m_mutex);
@@ -57,6 +58,7 @@ public:
 
         // create new thread
         m_thread = std::make_unique<std::thread>([this]{
+            m_processing.store(true, std::memory_order_release);
 
             while (m_running.load(std::memory_order_acquire)) {
                 try {
@@ -73,7 +75,7 @@ public:
                     std::this_thread::sleep_for(m_loopSleep);
                 }
             }
-
+            m_processing.store(false, std::memory_order_release);
             // end loop, start do clear( stop() ), do not do other thing here.
         });
 
@@ -105,7 +107,7 @@ public:
         }
 
         // Join without holding a lock to avoid blocking other calls (such as processes).
-        if (localThread && localThread->joinable()) {
+        if ( localThread && localThread->joinable() && m_processing.load(std::memory_order_acquire)  ) {
             localThread->join();
         }
 
@@ -131,6 +133,7 @@ private:
     std::unique_ptr<std::thread>  m_thread;
     std::atomic<bool>             m_running;  // While loop continues
     std::atomic<bool>             m_stopping; // Is stop() cleaning up
+    std::atomic<bool>             m_processing; 
 
     std::mutex                    m_mutex;
     std::condition_variable       m_cv;

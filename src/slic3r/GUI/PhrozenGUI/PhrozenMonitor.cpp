@@ -231,12 +231,8 @@ void PhrozenMonitorPanel::update_all()
         if ( pPhrozenMachineObj && m_last_status == MONITOR_NORMAL )
         {   
             //call disconnect from ui side, to prevent machine object killed when ui updating
-    #ifdef __WINDOWS__
-            OnDisconnectMachine( wxCommandEvent() );
-    #else
             wxCommandEvent disconnectEvent;
             OnDisconnectMachine( disconnectEvent );
-    #endif
         }
         m_side_tools->set_none_printer_mode();
         show_status(MONITOR_UNKNOWN);
@@ -344,12 +340,8 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
     if ( strConnectedIp == event.GetString() ) { return; }
     else
     {
-#ifdef __WINDOWS__
-        OnDisconnectMachine( wxCommandEvent() );
-#else
         wxCommandEvent disconnectEvent;
         OnDisconnectMachine( disconnectEvent );
-#endif
     }
 
     

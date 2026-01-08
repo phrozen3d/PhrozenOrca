@@ -1720,8 +1720,16 @@ CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vecto
     curl_easy_setopt(curl, CURLOPT_URL, str_snapshot_url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WebcamWriteStreamCallback); //m_fn_snapshop_write_stream_callback
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &image_data);//image_data
-    curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
+    curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L); // TCP keepalive 可保長連線健康，但不會取代超時
+    //curl_easy_setopt(curl, CURLOPT_TIMEOUT, 0L);
+    
+    // 超時與低速偵測：避免無限卡住
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 1000L); // 連線最多等 1 秒
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,        5000L); // 整個操作最多 5 秒
+    
+    // 若連上但對方不回資料，10 秒低速則中止
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME,   5L);     // 5 秒
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT,  1L);      // 低於 1 B/s 視為低速
 
     res = curl_easy_perform(curl);
     if ( res != CURLE_OK ) {
