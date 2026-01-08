@@ -3355,7 +3355,9 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     {
         return;
     }
-    
+    if(m_kWebCameraImageData.empty()){
+        return;
+    }
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
     image = image.Rotate180(); //水平+垂直翻轉
