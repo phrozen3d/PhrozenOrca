@@ -1596,11 +1596,21 @@ void PhrozenStatusBasePanel::init_bitmaps()
     m_Speed             = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed", FromDIP(12));
     m_Speed_Level       = ScalableBitmap(this, "PhrozenImages/ControlPanel_Speed_Level", FromDIP(12));
                                         
-    m_Control_xy_up     = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Up", FromDIP(28));
-    m_Control_xy_down   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Down", FromDIP(28));
-    m_Control_xy_left   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Left", FromDIP(28));
-    m_Control_xy_right  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Right", FromDIP(28));
-    m_Control_xy_home   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Home", FromDIP(28));
+    m_Control_xy_up     = ScalableBitmap(this, "Phrozen_AxisControl_Up", FromDIP(28));
+    m_Control_xy_up_hover = ScalableBitmap(this, "Phrozen_AxisControl_Up_Hover", FromDIP(28));
+    m_Control_xy_up_pressed = ScalableBitmap(this, "Phrozen_AxisControl_Up_Pressed", FromDIP(28));
+    m_Control_xy_down   = ScalableBitmap(this, "Phrozen_AxisControl_Down", FromDIP(28));
+    m_Control_xy_down_hover = ScalableBitmap(this, "Phrozen_AxisControl_Down_Hover", FromDIP(28));
+    m_Control_xy_down_pressed = ScalableBitmap(this, "Phrozen_AxisControl_Down_Pressed", FromDIP(28));
+    m_Control_xy_left   = ScalableBitmap(this, "Phrozen_AxisControl_Left", FromDIP(28));
+    m_Control_xy_left_hover = ScalableBitmap(this, "Phrozen_AxisControl_Left_Hover", FromDIP(28));
+    m_Control_xy_left_pressed = ScalableBitmap(this, "Phrozen_AxisControl_Left_Pressed", FromDIP(28));
+    m_Control_xy_right  = ScalableBitmap(this, "Phrozen_AxisControl_Right", FromDIP(28));
+    m_Control_xy_right_hover = ScalableBitmap(this, "Phrozen_AxisControl_Right_Hover", FromDIP(28));
+    m_Control_xy_right_pressed = ScalableBitmap(this, "Phrozen_AxisControl_Right_Pressed", FromDIP(28));
+    m_Control_xy_home   = ScalableBitmap(this, "Phrozen_AxisControl_Home", FromDIP(28));
+    m_Control_xy_home_hover = ScalableBitmap(this, "Phrozen_AxisControl_Home_Hover", FromDIP(28));
+    m_Control_xy_home_pressed = ScalableBitmap(this, "Phrozen_AxisControl_Home_Pressed", FromDIP(28));
     m_Control_xy_title  = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_XY", FromDIP(10));
 
     m_Control_z_title   = ScalableBitmap(this, "PhrozenImages/ControlPanel_Controllor_Title_Z", FromDIP(10));
@@ -2163,29 +2173,29 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_xy( wxWindow* pParent 
 
     // Row 1: empty | up | empty
     sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Y_Positive );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), m_Control_xy_up_hover.bmp(), m_Control_xy_up_pressed.bmp(), PhrozenMovement::Nozzle_Y_Positive );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
     sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
 
     // Row 2: left | home | right
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_left.bmp(), PhrozenMovement::Nozzle_X_Negative );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_left.bmp(), m_Control_xy_left_hover.bmp(), m_Control_xy_left_pressed.bmp(), PhrozenMovement::Nozzle_X_Negative );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_home.bmp(), PhrozenMovement::Nozzle_Home_XY );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_home.bmp(), m_Control_xy_home_hover.bmp(), m_Control_xy_home_pressed.bmp(), PhrozenMovement::Nozzle_Home_XY );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_right.bmp(), PhrozenMovement::Nozzle_X_Positive );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_right.bmp(), m_Control_xy_right_hover.bmp(), m_Control_xy_right_pressed.bmp(), PhrozenMovement::Nozzle_X_Positive );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
 
     // Row 3: empty | down | empty
     sizer->Add( new wxPanel(pParent), 0, wxALL, 0 );
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Y_Negative );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), m_Control_xy_down_hover.bmp(), m_Control_xy_down_pressed.bmp(), PhrozenMovement::Nozzle_Y_Negative );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
@@ -2208,7 +2218,7 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
     sizer->Add( titleBitmap, 0, wxALIGN_CENTER, 0 );
 
     // Row 1: Z+ up button
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Z_Positive );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), m_Control_xy_up_hover.bmp(), m_Control_xy_up_pressed.bmp(), PhrozenMovement::Nozzle_Z_Positive );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     pButton->Show();
@@ -2221,7 +2231,7 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_move_z( wxWindow* pParent )
     sizer->Add( nozzleBitmap, 0, wxALIGN_CENTER, 0 );
     
     // Row 3: Z- down button
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Z_Negative );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), m_Control_xy_down_hover.bmp(), m_Control_xy_down_pressed.bmp(), PhrozenMovement::Nozzle_Z_Negative );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     pButton->Show();
@@ -2259,7 +2269,7 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent
     sizer->Add(wrapper_001, 0, wxALL, 1);
     m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_001_MM, spButton_001 } );
 
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), PhrozenMovement::Nozzle_Offset_Positive );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_up.bmp(), m_Control_xy_up_hover.bmp(), m_Control_xy_up_pressed.bmp(), PhrozenMovement::Nozzle_Offset_Positive );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
@@ -2277,7 +2287,7 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent
     sizer->Add(wrapper_01, 0, wxALL, 1);
     m_kNozzleOffsetRangeButtons.insert( { PhrozenPrintNozzleOffsetRange::Range_01_MM, spButton_01 } );
 
-    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), PhrozenMovement::Nozzle_Offset_Negative );
+    pButton = CreateManualMovementButton( pParent, m_Control_xy_down.bmp(), m_Control_xy_down_hover.bmp(), m_Control_xy_down_pressed.bmp(), PhrozenMovement::Nozzle_Offset_Negative );
     pButton->SetMinSize(wxSize(28, 28));
     pButton->SetMaxSize(wxSize(28, 28));
     sizer->Add( pButton, 0, wxALIGN_CENTER, 0 );
@@ -2292,10 +2302,26 @@ wxSizer* PhrozenStatusBasePanel::GenManualAdjustment_z_offset( wxWindow* pParent
 }
 
 wxBitmapButton* PhrozenStatusBasePanel::CreateManualMovementButton( wxWindow* pParent,
-                                                                    wxBitmap& kIcon, 
+                                                                    const wxBitmap& kIcon, 
+                                                                    const wxBitmap& kIconHover,
+                                                                    const wxBitmap& kIconPressed,
                                                                     const PhrozenMovement eType )
 {
     auto pButton =  new wxBitmapButton(pParent, wxID_ANY, kIcon, wxDefaultPosition, wxSize(28, 28), wxBU_AUTODRAW | wxBORDER_NONE );
+    // Set normal state (already set in constructor, but make it explicit)
+    pButton->SetBitmap(kIcon);
+    
+    // Set hover state - cross-platform support
+    if (kIconHover.IsOk()) {
+        pButton->SetBitmapCurrent(kIconHover);  // Hover state
+        pButton->SetBitmapFocus(kIconHover);     // Focus state (same as hover)
+    }
+    
+    // Set pressed state - use standard wxWidgets API
+    if (kIconPressed.IsOk()) {
+        pButton->SetBitmapSelected(kIconPressed); // Pressed state (standard API)
+    }
+    
     m_kManualMovementButtons.insert( { eType, pButton } );
     return pButton;
 }

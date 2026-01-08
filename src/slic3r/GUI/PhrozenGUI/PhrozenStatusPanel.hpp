@@ -394,7 +394,7 @@ public:
     wxSizer* GenManualAdjustment_move_xy( wxWindow* pParent );
     wxSizer* GenManualAdjustment_move_z( wxWindow* pParent );
     wxSizer* GenManualAdjustment_z_offset( wxWindow* pParent );
-    wxBitmapButton* CreateManualMovementButton( wxWindow* pParent, wxBitmap& kIcon, const PhrozenMovement eType );
+    wxBitmapButton* CreateManualMovementButton( wxWindow* pParent, const wxBitmap& kIcon, const wxBitmap& kIconHover, const wxBitmap& kIconPressed, const PhrozenMovement eType );
 
     //icon
     ScalableBitmap m_ParamSeparator ;
@@ -408,10 +408,20 @@ public:
     ScalableBitmap m_Speed_Level    ;
                                     
     ScalableBitmap m_Control_xy_up  ;
+    ScalableBitmap m_Control_xy_up_hover;
+    ScalableBitmap m_Control_xy_up_pressed;
     ScalableBitmap m_Control_xy_down;
+    ScalableBitmap m_Control_xy_down_hover;
+    ScalableBitmap m_Control_xy_down_pressed;
     ScalableBitmap m_Control_xy_left;
+    ScalableBitmap m_Control_xy_left_hover;
+    ScalableBitmap m_Control_xy_left_pressed;
     ScalableBitmap m_Control_xy_right;
+    ScalableBitmap m_Control_xy_right_hover;
+    ScalableBitmap m_Control_xy_right_pressed;
     ScalableBitmap m_Control_xy_home;
+    ScalableBitmap m_Control_xy_home_hover;
+    ScalableBitmap m_Control_xy_home_pressed;
     ScalableBitmap m_Control_xy_title;
                                     
     ScalableBitmap m_Control_z_title;
