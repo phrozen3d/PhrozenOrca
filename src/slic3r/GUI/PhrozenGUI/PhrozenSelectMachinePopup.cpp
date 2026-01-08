@@ -983,9 +983,22 @@ void PhrozenSelectMachinePopup::on_timer(wxTimerEvent &event)
 void PhrozenSelectMachinePopup::update_history_devices()
 {
     if ( m_history_lan_machine_ip_panels.empty() ) return;
-
     this->Freeze();
     m_scrolledWindow->Freeze();
+
+    std::string strConnectedIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+    for ( auto pMachineTab : m_history_lan_machine_ip_panels )
+    {
+        if ( pMachineTab->get_machine_ip() == strConnectedIp )
+        {
+            pMachineTab->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_UNBIND );
+        }
+        else
+        {
+            pMachineTab->show_printer_bind( true, PhrozenPrinterBindState::ALLOW_BIND );
+        }
+    }
     m_scrolledWindow->Layout();
     m_scrolledWindow->Thaw();
     Layout();
