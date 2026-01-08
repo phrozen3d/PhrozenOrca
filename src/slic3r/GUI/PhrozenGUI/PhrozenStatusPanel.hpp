@@ -127,6 +127,11 @@ private:
     // Orca: show print end time
     wxStaticText * m_staticText_progress_end;
     wxStaticText*   m_staticText_progress_elapsed;
+    wxStaticText*   m_staticText_elapsed_time_label;
+    wxStaticText*   m_staticText_send_print_time;
+    wxStaticText*   m_staticText_send_print_time_label;
+    wxStaticText*   m_staticText_estimated_time;
+    wxStaticText*   m_staticText_estimated_time_label;
     wxStaticText*   m_staticText_layers;
     wxStaticText *  m_has_rated_prompt;
     wxStaticText *  m_request_failed_info;
@@ -170,6 +175,8 @@ public:
     void update_left_time(int mc_left_time);
     void update_elapsed_time(wxString time);
     void update_elapsed_time(int elapsed_seconds);
+    void update_send_print_time(wxString time);
+    void update_estimated_time(wxString time);
     void update_layers_num(bool show, wxString num = wxEmptyString);
     void show_priting_use_info(bool show, wxString time = wxEmptyString, wxString weight = wxEmptyString);
     void show_profile_info(bool show, wxString profile = wxEmptyString);
@@ -595,6 +602,7 @@ protected:
     void update_print_progress(MachineObject* obj);
     void update_print_file(MachineObject* obj);
     void update_print_time(MachineObject* obj);
+    void reset_time_information();
     void update_print_stage(MachineObject* obj);
     void update_print_filament(MachineObject *obj);
     void update_thumbnail(MachineObject *obj);

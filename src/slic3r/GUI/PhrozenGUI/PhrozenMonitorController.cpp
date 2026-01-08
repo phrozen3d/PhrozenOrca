@@ -7,6 +7,7 @@
 #include <sstream>
 #include <atomic>
 #include <regex>
+#include <ctime>
 #include <boost/beast/core/detail/base64.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #ifdef __APPLE__
@@ -992,6 +993,7 @@ struct MessageProcessor {
                 if (json::accept(historyBuffer)) {
                     history_json = json::parse(historyBuffer);
                     if (history_json["result"]["jobs"].is_array()) {
+                        bool found_current_job = false;
                         for (const auto& job : history_json["result"]["jobs"]) {
                             HistoryInfo _historyInfo;
                             std::string X = job["filename"].get<std::string>();
@@ -1001,6 +1003,41 @@ struct MessageProcessor {
                             _historyInfo.fliament_used = job["filament_used"];
                             _historyInfo.total_duration = job["total_duration"];
                             _historyInfoList.push_back(_historyInfo);
+                            
+                            // Extract start_time for the current printing job
+                            // Check if this is the current printing job by matching filename or status
+                            if (!found_current_job && job.contains("start_time")) {
+                                std::string job_filename = job["filename"].get<std::string>();
+                                std::string job_status = job["status"].get<std::string>();
+                                std::string current_print_file = m_pPrinterInfo->print_file;
+                                
+                                // Check if this job matches the current printing file or is in printing/paused state
+                                bool is_current_job = false;
+                                if (!current_print_file.empty() && job_filename == current_print_file) {
+                                    is_current_job = true;
+                                    BOOST_LOG_TRIVIAL(debug) << "ProcessHistoryInfo: Found current job by filename match: " << job_filename;
+                                } else if (job_status == "printing" || job_status == "paused") {
+                                    is_current_job = true;
+                                    BOOST_LOG_TRIVIAL(debug) << "ProcessHistoryInfo: Found current job by status: " << job_status << ", filename: " << job_filename;
+                                }
+                                
+                                if (is_current_job) {
+                                    double start_timestamp = job["start_time"];
+                                    if (start_timestamp > 0) {
+                                        // Convert Unix timestamp to YYYY/MM/DD HH:mm:ss format
+                                        std::time_t time_t_value = static_cast<std::time_t>(start_timestamp);
+                                        std::tm* local_time = std::localtime(&time_t_value);
+                                        if (local_time) {
+                                            char buffer[32];
+                                            std::strftime(buffer, sizeof(buffer), "%Y/%m/%d %H:%M:%S", local_time);
+                                            m_pPrinterInfo->send_print_time = std::string(buffer);
+                                            found_current_job = true;
+                                            BOOST_LOG_TRIVIAL(info) << "ProcessHistoryInfo: Extracted send_print_time: " << buffer 
+                                                                    << " for job: " << job_filename << " (status: " << job_status << ")";
+                                        }
+                                    }
+                                }
+                            }
                         }
                         m_kHistoryInfoList = _historyInfoList;
                     } else {
@@ -1146,7 +1183,7 @@ struct PrinterStatusExtractor {
                 m_pPrinterInfo->print_filament = status["print_stats"]["filament_used"];
             }
             
-            // Detect state change to trigger thumbnail check
+            // Detect state change to trigger thumbnail check and history query
             if(m_pPrinterInfo->isSameIP){
                 if ( (prev_state == "standby" || prev_state == "offline" ||
                       prev_state == "paused" || prev_state == "cancelled" || prev_state.empty()) &&
@@ -1154,6 +1191,37 @@ struct PrinterStatusExtractor {
                     SetThumbnailChecking(true);
                     BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: Print state changed from \""
                                             << prev_state << "\" to \"" << new_state << "\"";
+                    
+                    // ============================================
+                    // 修復送印時間顯示錯誤：狀態變更時立即查詢 history
+                    // ============================================
+                    // 【問題原因】
+                    // 原本的 history 查詢條件在 GetAllInfo_websocket() 中為：
+                    //   if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                    // 這個條件導致當狀態為 "printing" 時，history 查詢被阻止。
+                    //
+                    // 【影響】
+                    // 軟體直接送印時：
+                    //    - 送印後，機器狀態立即變為 "printing"
+                    //    - 如果之前已經查詢過 history，first_time_to_send_query 是 false
+                    //    - 因為 state == "printing"，所以 timeDiff > 5 && state != "printing" 是 false
+                    //    - 結果：不會查詢 history，即使機器端的 history 已經更新（包含 start_time）
+                    //    - 導致 send_print_time 無法更新，UI 顯示錯誤的送印時間
+                    //
+                    //
+                    // 【解決方案】
+                    // 在狀態變更為 "printing" 的瞬間，將first_time_to_send_query(設定為true)觸發 GetAllInfo_websocket() 查詢。
+                    // 這樣可以確保：
+                    // - 軟體直接送印：狀態變更時立即查詢，獲取最新的 start_time
+                    // - Fluidd/USB 送印：狀態變更時立即查詢，獲取最新的 start_time
+                    // - 重新連線：維持原有輪詢機制（first_time_to_send_query)
+                    // ============================================
+                    if (new_state == "printing" && prev_state != "printing") {
+                        BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: State changed to \"printing\", "
+                                                << "triggering history query to get send_print_time";
+                        threadControl.first_time_to_send_query = true;
+                    }
+                    
                     // Update previous values
                     prev_state = new_state;
                 }else{
@@ -1167,6 +1235,37 @@ struct PrinterStatusExtractor {
                     SetThumbnailChecking(true);
                     BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: Print state changed from \""
                                             << prev_state << "\" to \"" << new_state << "\"";
+                    
+                    // ============================================
+                    // 修復送印時間顯示錯誤：狀態變更時立即查詢 history
+                    // ============================================
+                    // 【問題原因】
+                    // 原本的 history 查詢條件在 GetAllInfo_websocket() 中為：
+                    //   if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                    // 這個條件導致當狀態為 "printing" 時，history 查詢被阻止。
+                    // 
+                    // 【影響】
+                    // 軟體直接送印時：
+                    //    - 送印後，機器狀態立即變為 "printing"
+                    //    - 如果之前已經查詢過 history，first_time_to_send_query 是 false
+                    //    - 因為 state == "printing"，所以 timeDiff > 5 && state != "printing" 是 false
+                    //    - 結果：不會查詢 history，即使機器端的 history 已經更新（包含 start_time）
+                    //    - 導致 send_print_time 無法更新，UI 顯示錯誤的送印時間
+                    //
+                    // 
+                    // 【解決方案】
+                    // 在狀態變更為 "printing" 的瞬間，將first_time_to_send_query(設定為true)觸發 GetAllInfo_websocket() 查詢。
+                    // 這樣可以確保：
+                    // - 軟體直接送印：狀態變更時立即查詢，獲取最新的 start_time
+                    // - Fluidd/USB 送印：狀態變更時立即查詢，獲取最新的 start_time
+                    // - 重新連線：維持原有輪詢機制（first_time_to_send_query)
+                    // ============================================
+                    if (new_state == "printing" && prev_state != "printing") {
+                        BOOST_LOG_TRIVIAL(info) << "ExtractPrintStatusInfo: State changed to \"printing\", "
+                                                << "triggering history query to get send_print_time";
+                        threadControl.first_time_to_send_query = true;
+                    }
+                    
                     // Update previous values
                     prev_state = new_state;
                     m_pPrinterInfo->isSameIP = true;
@@ -2891,6 +2990,7 @@ void GetHistoryInfo()
             json j = m_pWebServiceInfo->jsonHistoryInfoData;
 
             if (j["result"]["jobs"].is_array()) {
+                bool found_current_job = false;
                 for (const auto& job : j["result"]["jobs"]) {
                     HistoryInfo _historyInfo;
                     std::string X = job["filename"].get<std::string>();
@@ -2901,6 +3001,41 @@ void GetHistoryInfo()
                     _historyInfo.total_duration = job["total_duration"];
 
                     _historyInfoList.push_back(_historyInfo);
+                    
+                    // Extract start_time for the current printing job
+                    // Check if this is the current printing job by matching filename or status
+                    if (!found_current_job && job.contains("start_time")) {
+                        std::string job_filename = job["filename"].get<std::string>();
+                        std::string job_status = job["status"].get<std::string>();
+                        std::string current_print_file = m_pPrinterInfo->print_file;
+                        
+                        // Check if this job matches the current printing file or is in printing/paused state
+                        bool is_current_job = false;
+                        if (!current_print_file.empty() && job_filename == current_print_file) {
+                            is_current_job = true;
+                            BOOST_LOG_TRIVIAL(debug) << "GetHistoryInfo: Found current job by filename match: " << job_filename;
+                        } else if (job_status == "printing" || job_status == "paused") {
+                            is_current_job = true;
+                            BOOST_LOG_TRIVIAL(debug) << "GetHistoryInfo: Found current job by status: " << job_status << ", filename: " << job_filename;
+                        }
+                        
+                        if (is_current_job) {
+                            double start_timestamp = job["start_time"];
+                            if (start_timestamp > 0) {
+                                // Convert Unix timestamp to YYYY/MM/DD HH:mm:ss format
+                                std::time_t time_t_value = static_cast<std::time_t>(start_timestamp);
+                                std::tm* local_time = std::localtime(&time_t_value);
+                                if (local_time) {
+                                    char buffer[32];
+                                    std::strftime(buffer, sizeof(buffer), "%Y/%m/%d %H:%M:%S", local_time);
+                                    m_pPrinterInfo->send_print_time = std::string(buffer);
+                                    found_current_job = true;
+                                    BOOST_LOG_TRIVIAL(info) << "GetHistoryInfo: Extracted send_print_time: " << buffer 
+                                                            << " for job: " << job_filename << " (status: " << job_status << ")";
+                                }
+                            }
+                        }
+                    }
                 }
                 m_kHistoryInfoList = _historyInfoList;
             }
@@ -3446,6 +3581,211 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
         BOOST_LOG_TRIVIAL(error) << "GetThumbnailFromGCodeFile: Failed to decode base64: " << e.what();
         return false;
     }
+}
+
+// Parse estimated time string from G-code line
+// Format: "; estimated printing time (normal mode) = 1h 25m 0s"
+// Format: "; estimated printing time (normal mode) = 1d 15h 36m 35s" (with days)
+double ParseEstimatedTimeString(const std::string& line)
+{
+    // Find the "=" sign
+    size_t pos = line.find("=");
+    if (pos == std::string::npos) return 0.0;
+    
+    // Extract time string after "="
+    std::string time_str = line.substr(pos + 1);
+    // Remove leading and trailing whitespace
+    time_str.erase(0, time_str.find_first_not_of(" \t"));
+    time_str.erase(time_str.find_last_not_of(" \t") + 1);
+    
+    int days = 0, hours = 0, minutes = 0, seconds = 0;
+    
+    // Parse "1d 15h 36m 35s" or "1h 25m 0s" format
+    // Find positions of 'd', 'h', 'm', 's' markers
+    size_t d_pos = time_str.find('d');
+    size_t h_pos = time_str.find('h');
+    size_t m_pos = time_str.find('m');
+    size_t s_pos = time_str.find('s');
+    
+    // Parse days (if present)
+    if (d_pos != std::string::npos) {
+        try {
+            days = std::stoi(time_str.substr(0, d_pos));
+        } catch (...) {
+            days = 0;
+        }
+    }
+    
+    // Parse hours (if present)
+    if (h_pos != std::string::npos) {
+        try {
+            // Start from after 'd' if days are present, otherwise from beginning
+            size_t start = (d_pos != std::string::npos) ? d_pos + 1 : 0;
+            // Skip whitespace
+            while (start < time_str.length() && (time_str[start] == ' ' || time_str[start] == '\t')) {
+                start++;
+            }
+            hours = std::stoi(time_str.substr(start, h_pos - start));
+        } catch (...) {
+            hours = 0;
+        }
+    }
+    
+    // Parse minutes (if present)
+    if (m_pos != std::string::npos) {
+        try {
+            // Start from after 'h' if hours are present, or after 'd' if only days, otherwise from beginning
+            size_t start = (h_pos != std::string::npos) ? h_pos + 1 : 
+                          (d_pos != std::string::npos) ? d_pos + 1 : 0;
+            // Skip whitespace
+            while (start < time_str.length() && (time_str[start] == ' ' || time_str[start] == '\t')) {
+                start++;
+            }
+            minutes = std::stoi(time_str.substr(start, m_pos - start));
+        } catch (...) {
+            minutes = 0;
+        }
+    }
+    
+    // Parse seconds (if present)
+    if (s_pos != std::string::npos) {
+        try {
+            // Start from after 'm' if minutes are present, or after 'h' if only hours, or after 'd' if only days, otherwise from beginning
+            size_t start = (m_pos != std::string::npos) ? m_pos + 1 : 
+                          (h_pos != std::string::npos) ? h_pos + 1 : 
+                          (d_pos != std::string::npos) ? d_pos + 1 : 0;
+            // Skip whitespace
+            while (start < time_str.length() && (time_str[start] == ' ' || time_str[start] == '\t')) {
+                start++;
+            }
+            seconds = std::stoi(time_str.substr(start, s_pos - start));
+        } catch (...) {
+            seconds = 0;
+        }
+    }
+    
+    // Convert to total seconds: days * 86400 + hours * 3600 + minutes * 60 + seconds
+    return days * 86400.0 + hours * 3600.0 + minutes * 60.0 + seconds;
+}
+
+// Extract estimated printing time from GCode file tail
+bool GetEstimatedTimeFromGCodeFile(const std::string& gcodeName, double& estimated_seconds)
+{
+    estimated_seconds = 0.0;
+    
+    std::cout << "[GetEstimatedTimeFromGCodeFile] Attempting to extract estimated time from GCode file: \"" << gcodeName << "\"" << std::endl;
+    
+    // ============================================
+    // Step 1: Download last portion of GCode file to memory (using HTTP Range request)
+    // Estimated time is typically located at the end of GCode files, so we only
+    // need to download the last portion instead of the entire file.
+    // This significantly reduces download time and prevents timeout issues.
+    // 
+    // Typical estimated time location:
+    // - Usually in the last few hundred lines
+    // - Format: "; estimated printing time (normal mode) = 1h 25m 0s"
+    // 
+    // We use 32KB (32768 bytes) as the tail range, which should be sufficient
+    // for most GCode files to contain the estimated time information.
+    // ============================================
+    std::vector<unsigned char> gcode_tail;
+    CURL* curl = nullptr;
+    CURLcode result = CURLE_FAILED_INIT;
+    
+    // Define the range to download: last 32KB
+    // Use negative range to request from end of file
+    const size_t TAIL_RANGE_SIZE = 32 * 1024;  // 32KB
+    char range_header_buf[64];
+    snprintf(range_header_buf, sizeof(range_header_buf), "Range: bytes=-%zu", TAIL_RANGE_SIZE);
+    const char* RANGE_HEADER = range_header_buf;
+    
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    
+    if (!curl) {
+        std::cout << "[GetEstimatedTimeFromGCodeFile] ERROR - Failed to initialize CURL" << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetEstimatedTimeFromGCodeFile: Failed to initialize CURL";
+        curl_global_cleanup();
+        return false;
+    }
+    
+    // Build GCode file download URL with URL-encoded filename
+    char* encoded_gcodeName = curl_easy_escape(curl, gcodeName.c_str(), gcodeName.length());
+    if (!encoded_gcodeName) {
+        std::cout << "[GetEstimatedTimeFromGCodeFile] ERROR - Failed to URL encode filename: " << gcodeName << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetEstimatedTimeFromGCodeFile: Failed to URL encode filename: " << gcodeName;
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return false;
+    }
+    
+    std::string url = "http://" + m_pWebServiceInfo->ip 
+                     + m_pWebServiceInfo->port_device 
+                     + "/server/files/gcodes/" + std::string(encoded_gcodeName);
+    curl_free(encoded_gcodeName);
+    
+    // Build HTTP header list with Range request
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, RANGE_HEADER);
+    
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteThumbnailMemoryCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &gcode_tail);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);  // Reduced timeout since we're only downloading 32KB
+    
+    std::cout << "[GetEstimatedTimeFromGCodeFile] Downloading last " << (TAIL_RANGE_SIZE / 1024) 
+              << "KB of GCode file from: " << url << std::endl;
+    result = curl_easy_perform(curl);
+    
+    // Clean up header list
+    curl_slist_free_all(headers);
+    
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    
+    if (result != CURLE_OK || gcode_tail.empty()) {
+        std::cout << "[GetEstimatedTimeFromGCodeFile] ERROR - Failed to download GCode file tail: " 
+                  << (result != CURLE_OK ? curl_easy_strerror(result) : "empty data") << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "GetEstimatedTimeFromGCodeFile: Failed to download GCode file tail";
+        return false;
+    }
+    
+    std::cout << "[GetEstimatedTimeFromGCodeFile] Downloaded " << gcode_tail.size() 
+              << " bytes of GCode tail data (requested " << (TAIL_RANGE_SIZE / 1024) << "KB range)" << std::endl;
+    
+    // ============================================
+    // Step 2: Parse downloaded GCode tail and extract estimated time
+    // ============================================
+    const std::string ESTIMATED_TIME_PATTERN = "estimated printing time (normal mode) =";
+    
+    // Convert vector to string for parsing
+    std::string gcode_content(reinterpret_cast<const char*>(gcode_tail.data()), gcode_tail.size());
+    std::istringstream stream(gcode_content);
+    std::string line;
+    
+    while (std::getline(stream, line)) {
+        // Look for the estimated time line
+        if (line.find(ESTIMATED_TIME_PATTERN) != std::string::npos) {
+            estimated_seconds = ParseEstimatedTimeString(line);
+            if (estimated_seconds > 0) {
+                std::cout << "[GetEstimatedTimeFromGCodeFile] Found estimated time: " << estimated_seconds 
+                          << " seconds (" << (estimated_seconds / 3600.0) << " hours)" << std::endl;
+                BOOST_LOG_TRIVIAL(info) << "GetEstimatedTimeFromGCodeFile: Successfully extracted estimated time: " 
+                                        << estimated_seconds << " seconds from GCode file";
+                return true;
+            }
+        }
+    }
+    
+    std::cout << "[GetEstimatedTimeFromGCodeFile] WARNING - No estimated time found in GCode file tail" << std::endl;
+    BOOST_LOG_TRIVIAL(warning) << "GetEstimatedTimeFromGCodeFile: No estimated time found in GCode file tail";
+    return false;
 }
 
 int GetMachineList()

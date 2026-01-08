@@ -253,6 +253,11 @@ float PhrozenMachineObject::GetPhrozenPrintFilamentAmount()
     return MonitorControl::m_pPrinterInfo->print_filament;
 }
 
+std::string PhrozenMachineObject::GetPhrozenSendPrintTime()
+{
+    return MonitorControl::m_pPrinterInfo->send_print_time;
+}
+
 bool PhrozenMachineObject::IsPrintPaused()
 {
     return MonitorControl::m_pPrinterInfo->is_paused;
@@ -1354,6 +1359,11 @@ float PhrozenMachineObject_Dev::GetPhrozenTotalTime()
 float PhrozenMachineObject_Dev::GetPhrozenPrintFilamentAmount()
 {
     return PrinterInfoPtr()->read()->print_filament;
+}
+
+std::string PhrozenMachineObject_Dev::GetPhrozenSendPrintTime()
+{
+    return PrinterInfoPtr()->read()->send_print_time;
 }
 
 bool PhrozenMachineObject_Dev::IsPrintPaused()

@@ -43,6 +43,7 @@ public:
     virtual float GetPhrozenPrintTime() override;
     virtual float GetPhrozenTotalTime() override;
     virtual float GetPhrozenPrintFilamentAmount() override;
+    virtual std::string GetPhrozenSendPrintTime() override;
     virtual bool IsPrintPaused() override;
 
     virtual bool GetPhrozenCommand_lighting_enabled() override;
@@ -148,6 +149,7 @@ public:
     float GetPhrozenPrintTime();
     float GetPhrozenTotalTime();
     float GetPhrozenPrintFilamentAmount();
+    std::string GetPhrozenSendPrintTime();
     bool IsPrintPaused();
 
     int GetPhrozenBedTemperature_limit() { return 300; }

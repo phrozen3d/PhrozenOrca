@@ -187,6 +187,7 @@ public:
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
+    std::string send_print_time;  // Time when print job was sent (YYYY/MM/DD HH:mm:ss)
 
     bool bIsLedOn = false;
     bool bIsNozzleDetectFilament = false;

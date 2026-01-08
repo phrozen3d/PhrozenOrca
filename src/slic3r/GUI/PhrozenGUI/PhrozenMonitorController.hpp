@@ -244,6 +244,7 @@ struct PrinterInfo
     std::string thumbnail_path;
     bool printing_initial = true;
     std::string error = "";
+    std::string send_print_time;  // Time when print job was sent (YYYY/MM/DD HH:mm:ss)
 
     bool isSameIP = "";
     std::string pre_printerIP = "";
@@ -920,6 +921,8 @@ struct HttpErrorInfo {
     bool GetThumbnailImage(std::string printingfile);
     bool GetThumbnailImageInMemory(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data);
     bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigned char>& thumbnail_data);
+    double ParseEstimatedTimeString(const std::string& line);
+    bool GetEstimatedTimeFromGCodeFile(const std::string& gcodeName, double& estimated_seconds);
     int GetMachineList();
     CURLcode GetLEDState();
     void ResetAMSList();

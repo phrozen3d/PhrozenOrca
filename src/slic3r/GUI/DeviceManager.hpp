@@ -442,6 +442,7 @@ public:
     virtual float GetPhrozenPrintProgress() { return 0.0f; }
     virtual float GetPhrozenPrintTime() { return 0.0f; }
     virtual float GetPhrozenTotalTime() { return 0.0f; }
+    virtual std::string GetPhrozenSendPrintTime() { return ""; }
     virtual float GetPhrozenPrintFilamentAmount() { return 0.0f; }
     virtual bool IsPrintPaused() { return false; }
     

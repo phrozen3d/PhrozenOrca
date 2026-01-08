@@ -16,6 +16,8 @@
 #include "../MsgDialog.hpp"
 #include "slic3r/Utils/Http.hpp"
 #include "libslic3r/Thread.hpp"
+#include "libslic3r/Utils.hpp"
+#include "../Plater.hpp"
 
 #include "../RecenterDialog.hpp"
 #include "CalibUtils.hpp"
@@ -26,6 +28,8 @@
 #include <wx/zstream.h>
 #include "PhrozenMonitorController.hpp"
 #include "PhrozenDeviceManager.hpp"
+#include <sstream>
+#include <chrono>
 #include "PhrozenFilamentControl.hpp"
 #include <iostream>
 #include <algorithm>
@@ -344,10 +348,39 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     sizer_percent_icon->Add(m_staticText_progress_percent_icon, 0, 0, 0);
     #endif
     
-    m_staticText_progress_elapsed = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
+    // Create time information labels and values
+    m_staticText_elapsed_time_label = new wxStaticText(penel_text, wxID_ANY, _L("已列印："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_elapsed_time_label->Wrap(-1);
+    m_staticText_elapsed_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_elapsed_time_label->SetForegroundColour(wxColour(146, 146, 146));
+
+    m_staticText_progress_elapsed = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
     m_staticText_progress_elapsed->Wrap(-1);
-    m_staticText_progress_elapsed->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_progress_elapsed->SetMaxSize(wxSize(FromDIP(80), -1));
+    m_staticText_progress_elapsed->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_progress_elapsed->SetForegroundColour(wxColour(146, 146, 146));
+
+    m_staticText_send_print_time_label = new wxStaticText(penel_text, wxID_ANY, _L("送印："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_send_print_time_label->Wrap(-1);
+    m_staticText_send_print_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_send_print_time_label->SetForegroundColour(wxColour(146, 146, 146));
+
+    m_staticText_send_print_time = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
+    m_staticText_send_print_time->Wrap(-1);
+    m_staticText_send_print_time->SetMaxSize(wxSize(FromDIP(150), -1));
+    m_staticText_send_print_time->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_send_print_time->SetForegroundColour(wxColour(146, 146, 146));
+
+    m_staticText_estimated_time_label = new wxStaticText(penel_text, wxID_ANY, _L("預估："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_estimated_time_label->Wrap(-1);
+    m_staticText_estimated_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_estimated_time_label->SetForegroundColour(wxColour(146, 146, 146));
+
+    m_staticText_estimated_time = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
+    m_staticText_estimated_time->Wrap(-1);
+    m_staticText_estimated_time->SetMaxSize(wxSize(FromDIP(80), -1));
+    m_staticText_estimated_time->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_estimated_time->SetForegroundColour(wxColour(146, 146, 146));
 
     //m_staticText_progress_left = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
     //m_staticText_progress_left->Wrap(-1);
@@ -383,15 +416,31 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     //bSizer_text->Add(sizer_percent, 0, wxALIGN_CENTER_VERTICAL, 0);
     // Reduce spacing between percent number and symbol (減少百分比數字與符號之間的間距)
     //bSizer_text->Add(sizer_percent_icon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, -FromDIP(4));
-    bSizer_text->Add(0, 0, 1, wxEXPAND, 0);
-    // Comment out layer display UI control (暫時隱藏層數顯示)
-    // bSizer_text->Add(m_staticText_layers, 0, wxALIGN_CENTER | wxALL, 0);
-    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(20));
-    //bSizer_text->Add(m_staticText_progress_left, 0, wxALIGN_CENTER | wxALL, 0);
-    bSizer_text->Add(m_staticText_progress_elapsed, 0, wxALIGN_CENTER | wxALL, 0);
-    // Orca: display the end time of the print
-    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(24));
-    //bSizer_text->Add(m_staticText_progress_end, 0, wxALIGN_CENTER | wxALL, 0);
+    
+    // Add small fixed spacing after percentage, then evenly distribute three time info groups
+    bSizer_text->Add(0, 0, 0, wxLEFT, FromDIP(10));
+    
+    // Time information: elapsed time - create internal sizer for uniform distribution
+    wxBoxSizer* elapsed_sizer = new wxBoxSizer(wxHORIZONTAL);
+    elapsed_sizer->Add(m_staticText_elapsed_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+    elapsed_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+    elapsed_sizer->Add(m_staticText_progress_elapsed, 0, wxALIGN_CENTER_VERTICAL, 0);
+    bSizer_text->Add(elapsed_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND, 0);  // proportion=1 for uniform distribution
+    
+    
+    // Time information: send print time - create internal sizer for uniform distribution
+    wxBoxSizer* send_time_sizer = new wxBoxSizer(wxHORIZONTAL);
+    send_time_sizer->Add(m_staticText_send_print_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+    send_time_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+    send_time_sizer->Add(m_staticText_send_print_time, 0, wxALIGN_CENTER_VERTICAL, 0);
+    bSizer_text->Add(send_time_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, -FromDIP(10));  // proportion=1 for uniform distribution, negative left margin to shift left
+    
+    // Time information: estimated time - create internal sizer for uniform distribution
+    wxBoxSizer* estimated_sizer = new wxBoxSizer(wxHORIZONTAL);
+    estimated_sizer->Add(m_staticText_estimated_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+    estimated_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+    estimated_sizer->Add(m_staticText_estimated_time, 0, wxALIGN_CENTER_VERTICAL, 0);
+    bSizer_text->Add(estimated_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, FromDIP(20));  // proportion=1 for uniform distribution, positive left margin to shift right
 
     penel_text->SetMaxSize(wxSize(FromDIP(600), -1));
     penel_text->SetSizer(bSizer_text);
@@ -756,6 +805,20 @@ void PhrozenPrintingTaskPanel::update_elapsed_time(int elapsed_seconds)
         elapsed_time_text = wxString::Format("%s", elapsed_time);
     }
     update_elapsed_time(elapsed_time_text);
+}
+
+void PhrozenPrintingTaskPanel::update_send_print_time(wxString time)
+{
+    if (m_staticText_send_print_time) {
+        m_staticText_send_print_time->SetLabelText(time);
+    }
+}
+
+void PhrozenPrintingTaskPanel::update_estimated_time(wxString time)
+{
+    if (m_staticText_estimated_time) {
+        m_staticText_estimated_time->SetLabelText(time);
+    }
 }
 
 void PhrozenPrintingTaskPanel::update_layers_num(bool show, wxString num)
@@ -4518,6 +4581,17 @@ void PhrozenStatusPanel::update_print_time(MachineObject *obj)
     }
     
     // ============================================
+    // 檢查機器狀態：如果是取消列印/閒置，重置時間資訊
+    // ============================================
+    std::string print_status = obj->GetPhrozenPrintStatus();
+    if (print_status == "cancelled" || print_status == "offline" || print_status == "standby") {
+        reset_time_information();
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Print status is " << print_status << ", resetting all time information to N/A";
+        return;
+    }
+    
+    // ============================================
     // 獲取列印時間資訊
     // ============================================
     // print time
@@ -4550,6 +4624,146 @@ void PhrozenStatusPanel::update_print_time(MachineObject *obj)
         BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
                                     << "Invalid print_time: " << print_time 
                                     << ", skipping elapsed time update";
+    }
+    
+    // ============================================
+    // 更新送印時間（只在列印/暫停狀態時顯示）
+    // ============================================
+    // Note: print_status was already retrieved above
+    // Only show send print time when printing or paused
+    if (print_status == "printing" || print_status == "paused") {
+        std::string send_print_time = obj->GetPhrozenSendPrintTime();
+        if (!send_print_time.empty()) {
+            wxString send_time_text = GUI::from_u8(send_print_time);
+            m_project_task_panel->update_send_print_time(send_time_text);
+            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                     << "Send print time: " << send_print_time << " (status: " << print_status << ")";
+        } else {
+            m_project_task_panel->update_send_print_time(PHROZEN_NA_STR);
+            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                     << "No send print time available, displaying N/A (status: " << print_status << ")";
+        }
+    } else {
+        // Not printing or paused, hide send print time
+        m_project_task_panel->update_send_print_time(PHROZEN_NA_STR);
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Not printing/paused (status: " << print_status << "), displaying N/A for send print time";
+    }
+    
+    // ============================================
+    // 更新預估列印總時間（優先從預覽頁面取得，失敗則從 G-code 檔案解析）
+    // ============================================
+    double estimated_seconds = 0.0;
+    bool estimated_time_found = false;
+    std::string estimated_time_source = "none";
+    
+    // Try to get estimated time from preview page first
+#if 0
+        try {
+            PartPlate* plate = wxGetApp().plater()->get_partplate_list().get_curr_plate();
+            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+            << "Attempting to get estimated time from preview page, plate=" << (plate ? "valid" : "nullptr");
+            if (plate && plate->get_slice_result()) {
+                auto* slice_result = plate->get_slice_result();
+                BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                << "slice_result is valid, checking print_statistics.modes[0].time";
+                
+                // Check if modes array is valid and has at least one element
+                if (slice_result->print_statistics.modes.size() > 0) {
+                    estimated_seconds = slice_result->print_statistics.modes[0].time;
+                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                    << "modes[0].time=" << estimated_seconds << " seconds ("
+                    << (estimated_seconds / 3600.0) << " hours)";
+                    
+                    if (estimated_seconds > 0.0) {
+                        estimated_time_found = true;
+                        estimated_time_source = "preview_page";
+                        wxString estimated_time_str = wxString::Format("%s", short_time(get_time_dhms(estimated_seconds)));
+                        m_project_task_panel->update_estimated_time(estimated_time_str);
+                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_print_time: "
+                        << "Estimated time from preview page: " << estimated_seconds << " seconds ("
+                        << (estimated_seconds / 3600.0) << " hours) -> " << estimated_time_str;
+                    } else {
+                        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                        << "Estimated time from preview page is 0 or invalid (estimated_seconds="
+                        << estimated_seconds << "), will fall back to G-code parsing";
+                    }
+                } else {
+                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                    << "print_statistics.modes array is empty, will fall back to G-code parsing";
+                }
+            } else {
+                BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                << "No plate or slice result available (plate=" << (plate ? "valid" : "nullptr")
+                << ", slice_result=" << (plate && plate->get_slice_result() ? "valid" : "nullptr")
+                << "), will fall back to G-code parsing";
+            }
+        } catch (const std::exception& e) {
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+            << "Exception while getting estimated time from preview: " << e.what()
+            << ", will fall back to G-code parsing";
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+            << "Unknown exception while getting estimated time from preview, will fall back to G-code parsing";
+        }
+#endif
+    
+    // Fall back to G-code file parsing if preview page failed
+    if (!estimated_time_found) {
+        std::string print_file = obj->GetPhrozenPrintFile();
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Falling back to G-code parsing, print_file=\"" << print_file << "\"";
+        
+        if (!print_file.empty()) {
+            try {
+                BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                         << "Calling GetEstimatedTimeFromGCodeFile for: \"" << print_file << "\"";
+                if (MonitorControl::GetEstimatedTimeFromGCodeFile(print_file, estimated_seconds)) {
+                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                             << "GetEstimatedTimeFromGCodeFile returned true, estimated_seconds=" << estimated_seconds;
+                    if (estimated_seconds > 0.0) {
+                        estimated_time_found = true;
+                        estimated_time_source = "G-code";
+                        wxString estimated_time_str = wxString::Format("%s", short_time(get_time_dhms(estimated_seconds)));
+                        m_project_task_panel->update_estimated_time(estimated_time_str);
+                        BOOST_LOG_TRIVIAL(info) << "PhrozenStatusPanel::update_print_time: "
+                                                << "Estimated time from G-code: " << estimated_seconds << " seconds ("
+                                                << (estimated_seconds / 3600.0) << " hours) -> " << estimated_time_str;
+                    } else {
+                        m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+                        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                                   << "GetEstimatedTimeFromGCodeFile returned true but estimated_seconds=" << estimated_seconds << " (invalid), displaying N/A";
+                    }
+                } else {
+                    m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+                    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                             << "GetEstimatedTimeFromGCodeFile returned false, displaying N/A";
+                }
+            } catch (const std::exception& e) {
+                m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                           << "Exception while parsing G-code for estimated time: " << e.what()
+                                           << ", displaying N/A";
+            } catch (...) {
+                m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+                BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::update_print_time: "
+                                           << "Unknown exception while parsing G-code for estimated time, displaying N/A";
+            }
+        } else {
+            m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+            BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                     << "print_file is empty, displaying N/A";
+        }
+    }
+    
+    // Final summary log
+    if (!estimated_time_found) {
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Estimated time not found from any source, displaying N/A";
+    } else {
+        BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
+                                 << "Estimated time successfully retrieved from: " << estimated_time_source
+                                 << ", value=" << estimated_seconds << " seconds";
     }
     
     // ============================================
@@ -4598,6 +4812,21 @@ void PhrozenStatusPanel::update_print_time(MachineObject *obj)
     BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::update_print_time: "
                              << "print_time=" << print_time 
                              << ", total_time=" << total_time;
+}
+
+void PhrozenStatusPanel::reset_time_information()
+{
+    if (!m_project_task_panel) {
+        BOOST_LOG_TRIVIAL(warning) << "PhrozenStatusPanel::reset_time_information: m_project_task_panel is nullptr";
+        return;
+    }
+    
+    // Reset all three time information to "N/A"
+    m_project_task_panel->update_elapsed_time(PHROZEN_NA_STR);
+    m_project_task_panel->update_send_print_time(PHROZEN_NA_STR);
+    m_project_task_panel->update_estimated_time(PHROZEN_NA_STR);
+    
+    BOOST_LOG_TRIVIAL(debug) << "PhrozenStatusPanel::reset_time_information: All time information reset to N/A";
 }
 
 void PhrozenStatusPanel::update_print_stage(MachineObject *obj)
@@ -5552,6 +5781,8 @@ void PhrozenStatusPanel::set_default()
     // Reset m_kAMSList
     MonitorControl::ResetAMSList();
     m_pFilamentControlPanel->Hide();
+    reset_time_information();
+    
     error_info_reset();
     SetFocus();
 }
