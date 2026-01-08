@@ -227,6 +227,12 @@ void PhrozenMonitorPanel::update_all()
     }
     else
     {
+        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        if ( pPhrozenMachineObj && m_last_status == MONITOR_NORMAL )
+        {   
+            //call disconnect from ui side, to prevent machine object killed when ui updating
+            OnDisconnectMachine( wxCommandEvent() );
+        }
         m_side_tools->set_none_printer_mode();
         show_status(MONITOR_UNKNOWN);
     }

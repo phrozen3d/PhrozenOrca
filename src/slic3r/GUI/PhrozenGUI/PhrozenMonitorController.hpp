@@ -809,6 +809,9 @@ struct HttpErrorInfo {
     void HandlePauseCode(const std::string& pauseCode);
 
     CURLcode ReceiveResponse();
+    bool IsFatalError(CURLcode code); // 輔助函數：判斷是否為致命錯誤
+    void HandleDisconnection(); // 輔助函數：處理斷線
+
 
     CURLcode CheckAMSConnection();
 

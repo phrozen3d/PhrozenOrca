@@ -1445,6 +1445,233 @@ struct AMSProcessor {
  * Refactored into modular structure for better readability and maintainability
  */
 
+ CURLcode ReceiveResponse() {
+    // Log thread ID for Xcode console debugging
+    std::thread::id thread_id = std::this_thread::get_id();
+    std::cout << "[ReceiveResponse] Thread started, Thread ID: " << thread_id << std::endl;
+    BOOST_LOG_TRIVIAL(info) << "ReceiveResponse: Thread started, Thread ID: " << thread_id;
+    
+    char buffer[500000];
+    size_t rlen;
+    CURLcode res = CURLcode::CURLE_COULDNT_CONNECT;
+    
+    // curl_ws_recv() requires const struct curl_ws_frame** for the fifth parameter
+    const struct curl_ws_frame* meta;
+    
+    // Frame accumulation buffers for handling fragmented messages
+    std::string ams_message_buffer;      // Buffer for AMS-related messages
+    std::string historyInfo;              // Buffer for history info (existing)
+    bool historyStart = false;
+
+    int again = 0;
+    int consecutive_errors = 0;  // 連續錯誤計數
+    const int MAX_CONSECUTIVE_ERRORS = 30;  // 最大連續錯誤次數
+    auto last_success_time = std::chrono::steady_clock::now();
+    const int CONNECTION_TIMEOUT_SECONDS = 15;//30?
+
+    // Sliding window buffer for cross-frame pattern matching
+    // This helps catch patterns that span across frame boundaries
+    std::string sliding_window_buffer;
+    const size_t MAX_SLIDING_WINDOW_SIZE = 10000;  // Maximum size to prevent memory issues
+    
+    while (IsStartReceiving()) {
+        // ⚠️ CRITICAL: libcurl easy handle is NOT thread-safe
+        // Cannot call curl_ws_send()/curl_ws_recv() from multiple threads simultaneously
+        // Operating the same curl handle from 2 threads may cause crash risk
+        if(!threadControl.first_time_to_send_query){
+            std::lock_guard<std::mutex> lock(m_kCurlMutex);
+            BOOST_LOG_TRIVIAL(debug) << "ReceiveResponse: Lock acquired, Thread ID: " << thread_id;
+            try {
+
+                // ====================================
+                // 1. 檢查基本連線狀態
+                // ====================================
+                double connectTime = 0;
+                curl_easy_getinfo(m_pCurl_websocket, CURLINFO_CONNECT_TIME, &connectTime);
+                if (connectTime <= 0) {
+                    BOOST_LOG_TRIVIAL(warning) << "Connection not established (connectTime <= 0)";
+                    //BOOST_LOG_TRIVIAL(info) << "connect failed " << endl;
+                    //SetStartReceiving(false);
+                    //SetStartSending(false);
+
+                    HandleDisconnection();
+                    break;
+                }
+
+                // ====================================
+                // 2. 檢查 socket 是否有效
+                // ====================================
+                curl_socket_t socket_fd;
+                CURLcode socket_res = curl_easy_getinfo(m_pCurl_websocket, 
+                                                        CURLINFO_ACTIVESOCKET, 
+                                                        &socket_fd);
+                
+                if (socket_res != CURLE_OK || socket_fd == CURL_SOCKET_BAD) {
+                    BOOST_LOG_TRIVIAL(warning) << "Invalid socket, connection lost";
+                    HandleDisconnection();
+                    break;
+                }
+
+                // ====================================
+                // 3. 接收資料
+                // ====================================
+                res = curl_ws_recv(m_pCurl_websocket, buffer, sizeof(buffer), &rlen, &meta);
+                
+                if (res == CURLE_OK) {
+
+                    // 成功接收，重置錯誤計數器
+                    again = 0;
+                    consecutive_errors = 0;
+                    last_success_time = std::chrono::steady_clock::now();
+
+                    // 處理接收到的資料...
+                    // ============================================
+                    // Frame Fragmentation Handling
+                    // ============================================
+                    std::string frame_data(&buffer[0], &buffer[rlen]);
+                    bool is_text_frame = (meta->flags & CURLWS_TEXT) != 0;
+                    bool is_binary_frame = (meta->flags & CURLWS_BINARY) != 0;
+                    bool is_continuation_frame = FrameProcessor::IsContinuationFrame(meta);
+                    bool is_final_frame = FrameProcessor::IsFinalFrame(meta);
+                    
+                    // Debug logging for frame information
+                    BOOST_LOG_TRIVIAL(debug) << "WebSocket frame received: "
+                    << "length=" << rlen
+                    << ", flags=" << meta->flags
+                    << ", text=" << is_text_frame
+                    << ", continuation=" << is_continuation_frame
+                    << ", final=" << is_final_frame
+                    << ", content_preview=" << frame_data.substr(0, 100);
+                    
+                    // If this is a continuation frame, accumulate it
+                    if (is_continuation_frame) {
+                        ams_message_buffer += frame_data;
+                        BOOST_LOG_TRIVIAL(debug) << "Accumulating continuation frame. "
+                        << "Buffer size: " << ams_message_buffer.size();
+                        
+                        // Prevent buffer from growing too large
+                        if (ams_message_buffer.size() > MAX_SLIDING_WINDOW_SIZE) {
+                            BOOST_LOG_TRIVIAL(warning) << "AMS message buffer exceeded max size, truncating";
+                            ams_message_buffer = ams_message_buffer.substr(ams_message_buffer.size() - MAX_SLIDING_WINDOW_SIZE / 2);
+                        }
+                        continue;  // Wait for more frames
+                    }
+                    
+                    // ============================================
+                    // Complete Message Combination
+                    // ============================================
+                    std::string complete_message = FrameProcessor::CombineFrames(frame_data, ams_message_buffer);
+                    FrameProcessor::UpdateSlidingWindow(sliding_window_buffer, complete_message, MAX_SLIDING_WINDOW_SIZE);
+                    
+                    // ============================================
+                    // Message Conversion
+                    // ============================================
+                    std::string ws = complete_message;
+                    m_strReceiveMessage = MessageProcessor::ConvertToWideString(ws);
+                    
+                    // ============================================
+                    // Message Type Detection
+                    // ============================================
+                    bool skip_proc_stat_processing = MessageProcessor::ShouldSkipProcStat(ws);
+                    if (skip_proc_stat_processing) {
+                        BOOST_LOG_TRIVIAL(debug) << "Found notify_proc_stat_update, skipping proc_stat processing";
+                        continue;
+                    }
+                    
+                    // ============================================
+                    // G-code Response and Printer Status Processing
+                    // ============================================
+                    if (!skip_proc_stat_processing) {
+                        BOOST_LOG_TRIVIAL(info) << "receive: " << ws << endl;
+                        MessageProcessor::ProcessGcodeResponse(ws);
+                        PrinterStatusExtractor::ProcessPrinterStatus(ws);
+                    }
+                    
+                    // ============================================
+                    // History Info Processing (independent of skip_proc_stat)
+                    // ============================================
+                    MessageProcessor::ProcessHistoryInfo(ws, historyInfo, historyStart);
+                    
+                    // ============================================
+                    // AMS Processing (independent of skip_proc_stat)
+                    // ============================================
+                    // Search in both the current complete message and sliding window buffer
+                    // This ensures we catch patterns even if they span frame boundaries
+                    std::string search_text = ws;
+                    if (sliding_window_buffer.size() > ws.size()) {
+                        search_text = sliding_window_buffer;
+                    }
+                    
+                    AMSProcessor::ProcessAMSConnectionStatus(search_text, sliding_window_buffer);
+                    AMSProcessor::ProcessAMSCommandStates(search_text, sliding_window_buffer);
+                    AMSProcessor::ProcessAMSEntryParkState(ws);
+                    
+                    // ============================================
+                    // Pause Message Processing
+                    // ============================================
+                    MessageProcessor::ProcessPauseMessage(ws);
+                }
+                else {
+                    // ====================================
+                    // 4. 處理錯誤狀態
+                    // ====================================
+                    consecutive_errors++;
+                    BOOST_LOG_TRIVIAL(warning) << "Receive error: " << curl_easy_strerror(res)
+                                              << " (consecutive: " << consecutive_errors << ")";
+                    
+                    // 判斷是否為致命錯誤
+                    if (IsFatalError(res) /*|| consecutive_errors >= MAX_CONSECUTIVE_ERRORS*/) {
+                        BOOST_LOG_TRIVIAL(error) << "Fatal error or too many consecutive errors, disconnecting";
+                        HandleDisconnection();
+                        break;
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                BOOST_LOG_TRIVIAL(error) << "Exception in ReceiveResponse: " << e.what();
+                consecutive_errors++;
+                
+                if (consecutive_errors >= MAX_CONSECUTIVE_ERRORS) {
+                    HandleDisconnection();
+                    break;
+                }
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    
+    m_pPrinterInfo->state = "offline";
+    return res;
+}
+
+// 輔助函數：判斷是否為致命錯誤
+bool IsFatalError(CURLcode code) {
+    switch (code) {
+        case CURLE_COULDNT_CONNECT:
+        case CURLE_COULDNT_RESOLVE_HOST:
+        case CURLE_OPERATION_TIMEDOUT:
+        case CURLE_RECV_ERROR:
+        case CURLE_SEND_ERROR:
+        case CURLE_GOT_NOTHING:
+        case CURLE_WRITE_ERROR:
+        case CURLE_READ_ERROR:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// 輔助函數：處理斷線
+void HandleDisconnection() {
+    BOOST_LOG_TRIVIAL(info) << "Handling disconnection...";
+    SetStartReceiving(false);
+    SetStartSending(false);
+    if (m_pPrinterInfo) {
+        m_pPrinterInfo->state = "offline";
+    }
+}
+
+ #if 0
 CURLcode ReceiveResponse() {
     // Log thread ID for Xcode console debugging
     std::thread::id thread_id = std::this_thread::get_id();
@@ -1613,6 +1840,7 @@ CURLcode ReceiveResponse() {
     m_pPrinterInfo->state = "offline";
     return res;
 }
+#endif
 
 size_t WriteStreamCallback(void* contents, size_t size, size_t nmemb, void* userp) 
 {
