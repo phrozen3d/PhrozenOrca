@@ -1287,7 +1287,7 @@ void Sidebar::update_all_preset_comboboxes()
                 url += ":8808";
             if (cfg.has("printhost_apikey") && (host_type != htSimplyPrint))
                 apikey = cfg.opt_string("printhost_apikey");
-            print_btn_type = preset_bundle.is_bbl_vendor() ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
+            print_btn_type = ( preset_bundle.is_bbl_vendor() || preset_bundle.is_phrozen_vendor() ) ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
         }
 
         p_mainframe->load_printer_url(url, apikey);

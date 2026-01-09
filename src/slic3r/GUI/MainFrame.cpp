@@ -1717,7 +1717,7 @@ wxBoxSizer* MainFrame::create_side_tools()
             }
             else {
                 //Phrozen Orca Buttons
-                if ( wxGetApp().preset_bundle->is_phrozen_vendor() )
+                if ( wxGetApp().preset_bundle->is_phrozen_vendor() &&  wxGetApp().IsPhrozenDeveloperMode() )
                 {
                     // upload and print
                     SideButton* send_gcode_btn = new SideButton(p, _L("Print"), "");
