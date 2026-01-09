@@ -6930,6 +6930,14 @@ bool is_support_filament(int extruder_id)
 
 
 #pragma region Phrozen
+
+
+bool GUI_App::TestIsIpConnectValid( std::string strIp )
+{
+    CURLcode kResult = MonitorControl::IsIpConnectValid( strIp );
+    return kResult == CURLcode::CURLE_OK;
+}
+
 bool GUI_App::InitPhrozenConnector( const std::string& strIp )
 {
     //old flow: 

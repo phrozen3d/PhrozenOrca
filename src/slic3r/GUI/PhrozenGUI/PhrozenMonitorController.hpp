@@ -725,6 +725,7 @@ struct HttpErrorInfo {
 };
 
 #pragma region PhrozenMonitorController
+    CURLcode IsIpConnectValid( std::string strIp );
     CURLcode Initialconnect();
     void CleanupWebSocketConnection();
     void SetIp( const std::string& strIp );

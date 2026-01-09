@@ -688,6 +688,7 @@ public:
 
 #pragma region Phrozen
     bool InitPhrozenNetwork();
+    bool TestIsIpConnectValid( std::string strIp );
     bool InitPhrozenConnector( const std::string& strIp );
     void ProcessPhrozenConnector();
     void ProcessPhrozenDisconnect();

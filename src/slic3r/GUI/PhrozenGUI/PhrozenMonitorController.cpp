@@ -326,6 +326,116 @@ bool TriggerArpResolution(const std::string& target_ip) {
 }
 #endif
 
+CURLcode IsIpConnectValid( std::string strIp )
+{
+    CURLcode res = CURLE_FAILED_INIT;
+    curl_version_info_data *ver_info;
+
+    // Check CURL version and WebSocket support
+    ver_info = curl_version_info(CURLVERSION_NOW);
+    if (!ver_info) {
+        printf("Failed to get CURL version info\n");
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "Failed to get CURL version info\n";
+        return res;
+    }
+
+    printf("CURL version: %s\n", ver_info->version);
+    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << "CURL version: " << ver_info->version << "\n";
+
+    // Check if WebSocket protocol is supported
+    bool ws_supported = false;
+    if (ver_info->protocols) {
+        for (const char * const *proto = ver_info->protocols; *proto; ++proto) {
+            if (strcmp(*proto, "ws") == 0 || strcmp(*proto, "wss") == 0) {
+                ws_supported = true;
+                printf("WebSocket protocol supported: %s\n", *proto);
+                break;
+            }
+        }
+    }
+
+    if (!ws_supported) {
+        printf("WebSocket protocol not supported by this CURL build\n");
+        printf("Supported protocols: ");
+        if (ver_info->protocols) {
+            for (const char * const *proto = ver_info->protocols; *proto; ++proto) {
+                printf("%s ", *proto);
+            }
+        }
+        printf("\n");
+        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebSocket protocol not supported by this CURL build\n";
+        return res; // Protocol not supported
+    }
+
+    CURL* pTestCurl_websocket = curl_easy_init();
+    std::string WebServiceInfo_Ip = strIp;
+    std::string WebServiceInfo_Port = "7125";
+
+    if (pTestCurl_websocket) {
+        // Validate webServiceInfo before using
+        if (WebServiceInfo_Ip.empty() || WebServiceInfo_Port.empty()) {
+            printf("WebService info not properly initialized: IP=%s, Port=%s\n",
+                   WebServiceInfo_Ip.c_str(), WebServiceInfo_Port.c_str());
+            curl_easy_cleanup(pTestCurl_websocket);
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebService info not properly initialized\n";
+            return res; // Invalid configuration
+        }
+
+        std::string url = "ws://" + WebServiceInfo_Ip + ":" + WebServiceInfo_Port + "/websocket";
+        printf("Attempting WebSocket connection to: %s\n", url.c_str());
+
+#ifdef __APPLE__
+        // 使用 socket API 觸發 ARP 並等待完成（內部已包含等待）
+        TriggerArpResolution(WebServiceInfo_Ip);
+        
+        // 等待 ARP 表更新，確認 ARP 解析完成（最多等待 1000ms）
+        if (WaitForArpResolution(WebServiceInfo_Ip, 1000)) {
+            printf("ARP resolution completed, ARP entry confirmed in table\n");
+        } else {
+            printf("ARP resolution may not be complete, but proceeding with connection\n");
+            // 即使 ARP 表檢查失敗，也繼續連接（可能 ARP 表更新有延遲）
+        }
+        printf("Proceeding with WebSocket connection\n");
+#endif
+
+        // Set CURL options
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_TIMEOUT_MS, 5000L); // Increased timeout
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
+
+        // Enable verbose output for debugging
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_VERBOSE, 1L);
+
+        // Set user agent
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_USERAGENT, "PhrozenOrca WebSocket Client");
+
+        // Disable SSL verification for testing (remove in production)
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(pTestCurl_websocket, CURLOPT_SSL_VERIFYHOST, 0L);
+
+        /* Perform the request, res will get the return code */
+        res = curl_easy_perform(pTestCurl_websocket);
+
+        /* Check for errors */
+        if (res != CURLE_OK) {
+            printf("WebSocket connection failed: %s (Error code: %d)\n",
+                   curl_easy_strerror(res), res);
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << "WebSocket connection failed\n";
+
+            // Get more detailed error information
+            long response_code;
+            curl_easy_getinfo(pTestCurl_websocket, CURLINFO_RESPONSE_CODE, &response_code);
+            printf("HTTP response code: %ld\n", response_code);
+        }
+        curl_easy_cleanup(pTestCurl_websocket);
+    }
+    else {
+        printf("Failed to initialize CURL handle\n");
+    }
+    return res;
+}
+
+
 CURLcode Initialconnect()
 {
     CURLcode res = CURLE_FAILED_INIT;
@@ -467,7 +577,7 @@ CURLcode Initialconnect()
     return res;
 }
 
-void CleanupWebSocketConnection()
+void CleanupWebSocketConnection(  )
 {
     if (m_pCurl_websocket != nullptr) {
         //close websocket while it linking.

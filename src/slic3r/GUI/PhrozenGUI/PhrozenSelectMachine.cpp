@@ -2463,41 +2463,17 @@ void PhrozenSelectMachineDialog::on_keyin(wxCommandEvent &event)
 
     auto fnTestConnect = [&]( std::string strIp ) -> bool
     {
-        strReceiveIp = strIp;
         //test printer connect
-        DynamicPrintConfig kConfig = wxGetApp().preset_bundle->printers.get_edited_preset().config;
-        kConfig.set_key_value( "print_host",  new ConfigOptionString( strIp ) );
-        std::unique_ptr<PrintHost> host(PrintHost::get_print_host(&kConfig));
-        if (!host) {
-            const wxString text = _L("Could not get a valid Printer Host reference");
-            // Directly create and show error dialog synchronously, without using CallAfter
-            // This ensures the error dialog appears on top of the modal dialog
+        bool bSuccess = wxGetApp().TestIsIpConnectValid( strIp );
+        if ( !bSuccess )
+        {
+            const wxString text = _L("Failed to connect to printer.");
             ErrorDialog errorDlg(&kIpSelect, text, false);
             errorDlg.ShowModal();
-            return bIpValid;
         }
-
-        wxString msg;
-        bool result;
-        {
-            // Show a wait cursor during the connection test, as it is blocking UI.
-            wxBusyCursor wait;
-            result = host->test(msg);
-        }
-
-        if (result) {
-            bIpValid = true;
-            return true;
-        }
-        else
-        {
-            // Directly create and show error dialog synchronously, without using CallAfter
-            // This ensures the error dialog appears on top of the modal dialog
-            ErrorDialog errorDlg(&kIpSelect, host->get_test_failed_msg(msg), false);
-            errorDlg.ShowModal();
-            bIpValid = false;
-            return false;
-        }
+        bIpValid = bSuccess;
+        strReceiveIp = strIp;
+        return bSuccess;
     };
 
     kIpSelect.SetProcessFunction( fnTestConnect );
