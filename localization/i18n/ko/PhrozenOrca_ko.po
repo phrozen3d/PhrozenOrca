@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2025-06-02 17:12+0900\n"
 "Last-Translator: crwusiz <crwusiz@gmail.com>\n"
 "Language-Team: \n"
@@ -17804,6 +17804,15 @@ msgstr "브림 귀"
 
 msgid "Please select single object."
 msgstr "단일 객체를 선택하세요."
+
+msgid "Total："
+msgstr "총계："
+
+msgid "Start："
+msgstr "시작："
+
+msgid "Estimated："
+msgstr "예상："
 
 msgid "Turn On/Off Camera"
 msgstr "카메라 켜기/끄기"

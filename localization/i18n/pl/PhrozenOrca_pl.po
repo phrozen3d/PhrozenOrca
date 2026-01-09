@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrca 2.3.0-rc\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Krzysztof Morga <<tlumaczeniebs@gmail.com>>\n"
 "Language-Team: \n"
@@ -18493,6 +18493,15 @@ msgstr "Uszy brim"
 
 msgid "Please select single object."
 msgstr "Proszę wybrać pojedynczy obiekt."
+
+msgid "Total："
+msgstr "Razem:"
+
+msgid "Start："
+msgstr "Rozpocznij:"
+
+msgid "Estimated："
+msgstr "Szacowane:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2025-05-18 09:32-0300\n"
 "Last-Translator: Alexandre Folle de Menezes\n"
 "Language-Team: \n"
@@ -16452,6 +16452,15 @@ msgstr ""
 
 msgid "Please select single object."
 msgstr ""
+
+msgid "Total："
+msgstr "Total:"
+
+msgid "Start："
+msgstr "Start:"
+
+msgid "Estimated："
+msgstr "Estimated:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

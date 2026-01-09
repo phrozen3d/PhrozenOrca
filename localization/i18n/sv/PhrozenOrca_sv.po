@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "Language: sv\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -16856,6 +16856,15 @@ msgstr "Brätte Öron"
 
 msgid "Please select single object."
 msgstr ""
+
+msgid "Total："
+msgstr "Totalt:"
+
+msgid "Start："
+msgstr "Starta:"
+
+msgid "Estimated："
+msgstr "Uppskattat:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

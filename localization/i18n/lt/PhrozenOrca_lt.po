@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2025-03-21 21:00+0200\n"
 "Last-Translator: Gintaras Kučinskas <sharanchius@gmail.com>\n"
 "Language-Team: \n"
@@ -18350,6 +18350,15 @@ msgstr "Krašto \"ausys\""
 
 msgid "Please select single object."
 msgstr "Pasirinkite vieną objektą."
+
+msgid "Total："
+msgstr "Iš viso:"
+
+msgid "Start："
+msgstr "Pradėti:"
+
+msgid "Estimated："
+msgstr "Įvertinta:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

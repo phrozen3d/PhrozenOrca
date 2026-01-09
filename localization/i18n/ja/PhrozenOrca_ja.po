@@ -1,7 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -17988,6 +17989,15 @@ msgstr "ブリム"
 
 msgid "Please select single object."
 msgstr "単一のオブジェクトを選択してください"
+
+msgid "Total："
+msgstr "合計："
+
+msgid "Start："
+msgstr "開始："
+
+msgid "Estimated："
+msgstr "見積もり："
 
 msgid "Turn On/Off Camera"
 msgstr "カメラをオン/オフ"

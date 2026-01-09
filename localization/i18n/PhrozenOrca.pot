@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15983,6 +15983,15 @@ msgid "Brim Ears"
 msgstr ""
 
 msgid "Please select single object."
+msgstr ""
+
+msgid "Total："
+msgstr ""
+
+msgid "Start："
+msgstr ""
+
+msgid "Estimated："
 msgstr ""
 
 msgid "Turn On/Off Camera"

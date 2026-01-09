@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2024-11-03 20:59+0100\n"
 "Last-Translator: René Mošner <Renemosner@seznam.cz>\n"
 "Language-Team: \n"
@@ -17249,6 +17249,15 @@ msgstr "Uši Límce"
 
 msgid "Please select single object."
 msgstr ""
+
+msgid "Total："
+msgstr "Celkem:"
+
+msgid "Start："
+msgstr "Spustit:"
+
+msgid "Estimated："
+msgstr "Odhadováno:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

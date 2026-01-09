@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2025-03-15 10:55+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -18622,6 +18622,15 @@ msgstr "Orelles de la Vora d'Adherència"
 
 msgid "Please select single object."
 msgstr "Seleccioneu un sol objecte."
+
+msgid "Total："
+msgstr "Total:"
+
+msgid "Start："
+msgstr "Iniciar:"
+
+msgid "Estimated："
+msgstr "Estimat:"
 
 msgid "Turn On/Off Camera"
 msgstr ""

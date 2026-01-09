@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrcaua\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-30 10:35+0800\n"
+"POT-Creation-Date: 2026-01-09 11:37+0800\n"
 "PO-Revision-Date: 2025-03-07 09:30+0200\n"
 "Last-Translator: \n"
 "Language-Team: Ukrainian\n"
@@ -18461,6 +18461,15 @@ msgstr "Краєчки"
 
 msgid "Please select single object."
 msgstr "Будь ласка, виберіть один об’єкт."
+
+msgid "Total："
+msgstr "Всього:"
+
+msgid "Start："
+msgstr "Почати:"
+
+msgid "Estimated："
+msgstr "Оцінено:"
 
 msgid "Turn On/Off Camera"
 msgstr ""
