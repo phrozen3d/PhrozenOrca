@@ -349,37 +349,52 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     #endif
     
     // Create time information labels and values
+    // On Windows, use smaller font size (8) for time information; otherwise use default size (9)
+#ifdef _WIN32
+    const int TIME_INFO_FONT_SIZE = 8;
+#else
+    const int TIME_INFO_FONT_SIZE = 9;
+#endif
+    
     m_staticText_elapsed_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Total："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_elapsed_time_label->Wrap(-1);
-    m_staticText_elapsed_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_elapsed_time_label->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_elapsed_time_label->SetForegroundColour(wxColour(146, 146, 146));
 
     m_staticText_progress_elapsed = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
     m_staticText_progress_elapsed->Wrap(-1);
     m_staticText_progress_elapsed->SetMaxSize(wxSize(FromDIP(80), -1));
-    m_staticText_progress_elapsed->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_progress_elapsed->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_progress_elapsed->SetForegroundColour(wxColour(146, 146, 146));
 
     m_staticText_send_print_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Start："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_send_print_time_label->Wrap(-1);
-    m_staticText_send_print_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_send_print_time_label->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_send_print_time_label->SetForegroundColour(wxColour(146, 146, 146));
 
     m_staticText_send_print_time = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
     m_staticText_send_print_time->Wrap(-1);
+#ifdef _WIN32
+    // On Windows, increase max size to accommodate more content (up to YYYY/MM/DD HH:mm:ss format)
+    // wxST_ELLIPSIZE_END will intelligently truncate if needed
+    m_staticText_send_print_time->SetMaxSize(wxSize(FromDIP(200), -1));
+    // On Windows, use smaller font size (7) for Start time to fit more content
+    m_staticText_send_print_time->SetFont(wxFont(7, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+#else
     m_staticText_send_print_time->SetMaxSize(wxSize(FromDIP(150), -1));
-    m_staticText_send_print_time->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_send_print_time->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+#endif
     m_staticText_send_print_time->SetForegroundColour(wxColour(146, 146, 146));
 
     m_staticText_estimated_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Estimated："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_estimated_time_label->Wrap(-1);
-    m_staticText_estimated_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_estimated_time_label->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_estimated_time_label->SetForegroundColour(wxColour(146, 146, 146));
 
     m_staticText_estimated_time = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT | wxST_ELLIPSIZE_END);
     m_staticText_estimated_time->Wrap(-1);
     m_staticText_estimated_time->SetMaxSize(wxSize(FromDIP(80), -1));
-    m_staticText_estimated_time->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
+    m_staticText_estimated_time->SetFont(wxFont(TIME_INFO_FONT_SIZE, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_estimated_time->SetForegroundColour(wxColour(146, 146, 146));
 
     //m_staticText_progress_left = new wxStaticText(penel_text, wxID_ANY, L("N/A"), wxDefaultPosition, wxDefaultSize, 0);
@@ -423,7 +438,12 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     // Time information: elapsed time - create internal sizer for uniform distribution
     wxBoxSizer* elapsed_sizer = new wxBoxSizer(wxHORIZONTAL);
     elapsed_sizer->Add(m_staticText_elapsed_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+#ifdef _WIN32
+    // On Windows, add spacing to shift the value to the right
+    elapsed_sizer->Add(0, 0, 0, wxLEFT, FromDIP(5));
+#else
     elapsed_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+#endif
     elapsed_sizer->Add(m_staticText_progress_elapsed, 0, wxALIGN_CENTER_VERTICAL, 0);
     bSizer_text->Add(elapsed_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND, 0);  // proportion=1 for uniform distribution
     
@@ -431,16 +451,41 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     // Time information: send print time - create internal sizer for uniform distribution
     wxBoxSizer* send_time_sizer = new wxBoxSizer(wxHORIZONTAL);
     send_time_sizer->Add(m_staticText_send_print_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+#ifdef _WIN32
+    // On Windows, add spacing to shift the value to the right
+    send_time_sizer->Add(0, 0, 0, wxLEFT, FromDIP(5));
+#else
     send_time_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+#endif
+    // On Windows, use proportion=1 to allow text expansion for full YYYY/MM/DD HH:mm:ss display
+#ifdef _WIN32
+    send_time_sizer->Add(m_staticText_send_print_time, 1, wxALIGN_CENTER_VERTICAL, 0);
+#else
     send_time_sizer->Add(m_staticText_send_print_time, 0, wxALIGN_CENTER_VERTICAL, 0);
+#endif
+#ifdef _WIN32
+    // On Windows, shift the entire Start time string to the left
+    bSizer_text->Add(send_time_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, -FromDIP(20));  // proportion=1 for uniform distribution, negative left margin to shift left
+#else
     bSizer_text->Add(send_time_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, -FromDIP(10));  // proportion=1 for uniform distribution, negative left margin to shift left
+#endif
     
     // Time information: estimated time - create internal sizer for uniform distribution
     wxBoxSizer* estimated_sizer = new wxBoxSizer(wxHORIZONTAL);
     estimated_sizer->Add(m_staticText_estimated_time_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, -FromDIP(4));
+#ifdef _WIN32
+    // On Windows, add spacing to shift the value to the right
+    estimated_sizer->Add(0, 0, 0, wxLEFT, FromDIP(5));
+#else
     estimated_sizer->Add(0, 0, 0, wxLEFT, -FromDIP(2));  // Negative spacing to bring label and value closer
+#endif
     estimated_sizer->Add(m_staticText_estimated_time, 0, wxALIGN_CENTER_VERTICAL, 0);
+#ifdef _WIN32
+    // On Windows, shift the entire Estimated time string slightly to the right
+    bSizer_text->Add(estimated_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, FromDIP(5));  // proportion=1 for uniform distribution, positive left margin to shift right
+#else
     bSizer_text->Add(estimated_sizer, 1, wxALIGN_CENTER_VERTICAL | wxEXPAND | wxLEFT, FromDIP(20));  // proportion=1 for uniform distribution, positive left margin to shift right
+#endif
 
     penel_text->SetMaxSize(wxSize(FromDIP(600), -1));
     penel_text->SetSizer(bSizer_text);
