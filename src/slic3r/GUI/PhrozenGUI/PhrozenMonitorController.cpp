@@ -3441,19 +3441,19 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     // - Multiple thumbnails + GCode header comments: usually < 10KB total
     // 
     // Based on actual GCode file analysis, the first 95 lines (containing header,
-    // thumbnail, and initial config) are only about 5.7KB. We use 16KB (16384 bytes)
-    // as initial range, which provides about 2.8x safety margin while being much
+    // thumbnail, and initial config) are only about 5.7KB. We use 64KB (65536 bytes)
+    // as initial range, which provides about 10x safety margin while being much
     // faster than larger ranges. This should cover 99% of cases.
     // ============================================
     std::vector<unsigned char> gcode_data;
     CURL* curl = nullptr;
     CURLcode result = CURLE_FAILED_INIT;
     
-    // Define the range to download: first 16KB (0 to 16383 bytes)
+    // Define the range to download: first 64KB (0 to 65536 bytes)
     // This is sufficient for thumbnail extraction in most cases
-    // Thumbnails are always at the start of GCode files, typically within first 10KB
-    const size_t INITIAL_RANGE_SIZE = 16 * 1024;  // 16KB
-    const size_t INITIAL_RANGE_END = INITIAL_RANGE_SIZE - 1;  // 0 to 16383
+    // Thumbnails are always at the start of GCode files, typically within first 10KB~30kb
+    const size_t INITIAL_RANGE_SIZE = 64 * 1024;  // 64KB
+    const size_t INITIAL_RANGE_END = INITIAL_RANGE_SIZE - 1;  // 0 to 65536
     char range_header_buf[64];
     snprintf(range_header_buf, sizeof(range_header_buf), "Range: bytes=0-%zu", INITIAL_RANGE_END);
     const char* RANGE_HEADER = range_header_buf;
@@ -3519,7 +3519,7 @@ bool GetThumbnailFromGCodeFile(const std::string& gcodeName, std::vector<unsigne
     std::cout << "[GetThumbnailFromGCodeFile] Downloaded " << gcode_data.size() 
               << " bytes of GCode data (requested " << (INITIAL_RANGE_SIZE / 1024) << "KB range)" << std::endl;
     
-    // In generally, 16KB should be sufficient for thumbnail extraction
+    // In generally, 64KB should be sufficient for thumbnail extraction
     
     // ============================================
     // Step 2: Parse downloaded GCode data and extract thumbnail
