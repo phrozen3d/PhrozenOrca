@@ -2601,26 +2601,62 @@ bool doAction_http(std::string script, std::string  exected_payload, int timeout
 
         if (result == CURLE_OK)
         {
-            m_pWebServiceInfo->jsonReturnInfoData = json::parse(*m_pWebServiceInfo->responseData.get());
-            
-            // Debug: Print entire JSON response
-            std::string json_debug = m_pWebServiceInfo->jsonReturnInfoData.dump(4);
-            BOOST_LOG_TRIVIAL(debug) << "=== JSON Response Debug ===" << endl;
-            BOOST_LOG_TRIVIAL(debug) << "Full JSON content: " << json_debug << endl;
-            BOOST_LOG_TRIVIAL(debug) << "===========================" << endl;
-            
-            // Also output to Xcode console
-            std::cout << "=== JSON Response Debug ===" << std::endl;
-            std::cout << "Full JSON content: " << json_debug << std::endl;
-            std::cout << "===========================" << std::endl;
-            
-            if (m_pWebServiceInfo->jsonReturnInfoData["result"] == exected_payload)
-            {
-                _result = true;
-                BOOST_LOG_TRIVIAL(info) << "HTTP OK" << endl;
+            // Validate HTTP status code
+            if (http_code != 200) {
+                BOOST_LOG_TRIVIAL(error) << "doAction_http: HTTP error code: " << http_code;
+                _result = false;
             }
-            else{
-                error_info = ParseHttpErrorResponse(m_pWebServiceInfo->jsonReturnInfoData, http_code);
+            // Validate response data
+            else if (!m_pWebServiceInfo->responseData || 
+                     m_pWebServiceInfo->responseData->empty()) {
+                BOOST_LOG_TRIVIAL(error) << "doAction_http: Empty or invalid response data";
+                _result = false;
+            }
+            else {
+                try {
+                    // Validate JSON before parsing
+                    std::string response_str = *m_pWebServiceInfo->responseData.get();
+                    if (!json::accept(response_str)) {
+                        BOOST_LOG_TRIVIAL(error) << "doAction_http: Invalid JSON response: " << response_str;
+                        _result = false;
+                    }
+                    else {
+                        m_pWebServiceInfo->jsonReturnInfoData = json::parse(response_str);
+                        
+                        // Debug: Print entire JSON response
+                        std::string json_debug = m_pWebServiceInfo->jsonReturnInfoData.dump(4);
+                        BOOST_LOG_TRIVIAL(debug) << "=== JSON Response Debug ===" << endl;
+                        BOOST_LOG_TRIVIAL(debug) << "Full JSON content: " << json_debug << endl;
+                        BOOST_LOG_TRIVIAL(debug) << "===========================" << endl;
+                        
+                        // Also output to Xcode console
+                        std::cout << "=== JSON Response Debug ===" << std::endl;
+                        std::cout << "Full JSON content: " << json_debug << std::endl;
+                        std::cout << "===========================" << std::endl;
+                        
+                        if (m_pWebServiceInfo->jsonReturnInfoData["result"] == exected_payload)
+                        {
+                            _result = true;
+                            BOOST_LOG_TRIVIAL(info) << "HTTP OK" << endl;
+                        }
+                        else{
+                            error_info = ParseHttpErrorResponse(m_pWebServiceInfo->jsonReturnInfoData, http_code);
+                        }
+                    }
+                }
+                catch (const json::parse_error& e) {
+                    BOOST_LOG_TRIVIAL(error) << "doAction_http: JSON parse error: " << e.what();
+                    BOOST_LOG_TRIVIAL(error) << "Response data: " << *m_pWebServiceInfo->responseData.get();
+                    _result = false;
+                }
+                catch (const json::exception& e) {
+                    BOOST_LOG_TRIVIAL(error) << "doAction_http: JSON exception: " << e.what();
+                    _result = false;
+                }
+                catch (const std::exception& e) {
+                    BOOST_LOG_TRIVIAL(error) << "doAction_http: Standard exception: " << e.what();
+                    _result = false;
+                }
             }
         }
         else
