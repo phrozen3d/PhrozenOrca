@@ -349,7 +349,7 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     #endif
     
     // Create time information labels and values
-    m_staticText_elapsed_time_label = new wxStaticText(penel_text, wxID_ANY, _L("已列印："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_elapsed_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Total："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_elapsed_time_label->Wrap(-1);
     m_staticText_elapsed_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_elapsed_time_label->SetForegroundColour(wxColour(146, 146, 146));
@@ -360,7 +360,7 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     m_staticText_progress_elapsed->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_progress_elapsed->SetForegroundColour(wxColour(146, 146, 146));
 
-    m_staticText_send_print_time_label = new wxStaticText(penel_text, wxID_ANY, _L("送印："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_send_print_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Start："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_send_print_time_label->Wrap(-1);
     m_staticText_send_print_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_send_print_time_label->SetForegroundColour(wxColour(146, 146, 146));
@@ -371,7 +371,7 @@ void PhrozenPrintingTaskPanel::create_panel(wxWindow* parent)
     m_staticText_send_print_time->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_send_print_time->SetForegroundColour(wxColour(146, 146, 146));
 
-    m_staticText_estimated_time_label = new wxStaticText(penel_text, wxID_ANY, _L("預估："), wxDefaultPosition, wxDefaultSize, 0);
+    m_staticText_estimated_time_label = new wxStaticText(penel_text, wxID_ANY, _L("Estimated："), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_estimated_time_label->Wrap(-1);
     m_staticText_estimated_time_label->SetFont(wxFont(9, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, wxT("HarmonyOS Sans SC")));
     m_staticText_estimated_time_label->SetForegroundColour(wxColour(146, 146, 146));
