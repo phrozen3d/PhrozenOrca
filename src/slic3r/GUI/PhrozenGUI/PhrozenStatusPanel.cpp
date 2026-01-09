@@ -1609,28 +1609,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_misc_control(wxWindow* parent)
     return sizer;
 }
 
-wxBoxSizer* PhrozenStatusBasePanel::create_axis_control(wxWindow* parent)
-{
-    //return StatusBasePanel::create_axis_control(parent);
-
-    auto sizer = new wxBoxSizer(wxVERTICAL);
-    sizer->AddStretchSpacer();
-    m_phButton_xy = new PhrozenAxisCtrlButton( parent );
-    //m_bpButton_xy = new PhrozenAxisCtrlButton(parent, m_bitmap_axis_home);
-    m_phButton_xy->SetMinSize(AXIS_MIN_SIZE);
-    m_phButton_xy->SetSize(AXIS_MIN_SIZE);
-    sizer->AddStretchSpacer();
-    sizer->Add(m_phButton_xy, 0, wxALIGN_CENTER | wxALL, 0);
-    sizer->AddStretchSpacer();
-
-    /*m_staticText_xy = new wxStaticText(parent, wxID_ANY, _L("X/Y Axis"), wxDefaultPosition, wxDefaultSize, 0);
-    m_staticText_xy->Wrap(-1);
-
-    m_staticText_xy->SetForegroundColour(TEXT_LIGHT_FONT_COL);
-    sizer->Add(m_staticText_xy, 0, wxBOTTOM | wxALIGN_CENTER_HORIZONTAL, FromDIP(5));*/
-    return sizer;
-}
-
 void PhrozenStatusBasePanel::init_bitmaps()
 {
     static Slic3r::GUI::BitmapCache cache;
@@ -2727,7 +2705,6 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_switch_nozzle_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); // TODO
     m_switch_printing_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
     m_switch_cham_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); 
-    m_phButton_xy->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_xy), NULL, this); // TODO
     m_bpButton_z_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_10), NULL, this);
     m_bpButton_z_1->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_1), NULL, this);
     m_bpButton_z_down_1->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_1), NULL, this);
@@ -2809,7 +2786,6 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     m_switch_nozzle_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
     m_switch_printing_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
     m_switch_cham_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
-    m_phButton_xy->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_xy), NULL, this);
     m_bpButton_z_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_10), NULL, this);
     m_bpButton_z_1->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_1), NULL, this);
     m_bpButton_z_down_1->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_1), NULL, this);
@@ -5279,72 +5255,6 @@ void PhrozenStatusPanel::reset_printing_values()
     this->Layout();
 }
 
-void PhrozenStatusPanel::on_axis_ctrl_xy(wxCommandEvent &event)
-{
-    if (!obj) return;
-
-    std::string axis;
-    double unit = 1.0f;
-    double dir;
-    double input_val;
-    int speed = 3000;
-    switch( event.GetInt() )
-    {
-        case PhrozenAxisCtrlButton::CurrentPos::AXIS_UP:    axis = "Y"; dir = 1.0f; break;
-        case PhrozenAxisCtrlButton::CurrentPos::AXIS_LEFT:  axis = "X"; dir = -1.0f; break;
-        case PhrozenAxisCtrlButton::CurrentPos::AXIS_DOWN:  axis = "Y"; dir = -1.0f; break;
-        case PhrozenAxisCtrlButton::CurrentPos::AXIS_RIGHT: axis = "X"; dir = 1.0f; break;
-        case PhrozenAxisCtrlButton::CurrentPos::AXIS_HOME:  axis = "Home"; break;
-        default:
-            assert( 0 && "not allow" );
-            return;
-    }
-
-    if ( axis == "Home" )
-    {
-        if (obj->is_support_command_homing) {
-            obj->command_go_home2();
-        } else {
-            obj->command_go_home();
-        }
-    }
-    else
-    {
-        double move_range;
-        switch ( event.GetExtraLong() )
-        {
-            case PhrozenAxisCtrlButton::CurrentPos::MOVE_STEP_01MM: move_range = 0.1f;  break;
-            case PhrozenAxisCtrlButton::CurrentPos::MOVE_STEP_1MM:  move_range = 1.0f;  break;
-            case PhrozenAxisCtrlButton::CurrentPos::MOVE_STEP_10MM: move_range = 10.0f; break;
-            default: 
-                assert(0 && "not allow"); 
-                return;
-        }
-        move_range *= dir;
-        obj->command_axis_control( axis, unit, move_range, speed);
-    }
-
-    //check is at home
-    if (event.GetInt() == PhrozenAxisCtrlButton::CurrentPos::AXIS_LEFT
-        || event.GetInt() == PhrozenAxisCtrlButton::CurrentPos::AXIS_RIGHT ) 
-    {
-        if (!obj->is_axis_at_home("X")) {
-            BOOST_LOG_TRIVIAL(info) << "axis x is not at home";
-            show_recenter_dialog();
-            return;
-        }
-    }
-    else if ( PhrozenAxisCtrlButton::CurrentPos::AXIS_UP
-        || PhrozenAxisCtrlButton::CurrentPos::AXIS_DOWN ) \
-    {
-        if (!obj->is_axis_at_home("Y")) {
-            BOOST_LOG_TRIVIAL(info) << "axis y is not at home";
-            show_recenter_dialog();
-            return;
-        }
-    }
-}
-
 bool PhrozenStatusPanel::check_axis_z_at_home(MachineObject* obj)
 {
     if (obj) {
@@ -5834,8 +5744,6 @@ void PhrozenStatusPanel::msw_rescale()
     m_panel_control_title->SetSize(wxSize(-1, FromDIP(PAGE_TITLE_HEIGHT)));
     //m_staticText_control->SetMinSize(wxSize(-1, PAGE_TITLE_HEIGHT));
     //m_media_play_ctrl->msw_rescale();
-    m_phButton_xy->SetMinSize(AXIS_MIN_SIZE);
-    m_phButton_xy->SetSize(AXIS_MIN_SIZE);
     m_temp_extruder_line->SetSize(wxSize(FromDIP(1), -1));
     update_extruder_status(obj);
     m_bitmap_extruder_img->SetMinSize(EXTRUDER_IMAGE_SIZE);
@@ -5843,8 +5751,6 @@ void PhrozenStatusPanel::msw_rescale()
     for (Button *btn : m_buttons) { btn->Rescale(); }
     init_scaled_buttons();
 
-
-    m_phButton_xy->Rescale();
     m_tempCtrl_nozzle->SetMinSize(TEMP_CTRL_MIN_SIZE);
     m_tempCtrl_nozzle->Rescale();
     m_line_nozzle->SetSize(wxSize(-1, FromDIP(1)));

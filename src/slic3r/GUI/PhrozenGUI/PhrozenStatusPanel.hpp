@@ -21,7 +21,6 @@
 #include "../ExtrusionCalibration.hpp"
 #include "../ReleaseNote.hpp"
 #include "../Widgets/SwitchButton.hpp"
-#include "../Widgets/AxisCtrlButton.hpp"
 #include "../Widgets/TextInput.hpp"
 #include "../Widgets/TempInput.hpp"
 #include "../Widgets/StaticLine.hpp"
@@ -224,7 +223,6 @@ public:
     wxBoxSizer* create_temp_axis_group(wxWindow* parent);
     wxBoxSizer* create_temp_control(wxWindow* parent);
     wxBoxSizer* create_misc_control(wxWindow* parent);
-    wxBoxSizer* create_axis_control(wxWindow* parent);
     
     std::vector<unsigned char> m_kWebCameraImageData;
     wxBitmap m_kCurrentWebCamBitmap;
@@ -310,7 +308,6 @@ public:
 
     float           m_fixed_aspect_ratio{1.8};
 
-    PhrozenAxisCtrlButton *m_phButton_xy;
     Button *        m_bpButton_z_10;
     Button *        m_bpButton_z_1;
     Button *        m_bpButton_z_down_1;
