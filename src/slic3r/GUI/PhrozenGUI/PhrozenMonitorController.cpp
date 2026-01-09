@@ -1016,7 +1016,7 @@ struct MessageProcessor {
                                 if (!current_print_file.empty() && job_filename == current_print_file) {
                                     is_current_job = true;
                                     BOOST_LOG_TRIVIAL(debug) << "ProcessHistoryInfo: Found current job by filename match: " << job_filename;
-                                } else if (job_status == "printing" || job_status == "paused") {
+                                } else if (job_status == "printing" || job_status == "paused" || job_status == "complete") {
                                     is_current_job = true;
                                     BOOST_LOG_TRIVIAL(debug) << "ProcessHistoryInfo: Found current job by status: " << job_status << ", filename: " << job_filename;
                                 }
