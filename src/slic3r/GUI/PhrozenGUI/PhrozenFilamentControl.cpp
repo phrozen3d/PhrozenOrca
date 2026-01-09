@@ -100,11 +100,11 @@ void FilamentStatusPanel::SetFilamentInputType( const FilamentInputType& eType )
     m_eInputType = eType;
 }
 
-bool FilamentStatusPanel::IsAnyAMSFilamentLoading()
+bool FilamentStatusPanel::IsAnyAMSFilamentParking()
 {
     for ( auto& kInfo : m_kFilamentState.m_slot_configs )
     {
-        if ( kInfo.IsLoading() ) return true;
+        if ( kInfo.IsParking() ) return true;
     }
     return false;
 }
@@ -516,9 +516,9 @@ void FilamentStatusPanel::DrawFeedPortRectangle(wxGraphicsContext* gc)
 
 
     bool bUsingAMS = m_eInputType == FilamentInputType::AMS;
-    bool bFilamentIsLoading = IsAnyAMSFilamentLoading();
+    bool bFilamentIsLoading = IsAnyAMSFilamentParking();
     float fOpacity = bUsingAMS ? 1.0 : 0.3;
-    auto usingColor = ( bUsingAMS && bFilamentIsLoading ) ? m_loading_line_color : m_line_color;
+    auto usingColor = m_line_color;
     auto lineColor = wxColor( usingColor.Red(), usingColor.Green(), usingColor.Blue(), 255 * fOpacity );
 
     auto fLineWidth = bUsingAMS && bFilamentIsLoading ? line_width_enable : line_width_disable;

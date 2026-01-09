@@ -669,7 +669,7 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
 
     m_sizer_printer->Add(m_comboBox_printer, 0, wxEXPAND, 0);
     m_sizer_printer->Add(m_button_refresh, 0, wxALL | wxLEFT, FromDIP(5));
-    m_sizer_printer->Add(m_button_keyin, 0, wxALL | wxLEFT, FromDIP(0));
+    m_sizer_printer->Add(m_button_keyin, 0, wxALIGN_CENTER_VERTICAL, FromDIP(0));
 
     m_text_printer_msg = new wxStaticText(m_basic_panel, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
     m_text_printer_msg->SetMinSize(wxSize(FromDIP(420), -1));

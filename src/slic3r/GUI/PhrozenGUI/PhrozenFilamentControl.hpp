@@ -120,7 +120,7 @@ protected:
     void SetFilamentInputType( const FilamentInputType& eType );
 
     // return true if any filament loaded from slot to nazzle
-    bool IsAnyAMSFilamentLoading();
+    bool IsAnyAMSFilamentParking();
 
     bool IsAMSEnabled(){ return m_eInputType == FilamentInputType::AMS; }
     bool IsSpoolEnabled(){ return m_eInputType == FilamentInputType::Spool; }
