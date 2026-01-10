@@ -18472,24 +18472,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Manuel ayar"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-Ofseti"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Isıtmalı yatak"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Yardımcı"
 msgid "Shield"
-msgstr ""
-
+msgstr "Kalkan"
 msgid "Z"
 msgstr ""
 

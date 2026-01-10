@@ -399,8 +399,7 @@ msgid "Groove Angle"
 msgstr "凹槽角"
 
 msgid "Part"
-msgstr "零件"
-
+msgstr "部件"
 msgid "Object"
 msgstr "对象"
 
@@ -17162,24 +17161,19 @@ msgid "Turn On/Off Light"
 msgstr "打开/关闭灯光"
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "手动调整"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z 偏移"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "热床"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "辅助"
 msgid "Shield"
-msgstr ""
-
+msgstr "护罩"
 msgid "Z"
 msgstr ""
 

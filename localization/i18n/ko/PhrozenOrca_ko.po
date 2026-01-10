@@ -4263,8 +4263,7 @@ msgid "Color change"
 msgstr "색 변경"
 
 msgid "Print"
-msgstr "출력"
-
+msgstr "인쇄"
 msgid "Printer"
 msgstr "프린터"
 
@@ -17976,24 +17975,19 @@ msgid "Turn On/Off Light"
 msgstr "조명 켜기/끄기"
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "수동 조정"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z 오프셋"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "히팅 베드"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "보조"
 msgid "Shield"
-msgstr ""
-
+msgstr "쉴드"
 msgid "Z"
 msgstr ""
 

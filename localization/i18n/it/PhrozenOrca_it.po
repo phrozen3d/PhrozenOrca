@@ -18778,24 +18778,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Regolazione manuale"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Offset Z"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Piano riscaldato"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Ausiliario"
 msgid "Shield"
-msgstr ""
-
+msgstr "Scudo"
 msgid "Z"
 msgstr ""
 

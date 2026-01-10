@@ -4364,8 +4364,7 @@ msgid "Color change"
 msgstr "Zmiana koloru"
 
 msgid "Print"
-msgstr "Drukuj"
-
+msgstr "Druk"
 msgid "Printer"
 msgstr "Drukarka"
 
@@ -18513,24 +18512,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Regulacja ręczna"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Przesunięcie Z"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Podgrzewany stół"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Pomocniczy"
 msgid "Shield"
-msgstr ""
-
+msgstr "Osłona"
 msgid "Z"
 msgstr ""
 

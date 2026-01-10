@@ -394,8 +394,7 @@ msgid "Groove Angle"
 msgstr "Horonyszög"
 
 msgid "Part"
-msgstr "Tárgy"
-
+msgstr "Rész"
 msgid "Object"
 msgstr "Objektum"
 
@@ -16969,24 +16968,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Kézi beállítás"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-eltolás"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Fűtött tárgyasztal"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Kiegészítő"
 msgid "Shield"
-msgstr ""
-
+msgstr "Védelem"
 msgid "Z"
 msgstr ""
 

@@ -27,8 +27,7 @@ msgid "Humidity"
 msgstr ""
 
 msgid "Temperature"
-msgstr ""
-
+msgstr "Temperature"
 msgid "Left Time"
 msgstr ""
 
@@ -395,8 +394,7 @@ msgid "Groove Angle"
 msgstr ""
 
 msgid "Part"
-msgstr ""
-
+msgstr "Part"
 msgid "Object"
 msgstr ""
 
@@ -1685,8 +1683,7 @@ msgid "Flush options"
 msgstr ""
 
 msgid "Speed"
-msgstr ""
-
+msgstr "Speed"
 msgid "Strength"
 msgstr ""
 
@@ -4124,8 +4121,7 @@ msgid "Color change"
 msgstr ""
 
 msgid "Print"
-msgstr ""
-
+msgstr "Print"
 msgid "Printer"
 msgstr ""
 
@@ -7687,8 +7683,7 @@ msgid "Print temperature"
 msgstr ""
 
 msgid "Nozzle"
-msgstr ""
-
+msgstr "Nozzle"
 msgid "Nozzle temperature when printing"
 msgstr ""
 
@@ -7758,8 +7753,7 @@ msgid "Volumetric speed limitation"
 msgstr ""
 
 msgid "Cooling"
-msgstr ""
-
+msgstr "Cooling"
 msgid "Cooling for specific layer"
 msgstr ""
 
@@ -16472,24 +16466,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Manual Adjustment"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-Offset"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Heated Bed"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Auxiliary"
 msgid "Shield"
-msgstr ""
-
+msgstr "Shield"
 msgid "Z"
 msgstr ""
 

@@ -4378,8 +4378,7 @@ msgid "Color change"
 msgstr "Canvi de color"
 
 msgid "Print"
-msgstr "Imprimir"
-
+msgstr "Impressió"
 msgid "Printer"
 msgstr "Impressora"
 
@@ -8218,8 +8217,7 @@ msgid "Print temperature"
 msgstr "Temperatura d'impressió"
 
 msgid "Nozzle"
-msgstr "Broquet( nozzle )"
-
+msgstr "Filera"
 msgid "Nozzle temperature when printing"
 msgstr "Temperatura del broquet en imprimir"
 
@@ -18640,24 +18638,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Ajust manual"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Desplaçament Z"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Llit calent"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Auxiliar"
 msgid "Shield"
-msgstr ""
-
+msgstr "Escut"
 msgid "Z"
 msgstr ""
 

@@ -402,8 +402,7 @@ msgid "Groove Angle"
 msgstr "Úhel drážky"
 
 msgid "Part"
-msgstr "Dílů"
-
+msgstr "Díl"
 msgid "Object"
 msgstr "Objekt"
 
@@ -17269,24 +17268,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Ruční nastavení"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-Offset"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Vyhřívaná podložka"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Pomocný"
 msgid "Shield"
-msgstr ""
-
+msgstr "Štít"
 msgid "Z"
 msgstr ""
 

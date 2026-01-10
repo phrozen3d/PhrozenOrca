@@ -4276,8 +4276,7 @@ msgid "Color change"
 msgstr "Kleur veranderen"
 
 msgid "Print"
-msgstr "Print"
-
+msgstr "Afdrukken"
 msgid "Printer"
 msgstr "Printer"
 
@@ -8032,8 +8031,7 @@ msgid "Print temperature"
 msgstr "Print temperatuur"
 
 msgid "Nozzle"
-msgstr "Mondstuk"
-
+msgstr "Nozzle"
 msgid "Nozzle temperature when printing"
 msgstr "Mondstuk temperatuur tijdens printen"
 
@@ -17228,24 +17226,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Handmatige aanpassing"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-offset"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Verwarmingsbed"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Hulp"
 msgid "Shield"
-msgstr ""
-
+msgstr "Schild"
 msgid "Z"
 msgstr ""
 

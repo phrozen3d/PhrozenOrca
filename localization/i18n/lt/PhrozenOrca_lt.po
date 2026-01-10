@@ -8177,8 +8177,7 @@ msgid "Print temperature"
 msgstr "Spausdinimo temperatūra"
 
 msgid "Nozzle"
-msgstr "Purkštukas"
-
+msgstr "Antgalis"
 msgid "Nozzle temperature when printing"
 msgstr "Purkštuko temperatūra spausdinant"
 
@@ -18370,24 +18369,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Rankinis reguliavimas"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z poslinkis"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Šildomasis stalas"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Pagalbinis"
 msgid "Shield"
-msgstr ""
-
+msgstr "Skydelis"
 msgid "Z"
 msgstr ""
 

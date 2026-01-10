@@ -4403,8 +4403,7 @@ msgid "Color change"
 msgstr "Cambio de color"
 
 msgid "Print"
-msgstr "Imprimir"
-
+msgstr "Impresión"
 msgid "Printer"
 msgstr "Impresora"
 
@@ -8309,8 +8308,7 @@ msgid "Volumetric speed limitation"
 msgstr "Limitación de la velocidad volumétrica"
 
 msgid "Cooling"
-msgstr "Refrigeración"
-
+msgstr "Enfriamiento"
 msgid "Cooling for specific layer"
 msgstr "Ventilación para la capa específica"
 
@@ -18510,24 +18508,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Ajuste manual"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Desplazamiento Z"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Cama caliente"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Auxiliar"
 msgid "Shield"
-msgstr ""
-
+msgstr "Escudo"
 msgid "Z"
 msgstr ""
 

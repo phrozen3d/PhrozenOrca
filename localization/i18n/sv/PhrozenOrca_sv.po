@@ -7901,8 +7901,7 @@ msgid "Print temperature"
 msgstr "Utskrifts temperatur"
 
 msgid "Nozzle"
-msgstr "Nozzel"
-
+msgstr "Munstycke"
 msgid "Nozzle temperature when printing"
 msgstr "Nozzel temperatur vid utskrift"
 
@@ -16876,24 +16875,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Manuell justering"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Z-offset"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Värmebädd"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Hjälp"
 msgid "Shield"
-msgstr ""
-
+msgstr "Sköld"
 msgid "Z"
 msgstr ""
 

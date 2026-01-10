@@ -408,8 +408,7 @@ msgid "Groove Angle"
 msgstr "Угол скоса"
 
 msgid "Part"
-msgstr "Модель"
-
+msgstr "Деталь"
 msgid "Object"
 msgstr "Модель"
 
@@ -18915,24 +18914,19 @@ msgid "Turn On/Off Light"
 msgstr ""
 
 msgid "Manual Adjustment"
-msgstr ""
-
+msgstr "Ручная настройка"
 msgid "Z-Offset"
-msgstr ""
-
+msgstr "Смещение Z"
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
-msgstr ""
-
+msgstr "Подогреваемый стол"
 msgid "Auxiliary"
-msgstr ""
-
+msgstr "Вспомогательный"
 msgid "Shield"
-msgstr ""
-
+msgstr "Экран"
 msgid "Z"
 msgstr ""
 
