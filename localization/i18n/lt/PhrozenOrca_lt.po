@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-03-21 21:00+0200\n"
 "Last-Translator: Gintaras Kučinskas <sharanchius@gmail.com>\n"
 "Language-Team: \n"
@@ -16,8 +16,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && (n%100<11 || n%100>19) ? 0 : "
-"n%10>=2 && n%10<=9 && (n%100<11 || n%100>19) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && (n%100<11 || n%100>19) ? 0 : n"
+"%10>=2 && n%10<=9 && (n%100<11 || n%100>19) ? 1 : 2);\n"
 "X-Generator: Poedit 3.5\n"
 
 msgid "Current AMS humidity"
@@ -4569,7 +4569,7 @@ msgstr "Tūris:"
 msgid "Size:"
 msgstr "Dydis:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5038,17 +5038,17 @@ msgstr "Srauto greitis"
 msgid "Retraction test"
 msgstr "Įtraukimo testas"
 
-msgid "Pressure advance"
-msgstr "Filamento tiekimas posūkio metu"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Maks srautas"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Filamento tiekimas posūkio metu"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5065,6 +5065,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Daugiau..."
 
@@ -5073,9 +5076,6 @@ msgstr "Pamokos"
 
 msgid "Calibration help"
 msgstr "Kalibravimo pagalba"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "PhrozenOrca tolerancijos testas"
 
 msgid "More calibrations"
 msgstr "Daugiau kalibravimų"
@@ -5840,48 +5840,6 @@ msgstr "Kaip naudoti tik LAN režimą"
 msgid "Don't show this dialog again"
 msgstr "Daugiau nerodyti šio dialogo lango"
 
-msgid "3D Mouse disconnected."
-msgstr "3D pelė atjungta."
-
-msgid "Configuration can update now."
-msgstr "Yra nauja konfigūracija. Atnaujinti dabar?"
-
-msgid "Detail."
-msgstr "Daugiau."
-
-msgid "Integration was successful."
-msgstr "Integracija sėkminga."
-
-msgid "Integration failed."
-msgstr "Integracija nepavyko."
-
-msgid "Undo integration was successful."
-msgstr "Integracijos atšaukimas sėkmingas."
-
-msgid "New network plug-in available."
-msgstr "Galimas naujas tinklo papildinys."
-
-msgid "Details"
-msgstr "Smulkiau"
-
-msgid "New printer config available."
-msgstr "Pasiekiama nauja spausdintuvo konfigūracija."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "Integracijos atšaukimas nepavyko."
-
-msgid "Exporting."
-msgstr "Eksportuojama."
-
-msgid "Software has New version."
-msgstr "Yra atnaujinimas!"
-
-msgid "Goto download page."
-msgstr "Eikite į atsisiuntimo puslapį."
-
 msgid "Open Folder."
 msgstr "Atverti katalogą."
 
@@ -5927,6 +5885,48 @@ msgstr "ATŠAUKTA"
 
 msgid "Cancel upload"
 msgstr "Atšaukti įkėlimą"
+
+msgid "3D Mouse disconnected."
+msgstr "3D pelė atjungta."
+
+msgid "Configuration can update now."
+msgstr "Yra nauja konfigūracija. Atnaujinti dabar?"
+
+msgid "Detail."
+msgstr "Daugiau."
+
+msgid "Integration was successful."
+msgstr "Integracija sėkminga."
+
+msgid "Integration failed."
+msgstr "Integracija nepavyko."
+
+msgid "Undo integration was successful."
+msgstr "Integracijos atšaukimas sėkmingas."
+
+msgid "New network plug-in available."
+msgstr "Galimas naujas tinklo papildinys."
+
+msgid "Details"
+msgstr "Smulkiau"
+
+msgid "New printer config available."
+msgstr "Pasiekiama nauja spausdintuvo konfigūracija."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "Integracijos atšaukimas nepavyko."
+
+msgid "Exporting."
+msgstr "Eksportuojama."
+
+msgid "Software has New version."
+msgstr "Yra atnaujinimas!"
+
+msgid "Goto download page."
+msgstr "Eikite į atsisiuntimo puslapį."
 
 msgid "Jump to"
 msgstr "Peršokti į"
@@ -7933,8 +7933,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Įrašant pakadrinį vaizdo įrašą be spausdinimo galvutės judesių, "
 "rekomenduojama naudoti „Pakadrinio valymo bokštą“.\n"
@@ -9773,8 +9773,8 @@ msgid ""
 "The prime tower is currently only supported for the Marlin, RepRap/Sprinter, "
 "RepRapFirmware and Repetier G-code flavors."
 msgstr ""
-"Pagrindinis bokštas šiuo metu palaikomas tik \"Marlin\", \"RepRap/"
-"Sprinter\", \"RepRapFirmware\" ir \"Repetier\" G-kodo tipuose."
+"Pagrindinis bokštas šiuo metu palaikomas tik \"Marlin\", \"RepRap/Sprinter"
+"\", \"RepRapFirmware\" ir \"Repetier\" G-kodo tipuose."
 
 msgid "The prime tower is not supported in \"By object\" print."
 msgstr "Pirminis bokštas nepalaikomas spausdinant \"Pagal objektą\"."
@@ -12260,8 +12260,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² arba %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Retų užpildų pagreitis. Jei reikšmė išreikšta procentais (pvz., 100 %), ji "
 "bus apskaičiuota pagal numatytąjį pagreitį."
@@ -12374,10 +12374,10 @@ msgstr "Visas ventiliatoriaus greitis sluoksnyje"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Ventiliatoriaus greitis bus didinamas tiesiškai nuo nulio sluoksnyje "
 "\"close_fan_the_first_x_layers\" iki maksimalaus sluoksnyje "
@@ -12881,8 +12881,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14093,8 +14093,8 @@ msgid "Role base wipe speed"
 msgstr "Vaidmens pagrindo nuvalymo greitis"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14947,8 +14947,8 @@ msgstr "Suaktyvinti temperatūros reguliavimą"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15852,8 +15852,8 @@ msgid "Debug level"
 msgstr "Derinimo lygis"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 "Nustato derinimo žurnalizavimo lygį. 0: mirtinas, 1: klaida, 2: įspėjimas, "
 "3: informacija, 4: derinimas, 5: sekimas\n"
@@ -16312,13 +16312,13 @@ msgstr "Pateikto failo nepavyko perskaityti, nes jis tuščias"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Nežinomas failo formatas. Įvesties failo plėtinys turi "
-"būti .stl, .obj, .amf(.xml)."
+"Nežinomas failo formatas. Įvesties failo plėtinys turi būti .stl, .obj, ."
+"amf(.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Nežinomas failo formatas. Įvesties failo plėtinys turi būti .3mf "
-"arba .zip.amf."
+"Nežinomas failo formatas. Įvesties failo plėtinys turi būti .3mf arba .zip."
+"amf."
 
 msgid "Canceled"
 msgstr "Atšaukta"
@@ -17385,8 +17385,8 @@ msgstr ""
 "Ar norite jį perrašyti?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Būtų galima pervadinti iš anksto nustatytus nustatymus į \"Pardavėjo tipo "
@@ -18140,9 +18140,9 @@ msgid ""
 "quality but much longer print time."
 msgstr ""
 "Palyginti su numatytuoju 0,4 mm purkštuko profiliu, jo sluoksnio aukštis "
-"mažesnis, greitis ir pagreitis mažesni, o retas užpildymo raštas yra "
-"\"Gyroid\". Taigi, dėl jo mažiau matomų sluoksnio linijų ir daug geresnė "
-"spausdinimo kokybė, tačiau daug ilgesnis spausdinimo laikas."
+"mažesnis, greitis ir pagreitis mažesni, o retas užpildymo raštas yra \"Gyroid"
+"\". Taigi, dėl jo mažiau matomų sluoksnio linijų ir daug geresnė spausdinimo "
+"kokybė, tačiau daug ilgesnis spausdinimo laikas."
 
 msgid ""
 "Compared with the default profile of a 0.4 mm nozzle, it has a smaller layer "
@@ -18360,13 +18360,35 @@ msgstr "Pradėti:"
 msgid "Estimated："
 msgstr "Įvertinta:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18413,6 +18435,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18429,7 +18454,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -18805,6 +18833,9 @@ msgid ""
 "ABS, appropriately increasing the heatbed temperature can reduce the "
 "probability of warping?"
 msgstr ""
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "PhrozenOrca tolerancijos testas"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca sukurtas remiantis PrusaSlicer ir BambuStudio"

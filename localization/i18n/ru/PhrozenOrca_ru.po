@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrca V2.3.0 Official Release\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-07-06 21:08+0700\n"
 "Last-Translator: \n"
 "Language-Team: Andylg <andylg@yandex.ru>\n"
@@ -15,8 +15,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
-"n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.6\n"
 
 msgid "Current AMS humidity"
@@ -4647,7 +4647,7 @@ msgstr "Объём:"
 msgid "Size:"
 msgstr "Размер:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5124,17 +5124,17 @@ msgstr "Скорость потока"
 msgid "Retraction test"
 msgstr "Тест откатов"
 
-msgid "Pressure advance"
-msgstr "Коэф. Pressure advance"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Макс. объёмный расход"
 
 msgid "VFA"
 msgstr "Тест на вертикальные артефакты (VFA)"
+
+msgid "Pressure advance"
+msgstr "Коэф. Pressure advance"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr "Частота Input Shaping "
@@ -5151,6 +5151,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr "Калибровка Junction Deviation"
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Дополнительно..."
 
@@ -5159,9 +5162,6 @@ msgstr "Руководство"
 
 msgid "Calibration help"
 msgstr "Помощь в калибровке"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Тест допусков от Orca"
 
 msgid "More calibrations"
 msgstr "Больше калибровок"
@@ -5930,49 +5930,6 @@ msgstr "Как использовать режим «Только LAN»"
 msgid "Don't show this dialog again"
 msgstr "Не показывать снова"
 
-msgid "3D Mouse disconnected."
-msgstr "3D-мышь отключена."
-
-# Теперь профиль может быть обновлён
-msgid "Configuration can update now."
-msgstr "Теперь профиль можно обновить."
-
-msgid "Detail."
-msgstr "Подробности."
-
-msgid "Integration was successful."
-msgstr "Интеграция прошла успешно."
-
-msgid "Integration failed."
-msgstr "Не удалось выполнить интеграцию."
-
-msgid "Undo integration was successful."
-msgstr "Отмена интеграции прошла успешно."
-
-msgid "New network plug-in available."
-msgstr "Доступно обновление сетевого плагина."
-
-msgid "Details"
-msgstr "Подробности"
-
-msgid "New printer config available."
-msgstr "Доступен новый профиль принтера."
-
-msgid "Wiki"
-msgstr "Вики-сайт"
-
-msgid "Undo integration failed."
-msgstr "Не удалось отменить интеграцию."
-
-msgid "Exporting."
-msgstr "Экспорт..."
-
-msgid "Software has New version."
-msgstr "Доступна новая версия приложения."
-
-msgid "Goto download page."
-msgstr "Перейти на страницу загрузки."
-
 msgid "Open Folder."
 msgstr "Открыть папку."
 
@@ -6018,6 +5975,49 @@ msgstr "ОТМЕНЕНО"
 
 msgid "Cancel upload"
 msgstr "Отменить отправку"
+
+msgid "3D Mouse disconnected."
+msgstr "3D-мышь отключена."
+
+# Теперь профиль может быть обновлён
+msgid "Configuration can update now."
+msgstr "Теперь профиль можно обновить."
+
+msgid "Detail."
+msgstr "Подробности."
+
+msgid "Integration was successful."
+msgstr "Интеграция прошла успешно."
+
+msgid "Integration failed."
+msgstr "Не удалось выполнить интеграцию."
+
+msgid "Undo integration was successful."
+msgstr "Отмена интеграции прошла успешно."
+
+msgid "New network plug-in available."
+msgstr "Доступно обновление сетевого плагина."
+
+msgid "Details"
+msgstr "Подробности"
+
+msgid "New printer config available."
+msgstr "Доступен новый профиль принтера."
+
+msgid "Wiki"
+msgstr "Вики-сайт"
+
+msgid "Undo integration failed."
+msgstr "Не удалось отменить интеграцию."
+
+msgid "Exporting."
+msgstr "Экспорт..."
+
+msgid "Software has New version."
+msgstr "Доступна новая версия приложения."
+
+msgid "Goto download page."
+msgstr "Перейти на страницу загрузки."
 
 msgid "Jump to"
 msgstr "Перейти к"
@@ -8067,8 +8067,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "При записи таймлапса без видимости головы рекомендуется добавить «Черновая "
 "башня таймлапса».\n"
@@ -12506,8 +12506,8 @@ msgid "mm/s² or %"
 msgstr "мм/с² или %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Ускорение на разреженном заполнении. Если задано в процентах, то значение "
 "вычисляться относительно ускорения по умолчанию."
@@ -12629,10 +12629,10 @@ msgstr "Полная скорость вентилятора на слое"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Скорость вентилятора будет линейно увеличиваться от нуля со слоя заданным "
 "параметром «Не включать вентилятор на первых» до заданной максимальной "
@@ -13179,8 +13179,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14473,8 +14473,8 @@ msgid "Role base wipe speed"
 msgstr "Скорость очистки по типу экструзии"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14771,9 +14771,9 @@ msgid ""
 "zero value."
 msgstr ""
 "Разница температур, которая будет применяться, когда экструдер не активен. "
-"Значение не используется, если для параметра «Температура ожидания» "
-"('idle_temperature') в настройках пластиковой нити установлено ненулевое "
-"значение."
+"Значение не используется, если для параметра «Температура "
+"ожидания» ('idle_temperature') в настройках пластиковой нити установлено "
+"ненулевое значение."
 
 msgid "Preheat time"
 msgstr "Время преднагрева"
@@ -15386,8 +15386,8 @@ msgstr "Вкл. контроль температуры"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -16359,8 +16359,8 @@ msgid "Debug level"
 msgstr "Уровень отладки журнала"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 "Задаёт параметр чувствительности записи событий в журнал.\n"
 "0: Критическая ошибка, 1: Ошибка, 2: Предупреждение, 3: Информация, 4: "
@@ -16843,8 +16843,8 @@ msgstr ""
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Неизвестный формат файла. Входной файл должен иметь расширение *.3mf или "
-"*.zip.amf."
+"Неизвестный формат файла. Входной файл должен иметь расширение *.3mf или *."
+"zip.amf."
 
 msgid "Canceled"
 msgstr "Отменено"
@@ -17926,8 +17926,8 @@ msgstr ""
 "Хотите перезаписать его?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Мы переименуем профиль в \"Производитель Тип Серия @выбранный принтер\".\n"
@@ -18905,13 +18905,35 @@ msgstr "Начать:"
 msgid "Estimated："
 msgstr "Оценено:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18958,6 +18980,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18974,7 +18999,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -19010,9 +19038,9 @@ msgid ""
 "overhangs?"
 msgstr ""
 "Порядок печати периметров «Сэндвич»\n"
-"Знаете ли вы, что можно использовать порядок печати периметров «Сэндвич» "
-"(т.е. внутренний-внешний-внутренний) для повышения точности и "
-"согласованности слоёв, если у вашей модели не очень крутые нависания?"
+"Знаете ли вы, что можно использовать порядок печати периметров «Сэндвич» (т."
+"е. внутренний-внешний-внутренний) для повышения точности и согласованности "
+"слоёв, если у вашей модели не очень крутые нависания?"
 
 #: resources/data/hints.ini: [hint:Chamber temperature]
 msgid ""
@@ -19366,6 +19394,9 @@ msgstr ""
 "Знаете ли вы, что при печати материалами, склонными к короблению, таких как "
 "ABS, повышение температуры подогреваемого стола может снизить эту "
 "вероятность?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Тест допусков от Orca"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca основан на PrusaSlicer и BambuStudio"

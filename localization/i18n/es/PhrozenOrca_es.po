@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Carlos Fco. Caruncho Serrano <puzzlero@gmail.com>\n"
 "Language-Team: \n"
@@ -4618,7 +4618,7 @@ msgstr "Volumen:"
 msgid "Size:"
 msgstr "Tamaño:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5086,17 +5086,17 @@ msgstr "Test de Flujo"
 msgid "Retraction test"
 msgstr "Test de Retracciones"
 
-msgid "Pressure advance"
-msgstr "Avance de Presión Lineal"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Test de Flujo Máximo"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Avance de Presión Lineal"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5113,6 +5113,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Más..."
 
@@ -5121,9 +5124,6 @@ msgstr "Tutorial"
 
 msgid "Calibration help"
 msgstr "Ayuda de calibración"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Test de Tolerancia Orca"
 
 msgid "More calibrations"
 msgstr "Más calibraciones"
@@ -5891,48 +5891,6 @@ msgstr ""
 msgid "Don't show this dialog again"
 msgstr ""
 
-msgid "3D Mouse disconnected."
-msgstr "Ratón 3D desconectado."
-
-msgid "Configuration can update now."
-msgstr "La configuración puede actualizarse ahora."
-
-msgid "Detail."
-msgstr "Detalle."
-
-msgid "Integration was successful."
-msgstr "La integración fue un éxito."
-
-msgid "Integration failed."
-msgstr "La integración ha fallado."
-
-msgid "Undo integration was successful."
-msgstr "La operación de deshacer se ha realizado con éxito."
-
-msgid "New network plug-in available."
-msgstr "Nuevo complemento de red disponible."
-
-msgid "Details"
-msgstr "Detalles"
-
-msgid "New printer config available."
-msgstr "Nueva configuración de impresora disponible."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "La operación de deshacer ha fallado."
-
-msgid "Exporting."
-msgstr "Exportando."
-
-msgid "Software has New version."
-msgstr "El software tiene una nueva versión."
-
-msgid "Goto download page."
-msgstr "Ir a la página de descargas."
-
 msgid "Open Folder."
 msgstr "Abrir Carpeta."
 
@@ -5974,6 +5932,48 @@ msgstr "CANCELADO"
 
 msgid "Cancel upload"
 msgstr "Carga cancelada"
+
+msgid "3D Mouse disconnected."
+msgstr "Ratón 3D desconectado."
+
+msgid "Configuration can update now."
+msgstr "La configuración puede actualizarse ahora."
+
+msgid "Detail."
+msgstr "Detalle."
+
+msgid "Integration was successful."
+msgstr "La integración fue un éxito."
+
+msgid "Integration failed."
+msgstr "La integración ha fallado."
+
+msgid "Undo integration was successful."
+msgstr "La operación de deshacer se ha realizado con éxito."
+
+msgid "New network plug-in available."
+msgstr "Nuevo complemento de red disponible."
+
+msgid "Details"
+msgstr "Detalles"
+
+msgid "New printer config available."
+msgstr "Nueva configuración de impresora disponible."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "La operación de deshacer ha fallado."
+
+msgid "Exporting."
+msgstr "Exportando."
+
+msgid "Software has New version."
+msgstr "El software tiene una nueva versión."
+
+msgid "Goto download page."
+msgstr "Ir a la página de descargas."
 
 msgid "Jump to"
 msgstr "Ir a"
@@ -7654,8 +7654,8 @@ msgid ""
 "start printing."
 msgstr ""
 "Hay algunos filamentos desconocidos en los mapeados AMS. Por favor, "
-"compruebe si son los filamentos requeridos. Si lo son, presione "
-"\"Confirmar\" para empezar a imprimir."
+"compruebe si son los filamentos requeridos. Si lo son, presione \"Confirmar"
+"\" para empezar a imprimir."
 
 #, c-format, boost-format
 msgid "nozzle in preset: %.1f %s"
@@ -8002,13 +8002,13 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Cuando se graba un timelapse sin cabezal, se recomienda añadir una \"Torre "
 "de Purga de Timelapse\" haciendo clic con el botón derecho del ratón en una "
-"posición vacía de la bandeja de impresión y seleccionando \"Añadir "
-"Primitivo\"->Torre de Purga de Timelapse\"."
+"posición vacía de la bandeja de impresión y seleccionando \"Añadir Primitivo"
+"\"->Torre de Purga de Timelapse\"."
 
 msgid ""
 "A copy of the current system preset will be created, which will be detached "
@@ -10129,8 +10129,8 @@ msgstr ""
 "contener el nombre de host, la dirección IP o la URL de la instancia de la "
 "impresora. Se puede acceder a la impresora detrás de un proxy con la "
 "autenticación básica activada por un nombre de usuario y contraseña en la "
-"URL en el siguiente formato: https://"
-"nombredeusuario:contraseña@tudirecciondeoctopi/"
+"URL en el siguiente formato: https://nombredeusuario:"
+"contraseña@tudirecciondeoctopi/"
 
 msgid "Device UI"
 msgstr "IU de dispositivo"
@@ -12303,8 +12303,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² o %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Aceleración del relleno de baja densidad. Si el valor se expresa en "
 "porcentaje (por ejemplo 100%), se calculará basándose en la aceleración por "
@@ -12421,16 +12421,16 @@ msgstr "Velocidad máxima del ventilador en la capa"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "La velocidad de ventilador se incrementará linealmente de cero desde la capa "
-"\"close_fan_the_first_x_layers\" al máximo en la capa "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" se ignorará si es menor "
-"que \"close_fan_the_first_x_layers\", en cuyo caso el ventilador funcionará "
-"al máximo permitido en la capa \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" al máximo en la capa \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" se ignorará si es menor que "
+"\"close_fan_the_first_x_layers\", en cuyo caso el ventilador funcionará al "
+"máximo permitido en la capa \"close_fan_the_first_x_layers\" + 1."
 
 msgid "layer"
 msgstr "Capa"
@@ -12903,8 +12903,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14151,8 +14151,8 @@ msgid "Role base wipe speed"
 msgstr "Velocidad de purga según tipo de línea"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -15012,8 +15012,8 @@ msgstr "Activar control de temperatura"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15493,8 +15493,8 @@ msgid ""
 "Picture sizes to be stored into a .gcode and .sl1 / .sl1s files, in the "
 "following format: \"XxY, XxY, ...\""
 msgstr ""
-"Los tamaños de las imágenes para almacenar en archivos .gcode "
-"y .sl1 / .sl1s, en el siguiente formato: \"XxY, XxY, ...\""
+"Los tamaños de las imágenes para almacenar en archivos .gcode y .sl1 / ."
+"sl1s, en el siguiente formato: \"XxY, XxY, ...\""
 
 msgid "Format of G-code thumbnails"
 msgstr "Formato de las miniaturas de G-Code"
@@ -15933,8 +15933,8 @@ msgid "Debug level"
 msgstr "Nivel de depuración"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 "Ajusta el nivel de registro de depuración. 0:fatal, 1:error, 2:advertencia, "
 "3:información, 4:depuración, 5:rastreo\n"
@@ -16399,13 +16399,13 @@ msgstr "El archivo proporcionado no puede ser leído debido a que está vacío"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Formato de archivo desconocido: el archivo de entrada debe tener "
-"extensión .stl, .obj o .amf (.xml)."
+"Formato de archivo desconocido: el archivo de entrada debe tener extensión ."
+"stl, .obj o .amf (.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Formato de archivo desconocido: el archivo de entrada debe tener extensión "
-".3mf o .zip.amf."
+"Formato de archivo desconocido: el archivo de entrada debe tener "
+"extensión .3mf o .zip.amf."
 
 msgid "Canceled"
 msgstr "Cancelado"
@@ -16647,12 +16647,12 @@ msgstr ""
 "impresión de varios colores/materiales, la impresora utilizará el parámetro "
 "de compensación por defecto para el filamento durante cada cambio de "
 "filamento que tendrá un buen resultado en la mayoría de los casos.\n"
-"un solo color/material, con la opción \"calibración de la dinámica de "
-"flujo\" marcada en el menú de inicio de impresión, la impresora seguirá el "
-"camino antiguo, calibrar el filamento antes de la impresión; cuando se "
-"inicia una impresión de varios colores/materiales, la impresora utilizará el "
-"parámetro de compensación por defecto para el filamento durante cada cambio "
-"de filamento que tendrá un buen resultado en la mayoría de los casos.\n"
+"un solo color/material, con la opción \"calibración de la dinámica de flujo"
+"\" marcada en el menú de inicio de impresión, la impresora seguirá el camino "
+"antiguo, calibrar el filamento antes de la impresión; cuando se inicia una "
+"impresión de varios colores/materiales, la impresora utilizará el parámetro "
+"de compensación por defecto para el filamento durante cada cambio de "
+"filamento que tendrá un buen resultado en la mayoría de los casos.\n"
 "\n"
 "Tenga en cuenta que hay algunos casos que pueden hacer que los resultados de "
 "la calibración no sean fiables, como una adhesión insuficiente en la bandeja "
@@ -17495,8 +17495,8 @@ msgstr ""
 "¿Quieres reescribirlo?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Cambiaremos el nombre de los perfiles a \"Tipo Número de Serie @impresora "
@@ -18500,13 +18500,35 @@ msgstr "Iniciar:"
 msgid "Estimated："
 msgstr "Estimado:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18553,6 +18575,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18569,7 +18594,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -18960,6 +18988,9 @@ msgstr ""
 "¿Sabías que al imprimir materiales propensos a la deformación como el ABS, "
 "aumentar adecuadamente la temperatura de la cama térmica puede reducir la "
 "probabilidad de deformaciones?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Test de Tolerancia Orca"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca se basa en PrusaSlicer y BambuStudio"
@@ -20215,8 +20246,8 @@ msgstr ""
 #~ "Cuando grabamos timelapse sin cabezal de impresión, es recomendable "
 #~ "añadir un \"Torre de Purga de Intervalo\" \n"
 #~ "presionando con el botón derecho la posición vacía de la bandeja de "
-#~ "construcción y elegir \"Añadir Primitivo\"->\"Intervalo de Torre de "
-#~ "Purga\"."
+#~ "construcción y elegir \"Añadir Primitivo\"->\"Intervalo de Torre de Purga"
+#~ "\"."
 
 #~ msgid "Current association: "
 #~ msgstr "Asociación actual:"

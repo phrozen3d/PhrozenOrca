@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-03-15 10:55+0100\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -3406,8 +3406,8 @@ msgid ""
 "be opened during copy check. The output G-code is at %1%.tmp."
 msgstr ""
 "La còpia del codi-G temporal ha finalitzat, però el codi exportat no s'ha "
-"pogut obrir durant la verificació de la còpia. El codi-G de sortida és a "
-"%1%.tmp."
+"pogut obrir durant la verificació de la còpia. El codi-G de sortida és a %1%."
+"tmp."
 
 #, boost-format
 msgid "G-code file exported to %1%"
@@ -4593,7 +4593,7 @@ msgstr "Volum:"
 msgid "Size:"
 msgstr "Mida:"
 
-#, fuzzy, boost-format
+#, fuzzy, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5063,17 +5063,17 @@ msgstr "Ratio de Flux"
 msgid "Retraction test"
 msgstr "Prova de retracció"
 
-msgid "Pressure advance"
-msgstr "Avanç de Pressió Lineal( Pressure advance )"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Cabal màxim"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Avanç de Pressió Lineal( Pressure advance )"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5090,6 +5090,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Més..."
 
@@ -5098,9 +5101,6 @@ msgstr "Tutorial"
 
 msgid "Calibration help"
 msgstr "Ajuda per calibratge"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Prova de tolerància d'Orca"
 
 msgid "More calibrations"
 msgstr "Més calibratges"
@@ -5875,48 +5875,6 @@ msgstr "Com utilitzar el mode només LAN"
 msgid "Don't show this dialog again"
 msgstr "No tornis a mostrar aquest diàleg"
 
-msgid "3D Mouse disconnected."
-msgstr "S'ha desconnectat el ratolí 3D."
-
-msgid "Configuration can update now."
-msgstr "La configuració es pot actualitzar ara."
-
-msgid "Detail."
-msgstr "Detall."
-
-msgid "Integration was successful."
-msgstr "La integració s'ha realitzat correctament."
-
-msgid "Integration failed."
-msgstr "La integració ha fallat."
-
-msgid "Undo integration was successful."
-msgstr "L'operació de desfer s'ha dut a terme amb èxit."
-
-msgid "New network plug-in available."
-msgstr "Nou plug-in de xarxa disponible."
-
-msgid "Details"
-msgstr "Detalls"
-
-msgid "New printer config available."
-msgstr "Nova configuració d'impressora disponible."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "L'operació de desfer ha fallat."
-
-msgid "Exporting."
-msgstr "Exportant."
-
-msgid "Software has New version."
-msgstr "El programari té una nova versió."
-
-msgid "Goto download page."
-msgstr "Aneu a la pàgina de descàrrega."
-
 msgid "Open Folder."
 msgstr "Obrir la carpeta."
 
@@ -5958,6 +5916,48 @@ msgstr "CANCEL·LAT"
 
 msgid "Cancel upload"
 msgstr "Cancel·lar càrrega"
+
+msgid "3D Mouse disconnected."
+msgstr "S'ha desconnectat el ratolí 3D."
+
+msgid "Configuration can update now."
+msgstr "La configuració es pot actualitzar ara."
+
+msgid "Detail."
+msgstr "Detall."
+
+msgid "Integration was successful."
+msgstr "La integració s'ha realitzat correctament."
+
+msgid "Integration failed."
+msgstr "La integració ha fallat."
+
+msgid "Undo integration was successful."
+msgstr "L'operació de desfer s'ha dut a terme amb èxit."
+
+msgid "New network plug-in available."
+msgstr "Nou plug-in de xarxa disponible."
+
+msgid "Details"
+msgstr "Detalls"
+
+msgid "New printer config available."
+msgstr "Nova configuració d'impressora disponible."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "L'operació de desfer ha fallat."
+
+msgid "Exporting."
+msgstr "Exportant."
+
+msgid "Software has New version."
+msgstr "El programari té una nova versió."
+
+msgid "Goto download page."
+msgstr "Aneu a la pàgina de descàrrega."
 
 msgid "Jump to"
 msgstr "Saltar a"
@@ -7983,8 +7983,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Quan graveu timelapse sense capçal d'impressió, es recomana afegir una "
 "\"Torre de Purga Timelapse\" \n"
@@ -11133,9 +11133,8 @@ msgstr ""
 "reducció de coixins a les superfícies superiors, així com una separació "
 "reduïda de la capa de pont externa dels seus perímetres circumdants.\n"
 "\n"
-"En general, es recomana establir això com a mínim com a \"Només pont "
-"extern\", tret que es detectin problemes específics amb el model en "
-"rodanxes.\n"
+"En general, es recomana establir això com a mínim com a \"Només pont extern"
+"\", tret que es detectin problemes específics amb el model en rodanxes.\n"
 "\n"
 "Opcions:\n"
 "1. Desactivat: no genera segones capes de pont. Aquest és el valor "
@@ -12387,8 +12386,8 @@ msgid "mm/s² or %"
 msgstr "mm/s o %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Acceleració del farciment poc dens. Si el valor s'expressa en percentatge "
 "( per exemple, 100% ), es calcularà a partir de l'acceleració predeterminada."
@@ -12503,15 +12502,15 @@ msgstr "Velocitat màxima del ventilador a la capa"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "La velocitat del ventilador augmentarà linealment de zero a la capa "
-"\"close_fan_the_first_x_layers\" al màxim a la capa "
-"\"full_fan_speed_layer\". S'ignorarà \"full_fan_speed_layer\" si és inferior "
-"a \"close_fan_the_first_x_layers\", en aquest cas el ventilador funcionarà a "
+"\"close_fan_the_first_x_layers\" al màxim a la capa \"full_fan_speed_layer"
+"\". S'ignorarà \"full_fan_speed_layer\" si és inferior a "
+"\"close_fan_the_first_x_layers\", en aquest cas el ventilador funcionarà a "
 "la velocitat màxima permesa a la capa \"close_fan_the_first_x_layers\" + 1."
 
 msgid "layer"
@@ -13016,8 +13015,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14276,8 +14275,8 @@ msgid "Role base wipe speed"
 msgstr "Velocitat de neteja basada en l'acció"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -15145,8 +15144,8 @@ msgstr "Activar el control de temperatura"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15544,9 +15543,8 @@ msgid ""
 "0 to disable."
 msgstr ""
 "Temperatura del broquet quan l'eina no s'utilitza actualment en "
-"configuracions multieina. Només s'utilitza quan la \"Prevenció de "
-"supuració\" està activa a la configuració d'impressió. Establiu a 0 per "
-"desactivar."
+"configuracions multieina. Només s'utilitza quan la \"Prevenció de supuració"
+"\" està activa a la configuració d'impressió. Establiu a 0 per desactivar."
 
 msgid "X-Y hole compensation"
 msgstr "Compensació de forat( contorn intern ) X-Y"
@@ -16071,11 +16069,11 @@ msgid "Debug level"
 msgstr "Nivell de depuració"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"Defineix el nivell de registre de depuració. 0:fatal, 1:error, 2:warning, "
-"3:info, 4:debug, 5:tracejar\n"
+"Defineix el nivell de registre de depuració. 0:fatal, 1:error, 2:warning, 3:"
+"info, 4:debug, 5:tracejar\n"
 
 msgid "Enable timelapse for print"
 msgstr "Activa el timelapse per a la impressió"
@@ -16540,8 +16538,8 @@ msgstr "El fitxer subministrat no s'ha pogut llegir perquè està buit"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Format de fitxer desconegut. El fitxer d'entrada ha de tenir "
-"extensió .stl, .obj, .amf( .xml )."
+"Format de fitxer desconegut. El fitxer d'entrada ha de tenir extensió .stl, ."
+"obj, .amf( .xml )."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
@@ -17627,8 +17625,8 @@ msgstr ""
 "Vols reescriure'l?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Canviaríem el nom dels perfils seleccionats com a \"Proveïdor Tipus "
@@ -18608,8 +18606,8 @@ msgid ""
 "Warning: The brim type is not set to \"painted\", the brim ears will not "
 "take effect!"
 msgstr ""
-"Advertència: el tipus de Vora d'Adherència no està configurat com a "
-"\"pintat\", les orelles de la Vora d'Adherència no tindran efecte!"
+"Advertència: el tipus de Vora d'Adherència no està configurat com a \"pintat"
+"\", les orelles de la Vora d'Adherència no tindran efecte!"
 
 msgid "Set the brim type of this object to \"painted\""
 msgstr ""
@@ -18632,13 +18630,35 @@ msgstr "Iniciar:"
 msgid "Estimated："
 msgstr "Estimat:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18685,6 +18705,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18701,7 +18724,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -19093,6 +19119,9 @@ msgstr ""
 "Sabíeu que quan imprimiu materials propensos a deformar-se, com ara l'ABS, "
 "augmentar adequadament la temperatura del llit pot reduir la probabilitat de "
 "deformació?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Prova de tolerància d'Orca"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca està basat en PrusaSlicer i BambuStudio"

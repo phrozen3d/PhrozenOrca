@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4279,7 +4279,7 @@ msgstr ""
 msgid "Size:"
 msgstr ""
 
-#, possible-boost-format
+#, possible-c-format, possible-boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -4736,16 +4736,16 @@ msgstr ""
 msgid "Retraction test"
 msgstr ""
 
-msgid "Pressure advance"
-msgstr ""
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr ""
 
 msgid "VFA"
+msgstr ""
+
+msgid "Pressure advance"
+msgstr ""
+
+msgid "Orca Tolerance Test"
 msgstr ""
 
 msgid "Input Shaping Frequency"
@@ -4763,6 +4763,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr ""
 
@@ -4770,9 +4773,6 @@ msgid "Tutorial"
 msgstr ""
 
 msgid "Calibration help"
-msgstr ""
-
-msgid "PhrozenOrca Tolerance Test"
 msgstr ""
 
 msgid "More calibrations"
@@ -5467,48 +5467,6 @@ msgstr ""
 msgid "Don't show this dialog again"
 msgstr ""
 
-msgid "3D Mouse disconnected."
-msgstr ""
-
-msgid "Configuration can update now."
-msgstr ""
-
-msgid "Detail."
-msgstr ""
-
-msgid "Integration was successful."
-msgstr ""
-
-msgid "Integration failed."
-msgstr ""
-
-msgid "Undo integration was successful."
-msgstr ""
-
-msgid "New network plug-in available."
-msgstr ""
-
-msgid "Details"
-msgstr ""
-
-msgid "New printer config available."
-msgstr ""
-
-msgid "Wiki"
-msgstr ""
-
-msgid "Undo integration failed."
-msgstr ""
-
-msgid "Exporting."
-msgstr ""
-
-msgid "Software has New version."
-msgstr ""
-
-msgid "Goto download page."
-msgstr ""
-
 msgid "Open Folder."
 msgstr ""
 
@@ -5549,6 +5507,48 @@ msgid "CANCELED"
 msgstr ""
 
 msgid "Cancel upload"
+msgstr ""
+
+msgid "3D Mouse disconnected."
+msgstr ""
+
+msgid "Configuration can update now."
+msgstr ""
+
+msgid "Detail."
+msgstr ""
+
+msgid "Integration was successful."
+msgstr ""
+
+msgid "Integration failed."
+msgstr ""
+
+msgid "Undo integration was successful."
+msgstr ""
+
+msgid "New network plug-in available."
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "New printer config available."
+msgstr ""
+
+msgid "Wiki"
+msgstr ""
+
+msgid "Undo integration failed."
+msgstr ""
+
+msgid "Exporting."
+msgstr ""
+
+msgid "Software has New version."
+msgstr ""
+
+msgid "Goto download page."
 msgstr ""
 
 msgid "Jump to"
@@ -7338,8 +7338,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 
 msgid ""
@@ -10872,8 +10872,8 @@ msgid "mm/s² or %"
 msgstr ""
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 
 msgid ""
@@ -10973,10 +10973,10 @@ msgstr ""
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 
 msgid "layer"
@@ -11381,8 +11381,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -12390,8 +12390,8 @@ msgid "Role base wipe speed"
 msgstr ""
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -13086,8 +13086,8 @@ msgstr ""
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -13805,8 +13805,8 @@ msgid "Debug level"
 msgstr ""
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 
 msgid "Enable timelapse for print"
@@ -15178,8 +15178,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 
@@ -15994,13 +15994,35 @@ msgstr ""
 msgid "Estimated："
 msgstr ""
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -16047,6 +16069,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -16063,7 +16088,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"

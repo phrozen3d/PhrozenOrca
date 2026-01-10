@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2024-11-03 20:59+0100\n"
 "Last-Translator: René Mošner <Renemosner@seznam.cz>\n"
 "Language-Team: \n"
@@ -4515,7 +4515,7 @@ msgstr "Objem:"
 msgid "Size:"
 msgstr "Velikost:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -4982,17 +4982,17 @@ msgstr "Průtok"
 msgid "Retraction test"
 msgstr "Test Retrakce"
 
-msgid "Pressure advance"
-msgstr "Předstih tlaku"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Max. průtok"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Předstih tlaku"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5009,6 +5009,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Více..."
 
@@ -5017,9 +5020,6 @@ msgstr "Výukový program"
 
 msgid "Calibration help"
 msgstr "Nápověda ke kalibraci"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "PhrozenOrca Test Tolerance"
 
 msgid "More calibrations"
 msgstr "Další kalibrace"
@@ -5752,48 +5752,6 @@ msgstr ""
 msgid "Don't show this dialog again"
 msgstr ""
 
-msgid "3D Mouse disconnected."
-msgstr "3D myš odpojena."
-
-msgid "Configuration can update now."
-msgstr "Konfiguraci lze nyní aktualizovat."
-
-msgid "Detail."
-msgstr "Podrobnosti."
-
-msgid "Integration was successful."
-msgstr "Integrace byla úspěšná."
-
-msgid "Integration failed."
-msgstr "Integrace se nezdařila."
-
-msgid "Undo integration was successful."
-msgstr "Vrácení zpět integrace bylo úspěšné."
-
-msgid "New network plug-in available."
-msgstr "K dispozici je nový síťový zásuvný modul."
-
-msgid "Details"
-msgstr "Podrobnosti"
-
-msgid "New printer config available."
-msgstr ""
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "Vrácení zpět integrace se nezdařilo."
-
-msgid "Exporting."
-msgstr "Exportování."
-
-msgid "Software has New version."
-msgstr "Software má novou verzi."
-
-msgid "Goto download page."
-msgstr "Přejít na stránku stahování."
-
 msgid "Open Folder."
 msgstr "Otevřít složku."
 
@@ -5839,6 +5797,48 @@ msgstr "ZRUŠENO"
 
 msgid "Cancel upload"
 msgstr "Zrušit nahrávání"
+
+msgid "3D Mouse disconnected."
+msgstr "3D myš odpojena."
+
+msgid "Configuration can update now."
+msgstr "Konfiguraci lze nyní aktualizovat."
+
+msgid "Detail."
+msgstr "Podrobnosti."
+
+msgid "Integration was successful."
+msgstr "Integrace byla úspěšná."
+
+msgid "Integration failed."
+msgstr "Integrace se nezdařila."
+
+msgid "Undo integration was successful."
+msgstr "Vrácení zpět integrace bylo úspěšné."
+
+msgid "New network plug-in available."
+msgstr "K dispozici je nový síťový zásuvný modul."
+
+msgid "Details"
+msgstr "Podrobnosti"
+
+msgid "New printer config available."
+msgstr ""
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "Vrácení zpět integrace se nezdařilo."
+
+msgid "Exporting."
+msgstr "Exportování."
+
+msgid "Software has New version."
+msgstr "Software má novou verzi."
+
+msgid "Goto download page."
+msgstr "Přejít na stránku stahování."
 
 msgid "Jump to"
 msgstr "Přejít na"
@@ -7766,8 +7766,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Při nahrávání časosběru bez nástrojové hlavy se doporučuje přidat  "
 "\"Timelapse Wipe Tower\" \n"
@@ -11641,8 +11641,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² or %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Zrychlení vnitřní výplně. Pokud je hodnota vyjádřena v procentech (např. 100 "
 "%), bude vypočítána na základě výchozího zrychlení."
@@ -11754,10 +11754,10 @@ msgstr "Maximální otáčky ventilátoru ve vrstvě"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Otáčky ventilátoru se lineárně zvýší z nuly ve vrstvě "
 "\"close_fan_first_layers\" na maximum ve vrstvě \"full_fan_speed_layer\". "
@@ -12213,8 +12213,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -13352,8 +13352,8 @@ msgid "Role base wipe speed"
 msgstr "Rychlost čištění podle role"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14142,8 +14142,8 @@ msgstr "Aktivovat řízení teploty"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -14964,11 +14964,11 @@ msgid "Debug level"
 msgstr "Úroveň ladění"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"Nastaví úroveň protokolování ladění. 0:fatal, 1:error, 2:warning, 3:info, "
-"4:debug, 5:sledovat\n"
+"Nastaví úroveň protokolování ladění. 0:fatal, 1:error, 2:warning, 3:info, 4:"
+"debug, 5:sledovat\n"
 
 msgid "Enable timelapse for print"
 msgstr ""
@@ -15404,8 +15404,8 @@ msgstr "Nahraný soubor nemohl být načten, protože je prázdný"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Neznámý formát souboru. Vstupní soubor musí mít příponu .stl, .obj "
-"nebo .amf(.xml)"
+"Neznámý formát souboru. Vstupní soubor musí mít příponu .stl, .obj nebo ."
+"amf(.xml)"
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
@@ -16421,8 +16421,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 
@@ -17259,13 +17259,35 @@ msgstr "Spustit:"
 msgid "Estimated："
 msgstr "Odhadováno:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -17312,6 +17334,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -17328,7 +17353,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -17469,8 +17497,8 @@ msgid ""
 msgstr ""
 "Plochou na podložku\n"
 "Věděli jste, že můžete rychle nastavit orientaci modelu tak, aby jedna z "
-"jeho stěn spočívala na tiskovém podloží? Vyberte funkci \"Plochou na "
-"podložku\" nebo stiskněte klávesu <b>F</b>."
+"jeho stěn spočívala na tiskovém podloží? Vyberte funkci \"Plochou na podložku"
+"\" nebo stiskněte klávesu <b>F</b>."
 
 #: resources/data/hints.ini: [hint:Object List]
 msgid ""
@@ -17689,6 +17717,9 @@ msgid ""
 "ABS, appropriately increasing the heatbed temperature can reduce the "
 "probability of warping?"
 msgstr ""
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "PhrozenOrca Test Tolerance"
 
 #~ msgid "Remap filaments"
 #~ msgstr "Přemapovat filamenty"
@@ -18397,12 +18428,12 @@ msgstr ""
 #~ "Najdete podrobnosti o kalibraci průtoku dynamiky v naší wiki.\n"
 #~ "\n"
 #~ "Obvykle kalibrace není potřebná. Při spuštění tisku s jednobarevným/"
-#~ "materiálovým filamentem a zaškrtnutou volbou \"kalibrace průtoku "
-#~ "dynamiky\" v menu spuštění tisku, tiskárna bude postupovat podle staré "
-#~ "metody a zkalibruje filament před tiskem. Při spuštění tisku s "
-#~ "vícebarevným/materiálovým filamentem bude tiskárna při každé změně "
-#~ "filamentu používat výchozí kompenzační parametr pro filament, což má "
-#~ "většinou dobrý výsledek.\n"
+#~ "materiálovým filamentem a zaškrtnutou volbou \"kalibrace průtoku dynamiky"
+#~ "\" v menu spuštění tisku, tiskárna bude postupovat podle staré metody a "
+#~ "zkalibruje filament před tiskem. Při spuštění tisku s vícebarevným/"
+#~ "materiálovým filamentem bude tiskárna při každé změně filamentu používat "
+#~ "výchozí kompenzační parametr pro filament, což má většinou dobrý "
+#~ "výsledek.\n"
 #~ "\n"
 #~ "Všimněte si, že existují některé případy, které mohou způsobit, že "
 #~ "výsledek kalibrace nebude spolehlivý: použití texturované podložky pro "

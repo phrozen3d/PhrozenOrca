@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrcaua\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-03-07 09:30+0200\n"
 "Last-Translator: \n"
 "Language-Team: Ukrainian\n"
@@ -2923,8 +2923,8 @@ msgid ""
 "This software uses open source components whose copyright and other "
 "proprietary rights belong to their respective owners"
 msgstr ""
-"Це програмне забезпечення використовує компоненти з відкритим вихідним "
-"кодом,авторські права та інші\n"
+"Це програмне забезпечення використовує компоненти з відкритим вихідним кодом,"
+"авторські права та інші\n"
 "права власності належать їх відповідним власникам"
 
 #, c-format, boost-format
@@ -4583,7 +4583,7 @@ msgstr "Об'єм:"
 msgid "Size:"
 msgstr "Розмір:"
 
-#, fuzzy, boost-format
+#, fuzzy, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -4609,8 +4609,8 @@ msgid ""
 "confirming that the height is within the build volume."
 msgstr ""
 "Об'єкт знаходиться за кордоном пластини або перевищує обмеження по висоті.\n"
-"Будь ласка, вирішіть проблему, перемістивши її повністю на тарілку або з "
-"неї,і підтвердження того, що висота знаходиться в межах обсягу збирання."
+"Будь ласка, вирішіть проблему, перемістивши її повністю на тарілку або з неї,"
+"і підтвердження того, що висота знаходиться в межах обсягу збирання."
 
 msgid "Calibration step selection"
 msgstr "Вибір кроку калібрування"
@@ -5050,17 +5050,17 @@ msgstr "Потік"
 msgid "Retraction test"
 msgstr "Тест на втягування"
 
-msgid "Pressure advance"
-msgstr "Випередження тиску (PA)"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Максимальний потік"
 
 msgid "VFA"
 msgstr "Вертикальні дрібні артефакти (VFA)"
+
+msgid "Pressure advance"
+msgstr "Випередження тиску (PA)"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5077,6 +5077,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Більше..."
 
@@ -5085,9 +5088,6 @@ msgstr "Посібник"
 
 msgid "Calibration help"
 msgstr "Довідка з калібрування"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Тест на допуски ORCA"
 
 msgid "More calibrations"
 msgstr "Більше калібрування"
@@ -5872,48 +5872,6 @@ msgstr "Як використовувати режим лише локально
 msgid "Don't show this dialog again"
 msgstr "Більше не показувати це діалогове вікно"
 
-msgid "3D Mouse disconnected."
-msgstr "3D-миша відключена."
-
-msgid "Configuration can update now."
-msgstr "Конфігурацію можна оновити зараз."
-
-msgid "Detail."
-msgstr "Деталь."
-
-msgid "Integration was successful."
-msgstr "Інтеграція пройшла успішно."
-
-msgid "Integration failed."
-msgstr "Інтеграція не вдалася."
-
-msgid "Undo integration was successful."
-msgstr "Скасувати інтеграцію вдалося."
-
-msgid "New network plug-in available."
-msgstr "Доступний новий мережевий плагін."
-
-msgid "Details"
-msgstr "Подробиці"
-
-msgid "New printer config available."
-msgstr "Доступна нова конфігурація принтера."
-
-msgid "Wiki"
-msgstr "Енциклопедія"
-
-msgid "Undo integration failed."
-msgstr "Скасувати інтеграцію не вдалося."
-
-msgid "Exporting."
-msgstr "Експорт."
-
-msgid "Software has New version."
-msgstr "Програмне забезпечення має нову версію."
-
-msgid "Goto download page."
-msgstr "Перейти до сторінки завантаження."
-
 msgid "Open Folder."
 msgstr "Відкрити папку."
 
@@ -5963,6 +5921,48 @@ msgstr "Скасовано"
 
 msgid "Cancel upload"
 msgstr "Скасувати завантаження"
+
+msgid "3D Mouse disconnected."
+msgstr "3D-миша відключена."
+
+msgid "Configuration can update now."
+msgstr "Конфігурацію можна оновити зараз."
+
+msgid "Detail."
+msgstr "Деталь."
+
+msgid "Integration was successful."
+msgstr "Інтеграція пройшла успішно."
+
+msgid "Integration failed."
+msgstr "Інтеграція не вдалася."
+
+msgid "Undo integration was successful."
+msgstr "Скасувати інтеграцію вдалося."
+
+msgid "New network plug-in available."
+msgstr "Доступний новий мережевий плагін."
+
+msgid "Details"
+msgstr "Подробиці"
+
+msgid "New printer config available."
+msgstr "Доступна нова конфігурація принтера."
+
+msgid "Wiki"
+msgstr "Енциклопедія"
+
+msgid "Undo integration failed."
+msgstr "Скасувати інтеграцію не вдалося."
+
+msgid "Exporting."
+msgstr "Експорт."
+
+msgid "Software has New version."
+msgstr "Програмне забезпечення має нову версію."
+
+msgid "Goto download page."
+msgstr "Перейти до сторінки завантаження."
 
 msgid "Jump to"
 msgstr "Перейти до"
@@ -7963,8 +7963,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "При записі таймлапсу без інструментальної головки рекомендується додати "
 "“Timelapse Wipe Tower” \n"
@@ -12247,8 +12247,8 @@ msgstr ""
 "знайдено, лінія заповнення з'єднується з сегментом периметра лише з одного "
 "боку, і довжина взятого сегменту периметра обмежена цим параметром, але не "
 "більше anchor_length_max.\n"
-"Встановіть цей параметр рівним нулю, щоб вимкнути периметри "
-"прив'язки.пов'язані з однією лінією заповнення."
+"Встановіть цей параметр рівним нулю, щоб вимкнути периметри прив'язки."
+"пов'язані з однією лінією заповнення."
 
 msgid "0 (no open anchors)"
 msgstr "0 (немає відкритих прив'язок)"
@@ -12318,8 +12318,8 @@ msgid "mm/s² or %"
 msgstr "мм/с² або %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Прискорення заповнення. Якщо значення виражено у відсотках (наприклад, "
 "100%), воно буде розраховане на основі прискорення за умовчанням."
@@ -12434,10 +12434,10 @@ msgstr "Повна швидкість вентилятора на шарі"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Швидкість вентилятора лінійно збільшується від нуля на "
 "рівні«close_fan_the_first_x_layers» до максимуму на рівні "
@@ -12944,8 +12944,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14191,8 +14191,8 @@ msgid "Role base wipe speed"
 msgstr "Швидкість протирання залежно від типу"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14208,8 +14208,8 @@ msgid ""
 "To minimize the visibility of the seam in a closed loop extrusion, a small "
 "inward movement is executed before the extruder leaves the loop."
 msgstr ""
-"Щоб звести до мінімуму видимість шва при екструзії із замкнутим "
-"контуром,Невеликий рух усередину виконується до виходу екструдера з контуру."
+"Щоб звести до мінімуму видимість шва при екструзії із замкнутим контуром,"
+"Невеликий рух усередину виконується до виходу екструдера з контуру."
 
 msgid "Wipe before external loop"
 msgstr "Протирати перед зовнішнім контуром"
@@ -14683,8 +14683,8 @@ msgid ""
 "Only create support for critical regions including sharp tail, cantilever, "
 "etc."
 msgstr ""
-"Створювати підтримку тільки для критичних областей, включаючи гострий "
-"хвіст,консоль і т.д."
+"Створювати підтримку тільки для критичних областей, включаючи гострий хвіст,"
+"консоль і т.д."
 
 msgid "Remove small overhangs"
 msgstr "Видалити невеликі виступи"
@@ -15044,8 +15044,8 @@ msgstr "Увімкнути контроль температури"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15223,9 +15223,9 @@ msgstr ""
 "Залежно від тривалості операції витирання, швидкості та тривалості "
 "втягування екструдера/нитки, може знадобитися рух накату для нитки.\n"
 "\n"
-"Якщо встановити значення у параметрі \"Кількість втягування перед "
-"витиранням\" нижче, надлишкове втягування буде виконано перед витиранням, "
-"інакше воно буде виконано після нього."
+"Якщо встановити значення у параметрі \"Кількість втягування перед витиранням"
+"\" нижче, надлишкове втягування буде виконано перед витиранням, інакше воно "
+"буде виконано після нього."
 
 msgid ""
 "The wiping tower can be used to clean up the residue on the nozzle and "
@@ -15938,8 +15938,8 @@ msgid "Debug level"
 msgstr "Рівень налагодження"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 "Встановлює рівень реєстрації налагодження. 0: непереборний, 1: помилка, 2: "
 "попередження, 3: інформація, 4: налагодження, 5: трасування\n"
@@ -16397,13 +16397,13 @@ msgstr "Наданий файл не вдалося прочитати, оскі
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Невідомий формат файлу: вхідний файл повинен мати розширення .stl, .obj "
-"або .amf (.xml)."
+"Невідомий формат файлу: вхідний файл повинен мати розширення .stl, .obj або ."
+"amf (.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Невідомий формат файлу: вхідний файл повинен мати розширення .3mf "
-"або .zip.amf."
+"Невідомий формат файлу: вхідний файл повинен мати розширення .3mf або .zip."
+"amf."
 
 msgid "Canceled"
 msgstr "Скасовано"
@@ -17476,8 +17476,8 @@ msgstr ""
 "Чи бажаєте ви їх перезаписати?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Ми б перейменували попередні налаштування на «Вибраний вами серійний "
@@ -18471,13 +18471,35 @@ msgstr "Почати:"
 msgid "Estimated："
 msgstr "Оцінено:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18524,6 +18546,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18540,7 +18565,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -18930,6 +18958,9 @@ msgstr ""
 "Чи знаєте ви, що при друку матеріалами, схильними до деформації, такими як "
 "ABS, відповідне підвищення температури гарячого ліжка може зменшити "
 "ймовірність деформації?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Тест на допуски ORCA"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca базується на PrusaSlicer та BambuStudio"

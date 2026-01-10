@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-08-28 13:09+0300\n"
 "Last-Translator: GlauTech\n"
 "Language-Team: \n"
@@ -4542,7 +4542,7 @@ msgstr "Hacim:"
 msgid "Size:"
 msgstr "Boyut:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5012,17 +5012,17 @@ msgstr "Akış hızı"
 msgid "Retraction test"
 msgstr "Geri çekme testi"
 
-msgid "Pressure advance"
-msgstr "Basınç avansı oranı"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Maksimum akış hızı"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Basınç avansı oranı"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr "Input shaping Frekansı"
@@ -5039,6 +5039,9 @@ msgstr "Köşe sapması"
 msgid "Junction Deviation calibration"
 msgstr "Köşe sapması kalibrasyonu"
 
+msgid "Cornering"
+msgstr "Köşe dönüşü"
+
 msgid "More..."
 msgstr "Daha fazla..."
 
@@ -5047,9 +5050,6 @@ msgstr "Öğretici"
 
 msgid "Calibration help"
 msgstr "Kalibrasyon yardımı"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "PhrozenOrca tolerans testi"
 
 msgid "More calibrations"
 msgstr "Daha fazla kalibrasyon"
@@ -5812,48 +5812,6 @@ msgstr "Yalnızca LAN modu nasıl kullanılır"
 msgid "Don't show this dialog again"
 msgstr "Bu iletişim kutusunu bir daha gösterme"
 
-msgid "3D Mouse disconnected."
-msgstr "3D Fare bağlantısı kesildi."
-
-msgid "Configuration can update now."
-msgstr "Yapılandırma şimdi güncellenebilir."
-
-msgid "Detail."
-msgstr "Detay."
-
-msgid "Integration was successful."
-msgstr "Entegrasyon başarılı oldu."
-
-msgid "Integration failed."
-msgstr "Entegrasyon başarısız oldu."
-
-msgid "Undo integration was successful."
-msgstr "Entegrasyonun geri alınması başarılı oldu."
-
-msgid "New network plug-in available."
-msgstr "Yeni ağ eklentisi mevcut."
-
-msgid "Details"
-msgstr "Detaylar"
-
-msgid "New printer config available."
-msgstr "Yeni yazıcı yapılandırması mevcut."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "Entegrasyon geri alınamadı."
-
-msgid "Exporting."
-msgstr "Dışa Aktarılıyor."
-
-msgid "Software has New version."
-msgstr "Yazılımın Yeni sürümü var."
-
-msgid "Goto download page."
-msgstr "İndirme sayfasına gidin."
-
 msgid "Open Folder."
 msgstr "Klasörü Aç."
 
@@ -5895,6 +5853,48 @@ msgstr "İPTAL EDİLDİ"
 
 msgid "Cancel upload"
 msgstr "Yüklemeyi iptal et"
+
+msgid "3D Mouse disconnected."
+msgstr "3D Fare bağlantısı kesildi."
+
+msgid "Configuration can update now."
+msgstr "Yapılandırma şimdi güncellenebilir."
+
+msgid "Detail."
+msgstr "Detay."
+
+msgid "Integration was successful."
+msgstr "Entegrasyon başarılı oldu."
+
+msgid "Integration failed."
+msgstr "Entegrasyon başarısız oldu."
+
+msgid "Undo integration was successful."
+msgstr "Entegrasyonun geri alınması başarılı oldu."
+
+msgid "New network plug-in available."
+msgstr "Yeni ağ eklentisi mevcut."
+
+msgid "Details"
+msgstr "Detaylar"
+
+msgid "New printer config available."
+msgstr "Yeni yazıcı yapılandırması mevcut."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "Entegrasyon geri alınamadı."
+
+msgid "Exporting."
+msgstr "Dışa Aktarılıyor."
+
+msgid "Software has New version."
+msgstr "Yazılımın Yeni sürümü var."
+
+msgid "Goto download page."
+msgstr "İndirme sayfasına gidin."
 
 msgid "Jump to"
 msgstr "Git"
@@ -7899,8 +7899,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Araç başlığı olmadan timelapse kaydederken, bir \"Timelapse Wipe Tower\" "
 "eklenmesi önerilir.\n"
@@ -9662,8 +9662,8 @@ msgid ""
 "Please select \"By object\" print sequence to print multiple objects in "
 "spiral vase mode."
 msgstr ""
-"Birden fazla nesneyi spiral vazo modunda yazdırmak için lütfen \"Nesneye "
-"göre\" yazdırma sırasını seçin."
+"Birden fazla nesneyi spiral vazo modunda yazdırmak için lütfen \"Nesneye göre"
+"\" yazdırma sırasını seçin."
 
 msgid ""
 "The spiral vase mode does not work when an object contains more than one "
@@ -12213,8 +12213,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² veya %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Seyrek dolgunun hızlandırılması. Değer yüzde olarak ifade edilirse (örn. "
 "%100), varsayılan ivmeye göre hesaplanacaktır."
@@ -12327,17 +12327,16 @@ msgstr "Maksimum fan hızı"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Fan hızı, \"close_fan_the_first_x_layers\" katmanında sıfırdan "
 "\"ful_fan_speed_layer\" katmanında maksimuma doğrusal olarak artırılacaktır. "
 "\"full_fan_speed_layer\", \"close_fan_the_first_x_layers\" değerinden "
-"düşükse göz ardı edilecektir; bu durumda fan, "
-"\"close_fan_the_first_x_layers\" + 1 katmanında izin verilen maksimum hızda "
-"çalışacaktır."
+"düşükse göz ardı edilecektir; bu durumda fan, \"close_fan_the_first_x_layers"
+"\" + 1 katmanında izin verilen maksimum hızda çalışacaktır."
 
 msgid "layer"
 msgstr "katman"
@@ -12850,8 +12849,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14108,8 +14107,8 @@ msgid "Role base wipe speed"
 msgstr "Otomatik temizleme hızı"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14973,8 +14972,8 @@ msgstr "Sıcaklık kontrolünü etkinleştirin"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15905,8 +15904,8 @@ msgid "Debug level"
 msgstr "Hata ayıklama düzeyi"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
 "Hata ayıklama günlüğü düzeyini ayarlar. 0:önemli, 1:hata, 2:uyarı, 3:bilgi, "
 "4:hata ayıklama, 5:izleme\n"
@@ -17457,8 +17456,8 @@ msgstr ""
 "Yeniden yazmak ister misin?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Ön ayarları şu şekilde yeniden adlandırırdık: \"Satıcı Türü Seçtiğiniz Seri "
@@ -18463,13 +18462,35 @@ msgstr "Başlat:"
 msgid "Estimated："
 msgstr "Tahmini:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18516,6 +18537,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18532,7 +18556,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -18923,6 +18950,9 @@ msgstr ""
 "sıcaklığının uygun şekilde arttırılmasının bükülme olasılığını "
 "azaltabileceğini biliyor muydunuz?"
 
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "PhrozenOrca tolerans testi"
+
 #~ msgid "Remap filaments"
 #~ msgstr "Filamentleri yeniden eşleştir"
 
@@ -18998,9 +19028,6 @@ msgstr ""
 
 #~ msgid "Open Network Test"
 #~ msgstr "Ağ Testini Aç"
-
-#~ msgid "Cornering"
-#~ msgstr "Köşe dönüşü"
 
 #~ msgid ""
 #~ "\"Fix Model\" feature is currently only on Windows. Please repair the "

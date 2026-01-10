@@ -1264,7 +1264,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     wxPanel* line0 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1) ) );
     line0->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerTopLeft->Add( line0, 0, wxALL | wxEXPAND, 0 );
-    sizerTopLeft->Add(new wxStaticText(box, wxID_ANY, "Temperature"), 0, wxLEFT | wxEXPAND, 5);
+    sizerTopLeft->Add(new wxStaticText(box, wxID_ANY, _L("Temperature")), 0, wxLEFT | wxEXPAND, 5);
     
     //Temerature body - wrapper sizer with internal spacers for even spacing
     wxPanel* line01 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
@@ -1286,7 +1286,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     wxPanel* line1 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line1->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerTopLeft->Add( line1, 0, wxALL | wxEXPAND, 0 );
-    sizerTopLeft->Add(new wxStaticText(box, wxID_ANY, "Speed"), 0, wxLEFT | wxEXPAND, 5);
+    sizerTopLeft->Add(new wxStaticText(box, wxID_ANY, _L("Speed")), 0, wxLEFT | wxEXPAND, 5);
     
     // speed body - proportion=2 for slightly more space, wxALIGN_CENTER_VERTICAL to center the 5 modes
     wxPanel* line11 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
@@ -1308,7 +1308,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     wxPanel* line5 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line5->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerTopRight->Add( line5, 0, wxALL | wxEXPAND, 0 );
-    sizerTopRight->Add(new wxStaticText(box, wxID_ANY, "Manual Adjustment"), 0, wxLEFT, 5);
+    sizerTopRight->Add(new wxStaticText(box, wxID_ANY, _L("Manual Adjustment")), 0, wxLEFT, 5);
 
     wxPanel* line55 = new wxPanel(box, wxID_ANY, wxDefaultPosition, wxSize( -1, FromDIP(1)) );
     line55->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
@@ -1371,7 +1371,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     line2->SetBackgroundColour(PHROZEN_STATUS_PANEL_BG); 
     sizerBottomLeft->Add( line2, 0, wxALL | wxEXPAND, 0 );
 
-    wxStaticText* coolingTitle = new wxStaticText(box, wxID_ANY, "Cooling");
+    wxStaticText* coolingTitle = new wxStaticText(box, wxID_ANY, _L("Cooling"));
     sizerBottomLeft->Add(coolingTitle, 0, wxLEFT, 5);
 
     // cooling body - wrapper sizer with internal spacers for even spacing (4 equal parts)
@@ -1412,7 +1412,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
 
     // Z-offset title with value display (title on left, value on right)
     wxBoxSizer* sizerZOffsetTitle = new wxBoxSizer(wxHORIZONTAL);
-    wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, "Z-Offset");
+    wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, _L("Z-Offset"));
     sizerZOffsetTitle->Add(zOffsetTitle, 0, wxLEFT, 5);
     sizerZOffsetTitle->AddStretchSpacer(1);  // Push value to the right
     m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000");
@@ -2062,7 +2062,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenNozzleTempControllor(wxWindow* pPare
     sizerFlex->AddGrowableRow(0);  // Allow row to expand vertically
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Nozzle_temp.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Nozzle"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, _L("Nozzle")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spTemp_nozzle, pParent );
     sizerFlex->Add( m_spTemp_nozzle.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
@@ -2084,7 +2084,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenHeatedBedTempControllor(wxWindow* pP
     sizerFlex->AddGrowableRow(0);  // Allow row to expand vertically
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Heated_bed_temp.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Heated Bed"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, _L("Heated Bed")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spTemp_heatedBed, pParent ); 
     sizerFlex->Add( m_spTemp_heatedBed.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
@@ -2110,7 +2110,7 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
     // Title row - aligned with other blocks (icon: wxALL 10, text: wxLEFT 10)
     auto title = new wxBoxSizer(wxHORIZONTAL);
     title->Add(new wxStaticBitmap(pParent, wxID_ANY, m_Speed.bmp()), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10);
-    title->Add(new wxStaticText(pParent, wxID_ANY, "Print"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
+    title->Add(new wxStaticText(pParent, wxID_ANY, _L("Print")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10);
     sizerBox->Add(title, 0, wxEXPAND, 0);
 
     // Middle spacing (between title and buttons)
@@ -2167,7 +2167,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Auxiliary(wxWindow* pParent)
     sizerFlex->AddGrowableCol(1);
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Auxiliary"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, _L("Auxiliary")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spCooling_auxiliary, pParent ); 
     sizerFlex->Add( m_spCooling_auxiliary.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
@@ -2188,7 +2188,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Part(wxWindow* pParent)
     sizerFlex->AddGrowableCol(1);
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Part"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, _L("Part")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spCooling_part, pParent ); 
     sizerFlex->Add( m_spCooling_part.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
@@ -2209,7 +2209,7 @@ wxFlexGridSizer* PhrozenStatusBasePanel::GenCooling_Shield(wxWindow* pParent)
     sizerFlex->AddGrowableCol(1);
 
     sizerFlex->Add( new wxStaticBitmap(pParent, wxID_ANY, m_Fan.bmp() ), 0, wxALL | wxALIGN_CENTER_VERTICAL, 10 );
-    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, "Shield"), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
+    sizerFlex->Add( new wxStaticText(pParent, wxID_ANY, _L("Shield")), 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 10 );
 
     CreateValueText( m_spCooling_shield, pParent ); 
     sizerFlex->Add( m_spCooling_shield.get(), 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 0 );
@@ -3789,7 +3789,7 @@ void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)
     if (obj->is_core_xy()) {
         m_staticText_z_tip->SetLabel(_L("Bed"));
     } else {
-        m_staticText_z_tip->SetLabel("Z");
+        m_staticText_z_tip->SetLabel(_L("Z"));
     }
 
     // update extruder icon

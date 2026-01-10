@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: 2025-08-13 10:05-0300\n"
 "Last-Translator: Alexandre Folle de Menezes\n"
 "Language-Team: Portuguese, Brazilian\n"
@@ -4585,7 +4585,7 @@ msgstr "Volume:"
 msgid "Size:"
 msgstr "Tamanho:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5054,17 +5054,17 @@ msgstr "Fluxo"
 msgid "Retraction test"
 msgstr "Teste de retração"
 
-msgid "Pressure advance"
-msgstr "Avanço de pressão"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Fluxo máximo"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "Avanço de pressão"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr "Frequência da Modelagem de Entrada"
@@ -5081,6 +5081,9 @@ msgstr "Desvio de Junção"
 msgid "Junction Deviation calibration"
 msgstr "Calibração do Desvio de Junção"
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Mais…"
 
@@ -5089,9 +5092,6 @@ msgstr "Tutorial"
 
 msgid "Calibration help"
 msgstr "Ajuda de calibração"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Teste de Tolerância Orca"
 
 msgid "More calibrations"
 msgstr "Mais calibrações"
@@ -5861,48 +5861,6 @@ msgstr "Como usar o modo somente LAN"
 msgid "Don't show this dialog again"
 msgstr "Não mostrar esse diálogo novamente"
 
-msgid "3D Mouse disconnected."
-msgstr "Mouse 3D desconectado."
-
-msgid "Configuration can update now."
-msgstr "A configuração pode ser atualizada agora."
-
-msgid "Detail."
-msgstr "Detalhes."
-
-msgid "Integration was successful."
-msgstr "A integração foi bem-sucedida."
-
-msgid "Integration failed."
-msgstr "A integração falhou."
-
-msgid "Undo integration was successful."
-msgstr "A desintegração foi bem-sucedida."
-
-msgid "New network plug-in available."
-msgstr "Novo plug-in de rede disponível."
-
-msgid "Details"
-msgstr "Detalhes"
-
-msgid "New printer config available."
-msgstr "Nova configuração de impressora disponível."
-
-msgid "Wiki"
-msgstr "Documentação"
-
-msgid "Undo integration failed."
-msgstr "A desintegração falhou."
-
-msgid "Exporting."
-msgstr "Exportando."
-
-msgid "Software has New version."
-msgstr "O software tem uma nova versão."
-
-msgid "Goto download page."
-msgstr "Ir para a página de download."
-
 msgid "Open Folder."
 msgstr "Abrir Pasta."
 
@@ -5944,6 +5902,48 @@ msgstr "CANCELADO"
 
 msgid "Cancel upload"
 msgstr "Cancelar envio"
+
+msgid "3D Mouse disconnected."
+msgstr "Mouse 3D desconectado."
+
+msgid "Configuration can update now."
+msgstr "A configuração pode ser atualizada agora."
+
+msgid "Detail."
+msgstr "Detalhes."
+
+msgid "Integration was successful."
+msgstr "A integração foi bem-sucedida."
+
+msgid "Integration failed."
+msgstr "A integração falhou."
+
+msgid "Undo integration was successful."
+msgstr "A desintegração foi bem-sucedida."
+
+msgid "New network plug-in available."
+msgstr "Novo plug-in de rede disponível."
+
+msgid "Details"
+msgstr "Detalhes"
+
+msgid "New printer config available."
+msgstr "Nova configuração de impressora disponível."
+
+msgid "Wiki"
+msgstr "Documentação"
+
+msgid "Undo integration failed."
+msgstr "A desintegração falhou."
+
+msgid "Exporting."
+msgstr "Exportando."
+
+msgid "Software has New version."
+msgstr "O software tem uma nova versão."
+
+msgid "Goto download page."
+msgstr "Ir para a página de download."
 
 msgid "Jump to"
 msgstr "Ir para"
@@ -7076,24 +7076,24 @@ msgstr "Associar arquivos .3mf ao PhrozenOrca"
 
 msgid "If enabled, sets PhrozenOrca as default application to open .3mf files"
 msgstr ""
-"Se ativado, define PhrozenOrca como aplicativo padrão para abrir arquivos "
-".3mf"
+"Se ativado, define PhrozenOrca como aplicativo padrão para abrir "
+"arquivos .3mf"
 
 msgid "Associate .stl files to PhrozenOrca"
 msgstr "Associar arquivos .stl ao PhrozenOrca"
 
 msgid "If enabled, sets PhrozenOrca as default application to open .stl files"
 msgstr ""
-"Se ativado, define PhrozenOrca como aplicativo padrão para abrir "
-"arquivos .stl"
+"Se ativado, define PhrozenOrca como aplicativo padrão para abrir arquivos ."
+"stl"
 
 msgid "Associate .step/.stp files to PhrozenOrca"
 msgstr "Associar arquivos .step/.stp ao PhrozenOrca"
 
 msgid "If enabled, sets PhrozenOrca as default application to open .step files"
 msgstr ""
-"Se ativado, define PhrozenOrca como aplicativo padrão para abrir "
-"arquivos .step"
+"Se ativado, define PhrozenOrca como aplicativo padrão para abrir arquivos ."
+"step"
 
 msgid "Associate web links to PhrozenOrca"
 msgstr "Associar links da web ao PhrozenOrca"
@@ -7972,8 +7972,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Ao gravar um timelapse sem o hotend aparecer, é recomendável adicionar uma "
 "\"Torre de Limpeza para Timelapse\" \n"
@@ -12360,8 +12360,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² ou %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Aceleração do preenchimento esparso. Se o valor for expresso como uma "
 "porcentagem (por exemplo, 100%), será calculado com base na aceleração "
@@ -12478,10 +12478,10 @@ msgstr "Velocidade total do ventilador na camada"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "A velocidade do ventilador aumentará linearmente de zero na camada "
 "\"close_fan_the_first_x_layers\" para o máximo na camada "
@@ -13006,8 +13006,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14264,8 +14264,8 @@ msgid "Role base wipe speed"
 msgstr "Velocidade de limpeza baseada na função"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -15134,8 +15134,8 @@ msgstr "Ativar controle de temperatura"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15145,8 +15145,8 @@ msgid ""
 "heater is installed."
 msgstr ""
 "Habilite esta opção para controle automatizado da temperatura da câmara. "
-"Esta opção ativa a emissão de um comando M191 antes do "
-"\"machine_start_gcode\"\n"
+"Esta opção ativa a emissão de um comando M191 antes do \"machine_start_gcode"
+"\"\n"
 "que define a temperatura da câmara e aguarda até que ela seja atingida. Além "
 "disso, emite um comando M141 no final da impressão para desligar o aquecedor "
 "da câmara, se presente.\n"
@@ -16068,11 +16068,11 @@ msgid "Debug level"
 msgstr "Nível de depuração"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"Define o nível do log de depuração. 0:fatal, 1:error, 2:warning, 3:info, "
-"4:debug, 5:trace\n"
+"Define o nível do log de depuração. 0:fatal, 1:error, 2:warning, 3:info, 4:"
+"debug, 5:trace\n"
 
 msgid "Enable timelapse for print"
 msgstr "Habilitar timelapse para impressão"
@@ -16532,8 +16532,8 @@ msgstr "O arquivo fornecido não pôde ser lido porque está vazio"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Formato de arquivo desconhecido. O arquivo de entrada deve ter "
-"extensão .stl, .obj, .amf(.xml)."
+"Formato de arquivo desconhecido. O arquivo de entrada deve ter extensão ."
+"stl, .obj, .amf(.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
@@ -17618,8 +17618,8 @@ msgstr ""
 "Você deseja reescrevê-lo?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Renomearíamos as predefinições como \"Fornecedor Tipo Serial @ impressora "
@@ -18636,13 +18636,35 @@ msgstr "Iniciar:"
 msgid "Estimated："
 msgstr "Estimado:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18689,6 +18711,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18705,7 +18730,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -19094,6 +19122,9 @@ msgstr ""
 "Você sabia que ao imprimir materiais propensos ao empenamento, como ABS, "
 "aumentar adequadamente a temperatura da mesa aquecida pode reduzir a "
 "probabilidade de empenamento?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Teste de Tolerância Orca"
 
 #~ msgid "Remap filaments"
 #~ msgstr "Remapear filamentos"

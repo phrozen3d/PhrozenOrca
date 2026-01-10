@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrca 2.3.0-rc\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Krzysztof Morga <<tlumaczeniebs@gmail.com>>\n"
 "Language-Team: \n"
@@ -4579,7 +4579,7 @@ msgstr "Objętość:"
 msgid "Size:"
 msgstr "Rozmiar:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5049,17 +5049,17 @@ msgstr "Natężenie przepływu"
 msgid "Retraction test"
 msgstr "Test retrakcji"
 
-msgid "Pressure advance"
-msgstr "Wzrost ciśnienia (PA)"
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Maksymalne natężenie przepływu"
 
 msgid "VFA"
 msgstr "Test VFA"
+
+msgid "Pressure advance"
+msgstr "Wzrost ciśnienia (PA)"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5076,6 +5076,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Więcej..."
 
@@ -5084,9 +5087,6 @@ msgstr "Samouczek"
 
 msgid "Calibration help"
 msgstr "Pomoc w kalibracji"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Test tolerancji Orca"
 
 msgid "More calibrations"
 msgstr "Więcej kalibracji"
@@ -5856,48 +5856,6 @@ msgstr "Jak korzystać z trybu tylko LAN"
 msgid "Don't show this dialog again"
 msgstr "Nie pokazuj tego okna dialogowego ponownie"
 
-msgid "3D Mouse disconnected."
-msgstr "Mysz 3D niepodłączona."
-
-msgid "Configuration can update now."
-msgstr "Konfiguracja może teraz zostać zaktualizowana."
-
-msgid "Detail."
-msgstr "Szczegół."
-
-msgid "Integration was successful."
-msgstr "Logowanie udane."
-
-msgid "Integration failed."
-msgstr "Integracja nieudana."
-
-msgid "Undo integration was successful."
-msgstr "Operacja cofnięcia (undo) została pomyślnie zintegrowana."
-
-msgid "New network plug-in available."
-msgstr "Dostępna jest aktualizacja wtyczki sieciowej."
-
-msgid "Details"
-msgstr "Szczegóły"
-
-msgid "New printer config available."
-msgstr "Dostępna jest nowa konfiguracja drukarki."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "Cofnij nieudaną integrację."
-
-msgid "Exporting."
-msgstr "Eksportuj."
-
-msgid "Software has New version."
-msgstr "Dostępna jest nowa wersja aplikacji."
-
-msgid "Goto download page."
-msgstr "Przejdź do strony pobierania."
-
 msgid "Open Folder."
 msgstr "Otwórz folder."
 
@@ -5943,6 +5901,48 @@ msgstr "ANULOWANO"
 
 msgid "Cancel upload"
 msgstr "Anuluj przesyłanie"
+
+msgid "3D Mouse disconnected."
+msgstr "Mysz 3D niepodłączona."
+
+msgid "Configuration can update now."
+msgstr "Konfiguracja może teraz zostać zaktualizowana."
+
+msgid "Detail."
+msgstr "Szczegół."
+
+msgid "Integration was successful."
+msgstr "Logowanie udane."
+
+msgid "Integration failed."
+msgstr "Integracja nieudana."
+
+msgid "Undo integration was successful."
+msgstr "Operacja cofnięcia (undo) została pomyślnie zintegrowana."
+
+msgid "New network plug-in available."
+msgstr "Dostępna jest aktualizacja wtyczki sieciowej."
+
+msgid "Details"
+msgstr "Szczegóły"
+
+msgid "New printer config available."
+msgstr "Dostępna jest nowa konfiguracja drukarki."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "Cofnij nieudaną integrację."
+
+msgid "Exporting."
+msgstr "Eksportuj."
+
+msgid "Software has New version."
+msgstr "Dostępna jest nowa wersja aplikacji."
+
+msgid "Goto download page."
+msgstr "Przejdź do strony pobierania."
 
 msgid "Jump to"
 msgstr "Przejdź do"
@@ -7936,8 +7936,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Podczas nagrywania timelapse bez głowicy drukującej zaleca się dodanie "
 "„Timelapse - Wieża czyszcząca” \n"
@@ -10074,8 +10074,8 @@ msgstr ""
 "Phrozen Orca może przesyłać pliki G-code na hosta drukarki. To pole powinno "
 "zawierać nazwę hosta, adres IP lub URL hosta drukarki. Host drukowania za "
 "HAProxy z włączoną autoryzacją podstawową można uzyskać, wpisując nazwę "
-"użytkownika i hasło w URL w następującym formacie: https://"
-"username:password@your-octopi-address/"
+"użytkownika i hasło w URL w następującym formacie: https://username:"
+"password@your-octopi-address/"
 
 msgid "Device UI"
 msgstr "UI urządzenia"
@@ -12312,8 +12312,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² lub %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Przyspieszenie na rzadkim wypełnieniu. Jeśli wartość jest wyrażona w "
 "procentach (np. 100%), będzie obliczana na podstawie domyślnego "
@@ -12432,10 +12432,10 @@ msgstr "Pełna prędkość wentylatora na warstwie"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "Prędkość wentylatora będzie stopniowo zwiększana liniowo od zera na warstwie "
 "„close_fan_the_first_x_layers” do maksymalnej na warstwie "
@@ -12938,8 +12938,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14193,8 +14193,8 @@ msgid "Role base wipe speed"
 msgstr "Prędkość wycierania dyszy w oparciu o rolę ekstruzji"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -15061,8 +15061,8 @@ msgstr "Aktywuj kontrolę temperatury"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15971,11 +15971,11 @@ msgid "Debug level"
 msgstr "Poziom debugowania"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"Ustawia poziom logowania debugowania. 0:fatal, 1:error, 2:warning, 3:info, "
-"4:debug, 5:trace\n"
+"Ustawia poziom logowania debugowania. 0:fatal, 1:error, 2:warning, 3:info, 4:"
+"debug, 5:trace\n"
 
 msgid "Enable timelapse for print"
 msgstr "Włącz timelapse dla druku"
@@ -16440,13 +16440,13 @@ msgstr "Dostarczony plik nie mógł być odczytany, ponieważ jest pusty"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Nieznany format pliku. Plik wejściowy musi mieć "
-"rozszerzenie .stl, .obj, .amf(.xml)."
+"Nieznany format pliku. Plik wejściowy musi mieć rozszerzenie .stl, .obj, ."
+"amf(.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Nieznany format pliku. Plik wejściowy musi mieć rozszerzenie .3mf "
-"lub .zip.amf."
+"Nieznany format pliku. Plik wejściowy musi mieć rozszerzenie .3mf lub .zip."
+"amf."
 
 msgid "Canceled"
 msgstr "Anulowano"
@@ -17512,8 +17512,8 @@ msgstr ""
 "Czy zastąpić go?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Nazwa profilu zostanie zmieniona na „Dostawca Typ Seria @nazwa drukarki, "
@@ -18503,13 +18503,35 @@ msgstr "Rozpocznij:"
 msgid "Estimated："
 msgstr "Szacowane:"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18556,6 +18578,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18572,7 +18597,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -18961,6 +18989,9 @@ msgstr ""
 "Czy wiesz, że podczas drukowania filamentami podatnymi na odkształcenia, "
 "takimi jak ABS, odpowiednie zwiększenie temperatury podgrzewanej płyty może "
 "zmniejszyć prawdopodobieństwo odkształceń?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Test tolerancji Orca"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca opiera się na projektach PrusaSlicer i BambuStudio"
@@ -20074,8 +20105,8 @@ msgstr ""
 #~ "\n"
 #~ "Jednakże w mocno pochylonych lub zakrzywionych modelach, zwłaszcza przy "
 #~ "niskiej gęstości struktury wypełnienia, może to prowadzić do wywijania "
-#~ "się niewspieranej struktury wypełnienia, co powoduje efekt "
-#~ "\"pillowing\".\n"
+#~ "się niewspieranej struktury wypełnienia, co powoduje efekt \"pillowing"
+#~ "\".\n"
 #~ "\n"
 #~ "Włączenie tej opcji spowoduje drukowanie wewnętrznej warstwy mostka nad "
 #~ "nieco niewspieraną wewnętrzną strukturą wypełnienia. Poniższe opcje "
@@ -21396,8 +21427,8 @@ msgstr ""
 #~ "Elevation is too low for object. Use the \"Pad around object\" feature to "
 #~ "print the object without elevation."
 #~ msgstr ""
-#~ "Podniesienie zbyt małe dla modelu. Użyj funkcji \"Podkładka wokół "
-#~ "modelu\", aby wydrukować model bez podniesienia."
+#~ "Podniesienie zbyt małe dla modelu. Użyj funkcji \"Podkładka wokół modelu"
+#~ "\", aby wydrukować model bez podniesienia."
 
 #~ msgid ""
 #~ "The endings of the support pillars will be deployed on the gap between "

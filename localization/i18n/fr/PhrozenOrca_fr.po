@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: Guislain Cyril, Thomas Lété\n"
@@ -4628,7 +4628,7 @@ msgstr "Le volume:"
 msgid "Size:"
 msgstr "Taille:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -5101,17 +5101,17 @@ msgstr "Débit"
 msgid "Retraction test"
 msgstr "Test de rétraction"
 
-msgid "Pressure advance"
-msgstr ""
-
-msgid "Orca Tolerance Test"
-msgstr ""
-
 msgid "Max flowrate"
 msgstr "Débit maximal"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr ""
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5128,6 +5128,9 @@ msgstr ""
 msgid "Junction Deviation calibration"
 msgstr ""
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "Plus…"
 
@@ -5136,9 +5139,6 @@ msgstr "Didacticiel"
 
 msgid "Calibration help"
 msgstr "Aide à la calibration"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "Test de tolérance Orca"
 
 msgid "More calibrations"
 msgstr "Plus de calibrations"
@@ -5921,48 +5921,6 @@ msgstr "Comment utiliser le mode LAN uniquement"
 msgid "Don't show this dialog again"
 msgstr "Ne plus afficher cette boîte de dialogue"
 
-msgid "3D Mouse disconnected."
-msgstr "Souris 3D déconnectée."
-
-msgid "Configuration can update now."
-msgstr "La configuration peut maintenant être mise à jour."
-
-msgid "Detail."
-msgstr "Détail."
-
-msgid "Integration was successful."
-msgstr "L'intégration a réussi."
-
-msgid "Integration failed."
-msgstr "L'intégration a échoué."
-
-msgid "Undo integration was successful."
-msgstr "Annuler l'intégration a réussi."
-
-msgid "New network plug-in available."
-msgstr "Nouveau plug-in réseau disponible."
-
-msgid "Details"
-msgstr "Détails"
-
-msgid "New printer config available."
-msgstr "Nouvelle configuration de l’imprimante disponible."
-
-msgid "Wiki"
-msgstr "Wiki"
-
-msgid "Undo integration failed."
-msgstr "L'annulation de l'intégration a échoué."
-
-msgid "Exporting."
-msgstr "Exportation."
-
-msgid "Software has New version."
-msgstr "Le logiciel a une nouvelle version."
-
-msgid "Goto download page."
-msgstr "Allez sur la page de téléchargement."
-
 msgid "Open Folder."
 msgstr "Ouvrir un répertoire."
 
@@ -6004,6 +5962,48 @@ msgstr "Annulé"
 
 msgid "Cancel upload"
 msgstr "Annuler le téléversement"
+
+msgid "3D Mouse disconnected."
+msgstr "Souris 3D déconnectée."
+
+msgid "Configuration can update now."
+msgstr "La configuration peut maintenant être mise à jour."
+
+msgid "Detail."
+msgstr "Détail."
+
+msgid "Integration was successful."
+msgstr "L'intégration a réussi."
+
+msgid "Integration failed."
+msgstr "L'intégration a échoué."
+
+msgid "Undo integration was successful."
+msgstr "Annuler l'intégration a réussi."
+
+msgid "New network plug-in available."
+msgstr "Nouveau plug-in réseau disponible."
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "New printer config available."
+msgstr "Nouvelle configuration de l’imprimante disponible."
+
+msgid "Wiki"
+msgstr "Wiki"
+
+msgid "Undo integration failed."
+msgstr "L'annulation de l'intégration a échoué."
+
+msgid "Exporting."
+msgstr "Exportation."
+
+msgid "Software has New version."
+msgstr "Le logiciel a une nouvelle version."
+
+msgid "Goto download page."
+msgstr "Allez sur la page de téléchargement."
 
 msgid "Jump to"
 msgstr "Sauter à"
@@ -8077,8 +8077,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "Lorsque vous enregistrez un timelapse sans tête d’outil, il est recommandé "
 "d’ajouter une \"Tour d’essuyage timelapse\".\n"
@@ -12552,8 +12552,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² ou %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "Accélération du remplissage interne. Si la valeur est exprimée en "
 "pourcentage (par exemple 100%), elle sera calculée en fonction de "
@@ -12671,10 +12671,10 @@ msgstr "Ventilateur à pleine vitesse à la couche"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "La vitesse du ventilateur augmentera de manière linéaire à partir de zéro à "
 "la couche \"close_fan_the_first_x_layers\" jusqu’au maximum à la couche "
@@ -13187,8 +13187,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -14460,8 +14460,8 @@ msgid "Role base wipe speed"
 msgstr "Vitesse d’essuyage basée sur la vitesse d’extrusion"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14881,8 +14881,8 @@ msgid ""
 "Use \"Even-odd\" for 3DLabPrint airplane models. Use \"Close holes\" to "
 "close all holes in the model."
 msgstr ""
-"Utilisez « Pair-impair » pour les modèles d'avion 3DLabPrint. Utilisez "
-"« Fermer les trous » pour fermer tous les trous du modèle."
+"Utilisez « Pair-impair » pour les modèles d'avion 3DLabPrint. Utilisez « "
+"Fermer les trous » pour fermer tous les trous du modèle."
 
 msgid "Regular"
 msgstr "Standard"
@@ -15344,8 +15344,8 @@ msgstr "Activer le contrôle de la température"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -15845,8 +15845,8 @@ msgid ""
 "Wipe tower is only compatible with relative mode. It is recommended on most "
 "printers. Default is checked."
 msgstr ""
-"L’extrusion relative est recommandée lors de l’utilisation de l’option "
-"« label_objects ». Certains extrudeurs fonctionnent mieux avec cette option "
+"L’extrusion relative est recommandée lors de l’utilisation de l’option « "
+"label_objects ». Certains extrudeurs fonctionnent mieux avec cette option "
 "non verrouillée (mode d’extrusion absolu). La tour d’essuyage n’est "
 "compatible qu’avec le mode relatif. Il est recommandé sur la plupart des "
 "imprimantes. L’option par défaut est cochée"
@@ -16277,11 +16277,11 @@ msgid "Debug level"
 msgstr "Niveau de débogage"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"Définit le niveau de journalisation du débogage. 0 :fatal, 1 :erreur, "
-"2 :avertissement, 3 :info, 4 :débogage, 5 :trace\n"
+"Définit le niveau de journalisation du débogage. 0 :fatal, 1 :erreur, 2 :"
+"avertissement, 3 :info, 4 :débogage, 5 :trace\n"
 
 msgid "Enable timelapse for print"
 msgstr "Activer le timelapse pour l’impression"
@@ -16758,13 +16758,13 @@ msgstr "Le fichier fourni n'a pas pu être lu car il est vide"
 msgid ""
 "Unknown file format. Input file must have .stl, .obj, .amf(.xml) extension."
 msgstr ""
-"Format de fichier inconnu : le fichier d'entrée doit porter "
-"l'extension .stl, .obj ou .amf (.xml)."
+"Format de fichier inconnu : le fichier d'entrée doit porter l'extension ."
+"stl, .obj ou .amf (.xml)."
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-"Format de fichier inconnu : le fichier d'entrée doit porter l'extension "
-".3mf, .zip ou .amf."
+"Format de fichier inconnu : le fichier d'entrée doit porter "
+"l'extension .3mf, .zip ou .amf."
 
 msgid "Canceled"
 msgstr "Annulé"
@@ -17862,8 +17862,8 @@ msgstr ""
 "Voulez-vous le réécrire ?"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "Nous renommerions les préréglages en « Vendor Type Serial @printer you "
@@ -18883,13 +18883,35 @@ msgstr "Démarrer :"
 msgid "Estimated："
 msgstr "Estimé :"
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr ""
 
 msgid "Turn On/Off Light"
 msgstr ""
 
-msgid "Filament Tips"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
 msgstr ""
 
 msgid "Printing..."
@@ -18936,6 +18958,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr ""
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr ""
 
@@ -18952,7 +18977,10 @@ msgstr ""
 msgid "IP address not set"
 msgstr ""
 
-msgid "Connecting to printer success... The dialog will close later"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
 msgstr ""
 
 msgid "Search"
@@ -19351,6 +19379,9 @@ msgstr ""
 "Saviez-vous que lors de l’impression de matériaux susceptibles de se "
 "déformer, tels que l’ABS, une augmentation appropriée de la température du "
 "plateau chauffant peut réduire la probabilité de déformation?"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "Test de tolérance Orca"
 
 #~ msgid "Phrozen Orca is based on PrusaSlicer and BambuStudio"
 #~ msgstr "Phrozen Orca est basé sur PrusaSlicer et BambuStudio"
@@ -20447,8 +20478,8 @@ msgstr ""
 #~ "modèle. Réglez le « seuil d’une paroi » dans les paramètres avancés ci-"
 #~ "dessous pour ajuster la sensibilité de ce qui est considéré comme une "
 #~ "surface supérieure. Le « seuil d’une paroi » n’est visible que si ce "
-#~ "paramètre est supérieur à la valeur par défaut de 0,5 ou si l’option "
-#~ "« surfaces supérieures à une paroi » est activée."
+#~ "paramètre est supérieur à la valeur par défaut de 0,5 ou si l’option « "
+#~ "surfaces supérieures à une paroi » est activée."
 
 #, c-format, boost-format
 #~ msgid ""
@@ -21280,8 +21311,8 @@ msgstr ""
 #~ "thickness (top+bottom solid layers)"
 #~ msgstr ""
 #~ "Ajoutez du remplissage solide à proximité des surfaces inclinées pour "
-#~ "garantir l'épaisseur verticale de la coque (couches solides "
-#~ "supérieure+inférieure)."
+#~ "garantir l'épaisseur verticale de la coque (couches solides supérieure"
+#~ "+inférieure)."
 
 #~ msgid "Further reduce solid infill on walls (beta)"
 #~ msgstr "Réduire davantage le remplissage solide des parois (expérimental)"

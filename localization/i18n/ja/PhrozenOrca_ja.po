@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-09 11:37+0800\n"
+"POT-Creation-Date: 2026-01-10 23:59+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -3648,6 +3648,9 @@ msgid ""
 "maximum temperature.\n"
 msgstr "推奨最低温度は推奨最高温度より高くすることはできません。\n"
 
+msgid "Please check.\n"
+msgstr ""
+
 msgid ""
 "Nozzle may be blocked when the temperature is out of recommended range.\n"
 "Please make sure whether to use the temperature to print.\n"
@@ -4482,7 +4485,7 @@ msgstr "ボリューム"
 msgid "Size:"
 msgstr "サイズ:"
 
-#, boost-format
+#, c-format, boost-format
 msgid ""
 "Conflicts of G-code paths have been found at layer %d, z = %.2lf mm. Please "
 "separate the conflicted objects farther (%s <-> %s)."
@@ -4948,17 +4951,17 @@ msgstr "流量"
 msgid "Retraction test"
 msgstr "リトラクションテスト"
 
-msgid "Pressure advance"
-msgstr "プレッシャーアドバンス"
-
-msgid "Orca Tolerance Test"
-msgstr "Orca許容差テスト"
-
 msgid "Max flowrate"
 msgstr "最大流量"
 
 msgid "VFA"
 msgstr "VFA"
+
+msgid "Pressure advance"
+msgstr "プレッシャーアドバンス"
+
+msgid "Orca Tolerance Test"
+msgstr "Orca許容差テスト"
 
 msgid "Input Shaping Frequency"
 msgstr "入力シェーピング周波数"
@@ -4975,6 +4978,9 @@ msgstr "ジャンクション偏差"
 msgid "Junction Deviation calibration"
 msgstr "ジャンクション偏差キャリブレーション"
 
+msgid "Cornering"
+msgstr ""
+
 msgid "More..."
 msgstr "さらに表示..."
 
@@ -4983,9 +4989,6 @@ msgstr "チュートリアル"
 
 msgid "Calibration help"
 msgstr "キャリブレーションヘルプ"
-
-msgid "PhrozenOrca Tolerance Test"
-msgstr "PhrozenOrca許容差テスト"
 
 msgid "More calibrations"
 msgstr "その他のキャリブレーション"
@@ -5576,6 +5579,15 @@ msgstr "正常にアップロードされた画像の数"
 msgid " upload failed"
 msgstr " アップロードに失敗しました"
 
+msgid " upload config prase failed\n"
+msgstr ""
+
+msgid " No corresponding storage bucket\n"
+msgstr ""
+
+msgid " cannot be opened\n"
+msgstr ""
+
 msgid ""
 "The following issues occurred during the process of uploading images. Do you "
 "want to ignore them?\n"
@@ -5589,6 +5601,12 @@ msgstr "情報"
 
 msgid "Synchronizing the printing results. Please retry a few seconds later."
 msgstr "印刷結果を同期中です。数秒後に再試行してください。"
+
+msgid "Upload failed\n"
+msgstr ""
+
+msgid "obtaining instance_id failed\n"
+msgstr ""
 
 msgid ""
 "Your comment result cannot be uploaded due to the following reasons:\n"
@@ -5719,6 +5737,46 @@ msgstr "LANのみモードの使用方法"
 msgid "Don't show this dialog again"
 msgstr "このダイアログを再度表示しない"
 
+msgid "Open Folder."
+msgstr "フォルダを開く"
+
+msgid "Safely remove hardware."
+msgstr "ハードウェアを安全に取り外します。"
+
+#, c-format, boost-format
+msgid "%1$d Object has custom supports."
+msgid_plural "%1$d Objects have custom supports."
+msgstr[0] "%1$dのオブジェクトはサポートが付いています"
+
+#, c-format, boost-format
+msgid "%1$d Object has color painting."
+msgid_plural "%1$d Objects have color painting."
+msgstr[0] "%1$dのオブジェクトは色が付いています"
+
+#, c-format, boost-format
+msgid "%1$d object was loaded as a part of cut object."
+msgid_plural "%1$d objects were loaded as parts of cut object."
+msgstr[0] ""
+"%1$d個のオブジェクトがカットオブジェクトの一部として読み込まれました。"
+
+#, c-format, boost-format
+msgid "%1$d object was loaded with fuzzy skin painting."
+msgid_plural "%1$d objects were loaded with fuzzy skin painting."
+msgstr[0] ""
+"%1$d個のオブジェクトがファジースキンペイント付きで読み込まれました。"
+
+msgid "ERROR"
+msgstr "エラー"
+
+msgid "COMPLETED"
+msgstr "完了"
+
+msgid "CANCELED"
+msgstr "取消し済"
+
+msgid "Cancel upload"
+msgstr "アップロードを取消し"
+
 msgid "3D Mouse disconnected."
 msgstr "3D Mouseが切断されました。"
 
@@ -5760,46 +5818,6 @@ msgstr "アップデートが利用可能です"
 
 msgid "Goto download page."
 msgstr "ダウンロードページに移動"
-
-msgid "Open Folder."
-msgstr "フォルダを開く"
-
-msgid "Safely remove hardware."
-msgstr "ハードウェアを安全に取り外します。"
-
-#, c-format, boost-format
-msgid "%1$d Object has custom supports."
-msgid_plural "%1$d Objects have custom supports."
-msgstr[0] "%1$dのオブジェクトはサポートが付いています"
-
-#, c-format, boost-format
-msgid "%1$d Object has color painting."
-msgid_plural "%1$d Objects have color painting."
-msgstr[0] "%1$dのオブジェクトは色が付いています"
-
-#, c-format, boost-format
-msgid "%1$d object was loaded as a part of cut object."
-msgid_plural "%1$d objects were loaded as parts of cut object."
-msgstr[0] ""
-"%1$d個のオブジェクトがカットオブジェクトの一部として読み込まれました。"
-
-#, c-format, boost-format
-msgid "%1$d object was loaded with fuzzy skin painting."
-msgid_plural "%1$d objects were loaded with fuzzy skin painting."
-msgstr[0] ""
-"%1$d個のオブジェクトがファジースキンペイント付きで読み込まれました。"
-
-msgid "ERROR"
-msgstr "エラー"
-
-msgid "COMPLETED"
-msgstr "完了"
-
-msgid "CANCELED"
-msgstr "取消し済"
-
-msgid "Cancel upload"
-msgstr "アップロードを取消し"
 
 msgid "Jump to"
 msgstr "確認"
@@ -6438,8 +6456,8 @@ msgstr "ファイルを %1%に解凍できませんでした: %2%"
 #, boost-format
 msgid "Failed to find unzipped file at %1%. Unzipping of file has failed."
 msgstr ""
-"%1%で解凍されたファイルが見つかりませんでした。ファイルの解凍に失敗しました。"
-"%1%で解凍されたファイルが見つかりません。ファイルの解凍に失敗しました。"
+"%1%で解凍されたファイルが見つかりませんでした。ファイルの解凍に失敗しまし"
+"た。%1%で解凍されたファイルが見つかりません。ファイルの解凍に失敗しました。"
 
 msgid "Drop project file"
 msgstr "プロジェクトをドロップ"
@@ -7722,6 +7740,9 @@ msgstr ""
 "レイヤー高さがプリンター設定 -> エクストルーダー -> レイヤー高さ制限の制限を"
 "超えています。これにより印刷品質の問題が発生する可能性があります。"
 
+msgid "Adjust to the set range automatically?\n"
+msgstr ""
+
 msgid "Adjust"
 msgstr "調整"
 
@@ -7752,8 +7773,8 @@ msgstr ""
 msgid ""
 "When recording timelapse without toolhead, it is recommended to add a "
 "\"Timelapse Wipe Tower\" \n"
-"by right-click the empty position of build plate and choose \"Add "
-"Primitive\"->\"Timelapse Wipe Tower\"."
+"by right-click the empty position of build plate and choose \"Add Primitive"
+"\"->\"Timelapse Wipe Tower\"."
 msgstr ""
 "ヘッド無しのタイムラプスビデオを録画する時に、「タイムラプスプライムタワー」"
 "を追加してください。プレートで右クリックして、「プリミティブを追加」→「タイム"
@@ -10689,8 +10710,8 @@ msgstr "空気ろ過をアクティブ化"
 
 msgid "Activate for better air filtration. G-code command: M106 P3 S(0-255)"
 msgstr ""
-"より良い空気ろ過のためにアクティブ化します。Gコードコマンド：M106 P3 S"
-"（0-255）"
+"より良い空気ろ過のためにアクティブ化します。Gコードコマンド：M106 P3 "
+"S（0-255）"
 
 msgid "Fan speed"
 msgstr "回転速度"
@@ -11957,8 +11978,8 @@ msgid "mm/s² or %"
 msgstr "mm/s² 或は %"
 
 msgid ""
-"Acceleration of sparse infill. If the value is expressed as a percentage "
-"(e.g. 100%), it will be calculated based on the default acceleration."
+"Acceleration of sparse infill. If the value is expressed as a percentage (e."
+"g. 100%), it will be calculated based on the default acceleration."
 msgstr ""
 "スパースインフィルの加速度。値がパーセンテージで表現されている場合（例："
 "100%）、デフォルト加速度に基づいて計算されます。"
@@ -12068,10 +12089,10 @@ msgstr "最大回転速度の積層"
 
 msgid ""
 "Fan speed will be ramped up linearly from zero at layer "
-"\"close_fan_the_first_x_layers\" to maximum at layer "
-"\"full_fan_speed_layer\". \"full_fan_speed_layer\" will be ignored if lower "
-"than \"close_fan_the_first_x_layers\", in which case the fan will be running "
-"at maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
+"\"close_fan_the_first_x_layers\" to maximum at layer \"full_fan_speed_layer"
+"\". \"full_fan_speed_layer\" will be ignored if lower than "
+"\"close_fan_the_first_x_layers\", in which case the fan will be running at "
+"maximum allowed speed at layer \"close_fan_the_first_x_layers\" + 1."
 msgstr ""
 "ファン速度は、レイヤー「close_fan_the_first_x_layers」でゼロから、レイヤー"
 "「full_fan_speed_layer」で最大まで直線的に上昇します。"
@@ -12574,8 +12595,8 @@ msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
 "section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate "
-"regions.default is as same as infill density."
+"skin densities, This area will not be split into two separate regions."
+"default is as same as infill density."
 msgstr ""
 "一定の深さ範囲内のモデルの外部表面の部分をスキンと呼びます。このパラメーター"
 "は、このセクションの密度を調整するために使用されます。2つの領域が同じ疎充填設"
@@ -12717,8 +12738,8 @@ msgid ""
 "\"mmu_segmented_region_interlocking_depth\" is bigger than "
 "\"mmu_segmented_region_max_width\". Zero disables this feature."
 msgstr ""
-"セグメント化された領域の連動深さ。mmu_segmented_region_max_width \"が0か、"
-"\"mmu_segmented_region_interlocking_depth \"が "
+"セグメント化された領域の連動深さ。mmu_segmented_region_max_width \"が0"
+"か、\"mmu_segmented_region_interlocking_depth \"が "
 "\"mmu_segmented_region_max_width \"より大きい場合は無視される。ゼロはこの機能"
 "を無効にする。"
 
@@ -13782,8 +13803,8 @@ msgid "Role base wipe speed"
 msgstr "ロールベースワイプ速度"
 
 msgid ""
-"The wipe speed is determined by the speed of the current extrusion role. "
-"e.g. if a wipe action is executed immediately following an outer wall "
+"The wipe speed is determined by the speed of the current extrusion role. e."
+"g. if a wipe action is executed immediately following an outer wall "
 "extrusion, the speed of the outer wall extrusion will be utilized for the "
 "wipe action."
 msgstr ""
@@ -14619,8 +14640,8 @@ msgstr "温度制御をアクティブ化"
 
 msgid ""
 "Enable this option for automated chamber temperature control. This option "
-"activates the emitting of an M191 command before the "
-"\"machine_start_gcode\"\n"
+"activates the emitting of an M191 command before the \"machine_start_gcode"
+"\"\n"
 " which sets the chamber temperature and waits until it is reached. In "
 "addition, it emits an M141 command at the end of the print to turn off the "
 "chamber heater, if present.\n"
@@ -14629,10 +14650,10 @@ msgid ""
 "either via macros or natively and is usually used when an active chamber "
 "heater is installed."
 msgstr ""
-"自動チャンバー温度制御にはこのオプションを有効にします。このオプションは、"
-"\"machine_start_gcode\"の前にM191コマンドの発行を有効にし、チャンバー温度を設"
-"定して到達するまで待機します。さらに、印刷の最後にM141コマンドを発行してチャ"
-"ンバーヒーターをオフにします（存在する場合）。\n"
+"自動チャンバー温度制御にはこのオプションを有効にします。このオプション"
+"は、\"machine_start_gcode\"の前にM191コマンドの発行を有効にし、チャンバー温度"
+"を設定して到達するまで待機します。さらに、印刷の最後にM141コマンドを発行して"
+"チャンバーヒーターをオフにします（存在する場合）。\n"
 "\n"
 "このオプションは、ファームウェアがマクロまたはネイティブでM191およびM141コマ"
 "ンドをサポートしていることに依存し、通常はアクティブなチャンバーヒーターがイ"
@@ -15479,11 +15500,11 @@ msgid "Debug level"
 msgstr "デバッグ レベル"
 
 msgid ""
-"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, "
-"5:trace\n"
+"Sets debug logging level. 0:fatal, 1:error, 2:warning, 3:info, 4:debug, 5:"
+"trace\n"
 msgstr ""
-"デバッグロギングレベルを設定します。0:fatal、1:error、2:warning、3:info、"
-"4:debug、5:trace。\n"
+"デバッグロギングレベルを設定します。0:fatal、1:error、2:warning、3:info、4:"
+"debug、5:trace。\n"
 
 msgid "Enable timelapse for print"
 msgstr "印刷のタイムラプスを有効化"
@@ -16792,6 +16813,10 @@ msgstr "進行状況"
 msgid "Host"
 msgstr "ホスト"
 
+msgctxt "OfFile"
+msgid "Size"
+msgstr ""
+
 msgid "Filename"
 msgstr "ファイル名"
 
@@ -17016,8 +17041,8 @@ msgstr ""
 "上書きしますか？"
 
 msgid ""
-"We would rename the presets as \"Vendor Type Serial @printer you "
-"selected\".\n"
+"We would rename the presets as \"Vendor Type Serial @printer you selected"
+"\".\n"
 "To add preset for more printers, please go to printer selection"
 msgstr ""
 "プリセットを「ベンダー タイプ シリアル @選択したプリンター」に名前変更しま"
@@ -17999,14 +18024,36 @@ msgstr "開始："
 msgid "Estimated："
 msgstr "見積もり："
 
+msgid "Console Page"
+msgstr ""
+
 msgid "Turn On/Off Camera"
 msgstr "カメラをオン/オフ"
 
 msgid "Turn On/Off Light"
 msgstr "ライトをオン/オフ"
 
-msgid "Filament Tips"
-msgstr "フィラメントのヒント"
+msgid "Manual Adjustment"
+msgstr ""
+
+msgid "Z-Offset"
+msgstr ""
+
+msgid ""
+"Please insert the filament wire into the slot and wait until it's on standby"
+msgstr ""
+
+msgid "Heated Bed"
+msgstr ""
+
+msgid "Auxiliary"
+msgstr ""
+
+msgid "Shield"
+msgstr ""
+
+msgid "Z"
+msgstr ""
 
 msgid "Printing..."
 msgstr "印刷中..."
@@ -18055,6 +18102,9 @@ msgstr ""
 msgid "Unload All Slots"
 msgstr "すべてのスロットをアンロード"
 
+msgid "Key In"
+msgstr ""
+
 msgid "Auto Leveling"
 msgstr "自動レベリング"
 
@@ -18073,8 +18123,11 @@ msgstr ""
 msgid "IP address not set"
 msgstr "IPアドレスが設定されていません"
 
-msgid "Connecting to printer success... The dialog will close later"
-msgstr "プリンターへの接続に成功しました...ダイアログは後で閉じます"
+msgid "Connecting to printer success! The dialog will close later"
+msgstr ""
+
+msgid "Failed to connect to printer... The dialog will close later"
+msgstr ""
 
 msgid "Search"
 msgstr "検索"
@@ -18452,6 +18505,15 @@ msgstr ""
 "反りを避ける\n"
 "ABSのような反りやすい素材を印刷する場合、ヒートベッドの温度を適切に上げること"
 "で、反りが発生する確率を下げることができることをご存知ですか？"
+
+#~ msgid "PhrozenOrca Tolerance Test"
+#~ msgstr "PhrozenOrca許容差テスト"
+
+#~ msgid "Filament Tips"
+#~ msgstr "フィラメントのヒント"
+
+#~ msgid "Connecting to printer success... The dialog will close later"
+#~ msgstr "プリンターへの接続に成功しました...ダイアログは後で閉じます"
 
 #~ msgid ""
 #~ "Too small max volumetric speed.\n"
