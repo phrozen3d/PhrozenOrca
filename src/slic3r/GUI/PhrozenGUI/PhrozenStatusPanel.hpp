@@ -517,15 +517,12 @@ protected:
     bool m_show_mode_changed = false;
     std::map<wxString, wxImage> img_list; // key: url, value: wxBitmap png Image
     std::map<std::string, std::string> m_print_connect_types;
-    std::vector<Button *>       m_buttons;
     ScoreData *m_score_data;
     wxBitmap* calib_bitmap = nullptr;
     CalibMode m_calib_mode;
     CalibrationMethod m_calib_method;
     int cali_stage;
     PrintingTaskType m_current_print_mode = PrintingTaskType::NOT_CLEAR;
-
-    void init_scaled_buttons();
 
     void on_market_scoring(wxCommandEvent &event);
     void on_market_retry(wxCommandEvent &event);
@@ -606,7 +603,6 @@ protected:
     void update_ams(MachineObject* obj);
     void update_ams_phrozen();
     void update_cali(MachineObject* obj);
-    void update_cali_phrozen(MachineObject* obj);
     void update_calib_bitmap();
 
     void reset_printing_values();
@@ -712,6 +708,10 @@ public:
     void set_default();
     void show_status(int status);
     void set_hold_count(int& count);
+    void enable_Printer_control_buttons( bool bEnable );
+    void enable_ams_control_buttons( bool bEnable );
+    void enable_cali_buttons( bool bEnable );
+    void update_printing_button_status(MachineObject* obj);
 
     void rescale_camera_icons();
     void on_sys_color_changed();

@@ -2592,15 +2592,6 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     : PhrozenStatusBasePanel(parent, id, pos, size, style)
     , m_fan_control_popup(new FanControlPopup(this))
 {
-    init_scaled_buttons();
-    //m_buttons.push_back(m_button_unload);
-    //m_buttons.push_back(m_bpButton_z_10);
-    //m_buttons.push_back(m_bpButton_z_1);
-    //m_buttons.push_back(m_bpButton_z_down_1);
-    //m_buttons.push_back(m_bpButton_z_down_10);
-    //m_buttons.push_back(m_bpButton_e_10);
-    //m_buttons.push_back(m_bpButton_e_down_10);
-
     obj = nullptr;
     m_score_data         = new ScoreData;
     m_score_data->rating_id = -1;
@@ -2771,9 +2762,6 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     }
 }
 
-void PhrozenStatusPanel::init_scaled_buttons()
-{
-}
 
 void PhrozenStatusPanel::on_market_scoring(wxCommandEvent &event) { 
     if (obj && obj->is_makeworld_subtask() && obj->rating_info && obj->rating_info->request_successful) { // model is mall model and has rating_id
@@ -3113,7 +3101,7 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     }
 
     update_ams(obj);
-    update_cali_phrozen(obj);
+    update_printing_button_status(obj);
 
 
 #if 0
@@ -3826,23 +3814,6 @@ void PhrozenStatusPanel::update_cali(MachineObject *obj)
     //        m_calibration_btn->Enable();
     //    }
     //}
-}
-
-void PhrozenStatusPanel::update_cali_phrozen(MachineObject *obj)
-{
-    if (!obj) return;
-    
-    // ============================================
-    // 更新校準按鈕狀態：列印中時禁用，其他狀態啟用
-    // ============================================
-    if (m_calibration_btn) {
-        std::string print_status = obj->GetPhrozenPrintStatus();
-        if (print_status == "printing") {
-            m_calibration_btn->Disable();
-        } else {
-            m_calibration_btn->Enable();
-        }
-    }
 }
 
 void PhrozenStatusPanel::update_calib_bitmap() {
@@ -5498,6 +5469,46 @@ void PhrozenStatusPanel::set_hold_count(int& count)
     count = COMMAND_TIMEOUT;
 }
 
+void PhrozenStatusPanel::enable_Printer_control_buttons( bool bEnable )
+{
+    for ( auto pButtonIter : m_kManualMovementButtons )
+    {
+        pButtonIter.second->Enable(bEnable);
+    }
+    for ( auto pButtonIter : m_kNozzleMovementRangeButtons )
+    {
+        pButtonIter.second->Enable(bEnable);
+    }
+}
+
+void PhrozenStatusPanel::enable_ams_control_buttons( bool bEnable )
+{
+    m_pFilamentControlPanel->GetUnloadAllButton()->Enable(bEnable);
+}
+
+void PhrozenStatusPanel::enable_cali_buttons( bool bEnable )
+{
+    if (!obj) return;
+    
+    // ============================================
+    // 更新校準按鈕狀態：列印中時禁用，其他狀態啟用
+    // ============================================
+    if (m_calibration_btn) {
+        m_calibration_btn->Enable(bEnable);
+    }
+}
+
+void PhrozenStatusPanel::update_printing_button_status(MachineObject* obj)
+{
+    if (!obj) return;
+    
+    std::string print_status = obj->GetPhrozenPrintStatus();
+    bool bEnable = print_status == "printing";
+    enable_Printer_control_buttons( bEnable );
+    enable_ams_control_buttons( bEnable );
+    enable_cali_buttons(bEnable);
+}
+
 void PhrozenStatusPanel::rescale_camera_icons()
 {
     m_pCam_switch_button->Rescale();
@@ -5527,8 +5538,6 @@ void PhrozenStatusPanel::msw_rescale()
     //m_staticText_control->SetMinSize(wxSize(-1, PAGE_TITLE_HEIGHT));
     //m_media_play_ctrl->msw_rescale();
     m_temp_extruder_line->SetSize(wxSize(FromDIP(1), -1));
-
-    for (Button *btn : m_buttons) { btn->Rescale(); }
 
     m_tempCtrl_nozzle->SetMinSize(TEMP_CTRL_MIN_SIZE);
     m_tempCtrl_nozzle->Rescale();
