@@ -243,7 +243,6 @@ public:
     ScalableBitmap m_bitmap_use_time;
     ScalableBitmap m_bitmap_use_weight;
     wxBitmap m_bitmap_extruder_empty_load;
-    wxBitmap m_bitmap_extruder_filled_load;
     wxBitmap m_bitmap_extruder_empty_unload;
     wxBitmap m_bitmap_extruder_filled_unload;
 
@@ -308,18 +307,9 @@ public:
 
     float           m_fixed_aspect_ratio{1.8};
 
-    Button *        m_bpButton_z_10;
-    Button *        m_bpButton_z_1;
-    Button *        m_bpButton_z_down_1;
-    Button *        m_bpButton_z_down_10;
-    Button *        m_button_unload;
-    wxStaticText *  m_staticText_z_tip;
-    Button *        m_bpButton_e_10;
-    Button *        m_bpButton_e_down_10;
     StaticLine *    m_temp_extruder_line;
     bool            m_show_ams_group{true};
     wxStaticBitmap *m_ams_extruder_img;
-    wxStaticBitmap* m_bitmap_extruder_img;
     wxPanel *       m_panel_separator_right;
     wxPanel *       m_panel_separotor_bottom;
     wxBoxSizer *    m_printing_sizer;
@@ -373,7 +363,6 @@ public:
     PhrozenMachineObject_Dev* PhrozenObj() { return m_pMachineObj; }
     PhrozenMachineObject_Dev* m_pMachineObj{nullptr};
 
-    void reset_temp_misc_control();
     int before_error_code = 0;
     int skip_print_error = 0;
     wxBoxSizer *create_ams_group(wxWindow *parent);
@@ -614,10 +603,8 @@ protected:
     void update_z_offset_ctrl(MachineObject *obj);
     void update_webcam_lighting_status( MachineObject *obj );
     void update_webcam_lighting_status_phrozen();
-    void update_misc_ctrl(MachineObject *obj);
     void update_ams(MachineObject* obj);
     void update_ams_phrozen();
-    void update_extruder_status(MachineObject* obj);
     void update_cali(MachineObject* obj);
     void update_cali_phrozen(MachineObject* obj);
     void update_calib_bitmap();

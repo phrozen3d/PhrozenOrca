@@ -36,7 +36,6 @@
 #include <cctype>
 #include <cstring>
 
-#define HideOriginUiWidget 0
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
 #define REFRESH_WEBCAM_UI_INTERVAL 15 
 
@@ -1667,7 +1666,6 @@ void PhrozenStatusBasePanel::init_bitmaps()
     m_thumbnail_brokenimg    = ScalableBitmap(this, "monitor_brokenimg", 120);
     m_thumbnail_sdcard       = ScalableBitmap(this, "monitor_sdcard_thumbnail", 120);
     m_bitmap_extruder_empty_load      = *cache.load_png("monitor_extruder_empty_load", FromDIP(28), FromDIP(70), false, false);
-    m_bitmap_extruder_filled_load     = *cache.load_png("monitor_extruder_filled_load", FromDIP(28), FromDIP(70), false, false);
     m_bitmap_extruder_empty_unload    = *cache.load_png("monitor_extruder_empty_unload", FromDIP(28), FromDIP(70), false, false);
     m_bitmap_extruder_filled_unload   = *cache.load_png("monitor_extruder_filled_unload", FromDIP(28), FromDIP(70), false, false);
 
@@ -1708,33 +1706,6 @@ void PhrozenStatusBasePanel::on_webview_navigating(wxWebViewEvent& evt) {
     wxGetApp().CallAfter([this] {
         remove_controls();
     });
-}
-
-void PhrozenStatusBasePanel::reset_temp_misc_control()
-{
-#if 0
-    // reset temp string
-    m_tempCtrl_nozzle->SetLabel(TEMP_BLANK_STR);
-    m_tempCtrl_nozzle->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
-    m_tempCtrl_bed->SetLabel(TEMP_BLANK_STR);
-    m_tempCtrl_bed->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
-    m_tempCtrl_chamber->SetLabel(TEMP_BLANK_STR);
-    m_tempCtrl_chamber->GetTextCtrl()->SetValue(TEMP_BLANK_STR);
-    m_button_unload->Show();
-
-    m_tempCtrl_nozzle->Enable(true);
-    m_tempCtrl_chamber->Enable(true);
-    m_tempCtrl_bed->Enable(true);
-
-    // reset misc control
-    m_switch_speed->SetLabels("100%", "100%");
-    m_switch_speed->SetValue(false);
-    m_switch_lamp->SetLabels(_L("Lamp"), _L("Lamp"));
-    m_switch_lamp->SetValue(false);
-    m_switch_nozzle_fan->SetValue(false);
-    m_switch_printing_fan->SetValue(false);
-    m_switch_cham_fan->SetValue(false);
-    #endif
 }
 
 wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
@@ -2622,24 +2593,17 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     , m_fan_control_popup(new FanControlPopup(this))
 {
     init_scaled_buttons();
-    m_buttons.push_back(m_button_unload);
-    m_buttons.push_back(m_bpButton_z_10);
-    m_buttons.push_back(m_bpButton_z_1);
-    m_buttons.push_back(m_bpButton_z_down_1);
-    m_buttons.push_back(m_bpButton_z_down_10);
-    m_buttons.push_back(m_bpButton_e_10);
-    m_buttons.push_back(m_bpButton_e_down_10);
+    //m_buttons.push_back(m_button_unload);
+    //m_buttons.push_back(m_bpButton_z_10);
+    //m_buttons.push_back(m_bpButton_z_1);
+    //m_buttons.push_back(m_bpButton_z_down_1);
+    //m_buttons.push_back(m_bpButton_z_down_10);
+    //m_buttons.push_back(m_bpButton_e_10);
+    //m_buttons.push_back(m_bpButton_e_down_10);
 
     obj = nullptr;
     m_score_data         = new ScoreData;
     m_score_data->rating_id = -1;
-    /* set default values */
-    #if HideOriginUiWidget
-    m_switch_lamp->SetValue(false);
-    m_switch_printing_fan->SetValue(false);
-    m_switch_nozzle_fan->SetValue(false);
-    m_switch_cham_fan->SetValue(false);
-    #endif
 
     /* set default enable state */
     m_project_task_panel->enable_pause_resume_button(false, "resume_disable");
@@ -2741,38 +2705,6 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_project_task_panel->get_clean_button()->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_print_error_clean), NULL, this);
 
 
-
-
-    #if HideOriginUiWidget
-    m_pCam_switch_button->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_pCam_switch_button->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_switch_lamp->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
-    m_switch_nozzle_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); // TODO
-    m_switch_printing_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
-    m_switch_cham_fan->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this); 
-    m_bpButton_z_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_10), NULL, this);
-    m_bpButton_z_1->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_1), NULL, this);
-    m_bpButton_z_down_1->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_1), NULL, this);
-    m_bpButton_z_down_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_10), NULL, this);
-    m_bpButton_e_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_up_10), NULL, this);
-    m_bpButton_e_down_10->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_down_10), NULL, this);
-    m_button_unload->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_unload), NULL, this);
-    #endif
-    // record some event created but not use here, maybe future will use it.
-    /*
-        EVT_AMS_LOAD
-        EVT_AMS_UNLOAD
-        EVT_AMS_EXTRUSION_CALI
-        EVT_AMS_FILAMENT_BACKUP
-        EVT_AMS_SETTINGS
-        EVT_AMS_REFRESH_RFID
-        EVT_AMS_ON_SELECTED
-        EVT_AMS_ON_FILAMENT_EDIT
-        EVT_VAMS_ON_FILAMENT_EDIT
-        EVT_AMS_RETRY
-        EVT_LOAD_VAMS_TRAY
-    */
-
     Bind(EVT_AMS_GUIDE_WIKI, &PhrozenStatusPanel::on_ams_guide, this);
     Bind(EVT_FAN_CHANGED, &PhrozenStatusPanel::on_fan_changed, this);
     Bind(EVT_SECONDARY_CHECK_DONE, &PhrozenStatusPanel::on_print_error_done, this);
@@ -2787,9 +2719,6 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
     m_calibration_btn->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
 
-    #if HideOriginUiWidget
-    m_switch_speed->Connect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
-    #endif
 }
 
 PhrozenStatusPanel::~PhrozenStatusPanel()
@@ -2824,22 +2753,6 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
     
     m_calibration_btn->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_calibration), NULL, this);
 
-    #if HideOriginUiWidget
-    m_pCam_switch_button->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_pCam_switch_button->Disconnect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(PhrozenStatusPanel::on_camera_enter), NULL, this);
-    m_switch_lamp->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_lamp_switch), NULL, this);
-    m_switch_nozzle_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
-    m_switch_printing_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
-    m_switch_cham_fan->Disconnect(wxEVT_COMMAND_TOGGLEBUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_nozzle_fan_switch), NULL, this);
-    m_bpButton_z_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_10), NULL, this);
-    m_bpButton_z_1->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_up_1), NULL, this);
-    m_bpButton_z_down_1->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_1), NULL, this);
-    m_bpButton_z_down_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_z_down_10), NULL, this);
-    m_bpButton_e_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_up_10), NULL, this);
-    m_bpButton_e_down_10->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_axis_ctrl_e_down_10), NULL, this);
-    m_switch_speed->Disconnect(wxEVT_LEFT_DOWN, wxCommandEventHandler(PhrozenStatusPanel::on_switch_speed), NULL, this);
-    m_button_unload->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_start_unload), NULL, this);
-    #endif
     // remove warning dialogs
     if (m_print_error_dlg != nullptr)
         delete m_print_error_dlg;
@@ -2860,23 +2773,6 @@ PhrozenStatusPanel::~PhrozenStatusPanel()
 
 void PhrozenStatusPanel::init_scaled_buttons()
 {
-#if HideOriginUiWidget //origin
-    m_project_task_panel->init_scaled_buttons();
-    m_button_unload->SetMinSize(wxSize(-1, FromDIP(24)));
-    m_button_unload->SetCornerRadius(FromDIP(12));
-    m_bpButton_z_10->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_10->SetCornerRadius(0);
-    m_bpButton_z_1->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_1->SetCornerRadius(0);
-    m_bpButton_z_down_1->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_down_1->SetCornerRadius(0);
-    m_bpButton_z_down_10->SetMinSize(Z_BUTTON_SIZE);
-    m_bpButton_z_down_10->SetCornerRadius(0);
-    m_bpButton_e_10->SetMinSize(wxSize(FromDIP(40), FromDIP(40)));
-    m_bpButton_e_10->SetCornerRadius(FromDIP(12));
-    m_bpButton_e_down_10->SetMinSize(wxSize(FromDIP(40), FromDIP(40)));
-    m_bpButton_e_down_10->SetCornerRadius(FromDIP(12));
-#endif
 }
 
 void PhrozenStatusPanel::on_market_scoring(wxCommandEvent &event) { 
@@ -3767,159 +3663,6 @@ void PhrozenStatusPanel::update_webcam_lighting_status_phrozen()
     } else {
         bool bIsLighingEnabled = pObj->IsMachineLED_On();
         m_pCam_light_switch_button->SetValue( bIsLighingEnabled );
-    }
-}
-
-void PhrozenStatusPanel::update_misc_ctrl(MachineObject *obj)
-{
-    if (!obj) return;
-
-    if (obj->can_unload_filament()) {
-        if (!m_button_unload->IsShown()) {
-            m_button_unload->Show();
-            m_button_unload->GetParent()->Layout();
-        }
-    } else {
-        if (m_button_unload->IsShown()) {
-            m_button_unload->Hide();
-            m_button_unload->GetParent()->Layout();
-        }
-    }
-
-    if (obj->is_core_xy()) {
-        m_staticText_z_tip->SetLabel(_L("Bed"));
-    } else {
-        m_staticText_z_tip->SetLabel(_L("Z"));
-    }
-
-    // update extruder icon
-    update_extruder_status(obj);
-
-    bool is_suppt_aux_fun = obj->is_support_aux_fan;
-    bool is_suppt_cham_fun = obj->is_support_chamber_fan;
-
-    //update cham fan
-    if (m_current_support_cham_fan != is_suppt_cham_fun) {
-        if (is_suppt_cham_fun) {
-            m_switch_cham_fan->Show();
-            m_switch_nozzle_fan->SetMinSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_nozzle_fan->SetMaxSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_printing_fan->SetMinSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_printing_fan->SetMaxSize(MISC_BUTTON_3FAN_SIZE);
-        }
-        else {
-            m_switch_cham_fan->Hide();
-            m_switch_nozzle_fan->SetMinSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_nozzle_fan->SetMaxSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_printing_fan->SetMinSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_printing_fan->SetMaxSize(MISC_BUTTON_2FAN_SIZE);
-        }
-
-        m_misc_ctrl_sizer->Layout();
-    }
-
-    if (m_current_support_aux_fan != is_suppt_aux_fun) {
-        if (is_suppt_aux_fun) {
-            m_switch_printing_fan->Show();
-            m_switch_nozzle_fan->SetMinSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_nozzle_fan->SetMaxSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_cham_fan->SetMinSize(MISC_BUTTON_3FAN_SIZE);
-            m_switch_cham_fan->SetMaxSize(MISC_BUTTON_3FAN_SIZE);
-        }
-        else {
-            m_switch_printing_fan->Hide();
-            m_switch_nozzle_fan->SetMinSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_nozzle_fan->SetMaxSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_cham_fan->SetMinSize(MISC_BUTTON_2FAN_SIZE);
-            m_switch_cham_fan->SetMaxSize(MISC_BUTTON_2FAN_SIZE);
-        }
-
-        m_misc_ctrl_sizer->Layout();
-    }
-
-    if (!is_suppt_aux_fun && !is_suppt_cham_fun) {
-        m_switch_nozzle_fan->SetMinSize(MISC_BUTTON_1FAN_SIZE);
-        m_switch_nozzle_fan->SetMaxSize(MISC_BUTTON_1FAN_SIZE);
-        m_misc_ctrl_sizer->Layout();
-    }
-
-
-    // nozzle fan
-    if (m_switch_nozzle_fan_timeout > 0) {
-        m_switch_nozzle_fan_timeout--;
-    }  else{
-        int speed = round(obj->cooling_fan_speed / float(25.5));
-        m_switch_nozzle_fan->SetValue(speed > 0 ? true : false);
-        m_switch_nozzle_fan->setFanValue(speed * 10);
-        if (m_fan_control_popup) {
-            m_fan_control_popup->update_fan_data(MachineObject::FanType::COOLING_FAN, obj);
-        }
-    }
-
-    // printing fan
-    if (m_switch_printing_fan_timeout > 0) {
-        m_switch_printing_fan_timeout--;
-    }else{
-        int speed = round(obj->big_fan1_speed / float(25.5));
-        m_switch_printing_fan->SetValue(speed > 0 ? true : false);
-        m_switch_printing_fan->setFanValue(speed * 10);
-        if (m_fan_control_popup) {
-            m_fan_control_popup->update_fan_data(MachineObject::FanType::BIG_COOLING_FAN, obj);
-        }
-    }
-
-    // cham fan
-    if (m_switch_cham_fan_timeout > 0) {
-        m_switch_cham_fan_timeout--;
-    }else{
-        int speed = round(obj->big_fan2_speed / float(25.5));
-        m_switch_cham_fan->SetValue(speed > 0 ? true : false);
-        m_switch_cham_fan->setFanValue(speed * 10);
-        if (m_fan_control_popup) {
-            m_fan_control_popup->update_fan_data(MachineObject::FanType::CHAMBER_FAN, obj);
-        }
-    }
-
-    bool light_on = obj->chamber_light != MachineObject::LIGHT_EFFECT::LIGHT_EFFECT_OFF;
-    BOOST_LOG_TRIVIAL(trace) << "light: " << (light_on ? "on" : "off");
-    if (m_switch_lamp_timeout > 0)
-        m_switch_lamp_timeout--;
-    else {
-        m_switch_lamp->SetValue(light_on);
-        /*wxString label = light_on ? "On" : "Off";
-        m_switch_lamp->SetLabels(label, label);*/
-    }
-
-    if (speed_lvl_timeout > 0)
-        speed_lvl_timeout--;
-    else {
-        // update speed
-        this->speed_lvl = obj->printing_speed_lvl;
-            wxString text_speed = wxString::Format("%d%%", obj->printing_speed_mag);
-            m_switch_speed->SetLabels(text_speed, text_speed);
-    }
-
-    m_current_support_aux_fan = is_suppt_aux_fun;
-    m_current_support_cham_fan = is_suppt_cham_fun;
-}
-
-void PhrozenStatusPanel::update_extruder_status(MachineObject* obj)
-{
-    if (!obj) return;
-    if (obj->is_filament_at_extruder()) {
-        if (obj->extruder_axis_status == MachineObject::ExtruderAxisStatus::LOAD) {
-            m_bitmap_extruder_img->SetBitmap(m_bitmap_extruder_filled_load);
-        }
-        else {
-            m_bitmap_extruder_img->SetBitmap(m_bitmap_extruder_filled_unload);
-        }
-    }
-    else {
-        if (obj->extruder_axis_status == MachineObject::ExtruderAxisStatus::LOAD) {
-            m_bitmap_extruder_img->SetBitmap(m_bitmap_extruder_empty_load);
-        } else {
-            m_bitmap_extruder_img->SetBitmap(m_bitmap_extruder_empty_unload);
-        }
     }
 }
 
@@ -5724,12 +5467,6 @@ void PhrozenStatusPanel::set_default()
     reset_printing_values();
     UpdateWebCameraView( nullptr );
 
-    #if HideOriginUiWidget
-    m_pCam_switch_button->Show();
-    m_tempCtrl_chamber->Show();
-    #endif
-
-    reset_temp_misc_control();
     // Reset AMS slot and External spool state when hiding panel
     if (m_pFilamentControlPanel) {
         FilamentSystemState kStatus;  // Empty state resets all slots and external spool
@@ -5790,11 +5527,8 @@ void PhrozenStatusPanel::msw_rescale()
     //m_staticText_control->SetMinSize(wxSize(-1, PAGE_TITLE_HEIGHT));
     //m_media_play_ctrl->msw_rescale();
     m_temp_extruder_line->SetSize(wxSize(FromDIP(1), -1));
-    update_extruder_status(obj);
-    m_bitmap_extruder_img->SetMinSize(EXTRUDER_IMAGE_SIZE);
 
     for (Button *btn : m_buttons) { btn->Rescale(); }
-    init_scaled_buttons();
 
     m_tempCtrl_nozzle->SetMinSize(TEMP_CTRL_MIN_SIZE);
     m_tempCtrl_nozzle->Rescale();
