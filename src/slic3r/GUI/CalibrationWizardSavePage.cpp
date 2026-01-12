@@ -2,6 +2,7 @@
 #include "I18N.hpp"
 #include "Widgets/Label.hpp"
 #include "MsgDialog.hpp"
+#include "GUI_App.hpp"
 
 
 namespace Slic3r { namespace GUI {

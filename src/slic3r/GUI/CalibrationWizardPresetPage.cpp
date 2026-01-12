@@ -4,6 +4,7 @@
 #include "Widgets/Label.hpp"
 #include "MsgDialog.hpp"
 #include "libslic3r/Print.hpp"
+#include "GUI_App.hpp"
 
 namespace Slic3r { namespace GUI {
 static int PA_LINE = 0;

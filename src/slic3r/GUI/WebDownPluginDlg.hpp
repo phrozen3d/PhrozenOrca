@@ -26,10 +26,9 @@
 #include <wx/tbarbase.h>
 #include "wx/textctrl.h"
 
-#include "GUI_App.hpp"
 
 namespace Slic3r { namespace GUI {
-
+class GUI_App;
 class DownPluginFrame : public wxDialog
 {
 public:
@@ -63,7 +62,6 @@ public:
 
 private:
     GUI_App * m_MainPtr;
-    AppConfig m_appconfig_new;
 
     wxWebView *m_browser;
 

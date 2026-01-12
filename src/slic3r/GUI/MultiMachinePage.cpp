@@ -1,6 +1,12 @@
 #include "MultiMachinePage.hpp"
+
+#include <wx/window.h>
 #include "GUI_App.hpp"
 #include "MainFrame.hpp"
+#include "Widgets/Label.hpp"
+#include "I18N.hpp"
+#include "Plater.hpp"
+
 
 namespace Slic3r {
 namespace GUI {

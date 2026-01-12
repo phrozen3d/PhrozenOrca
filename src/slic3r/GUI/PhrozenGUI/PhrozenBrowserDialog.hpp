@@ -41,8 +41,6 @@ private:
     struct NetworkingMachineInfo {
         std::string machineName;
         std::string ip;
-        bool connected;
-        bool pressed;
     };
 
     std::vector<NetworkingMachineInfo> m_kNetworkingMachineInfoList;

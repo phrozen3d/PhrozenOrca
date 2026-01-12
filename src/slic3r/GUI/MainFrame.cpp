@@ -1095,9 +1095,9 @@ void MainFrame::init_tabpanel() {
     m_monitor->SetBackgroundColour(*wxWHITE);
     m_tabpanel->AddPage(m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
 
-    //m_PhrozenMonitor = new PhrozenMonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-    //m_PhrozenMonitor->SetBackgroundColour(*wxWHITE);
-    //m_tabpanel->AddPage(m_PhrozenMonitor, _L("Device_Test"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
+    m_PhrozenMonitor = new PhrozenMonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+    m_PhrozenMonitor->SetBackgroundColour(*wxWHITE);
+    m_tabpanel->AddPage(m_PhrozenMonitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);
 
     m_printer_view = new PrinterWebView(m_tabpanel);
     Bind(EVT_LOAD_PRINTER_URL, [this](LoadPrinterViewEvent &evt) {
@@ -1206,9 +1206,13 @@ void MainFrame::show_device(bool bBBLPrinter) {
                 m_printer_view->load_url(url, key);
             });
         }
-        m_printer_view->Show(false);
-        m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device"), std::string("tab_monitor_active"),
+
+        if (GUI::wxGetApp().IsPhrozenDeveloperMode() )
+        {
+            m_printer_view->Show(false);
+            m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device_Console"), std::string("tab_monitor_active"),
                                std::string("tab_monitor_active"));
+        }
     }
 }
 
@@ -1683,7 +1687,7 @@ wxBoxSizer* MainFrame::create_side_tools()
             SidePopup* p = new SidePopup(this);
 
             if (wxGetApp().preset_bundle
-                && !wxGetApp().preset_bundle->is_bbl_vendor()) {
+                && !( wxGetApp().preset_bundle->is_bbl_vendor() || wxGetApp().preset_bundle->is_phrozen_vendor() ) ) {
                 // ThirdParty Buttons
                 SideButton* export_gcode_btn = new SideButton(p, _L("Export G-code file"), "");
                 export_gcode_btn->SetCornerRadius(0);
@@ -1713,6 +1717,24 @@ wxBoxSizer* MainFrame::create_side_tools()
             }
             else {
                 //Phrozen Orca Buttons
+                if ( wxGetApp().preset_bundle->is_phrozen_vendor() &&  wxGetApp().IsPhrozenDeveloperMode() )
+                {
+                    // upload and print
+                    SideButton* send_gcode_btn = new SideButton(p, _L("Print"), "");
+                    send_gcode_btn->SetCornerRadius(0);
+                    send_gcode_btn->SetCornerRadius(0);
+                    send_gcode_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Print"));
+                        m_print_select = eSendGcode;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                    });
+                    p->append_button(send_gcode_btn);
+                }
+
+
                 SideButton* print_plate_btn = new SideButton(p, _L("Print plate"), "");
                 print_plate_btn->SetCornerRadius(0);
 
@@ -2930,10 +2952,10 @@ void MainFrame::init_menubar_as_editor()
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(false, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     flowrate_menu->AppendSeparator();
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("Orca YOLO flowrate calibration, 0.01 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("PhrozenOrca YOLO flowrate calibration, 0.01 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 1); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("Orca YOLO flowrate calibration, 0.005 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("PhrozenOrca YOLO flowrate calibration, 0.005 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
     m_topbar->GetCalibMenu()->AppendSubMenu(flowrate_menu, _L("Flow rate"));
@@ -3074,10 +3096,10 @@ void MainFrame::init_menubar_as_editor()
     append_submenu(calib_menu,flowrate_menu,wxID_ANY,_L("Flow rate"),_L("Flow rate"),"",
                    [this]() {return m_plater->is_view3D_shown();; });
     flowrate_menu->AppendSeparator();
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("Orca YOLO flowrate calibration, 0.01 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (Recommended)"), _L("PhrozenOrca YOLO flowrate calibration, 0.01 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 1); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
-    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("Orca YOLO flowrate calibration, 0.005 step"),
+    append_menu_item(flowrate_menu, wxID_ANY, _L("YOLO (perfectionist version)"), _L("PhrozenOrca YOLO flowrate calibration, 0.005 step"),
         [this](wxCommandEvent&) { if (m_plater) m_plater->calib_flowrate(true, 2); }, "", nullptr,
         [this]() {return m_plater->is_view3D_shown();; }, this);
 

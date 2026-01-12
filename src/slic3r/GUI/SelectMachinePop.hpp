@@ -56,6 +56,12 @@ enum PrinterBindState {
     ALLOW_UNBIND
 };
 
+enum PinCodePanelType {
+    BindWithPinCode,
+    BindWithAccessCode,
+    BindWithIP
+};
+
 wxDECLARE_EVENT(EVT_FINISHED_UPDATE_MACHINE_LIST, wxCommandEvent);
 wxDECLARE_EVENT(EVT_WILL_DISMISS_MACHINE_LIST, wxCommandEvent);
 wxDECLARE_EVENT(EVT_UPDATE_WINDOWS_POSITION, wxCommandEvent);

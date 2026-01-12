@@ -2,13 +2,13 @@
 #define slic3r_MultiMachinePage_hpp_
 
 #include "libslic3r/libslic3r.h"
-#include "GUI_App.hpp"
 #include "GUI_Utils.hpp"
 #include "MultiTaskManagerPage.hpp"
 #include "MultiMachineManagerPage.hpp"
 #include "Tabbook.hpp"
 
 #include "wx/button.h"
+class Label;
 
 namespace Slic3r { 
 namespace GUI {
@@ -18,7 +18,8 @@ namespace GUI {
 #define PICK_LEFT_DEV_NAME 250
 #define PICK_LEFT_DEV_STATUS 250
 #define PICK_DEVICE_MAX 6
-    
+class Plater;
+
 class MultiMachinePage : public wxPanel
 {
 private:

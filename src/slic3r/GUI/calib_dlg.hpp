@@ -11,12 +11,12 @@
 #include "Widgets/TextInput.hpp"
 #include "Widgets/LabeledStaticBox.hpp"
 #include "Widgets/RadioGroup.hpp"
-#include "GUI_App.hpp"
 #include "wx/hyperlink.h"
 #include <wx/radiobox.h>
 #include "libslic3r/calib.hpp"
 
 namespace Slic3r { namespace GUI {
+class Plater;
 
 class PA_Calibration_Dlg : public DPIDialog
 {
