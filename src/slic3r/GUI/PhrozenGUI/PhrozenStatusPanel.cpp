@@ -5503,7 +5503,7 @@ void PhrozenStatusPanel::update_printing_button_status(MachineObject* obj)
     if (!obj) return;
     
     std::string print_status = obj->GetPhrozenPrintStatus();
-    bool bEnable = print_status == "printing";
+    bool bEnable = print_status != "printing";
     enable_Printer_control_buttons( bEnable );
     enable_ams_control_buttons( bEnable );
     enable_cali_buttons(bEnable);
