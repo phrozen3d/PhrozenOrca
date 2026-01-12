@@ -354,7 +354,7 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
 void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )
 {
     stop_update();
-
+     m_last_status = MONITOR_UNKNOWN;
     //Debug
     m_status_info_panel->SetMachineObject( nullptr );
     m_status_info_panel->SetPhrozenMachineObject( nullptr );
