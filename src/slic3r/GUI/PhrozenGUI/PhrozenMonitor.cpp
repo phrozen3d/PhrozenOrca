@@ -1,5 +1,6 @@
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/Model.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <wx/app.h>
 #include <wx/button.h>
@@ -26,6 +27,10 @@
 #include "../MediaPlayCtrl.h"
 #include "../MediaFilePanel.h"
 #include "../BindDialog.hpp"
+#include "PhrozenMonitorController.hpp"
+#include "PhrozenDeviceManager.hpp"
+#include "PhrozenSideTools.hpp"
+#include "PhrozenSelectMachinePopup.hpp"
 
 namespace Slic3r {
 namespace GUI {
@@ -35,7 +40,7 @@ namespace GUI {
 #pragma region PhrozenMonitorPanel
  PhrozenMonitorPanel::PhrozenMonitorPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
     : wxPanel(parent, id, pos, size, style),
-      m_select_machine(SelectMachinePopup(this))
+      m_select_machine(new PhrozenSelectMachinePopup(this))
 {
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
@@ -52,11 +57,14 @@ namespace GUI {
 
     init_timer();
 
-    //m_side_tools->get_panel()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(MonitorPanel::on_printer_clicked), NULL, this);
+    m_side_tools->get_panel()->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenMonitorPanel::on_printer_clicked), NULL, this);
 
     
     Bind(wxEVT_TIMER, &PhrozenMonitorPanel::on_timer, this);
     Bind(wxEVT_SIZE, &PhrozenMonitorPanel::on_size, this);
+    m_select_machine->Bind(EVT_PHROZEN_CONNECT_MACHINE_BY_IP, &PhrozenMonitorPanel::OnConnectMachineByIp, this );
+    m_select_machine->Bind(EVT_PHROZEN_DISCONNECT_MACHINE, &PhrozenMonitorPanel::OnDisconnectMachine, this );
+    
     //Bind(wxEVT_COMMAND_CHOICE_SELECTED, &MonitorPanel::on_select_printer, this);
 
  }
@@ -94,7 +102,7 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
 
   void PhrozenMonitorPanel::init_tabpanel()
 {
-    m_side_tools = new SideTools(this, wxID_ANY);
+    m_side_tools = new PhrozenSideTools(this, wxID_ANY);
     wxBoxSizer* sizer_side_tools = new wxBoxSizer(wxVERTICAL);
     sizer_side_tools->Add(m_side_tools, 1, wxEXPAND, 0);
     m_tabpanel = new Tabbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, sizer_side_tools, wxNB_LEFT | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
@@ -108,8 +116,8 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
     m_status_info_panel = new PhrozenStatusPanel(m_tabpanel);
     m_tabpanel->AddPage(m_status_info_panel, _L("Status"), "", true);
 
-    m_spPrintHistoryPanel = std::make_shared< wxPanel >( m_tabpanel );
-    m_tabpanel->AddPage(m_spPrintHistoryPanel.get(), _L("Print History"), "", false);
+    //m_spPrintHistoryPanel = std::make_shared< wxPanel >( m_tabpanel );
+    //m_tabpanel->AddPage(m_spPrintHistoryPanel.get(), _L("Print History"), "", false);
 
     m_initialized = true;
     show_status((int) MonitorStatus::MONITOR_NO_PRINTER);
@@ -117,14 +125,8 @@ PhrozenMonitorPanel::~PhrozenMonitorPanel()
 
 void PhrozenMonitorPanel::set_default()
 {
-    obj = nullptr;
-    last_conn_type = "undefined";
-
     /* reset status panel*/
     m_status_info_panel->set_default();
-
-    /* reset side tool*/
-    //m_bitmap_wifi_signal->SetBitmap(wxNullBitmap);
 
     wxGetApp().sidebar().load_ams_list({}, {});
 }
@@ -167,6 +169,27 @@ void PhrozenMonitorPanel::on_update_all(wxMouseEvent& event)
      }
 }
 
+void PhrozenMonitorPanel::on_printer_clicked(wxMouseEvent &event)
+{
+    auto mouse_pos = ClientToScreen(event.GetPosition());
+    wxPoint rect = m_side_tools->ClientToScreen(wxPoint(0, 0));
+
+    if (!m_side_tools->is_in_interval()) {
+        wxPoint pos = m_side_tools->ClientToScreen(wxPoint(0, 0));
+        pos.y += m_side_tools->GetRect().height;
+        //pos.x = pos.x < 0? 0:pos.x;
+        m_select_machine->Move(pos);
+
+#ifdef __linux__
+        m_select_machine->SetSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine->SetMaxSize(wxSize(m_side_tools->GetSize().x, -1));
+        m_select_machine->SetMinSize(wxSize(m_side_tools->GetSize().x, -1));
+#endif
+
+        m_select_machine->Popup();
+    }
+}
+
 void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 {
     Layout();
@@ -175,75 +198,84 @@ void PhrozenMonitorPanel::on_size(wxSizeEvent& event)
 
 void PhrozenMonitorPanel::update_all()
 {
-    //Debug
-    show_status(MONITOR_NORMAL);
+    if ( !m_status_info_panel->IsShown() ) return;
+
+    if (m_status_info_panel->IsShown() && MonitorControl::IsStartReceiving() ) 
+    {
+        show_status(MONITOR_NORMAL);
+        auto pManager = wxGetApp().GetPhrozenDeviceManager();
+        if ( pManager )
+        {
+            auto pMachineObj = pManager->GetConnectingMachine();
+            if ( pMachineObj )
+            {
+                // new flow for recieve webcam
+                m_side_tools->set_current_printer_name( pMachineObj->GetMachineIp() );
+                m_status_info_panel->SetPhrozenMachineObject( pMachineObj );
+
+                // origin flow for other panel result
+                auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+                m_status_info_panel->SetMachineObject( pPhrozenMachineObj );
+                m_status_info_panel->update( pPhrozenMachineObj );
+            }
+            else
+            {
+                //TODO reset and disable ui
+            }
+        }
+
+    }
+    else
+    {
+        auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
+        if ( pPhrozenMachineObj && m_last_status == MONITOR_NORMAL )
+        {   
+            //call disconnect from ui side, to prevent machine object killed when ui updating
+            wxCommandEvent disconnectEvent;
+            OnDisconnectMachine( disconnectEvent );
+        }
+        m_side_tools->set_none_printer_mode();
+        show_status(MONITOR_UNKNOWN);
+    }
     return;
 
-    NetworkAgent* m_agent = wxGetApp().getAgent();
-    Slic3r::DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev)
-        return;
-    obj = dev->get_selected_machine();
+#if 0
+    obj = wxGetApp().GetPhrozenMachineObject();
 
     // check valid machine
-    if (obj && dev->get_my_machine(obj->dev_id) == nullptr) {
-        dev->set_selected_machine("");
-        if (m_agent)
-            m_agent->set_user_selected_machine("");
+    if (obj && !obj->IsPhrozenConnected() ) {
+        obj->dev_ip = "";
         show_status((int)MONITOR_NO_PRINTER);
         return;
     }
 
-    //BBS check mqtt connections if user is login
-    if (wxGetApp().is_user_login()) {
-        dev->check_pushing();
-        // check mqtt connection and reconnect if disconnected
-        try {
-            m_agent->refresh_connection();
-        }
-        catch (...) {
-            ;
-        }
-    }
-
-    if (obj) {
-        wxGetApp().reset_to_active();
-        if (obj->connection_type() != last_conn_type) {
-            last_conn_type = obj->connection_type();
-        }
-    }
-
-    m_status_info_panel->obj = obj;
+    m_status_info_panel->SetMachineObject( obj );
     //m_status_info_panel->m_media_play_ctrl->SetMachineObject(obj);
-    m_side_tools->update_status(obj);
+    //m_side_tools->update_status(obj);
 
     if (!obj) {
         show_status((int)MONITOR_NO_PRINTER);
+        //m_tabpanel->GetBtnsListCtrl()->showNewTag(3, false);
         return;
     }
 
-    if (obj->is_connecting()) {
+    if (obj->IsPhrozenConnected() && obj->IsPhrozenStartReceiving() ) {
         show_status(MONITOR_CONNECTING);
         return;
     } else if (!obj->is_connected()) {
         int server_status = 0;
-        // only disconnected server in cloud mode
-        if (obj->connection_type() != "lan") {
-            if (m_agent) {
-                server_status = m_agent->is_server_connected() ? 0 : (int)MONITOR_DISCONNECTED_SERVER;
-            }
-        }
         show_status((int) MONITOR_DISCONNECTED + server_status);
         return;
     }
 
     show_status(MONITOR_NORMAL);
 
-
     if (m_status_info_panel->IsShown()) {
         m_status_info_panel->update(obj);
     }
 
+    //update_hms_tag();
+#endif
 }
 
 bool PhrozenMonitorPanel::Show(bool show)
@@ -252,8 +284,6 @@ bool PhrozenMonitorPanel::Show(bool show)
     wxGetApp().mainframe->SetMinSize(wxGetApp().plater()->GetMinSize());
 #endif
 
-    NetworkAgent* m_agent = wxGetApp().getAgent();
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
     if (show) {
         start_update();
 
@@ -261,19 +291,6 @@ bool PhrozenMonitorPanel::Show(bool show)
         m_refresh_timer->SetOwner(this);
         m_refresh_timer->Start(REFRESH_INTERVAL);
         wxPostEvent(this, wxTimerEvent());
-
-        if (dev) {
-            //set a default machine when obj is null
-            obj = dev->get_selected_machine();
-            if (obj == nullptr) {
-                dev->load_last_machine();
-                obj = dev->get_selected_machine();
-                if (obj)
-                    GUI::wxGetApp().sidebar().load_ams_list(obj->dev_id, obj);
-            } else {
-                obj->reset_update_time();
-            }
-        }
     } else {
         stop_update();
         m_refresh_timer->Stop();
@@ -284,27 +301,12 @@ bool PhrozenMonitorPanel::Show(bool show)
 void PhrozenMonitorPanel::show_status(int status)
 {
     if (!m_initialized) return;
-    if (last_status == status)return;
-    if ((last_status & (int)MonitorStatus::MONITOR_CONNECTING) != 0) {
-        NetworkAgent* agent = wxGetApp().getAgent();
-        json j;
-        j["dev_id"] = obj ? obj->dev_id : "obj_nullptr";
-        if ((status & (int)MonitorStatus::MONITOR_DISCONNECTED) != 0) {
-            j["result"] = "failed";
-        }
-        else if ((status & (int)MonitorStatus::MONITOR_NORMAL) != 0) {
-            j["result"] = "success";
-        }
-    }
-    last_status = status;
-
-    BOOST_LOG_TRIVIAL(info) << "monitor: show_status = " << status;
-
-
-
+    if ( m_last_status == status ) return;
+    m_last_status = status;
 Freeze();
     // update panels
     m_status_info_panel->show_status(status);
+    if ( m_side_tools ) { m_side_tools->show_status(status); }
 
     if ((status & (int)MonitorStatus::MONITOR_NO_PRINTER) != 0) 
     {
@@ -326,6 +328,44 @@ Freeze();
     }
     Layout();
 Thaw();
+}
+
+void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
+{
+    std::string strConnectedIp;
+    Slic3r::GUI::wxGetApp().GetCurrentConnectedMachineIp( strConnectedIp );
+
+    if ( event.GetString().IsEmpty() ) return;
+
+    if ( strConnectedIp == event.GetString() ) { return; }
+    else
+    {
+        wxCommandEvent disconnectEvent;
+        OnDisconnectMachine( disconnectEvent );
+    }
+
+    
+    PhrozenIpConnectDialog kConnect( this );
+    kConnect.set_ip_address( event.GetString().ToStdString() );
+    kConnect.ShowModal();
+
+}
+
+void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )
+{
+    stop_update();
+     m_last_status = MONITOR_UNKNOWN;
+    //Debug
+    m_status_info_panel->SetMachineObject( nullptr );
+    m_status_info_panel->SetPhrozenMachineObject( nullptr );
+    m_side_tools->set_none_printer_mode();
+
+    // Reset time information when disconnecting machine
+    m_status_info_panel->reset_time_information();
+
+    wxGetApp().ProcessPhrozenDisconnect();
+
+    start_update();
 }
 
 #pragma endregion

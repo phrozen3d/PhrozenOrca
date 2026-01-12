@@ -94,6 +94,9 @@
 #include "ParamsDialog.hpp"
 #include "KBShortcutsDialog.hpp"
 #include "DownloadProgressDialog.hpp"
+#include "PhrozenGUI/PhrozenMonitorController.hpp"
+#include "PhrozenGUI/PhrozenDeviceManager.hpp"
+#include "../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 
 #include "BitmapCache.hpp"
 #include "Notebook.hpp"
@@ -1878,6 +1881,12 @@ GUI_App::~GUI_App()
         delete preset_updater;
     }
 
+    if ( IsConnectingMachine() )
+    {
+        ProcessPhrozenDisconnect();
+    }
+    
+
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< boost::format(": exit");
 }
 
@@ -2602,6 +2611,7 @@ bool GUI_App::on_init_inner()
     }
     copy_network_if_available();
     on_init_network();
+    InitPhrozenNetwork();
 
     if (m_agent && m_agent->is_user_login()) {
         enable_user_preset_folder(true);
@@ -6917,6 +6927,362 @@ bool is_support_filament(int extruder_id)
 
     return support_option->get_at(0);
 };
+
+
+#pragma region Phrozen
+
+
+bool GUI_App::TestIsIpConnectValid( std::string strIp )
+{
+    CURLcode kResult = MonitorControl::IsIpConnectValid( strIp );
+    return kResult == CURLcode::CURLE_OK;
+}
+
+bool GUI_App::InitPhrozenConnector( const std::string& strIp )
+{
+    //old flow: 
+    MonitorControl::SetIp( strIp );
+    CURLcode kResult = MonitorControl::Initialconnect();
+    //trigger ams update query command after connect to speicified IP address (Printer)
+    MonitorControl::threadControl.first_time_to_send_query = true;
+    
+    if ( kResult != CURLcode::CURLE_OK )
+    {
+        MonitorControl::m_pWebServiceInfo->ip = "";
+        MonitorControl::m_kMonitorWindow.connectedMachineName = "";
+        MonitorControl::m_kMonitorWindow.isShownIPConnectNotification = true;
+        MonitorControl::SetStartReceiving(false);
+        MonitorControl::SetStartSending(false);
+        return false;
+    }
+    else
+    {
+        pPhrozenMachineObject = std::make_shared< PhrozenMachineObject >( "Arco", "Arco", strIp );
+    }
+
+    //new flow for receive camera
+    m_spPhrozenManager->CreateAndConnectMachine( strIp );
+    
+    return true;
+
+    
+}
+
+void GUI_App::ProcessPhrozenConnector()
+{
+    MonitorControl::m_kHistoryInfoList.clear();
+    MonitorControl::SetStartReceiving( true );
+    MonitorControl::SetStartSending( true );
+    
+    std::thread _threadSendMessage(RunSendMessage);
+    _threadSendMessage.detach();
+    
+    std::thread _threadReceiveMessage(RunReceiveMessage);
+    _threadReceiveMessage.detach();
+
+    if ( m_spPhrozenManager->IsMachineConnecting() )
+    {
+        //m_spPhrozenManager->StartSendMessage();
+        //m_spPhrozenManager->StartReceiveMessage();
+        m_spPhrozenManager->StartReceiveWebcam();
+    }
+    
+    MonitorControl::ResetPreviousPrintState();
+    std::thread _threadReceiveThumbnail(RunReceiveThumbnail);
+    _threadReceiveThumbnail.detach();
+}
+
+void GUI_App::ProcessPhrozenDisconnect()
+{
+    MonitorControl::SetStartReceiving( false );
+    MonitorControl::SetStartSending( false );
+    MonitorControl::SetIp("");
+    if ( m_spPhrozenManager->IsMachineConnecting() )
+    {
+        m_spPhrozenManager->DisconnectMachine();
+    }
+
+    pPhrozenMachineObject = nullptr;
+}
+
+PhrozenMachineObject* GUI_App::GetPhrozenMachineObject()
+{
+    return pPhrozenMachineObject? pPhrozenMachineObject.get() : nullptr;
+}
+
+void GUI_App::GetCurrentConnectedMachineIp( std::string& strIp )
+{
+    if ( !pPhrozenMachineObject || !pPhrozenMachineObject->IsPhrozenConnected() )
+    {
+        strIp = "";
+        return; 
+    }
+    strIp = pPhrozenMachineObject->GetPhrozenConnectedMachineIp();
+}
+
+bool GUI_App::IsConnectingMachine()
+{
+    return MonitorControl::IsStartReceiving();
+}
+
+bool GUI_App::InitPhrozenNetwork()
+{
+    // phrozen network & device manager
+    if ( !m_spPhrozenAgent )
+    {
+        m_spPhrozenAgent = std::make_unique< PhrozenNetworkAgent >();
+        if ( !m_spPhrozenAgent ) 
+        {
+            wxLogError(format_wxstr(_L("Insufficient memory, network agent initialize fail")));
+            BOOST_LOG_TRIVIAL(error) << boost::format("Insufficient memory, network agent initialize fail");
+            std::terminate();
+        }
+    }
+
+    if ( !m_spPhrozenManager )
+    {
+        m_spPhrozenManager = std::make_unique< PhrozenDeviceManager >( m_spPhrozenAgent.get() );
+        if ( !m_spPhrozenManager ) 
+        {
+            wxLogError(format_wxstr(_L("Insufficient memory, machine manager initialize fail")));
+            BOOST_LOG_TRIVIAL(error) << boost::format("Insufficient memory, machine manager initialize fail");
+            std::terminate();
+        }
+    }
+    return true;
+}
+
+void RunGetPrinterInfo( )
+{
+    unique_lock<mutex> ulForPrintInfo(MonitorControl::threadControl.mutexPrinterInfo);
+    
+    while ( MonitorControl::threadControl.waitForPrinterInfo) {
+    	MonitorControl::threadControl.cvPrinterInfo.wait(ulForPrintInfo);
+    }
+    
+    MonitorControl::threadControl.waitForPrinterInfo = true;
+    
+    MonitorControl::m_bStartlistening = true;
+    MonitorControl::GetPrinterInfo();
+    MonitorControl::m_bStartlistening = false;
+    
+    MonitorControl::threadControl.waitForPrinterInfo = false;
+    MonitorControl::threadControl.cvPrinterInfo.notify_all();
+}
+
+void RunReceiveMessage( )
+{
+    BOOST_LOG_TRIVIAL(info) << "Using ReceiveResponse()";
+    MonitorControl::ReceiveResponse();
+}
+
+void RunSendMessage(  )
+{
+    MonitorControl::GetAllInfo_websocket();
+}
+
+void RunReceiveThumbnail()
+{
+    while(MonitorControl::IsStartSending()){
+        if(MonitorControl::IsStartThumbnailChecking() && MonitorControl::isReadFromGcodeFinished){
+            auto pObject = wxGetApp().GetPhrozenMachineObject();
+            if ( !pObject ) 
+            {
+                std::cout << "[GUI_App] RunReceiveThumbnail: machine object is null!" << std::endl;
+                break;
+            }
+
+            std::string gcode_name = pObject->GetPhrozenPrintFile();
+            if ( pObject && !gcode_name.empty())
+            {
+                std::cout << "[GUI_App] RunReceiveThumbnail: Fetching new thumbnail from network..." << std::endl;
+                wxBitmap thumbnail_bmp;
+                MonitorControl::isReadFromGcodeFinished = false;
+                bool success = pObject->GetPhrozenThumbnailAsBitmap(gcode_name, thumbnail_bmp);
+                std::cout << "[GUI_App] RunReceiveThumbnail: GetPhrozenThumbnailAsBitmap result: "
+                << (success ? "SUCCESS" : "FAILED") << std::endl;
+                if (success && thumbnail_bmp.IsOk()) {
+                    MonitorControl::SetThumbnailChecking(false);
+                    std::cout << "[GUI_App] RunReceiveThumbnail: Thumbnail bitmap is OK, processing..." << std::endl;
+                    // 縮略圖獲取成功：保存到緩存並更新
+                    try {
+                        // 將 wxBitmap 轉換為 wxImage 以便縮放
+                        wxImage thumbnail_img = thumbnail_bmp.ConvertToImage();
+                        
+                        if (thumbnail_img.IsOk()) {
+                            // 保存原始縮略圖到緩存（不縮放，保持原始清晰度）
+                            pObject->m_thumbnail_cache[gcode_name] = thumbnail_bmp;
+                            pObject->m_cached_gcode_name = gcode_name;
+                        } else {
+                            std::cout << "[GUI_App] RunReceiveThumbnail: ERROR - Failed to convert bitmap to image for GCode: \""
+                            << gcode_name << "\", displaying broken image" << std::endl;
+                            BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                            << "Failed to convert bitmap to image for GCode: \""
+                            << gcode_name << "\", displaying broken image";
+                        }
+                    } catch (const std::exception& e) {
+                        // 處理過程發生異常
+                        std::cout << "[GUI_App] RunReceiveThumbnail: EXCEPTION during thumbnail processing: "
+                        << e.what() << ", GCode: \"" << gcode_name << "\"" << std::endl;
+                        BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                        << "Exception during thumbnail processing: " << e.what()
+                        << ", GCode: \"" << gcode_name;
+                    } catch (...) {
+                        // 未知異常
+                        std::cout << "[GUI_App] RunReceiveThumbnail: UNKNOWN EXCEPTION during thumbnail processing, GCode: \""
+                        << gcode_name << "\"" << std::endl;
+                        BOOST_LOG_TRIVIAL(error) << "GUI_App::RunReceiveThumbnail: "
+                        << "Unknown exception during thumbnail processing. "
+                        << "GCode: \"" << gcode_name;
+                    }
+                }
+                else {
+                    // 縮略圖獲取失敗
+                    std::cout << "[GUI_App] RunReceiveThumbnail: ERROR - Failed to get thumbnail bitmap for GCode: \""
+                    << gcode_name << "\", displaying broken image" << std::endl;
+                    BOOST_LOG_TRIVIAL(warning) << "GUI_App::RunReceiveThumbnail: "
+                    << "Failed to get thumbnail bitmap for GCode: \""
+                    << gcode_name;
+                }
+                MonitorControl::isReadFromGcodeFinished = true;
+            }
+            else
+            {
+                // Detailed logging for debugging: print all variables and flags
+                bool isStartThumbnailChecking = MonitorControl::IsStartThumbnailChecking();
+                bool pObjectIsNull = (pObject == nullptr);
+                bool gcodeNameIsEmpty = gcode_name.empty();
+                
+                std::cout << "[GUI_App] RunReceiveThumbnail: Condition check failed - detailed status:" << std::endl;
+                std::cout << "  - IsStartThumbnailChecking: " << (isStartThumbnailChecking ? "true" : "false") << std::endl;
+                std::cout << "  - pObject is nullptr: " << (pObjectIsNull ? "true" : "false") << std::endl;
+                std::cout << "  - gcode_name is empty: " << (gcodeNameIsEmpty ? "true" : "false") << std::endl;
+                std::cout << "  - gcode_name value: \"" << gcode_name << "\"" << std::endl;
+                std::cout << "  - gcode_name length: " << gcode_name.length() << std::endl;
+                
+                if (pObject) {
+                    std::cout << "  - pObject is valid (not nullptr)" << std::endl;
+                    std::cout << "  - pObject->IsPhrozenConnected(): " << (pObject->IsPhrozenConnected() ? "true" : "false") << std::endl;
+                    std::cout << "  - pObject->IsPhrozenStartReceiving(): " << (pObject->IsPhrozenStartReceiving() ? "true" : "false") << std::endl;
+                } else {
+                    std::cout << "  - pObject is nullptr (cannot access object methods)" << std::endl;
+                }
+                
+                BOOST_LOG_TRIVIAL(debug) << "RunReceiveThumbnail: Condition check failed - "
+                << ", IsStartThumbnailChecking=" << isStartThumbnailChecking
+                << ", pObjectIsNull=" << pObjectIsNull
+                << ", gcodeNameIsEmpty=" << gcodeNameIsEmpty
+                << ", gcode_name=\"" << gcode_name << "\"";
+                
+                assert( 0 );
+            }
+        }
+    }
+}
+
+// kResult{ machineIp, machineName }
+bool SearchPhrozenPrinter( std::unordered_map< std::string, std::string >& kResult )
+{
+    using namespace boost::asio;
+    using namespace boost::asio::ip;
+    
+    // Create io_context for asio operations
+    io_context io_ctx;
+    
+    // Create UDP socket
+    udp::socket socket(io_ctx, udp::endpoint(udp::v4(), 0));
+    
+    // Enable broadcast option
+    socket.set_option(socket_base::broadcast(true));
+    
+    // Set up broadcast endpoint (address 255.255.255.255; port 8989)
+    udp::endpoint broadcast_endpoint(address_v4::broadcast(), 8989);
+    
+    // Message to broadcast
+    std::string broadcast_msg = "mkswifi";
+    
+    BOOST_LOG_TRIVIAL(info) << "[Phrozen] Sending UDP broadcast: " << broadcast_msg;
+    
+    // Send broadcast message
+    boost::system::error_code send_ec;
+    size_t bytes_sent = socket.send_to(buffer(broadcast_msg), broadcast_endpoint, 0, send_ec);
+    
+    if (send_ec) {
+        BOOST_LOG_TRIVIAL(warning) << "[Phrozen] UDP broadcast send error: " << send_ec.message();
+        return false;
+    }
+    
+    BOOST_LOG_TRIVIAL(info) << "[Phrozen] UDP broadcast sent: " << bytes_sent << " bytes";
+    
+    // Set socket to non-blocking mode for receiving responses
+    socket.non_blocking(true);
+    
+    // Receive responses with timeout
+    auto start_time = std::chrono::steady_clock::now();
+    const auto timeout_duration = std::chrono::seconds(2);
+    
+    char receive_buffer[1024];
+    udp::endpoint sender_endpoint;
+    
+    wxBusyCursor kWaiting; // set mouse cursor show busy icon
+    while (std::chrono::steady_clock::now() - start_time < timeout_duration) {
+        boost::system::error_code receive_ec;
+        size_t bytes_received = socket.receive_from(
+            buffer(receive_buffer), sender_endpoint, 0, receive_ec);
+        
+        if (!receive_ec && bytes_received > 0) {
+            // Successfully received data
+            receive_buffer[bytes_received] = '\0';
+            std::string received_data(receive_buffer, bytes_received);
+            
+            BOOST_LOG_TRIVIAL(info) << "[Phrozen] Received " << bytes_received 
+                                  << " bytes from " << sender_endpoint.address().to_string() 
+                                  << ": " << received_data;
+            
+            // Parse the response
+            std::string strMachineIp;
+            std::string strMachineName;
+            
+            strMachineIp = sender_endpoint.address().to_string();
+
+            // Extract machine name from response (assuming format similar to original)
+            if (received_data.length() >= 8) {
+                size_t comma_pos = received_data.find(",");
+                if (comma_pos != std::string::npos && comma_pos > 8) {
+                    strMachineName = received_data.substr(8, comma_pos - 8);
+                } else {
+                    strMachineName = "Arco";  // Default name
+                }
+            } else {
+                strMachineName = "Arco";
+            }
+            
+            // Add to list if not already exists
+            if ( kResult.find( strMachineIp ) == kResult.end() )
+            {
+                kResult.insert( { strMachineIp, strMachineName } );
+                BOOST_LOG_TRIVIAL(info) << "[Phrozen] Added machine: " << strMachineName 
+                                        << " at " << strMachineIp;
+            }
+
+        }
+        else if (receive_ec == error::would_block) {
+            // No data available yet, sleep briefly and continue
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        else {
+            // Other error occurred
+            BOOST_LOG_TRIVIAL(warning) << "[Phrozen] UDP receive error: " << receive_ec.message();
+            return false;
+        }
+    }
+    return true;
+}
+
+#pragma endregion
+
+
+
 
 } // GUI
 } //Slic3r

@@ -155,6 +155,9 @@
 #include "StepMeshDialog.hpp"
 #include "CloneDialog.hpp"
 
+//Phrozen
+#include "PhrozenGUI/PhrozenSelectMachine.hpp"
+
 using boost::optional;
 namespace fs = boost::filesystem;
 using Slic3r::_3DScene;
@@ -777,7 +780,14 @@ Sidebar::Sidebar(Plater *parent)
         vsizer_printer->AddSpacer(FromDIP(16));
         hsizer_printer->Add(combo_printer, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
         hsizer_printer->Add(edit_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
-        hsizer_printer->Add(connection_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        if (GUI::wxGetApp().IsPhrozenDeveloperMode() )
+        {
+            hsizer_printer->Add(connection_btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        }
+        else
+        {
+            connection_btn->Hide();
+        }
         hsizer_printer->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
         vsizer_printer->Add(hsizer_printer, 0, wxEXPAND, 0);
 
@@ -1277,7 +1287,7 @@ void Sidebar::update_all_preset_comboboxes()
                 url += ":8808";
             if (cfg.has("printhost_apikey") && (host_type != htSimplyPrint))
                 apikey = cfg.opt_string("printhost_apikey");
-            print_btn_type = preset_bundle.is_bbl_vendor() ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
+            print_btn_type = ( preset_bundle.is_bbl_vendor() || preset_bundle.is_phrozen_vendor() ) ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
         }
 
         p_mainframe->load_printer_url(url, apikey);
@@ -2006,13 +2016,6 @@ bool Sidebar::is_collapsed() { return p->plater->is_sidebar_collapsed(); }
 
 void Sidebar::collapse(bool collapse) { p->plater->collapse_sidebar(collapse); }
 
-#ifdef _MSW_DARK_MODE
-void Sidebar::show_mode_sizer(bool show)
-{
-    //p->mode_sizer->Show(show);
-}
-#endif
-
 void Sidebar::update_ui_from_settings()
 {
     // BBS
@@ -2248,6 +2251,8 @@ struct Plater::priv
     SendToPrinterDialog* m_send_to_sdcard_dlg = nullptr;
     PublishDialog *m_publish_dlg = nullptr;
 
+    PhrozenSelectMachineDialog* m_phrozen_select_machine_dlg = nullptr;
+
     // Data
     Slic3r::DynamicPrintConfig *config;        // FIXME: leak?
     Slic3r::Print               fff_print;
@@ -2281,6 +2286,8 @@ struct Plater::priv
     int m_cur_slice_plate;
     //BBS: m_slice_all in .gcode.3mf file case, set true when slice all
     bool m_slice_all_only_has_gcode{ false };
+    //PhrozenOrca: flag to skip apply comparison when printing from single plate button
+    bool m_skip_apply_for_phrozen_print{false};
 
     bool m_need_update{false};
     //BBS: add popup object table logic
@@ -2423,14 +2430,20 @@ struct Plater::priv
     // BBS
     void hide_select_machine_dlg()
     {
-        if (m_select_machine_dlg)
+        if (m_select_machine_dlg) {
             m_select_machine_dlg->EndModal(wxID_OK);
+        }
+        else if ( m_phrozen_select_machine_dlg ) {
+            m_phrozen_select_machine_dlg->EndModal(wxID_OK);
+        }
     }
 
     void enter_prepare_mode()
     {
         if (m_select_machine_dlg)
             m_select_machine_dlg->prepare_mode();
+        else if ( m_phrozen_select_machine_dlg )
+            m_phrozen_select_machine_dlg->prepare_mode();
     }
 
     void hide_send_to_printer_dlg() { m_send_to_sdcard_dlg->EndModal(wxID_OK); }
@@ -5292,8 +5305,22 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
         this->partplate_list.update_slice_context_to_current_plate(background_process);
         this->preview->update_gcode_result(partplate_list.get_current_slice_result());
     }
-    Print::ApplyStatus invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
-
+    //    Print::ApplyStatus invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
+    Print::ApplyStatus invalidated;
+    // PhrozenOrca vendor specific handling
+    // 當軟體商是 PhrozenOrca 且用戶透過「列印單一按鈕」來送印檔案時，不執行列印配置檔案的比對（跳過 background_process.apply()），
+    // 直接返回 APPLY_STATUS_UNCHANGED，以避免切片結果被標記為無效。
+    // 這是為了讓目前送印的功能可以正常運作，避免因配置差異（如 print_host、different_settings_to_system）
+    // 導致的切片無效化問題。
+    // 注意：未來如果要支援各類 Phrozen Arco 機器時，可能就需要恢復這段的設定，
+    // 重新執行列印配置檔案的比對邏輯。
+    if(wxGetApp().preset_bundle->is_phrozen_vendor() && m_skip_apply_for_phrozen_print){
+        invalidated = Print::APPLY_STATUS_UNCHANGED;
+    }
+    else{
+        invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
+    }
+    
     if ((invalidated == Print::APPLY_STATUS_CHANGED) || (invalidated == Print::APPLY_STATUS_INVALIDATED))
         // BBS: add only gcode mode
         q->set_only_gcode(false);
@@ -7247,7 +7274,7 @@ void Plater::priv::on_action_print_plate(SimpleEvent&)
     }
 
     PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
-    if (preset_bundle.use_bbl_network()) {
+    if (preset_bundle.use_bbl_network() ) {
         // BBS
         if (!m_select_machine_dlg)
             m_select_machine_dlg = new SelectMachineDialog(q);
@@ -7255,7 +7282,18 @@ void Plater::priv::on_action_print_plate(SimpleEvent&)
         m_select_machine_dlg->prepare(partplate_list.get_curr_plate_index());
         m_select_machine_dlg->ShowModal();
         record_start_print_preset("print_plate");
-    } else {
+    } 
+    else if ( preset_bundle.is_phrozen_vendor() ) {
+        if (!m_phrozen_select_machine_dlg)
+            m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        m_phrozen_select_machine_dlg->set_print_type(PhrozenPrintFromType::FROM_NORMAL);
+        m_phrozen_select_machine_dlg->prepare(partplate_list.get_curr_plate_index());
+        // Set flag to skip apply comparison when printing from single plate button
+        m_skip_apply_for_phrozen_print = true;
+        m_phrozen_select_machine_dlg->ShowModal();
+        record_start_print_preset("print_plate");
+    }
+    else {
         q->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, true);
     }
 }
@@ -7270,6 +7308,19 @@ void Plater::priv::on_action_send_to_multi_machine(SimpleEvent&)
 
 void Plater::priv::on_action_print_plate_from_sdcard(SimpleEvent&)
 {
+#ifdef _WIN32
+    // Windows platform
+    auto result = MessageBox(q->GetHandle(),
+                             wxString::Format(_L("Phrozen Orca not supply this action")),
+                             _L("Phrozen Orca"), MB_OK | MB_ICONWARNING );
+#else
+    // Apple platform (macOS)
+    // TODO: Implement cross-platform message box for Apple platform, and wxMessageBox is used as a temporary solution
+    wxMessageBox(wxString::Format(_L("Phrozen Orca not supply this action")),
+                 _L("Phrozen Orca"), wxOK | wxICON_WARNING);
+#endif
+    return;
+
     if (q != nullptr) {
         BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ":received print plate event\n";
     }
@@ -7316,6 +7367,13 @@ void Plater::priv::on_tab_selection_changing(wxBookCtrlEvent& e)
 
 int Plater::priv::update_print_required_data(Slic3r::DynamicPrintConfig config, Slic3r::Model model, Slic3r::PlateDataPtrs plate_data_list, std::string file_name, std::string file_path)
 {
+    PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
+    if ( preset_bundle.is_phrozen_vendor() )
+    {
+        if (!m_phrozen_select_machine_dlg) m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        return m_phrozen_select_machine_dlg->update_print_required_data(config, model, plate_data_list, file_name, file_path);
+    }
+
     if (!m_select_machine_dlg) m_select_machine_dlg = new SelectMachineDialog(q);
     return m_select_machine_dlg->update_print_required_data(config, model, plate_data_list, file_name, file_path);
 }
@@ -7357,7 +7415,16 @@ void Plater::priv::on_action_print_all(SimpleEvent&)
         m_select_machine_dlg->prepare(PLATE_ALL_IDX);
         m_select_machine_dlg->ShowModal();
         record_start_print_preset("print_all");
-    } else {
+    } 
+    else if (preset_bundle.is_phrozen_vendor()) {
+        if (!m_phrozen_select_machine_dlg)
+            m_phrozen_select_machine_dlg = new PhrozenSelectMachineDialog(q);
+        m_phrozen_select_machine_dlg->set_print_type(PhrozenPrintFromType::FROM_NORMAL);
+        m_phrozen_select_machine_dlg->prepare(PLATE_ALL_IDX);
+        m_phrozen_select_machine_dlg->ShowModal();
+        record_start_print_preset("print_all");
+    }
+    else {
         q->send_gcode_legacy(PLATE_ALL_IDX, nullptr, true);
     }
 }
@@ -8909,6 +8976,12 @@ const Print&    Plater::fff_print() const   { return p->fff_print; }
 Print&          Plater::fff_print()         { return p->fff_print; }
 const SLAPrint& Plater::sla_print() const   { return p->sla_print; }
 SLAPrint&       Plater::sla_print()         { return p->sla_print; }
+
+//BBS: PhrozenOrca: set flag to skip apply comparison when printing from single plate button
+void Plater::set_skip_apply_for_phrozen_print(bool skip)
+{
+    p->m_skip_apply_for_phrozen_print = skip;
+}
 
 int Plater::new_project(bool skip_confirm, bool silent, const wxString& project_name)
 {
@@ -12751,17 +12824,17 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
     // and let the background processing start.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
 }
-void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf)
+bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf)
 {
     // if physical_printer is selected, send gcode for this printer
     // DynamicPrintConfig* physical_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
     DynamicPrintConfig* physical_printer_config = &Slic3r::GUI::wxGetApp().preset_bundle->printers.get_edited_preset().config;
     if (! physical_printer_config || p->model.objects.empty())
-        return;
+        return false;
 
     PrintHostJob upload_job(physical_printer_config);
     if (upload_job.empty())
-        return;
+        return false;
 
     upload_job.upload_data.use_3mf = use_3mf;
 
@@ -12772,15 +12845,15 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
         // Also if there is something wrong with the current configuration, a pop-up dialog will be shown and the export will not be performed.
         unsigned int state = this->p->update_restart_background_process(false, false);
         if (state & priv::UPDATE_BACKGROUND_PROCESS_INVALID)
-            return;
+            return false;
         default_output_file = this->p->background_process.output_filepath_for_project("");
     } catch (const Slic3r::PlaceholderParserError& ex) {
         // Show the error with monospaced font.
         show_error(this, ex.what(), true);
-        return;
+        return false;
     } catch (const std::exception& ex) {
         show_error(this, ex.what(), false);
-        return;
+        return false;
     }
     default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.string()));
     if (use_3mf) {
@@ -12803,7 +12876,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
             upload_job.printhost->get_storage(storage_paths, storage_names);
         } catch (const Slic3r::IOError& ex) {
             show_error(this, ex.what(), false);
-            return;
+            return false;
         }
     }
 
@@ -12825,7 +12898,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
 
         pDlg->init();
         if (pDlg->ShowModal() != wxID_OK) {
-            return;
+            return false;
         }
 
         config->set_bool("open_device_tab_post_upload", pDlg->switch_to_device_tab());
@@ -12842,7 +12915,7 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
     if (std::string(upload_job.printhost->get_name()) == "PrusaConnect" && upload_job.upload_data.post_action == PrintHostPostUploadAction::StartPrint) {
         GUI::MessageDialog dlg(nullptr, _L("Is the printer ready? Is the print sheet in place, empty and clean?"), _L("Upload and Print"), wxOK | wxCANCEL);
         if (dlg.ShowModal() != wxID_OK)
-            return;
+            return false;
     }
 
     if (use_3mf) {
@@ -12852,13 +12925,14 @@ void Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
         if (result < 0) {
             wxString msg = _L("Abnormal print file data. Please slice again");
             show_error(this, msg, false);
-            return;
+            return false;
         }
 
         upload_job.upload_data.source_path = p->m_print_job_data._3mf_path;
     }
 
     p->export_gcode(fs::path(), false, std::move(upload_job));
+    return true;
 }
 int Plater::send_gcode(int plate_idx, Export3mfProgressFn proFn)
 {
@@ -13328,11 +13402,22 @@ std::vector<std::string> Plater::get_colors_for_color_print(const GCodeProcessor
 
 wxWindow* Plater::get_select_machine_dialog()
 {
+    PresetBundle& preset_bundle = *wxGetApp().preset_bundle;
+    if (preset_bundle.is_phrozen_vendor()) {
+        return p->m_phrozen_select_machine_dlg;
+    } 
+
     return p->m_select_machine_dlg;
 }
 
 void Plater::update_print_error_info(int code, std::string msg, std::string extra)
 {
+    if ( p->m_phrozen_select_machine_dlg ){
+        // current phrozen only support this object to send print task
+        p->m_phrozen_select_machine_dlg->update_print_error_info(code, msg, extra);
+        return;
+    }
+
     if (p->m_select_machine_dlg) {
         p->m_select_machine_dlg->update_print_error_info(code, msg, extra);
     }
@@ -13722,6 +13807,7 @@ void Plater::sys_color_changed()
     p->sidebar->sys_color_changed();
     p->menus.sys_color_changed();
     if (p->m_select_machine_dlg) p->m_select_machine_dlg->sys_color_changed();
+    if (p->m_phrozen_select_machine_dlg) p->m_phrozen_select_machine_dlg->sys_color_changed();
 
     Layout();
     GetParent()->Layout();

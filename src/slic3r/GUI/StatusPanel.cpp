@@ -910,7 +910,10 @@ void StatusBasePanel::Initizlize()
 
 StatusBasePanel::~StatusBasePanel()
 {
-    delete m_media_play_ctrl;
+    if ( m_media_play_ctrl ){
+        delete m_media_play_ctrl;
+        m_media_play_ctrl = nullptr;
+    }
 
     if (m_custom_camera_view) {
         delete m_custom_camera_view;

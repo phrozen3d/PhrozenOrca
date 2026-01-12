@@ -19,7 +19,6 @@
 #include "Jobs/Worker.hpp"
 #include "Search.hpp"
 #include "PartPlate.hpp"
-#include "GUI_App.hpp"
 #include "Jobs/PrintJob.hpp"
 #include "Jobs/SendJob.hpp"
 #include "libslic3r/Model.hpp"
@@ -53,6 +52,7 @@ class SlicingStatusEvent;
 enum SLAPrintObjectStep : unsigned int;
 enum class ConversionType : int;
 class Ams;
+class MachineObject;
 
 using ModelInstancePtrs = std::vector<ModelInstance*>;
 
@@ -191,9 +191,6 @@ public:
     void                    auto_calc_flushing_volumes(const int modify_id);
     void                    jump_to_object(ObjectDataViewModelNode* item);
     void                    can_search();
-#ifdef _MSW_DARK_MODE
-    void                    show_mode_sizer(bool show);
-#endif
 
     std::vector<PlaterPresetComboBox*>&   combos_filament();
     Search::OptionsSearcher&        get_searcher();
@@ -446,7 +443,9 @@ public:
     /* -1: send current gcode if not specified
      * -2: send all gcode to target machine */
     int send_gcode(int plate_idx = -1, Export3mfProgressFn proFn = nullptr);
-    void send_gcode_legacy(int plate_idx = -1, Export3mfProgressFn proFn = nullptr, bool use_3mf = false);
+    bool send_gcode_legacy(int plate_idx = -1, Export3mfProgressFn proFn = nullptr, bool use_3mf = false);
+    //PhrozenOrca: set flag to skip apply comparison when printing from single plate button
+    void set_skip_apply_for_phrozen_print(bool skip);
     int export_config_3mf(int plate_idx = -1, Export3mfProgressFn proFn = nullptr);
     //BBS jump to nonitor after print job finished
     void send_calibration_job_finished(wxCommandEvent &evt);

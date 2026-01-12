@@ -14,7 +14,6 @@
 #include "Widgets/ComboBox.hpp"
 #include "Widgets/TextInput.hpp"
 #include "ParamsDialog.hpp"
-#include "GUI_App.hpp"
 #include "wx/hyperlink.h"
 
 #define EXTRUSION_CALIBRATION_DEF_COLOUR    wxColour(255, 255, 255)
@@ -37,7 +36,10 @@
 
 
 
-namespace Slic3r { namespace GUI {
+namespace Slic3r { 
+class MachineObject;
+
+namespace GUI {
 
 class ExtrusionCalibration : public DPIDialog
 {

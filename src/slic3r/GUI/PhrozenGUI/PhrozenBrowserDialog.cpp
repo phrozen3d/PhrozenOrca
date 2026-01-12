@@ -120,6 +120,7 @@ bool PhrozenBrowserDialog::show_and_lookup()
         char receive_buffer[1024];
         udp::endpoint sender_endpoint;
         
+        wxBusyCursor kWaiting; // set mouse cursor show busy icon
         while (std::chrono::steady_clock::now() - start_time < timeout_duration) {
             boost::system::error_code receive_ec;
             size_t bytes_received = socket.receive_from(
@@ -150,8 +151,6 @@ bool PhrozenBrowserDialog::show_and_lookup()
                 }
                 
                 machine_info.ip = sender_endpoint.address().to_string();
-                machine_info.connected = false;
-                machine_info.pressed = false;
                 
                 // Add to list if not already exists
                 bool already_exists = false;

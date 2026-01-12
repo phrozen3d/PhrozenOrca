@@ -545,6 +545,8 @@ void SendToPrinterDialog::update_print_error_info(int code, std::string msg, std
     m_print_error_extra = extra;
 }
 
+void SendToPrinterDialog::on_change_color_mode() { wxGetApp().UpdateDlgDarkUI(this); }
+
 void SendToPrinterDialog::show_print_failed_info(bool show, int code, wxString description, wxString extra)
 {
     if (show) {

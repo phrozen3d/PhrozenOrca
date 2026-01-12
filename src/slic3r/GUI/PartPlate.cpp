@@ -62,7 +62,7 @@ static const int PARTPLATE_TEXT_OFFSET_X2 = 1;
 static const int PARTPLATE_TEXT_OFFSET_Y = 1;
 static const int PARTPLATE_PLATENAME_OFFSET_Y  = 10;
 
-const float WIPE_TOWER_DEFAULT_X_POS = 165.;
+const float WIPE_TOWER_DEFAULT_X_POS = 45.;
 const float WIPE_TOWER_DEFAULT_Y_POS = 250.;  // Max y
 
 const float I3_WIPE_TOWER_DEFAULT_X_POS = 0.;

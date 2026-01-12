@@ -410,6 +410,11 @@ void NotificationManager::PopNotification::bbl_render_block_notification(GLCanva
 		ImGui::PopStyleColor(3);
 }
 
+void NotificationManager::PopNotification::close() 
+{ 
+    m_state = EState::ClosePending; wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+}
+
 bool NotificationManager::PopNotification::push_background_color()
 {
 	if (m_is_gray) {
@@ -1762,7 +1767,65 @@ void NotificationManager::ProgressIndicatorNotification::render_close_button(ImG
 }
 //------NotificationManager--------
 NotificationManager::NotificationManager(wxEvtHandler* evt_handler) :
-	m_evt_handler(evt_handler)
+	m_evt_handler(evt_handler),
+    basic_notifications{
+        NotificationData{NotificationType::Mouse3dDisconnected, NotificationLevel::RegularNotificationLevel, 10, _u8L("3D Mouse disconnected.")},
+        NotificationData{NotificationType::PresetUpdateAvailable, NotificationLevel::ImportantNotificationLevel, BBL_NOTICE_MAX_INTERVAL, _u8L("Configuration can update now."), _u8L("Detail."),
+		[](wxEvtHandler* evnthndlr) {
+			if (evnthndlr != nullptr)
+				wxPostEvent(evnthndlr, PresetUpdateAvailableClickedEvent(EVT_PRESET_UPDATE_AVAILABLE_CLICKED));
+			return true;
+		}
+	},
+        NotificationData{NotificationType::EmptyColorChangeCode, NotificationLevel::PrintInfoNotificationLevel, 10,
+         std::string(_devL("value can not be empty when you add a G-code for color change.\nPlease check the \"Color Change G-code\" in \"Printer Settings > Custom G-code\"").mb_str())},
+        NotificationData{NotificationType::EmptyAutoColorChange, NotificationLevel::PrintInfoNotificationLevel, 10,
+                         std::string(_devL("You need add a color change event to the print. The print need look like a sign.").mb_str())},
+        NotificationData{NotificationType::DesktopIntegrationSuccess, NotificationLevel::RegularNotificationLevel, 10,
+		_u8L("Integration was successful.") },
+        NotificationData{NotificationType::DesktopIntegrationFail, NotificationLevel::WarningNotificationLevel, 10,
+		_u8L("Integration failed.") },
+        NotificationData{NotificationType::UndoDesktopIntegrationSuccess, NotificationLevel::RegularNotificationLevel, 10,
+		_u8L("Undo integration was successful.") },
+
+        NotificationData{NotificationType::BBLPluginUpdateAvailable, NotificationLevel::ImportantNotificationLevel, BBL_NOTICE_MAX_INTERVAL,
+			_u8L("New network plug-in available."),
+			_u8L("Details"),
+                         [](wxEvtHandler* evnthndlr) {
+                //BBS set feishu release page by default
+                 wxCommandEvent* evt = new wxCommandEvent(EVT_UPDATE_PLUGINS_WHEN_LAUNCH);
+				 wxQueueEvent(wxGetApp().plater(), evt);
+				 return true;
+             }},
+
+        NotificationData{NotificationType::BBLPrinterConfigUpdateAvailable, NotificationLevel::ImportantNotificationLevel, BBL_NOTICE_MAX_INTERVAL,
+                         _u8L("New printer config available."), _u8L("Details"),
+                         [](wxEvtHandler *evnthndlr) {
+                             if (evnthndlr != nullptr) wxPostEvent(evnthndlr, PrinterConfigUpdateAvailableClickedEvent(EVT_PRINTER_CONFIG_UPDATE_AVAILABLE_CLICKED));
+                             return true;
+                         }},
+
+        NotificationData{NotificationType::BBLUserPresetExceedLimit, NotificationLevel::WarningNotificationLevel, BBL_NOTICE_MAX_INTERVAL,
+			_u8L("The number of user presets cached in the cloud has exceeded the upper limit, newly created user presets can only be used locally."), 
+			_u8L("Wiki"),
+                         [](wxEvtHandler* evnthndlr) {
+				wxLaunchDefaultBrowser("https://wiki.bambulab.com/en/software/bambu-studio/3rd-party-printer-profile#cloud-user-presets-limit");
+				return false;
+             }},
+
+        NotificationData{NotificationType::UndoDesktopIntegrationFail, NotificationLevel::WarningNotificationLevel, 10,
+		_u8L("Undo integration failed.") },
+        NotificationData{NotificationType::ExportOngoing, NotificationLevel::RegularNotificationLevel, 0, _u8L("Exporting.")},
+        NotificationData{NotificationType::NewAppAvailable, NotificationLevel::ImportantNotificationLevel, 20, _u8L("Software has New version."), _u8L("Goto download page."),
+                         [](wxEvtHandler *evnthndlr) {
+				//BBS set feishu release page by default
+				wxGetApp().open_browser_with_warning_dialog("https://www.thingiverse.com/"); return true;
+			 }},
+			//{NotificationType::NewAppAvailable, NotificationLevel::ImportantNotificationLevel, 20,  _u8L("New vesion of PrusaSlicer is available.",  _u8L("Download page.") },
+			//{NotificationType::LoadingFailed, NotificationLevel::RegularNotificationLevel, 20,  _u8L("Loading of model has Failed") },
+			//{NotificationType::DeviceEjected, NotificationLevel::RegularNotificationLevel, 10,  _u8L("Removable device has been safely ejected")} // if we want changeble text (like here name of device), we need to do it as CustomNotification
+	}
+
 {
 }
 
@@ -3035,6 +3098,15 @@ void NotificationManager::set_scale(float scale)
 	}
 }
 
+void NotificationManager::PlaterWarningNotification::close()
+{
+    if(is_finished()) return; m_state = EState::Hidden; wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+}
+
+void NotificationManager::PlaterWarningNotification::real_close()
+{
+    m_state = EState::ClosePending; wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+}
 
 }//namespace GUI
 }//namespace Slic3r

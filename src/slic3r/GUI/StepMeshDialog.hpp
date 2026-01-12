@@ -2,11 +2,13 @@
 #define _STEP_MESH_DIALOG_H_
 
 #include <thread>
-#include "GUI_App.hpp"
 #include "GUI_Utils.hpp"
 #include "libslic3r/Format/STEP.hpp"
 #include "Widgets/Button.hpp"
 class Button;
+namespace boost {
+    class thread;
+}
 
 class StepMeshDialog : public Slic3r::GUI::DPIDialog
 {

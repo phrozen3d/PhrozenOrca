@@ -13,17 +13,14 @@
 #include "../SliceInfoPanel.hpp"
 #include "../CameraPopup.hpp"
 #include "../GUI.hpp"
-#include "../wxMediaCtrl2.h"
 #include "../MediaPlayCtrl.h"
 #include "../AMSSetting.hpp"
-#include "../Calibration.hpp"
 #include "../CalibrationWizardPage.hpp"
 #include "../PrintOptionsDialog.hpp"
 #include "../AMSMaterialsSetting.hpp"
 #include "../ExtrusionCalibration.hpp"
 #include "../ReleaseNote.hpp"
 #include "../Widgets/SwitchButton.hpp"
-#include "../Widgets/AxisCtrlButton.hpp"
 #include "../Widgets/TextInput.hpp"
 #include "../Widgets/TempInput.hpp"
 #include "../Widgets/StaticLine.hpp"
@@ -34,12 +31,180 @@
 #include "../HMS.hpp"
 #include "../StatusPanel.hpp"
 
+class wxHyperlinkCtrl;
+
 namespace Slic3r {
 namespace GUI {
+class PhrozenFilamentControl;
+class PhrozenCalibrationDlg;
 
-class PhrozenStatusBasePanel : public StatusBasePanel
+enum class PhrozenParamControl : int32_t
 {
+    Temperature_Nozzle,
+    Temperature_HeatedBed,
+    Cooling_Auxiliary,
+    Cooling_Part,
+    Cooling_Shield
+};
 
+enum class PhrozenPrintSpeed : int32_t
+{
+    Silent,
+    Quite,
+    Standard,
+    Fast,
+    Turbo
+};
+
+enum class PhrozenNozzleMoveRange : int32_t
+{
+    Range_01_MM,
+    Range_1_MM,
+    Range_10_MM
+};
+
+enum class PhrozenPrintNozzleOffsetRange : int32_t
+{
+    Range_0005_MM,
+    Range_001_MM,
+    Range_005_MM,
+    Range_01_MM
+};
+
+enum class PhrozenMovement : int32_t
+{
+    Nozzle_X_Positive,
+    Nozzle_X_Negative,
+    Nozzle_Y_Positive,
+    Nozzle_Y_Negative,
+    Nozzle_Z_Positive,
+    Nozzle_Z_Negative,
+    Nozzle_Home,
+    Nozzle_Home_XY,
+    Nozzle_Offset_Positive,
+    Nozzle_Offset_Negative,
+};
+
+enum class PhrozenPrintingTaskType : int32_t {
+    PRINGINT,
+    CALIBRATION,
+    NOT_CLEAR
+};
+
+
+
+class PhrozenPrintingTaskPanel : public wxPanel
+{
+public:
+    PhrozenPrintingTaskPanel(wxWindow* parent, PhrozenPrintingTaskType type);
+    ~PhrozenPrintingTaskPanel();
+    void create_panel(wxWindow* parent);
+    
+
+private:
+    MachineObject*  m_obj;
+    ScalableBitmap  m_thumbnail_placeholder;
+    wxBitmap        m_thumbnail_bmp_display;
+    ScalableBitmap  m_bitmap_use_time;
+    ScalableBitmap  m_bitmap_use_weight;
+    ScalableBitmap  m_bitmap_background;
+
+    wxPanel *       m_panel_printing_title;
+    wxPanel*        m_staticline;
+    wxPanel*        m_panel_error_txt;
+
+    wxBoxSizer*     m_printing_sizer;
+    wxStaticText *  m_staticText_printing;
+    wxStaticText*   m_staticText_subtask_value;
+    wxStaticText*   m_staticText_consumption_of_time;
+    wxStaticText*   m_staticText_consumption_of_weight;
+    wxStaticText*   m_printing_stage_value;
+    wxStaticText*   m_staticText_profile_value;
+    wxStaticText*   m_staticText_progress_percent;
+    wxStaticText*   m_staticText_progress_percent_icon;
+    wxStaticText*   m_staticText_progress_left;
+    // Orca: show print end time
+    wxStaticText * m_staticText_progress_end;
+    wxStaticText*   m_staticText_progress_elapsed;
+    wxStaticText*   m_staticText_elapsed_time_label;
+    wxStaticText*   m_staticText_send_print_time;
+    wxStaticText*   m_staticText_send_print_time_label;
+    wxStaticText*   m_staticText_estimated_time;
+    wxStaticText*   m_staticText_estimated_time_label;
+    wxStaticText*   m_staticText_layers;
+    wxStaticText *  m_has_rated_prompt;
+    wxStaticText *  m_request_failed_info;
+    wxStaticBitmap* m_bitmap_thumbnail;
+    int             m_plate_index { -1 };
+    wxStaticBitmap* m_bitmap_static_use_time;
+    wxStaticBitmap* m_bitmap_static_use_weight;
+    ScalableButton* m_button_pause_resume;
+    ScalableButton* m_button_abort;
+    Button*         m_button_market_scoring;
+    Button*         m_button_clean;
+    Button *                      m_button_market_retry;
+    wxPanel *                     m_score_subtask_info;
+    wxPanel *                     m_score_staticline;
+    wxPanel *                     m_request_failed_panel;
+    // score page
+    int                           m_star_count;
+    std::vector<ScalableButton *> m_score_star;
+    bool                          m_star_count_dirty = false;
+
+    ProgressBar*    m_gauge_progress;
+    Label* m_error_text;
+    PhrozenPrintingTaskType m_type;
+    int m_brightness_value{ -1 };
+
+public:
+    void init_bitmaps();
+    void init_scaled_buttons();
+    void error_info_reset();
+    void show_error_msg(wxString msg);
+    void reset_printing_value();
+    void msw_rescale();
+
+public:
+    void enable_pause_resume_button(bool enable, std::string type);
+    void enable_abort_button(bool enable);
+    void update_subtask_name(wxString name);
+    void update_stage_value(wxString stage, int val);
+    void update_progress_percent(wxString percent, wxString icon);
+    void update_left_time(wxString time);
+    void update_left_time(int mc_left_time);
+    void update_elapsed_time(wxString time);
+    void update_elapsed_time(int elapsed_seconds);
+    void update_send_print_time(wxString time);
+    void update_estimated_time(wxString time);
+    void update_layers_num(bool show, wxString num = wxEmptyString);
+    void show_priting_use_info(bool show, wxString time = wxEmptyString, wxString weight = wxEmptyString);
+    void show_profile_info(bool show, wxString profile = wxEmptyString);
+    void set_thumbnail_img(const wxBitmap& bmp);
+    void set_brightness_value(int value) { m_brightness_value = value; }
+    void set_plate_index(int plate_idx = -1);
+    void market_scoring_show();
+    void market_scoring_hide();
+    ScalableBitmap get_bitmap_thumbnail_placeholder() {return m_thumbnail_placeholder;};
+    
+public:
+    ScalableButton* get_abort_button() {return m_button_abort;};
+    ScalableButton* get_pause_resume_button() {return m_button_pause_resume;};
+    Button* get_market_scoring_button() {return m_button_market_scoring;};
+    Button * get_market_retry_buttom() { return m_button_market_retry; };
+    Button* get_clean_button() {return m_button_clean;};
+    wxStaticBitmap* get_bitmap_thumbnail() {return m_bitmap_thumbnail;};
+    wxPanel *  get_request_failed_panel() { return m_request_failed_panel; }
+    int get_star_count() { return m_star_count; }
+    void set_star_count(int star_count);
+    std::vector<ScalableButton *> &get_score_star() { return m_score_star; }
+    bool get_star_count_dirty() { return m_star_count_dirty; }
+    void set_star_count_dirty(bool dirty) { m_star_count_dirty = dirty; }
+    void                           set_has_reted_text(bool has_rated);
+    void paint(wxPaintEvent&);
+};
+
+class PhrozenStatusBasePanel : public wxScrolledWindow//StatusBasePanel
+{
 public:
     PhrozenStatusBasePanel(wxWindow*       parent,
                          wxWindowID      id    = wxID_ANY,
@@ -50,36 +215,269 @@ public:
 
     ~PhrozenStatusBasePanel();
 
-    virtual void Initizlize() override;
-    virtual wxBoxSizer* create_monitoring_page() override;
-    virtual wxBoxSizer* create_machine_control_page(wxWindow* parent) override;
-    virtual wxBoxSizer* create_temp_axis_group(wxWindow* parent) override;
-    virtual wxBoxSizer* create_temp_control(wxWindow* parent) override;
-    virtual wxBoxSizer* create_misc_control(wxWindow* parent) override;
-    virtual wxBoxSizer* create_axis_control(wxWindow* parent) override;
-    virtual wxBoxSizer* create_bed_control(wxWindow* parent) override;
-    virtual wxBoxSizer* create_extruder_control(wxWindow* parent) override;
-    virtual void init_bitmaps() override;
-    //MachineObject* obj{nullptr};
+    void Initizlize();
+    void init_bitmaps();
+
+    wxBoxSizer* create_monitoring_page();
+    wxBoxSizer* create_machine_control_page(wxWindow* parent);
+    wxBoxSizer* create_temp_axis_group(wxWindow* parent);
+    wxBoxSizer* create_temp_control(wxWindow* parent);
+    wxBoxSizer* create_misc_control(wxWindow* parent);
     
-    //wxBoxSizer*    create_monitoring_page();
-    //wxBoxSizer*    create_machine_control_page(wxWindow* parent);
-    //
-    //wxBoxSizer* create_temp_axis_group(wxWindow* parent);
-    //wxBoxSizer* create_temp_control(wxWindow* parent);
-    //wxBoxSizer* create_misc_control(wxWindow* parent);
-    //wxBoxSizer* create_axis_control(wxWindow* parent);
-    //wxBoxSizer* create_bed_control(wxWindow* parent);
-    //wxBoxSizer* create_extruder_control(wxWindow* parent);
-    //
-    //void        reset_temp_misc_control();
-    //int         before_error_code = 0;
-    //int         skip_print_error  = 0;
-    //wxBoxSizer* create_ams_group(wxWindow* parent);
-    //wxBoxSizer* create_settings_group(wxWindow* parent);
-    //
-    //void           show_ams_group(bool show = true);
-    //MediaPlayCtrl* get_media_play_ctrl() { return m_media_play_ctrl; };
+    std::vector<unsigned char> m_kWebCameraImageData;
+    wxBitmap m_kCurrentWebCamBitmap;
+    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
+    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
+    wxHyperlinkCtrl* m_pConsoleControllerPage{ nullptr };
+#pragma region OrcaOriginalMember
+    protected:
+    ScalableBitmap m_thumbnail_placeholder;
+    ScalableBitmap m_thumbnail_brokenimg;
+    ScalableBitmap m_thumbnail_sdcard;
+    ScalableBitmap m_bitmap_speed;
+    ScalableBitmap m_bitmap_speed_active;
+    ScalableBitmap m_bitmap_lamp_on;
+    ScalableBitmap m_bitmap_lamp_off;
+    ScalableBitmap m_bitmap_fan_on;
+    ScalableBitmap m_bitmap_fan_off;
+    ScalableBitmap m_bitmap_use_time;
+    ScalableBitmap m_bitmap_use_weight;
+    wxBitmap m_bitmap_extruder_empty_load;
+    wxBitmap m_bitmap_extruder_empty_unload;
+    wxBitmap m_bitmap_extruder_filled_unload;
+
+    Button* m_pCam_light_switch_button;
+    Button* m_pCam_switch_button;
+
+    /* title panel */
+    wxPanel *       media_ctrl_panel;
+    wxPanel *       m_panel_monitoring_title;
+    wxPanel *       m_panel_printing_title;
+    wxPanel *       m_panel_control_title;
+
+    wxStaticText*   m_staticText_consumption_of_time;
+    wxStaticText *  m_staticText_consumption_of_weight;
+    Label *         m_staticText_monitoring;
+    wxStaticText *  m_staticText_timelapse;
+    SwitchButton *  m_bmToggleBtn_timelapse;
+
+    wxStaticBitmap *m_bitmap_static_use_time;
+    wxStaticBitmap *m_bitmap_static_use_weight;
+
+    MediaPlayCtrl * m_media_play_ctrl{nullptr};
+
+    Label *         m_staticText_printing;
+    wxStaticBitmap *m_bitmap_thumbnail;
+    wxStaticText *  m_staticText_subtask_value;
+    wxStaticText *  m_printing_stage_value;
+    wxStaticText *  m_staticText_profile_value;
+    ProgressBar*    m_gauge_progress;
+    wxStaticText *  m_staticText_progress_percent;
+    wxStaticText *  m_staticText_progress_percent_icon;
+    wxStaticText *  m_staticText_progress_left;
+    wxStaticText *  m_staticText_layers;
+    ScalableButton *m_button_pause_resume;
+    ScalableButton *m_button_abort;
+    Button *        m_button_clean;
+    wxWebView *     m_custom_camera_view{nullptr};
+
+    Label *  m_staticText_control;
+    ImageSwitchButton *m_switch_lamp;
+    int               m_switch_lamp_timeout{0};
+    ImageSwitchButton *m_switch_speed;
+
+    /* TempInput */
+    wxBoxSizer *    m_misc_ctrl_sizer;
+    StaticBox*      m_fan_panel; 
+    StaticLine *    m_line_nozzle;
+    TempInput* m_tempCtrl_nozzle;
+    TempInput *     m_tempCtrl_bed; //remove later
+    TempInput *     m_tempCtrl_chamber; //remove later
+    wxStaticText*   m_staticText_zOffset_value;
+    int             m_temp_chamber_timeout {0};
+    bool             m_current_support_cham_fan{true};
+    bool             m_current_support_aux_fan{true};
+    FanSwitchButton *m_switch_nozzle_fan;
+    int             m_switch_nozzle_fan_timeout{0};
+    FanSwitchButton *m_switch_printing_fan;
+    int             m_switch_printing_fan_timeout{0};
+    FanSwitchButton *m_switch_cham_fan;
+    int             m_switch_cham_fan_timeout{0};
+    wxPanel*        m_switch_block_fan;
+
+    float           m_fixed_aspect_ratio{1.8};
+
+    StaticLine *    m_temp_extruder_line;
+    bool            m_show_ams_group{true};
+    wxStaticBitmap *m_ams_extruder_img;
+    wxPanel *       m_panel_separator_right;
+    wxPanel *       m_panel_separotor_bottom;
+    wxBoxSizer *    m_printing_sizer;
+    wxPanel*        m_panel_error_txt;
+    wxPanel*        m_staticline;
+    Label *         m_error_text;
+    Button*         m_calibration_btn;
+
+    wxPanel *       m_machine_ctrl_panel;
+    PhrozenPrintingTaskPanel *       m_project_task_panel;
+
+    // Virtual event handlers, override them in your derived class
+    virtual void on_subtask_pause_resume(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_subtask_abort(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_lamp_switch(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_bed_temp_kill_focus(wxFocusEvent &event) { event.Skip(); }
+    virtual void on_bed_temp_set_focus(wxFocusEvent &event) { event.Skip(); }
+    virtual void on_nozzle_temp_kill_focus(wxFocusEvent &event) { event.Skip(); }
+    virtual void on_nozzle_temp_set_focus(wxFocusEvent &event) { event.Skip(); }    
+    virtual void on_nozzle_fan_switch(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_printing_fan_switch(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_z_up_10(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_z_up_1(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_z_down_1(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_z_down_10(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_e_up_10(wxCommandEvent &event) { event.Skip(); }
+    virtual void on_axis_ctrl_e_down_10(wxCommandEvent &event) { event.Skip(); }
+    void on_ams_unload_all(wxCommandEvent& event);
+    void on_ams_unload_single_slot(wxCommandEvent& event);
+    void on_ams_load_single_slot(wxCommandEvent& event);
+    void on_camera_button_triggered( wxCommandEvent& event );
+    virtual void on_lighting_button_triggered( wxCommandEvent& event );
+    bool IsWebcamUiEnabled();
+    bool IsLightingUiEnabled();
+    
+public:   
+    void on_camera_source_change(wxCommandEvent& event);
+    void handle_camera_source_change();
+    void remove_controls();
+    void on_webview_navigating(wxWebViewEvent& evt);
+    void on_camera_switch_toggled(wxMouseEvent& event);
+    void toggle_custom_camera();
+    void toggle_builtin_camera();
+
+public:
+
+    void SetMachineObject( MachineObject* pObj ) { obj = pObj; }
+    MachineObject* obj{nullptr};
+
+    void SetPhrozenMachineObject( PhrozenMachineObject_Dev* pObj ) { m_pMachineObj = pObj; }
+    PhrozenMachineObject_Dev* PhrozenObj() { return m_pMachineObj; }
+    PhrozenMachineObject_Dev* m_pMachineObj{nullptr};
+
+    int before_error_code = 0;
+    int skip_print_error = 0;
+    wxBoxSizer *create_ams_group(wxWindow *parent);
+    wxBoxSizer *create_settings_group(wxWindow *parent);
+
+    void show_ams_group(bool show = true);
+    MediaPlayCtrl* get_media_play_ctrl() {return m_media_play_ctrl;};
+
+#pragma endregion
+
+
+public:
+
+#pragma region ui_control_panel
+    wxFlexGridSizer* GenNozzleTempControllor( wxWindow* pParent );
+    wxFlexGridSizer* GenHeatedBedTempControllor( wxWindow* pParent );
+    wxBoxSizer* GenSpeed_PrintLevel( wxWindow* pParent );
+    wxFlexGridSizer* GenCooling_Auxiliary( wxWindow* pParent );
+    wxFlexGridSizer* GenCooling_Part( wxWindow* pParent );
+    wxFlexGridSizer* GenCooling_Shield( wxWindow* pParent );
+    wxSizer* GenManualAdjustment_moveRange( wxWindow* pParent );
+    wxSizer* GenManualAdjustment_move_xy( wxWindow* pParent );
+    wxSizer* GenManualAdjustment_move_z( wxWindow* pParent );
+    wxSizer* GenManualAdjustment_z_offset( wxWindow* pParent );
+    wxBitmapButton* CreateManualMovementButton( wxWindow* pParent, const wxBitmap& kIcon, const wxBitmap& kIconHover, const wxBitmap& kIconPressed, const PhrozenMovement eType );
+
+    //icon
+    ScalableBitmap m_ParamSeparator ;
+    ScalableBitmap m_Dot_c          ;
+    ScalableBitmap m_Percent        ;
+    ScalableBitmap m_Nozzle_temp    ;
+    ScalableBitmap m_Heated_bed_temp;
+    ScalableBitmap m_Fan            ;
+                                    
+    ScalableBitmap m_Speed          ;
+    ScalableBitmap m_Speed_Level    ;
+                                    
+    ScalableBitmap m_Control_xy_up  ;
+    ScalableBitmap m_Control_xy_up_hover;
+    ScalableBitmap m_Control_xy_up_pressed;
+    ScalableBitmap m_Control_xy_down;
+    ScalableBitmap m_Control_xy_down_hover;
+    ScalableBitmap m_Control_xy_down_pressed;
+    ScalableBitmap m_Control_xy_left;
+    ScalableBitmap m_Control_xy_left_hover;
+    ScalableBitmap m_Control_xy_left_pressed;
+    ScalableBitmap m_Control_xy_right;
+    ScalableBitmap m_Control_xy_right_hover;
+    ScalableBitmap m_Control_xy_right_pressed;
+    ScalableBitmap m_Control_xy_home;
+    ScalableBitmap m_Control_xy_home_hover;
+    ScalableBitmap m_Control_xy_home_pressed;
+    ScalableBitmap m_Control_xy_title;
+                                    
+    ScalableBitmap m_Control_z_title;
+    ScalableBitmap m_Control_z_nozzle;
+
+    //AMS
+    PhrozenFilamentControl* m_pFilamentControlPanel{nullptr};
+
+    //Temperature
+    std::unique_ptr< wxStaticText > m_spTemp_nozzle;
+    std::unique_ptr< wxStaticText > m_spTemp_heatedBed;
+    std::unique_ptr< wxSpinCtrl > m_spTemp_nozzle_ctrl;
+    std::unique_ptr< wxSpinCtrl > m_spTemp_heatedBed_ctrl;
+
+    //Cooling
+    std::unique_ptr< wxStaticText > m_spCooling_auxiliary;
+    std::unique_ptr< wxStaticText > m_spCooling_part;
+    std::unique_ptr< wxStaticText > m_spCooling_shield;
+    std::unique_ptr< wxSpinCtrl > m_spCooling_auxiliary_ctrl;
+    std::unique_ptr< wxSpinCtrl > m_spCooling_part_ctrl;
+    std::unique_ptr< wxSpinCtrl > m_spCooling_shield_ctrl;
+
+    //Speed
+    std::unordered_map< PhrozenPrintSpeed, wxRadioButton* > m_kPrintSpeedButtons;
+
+    //nozzle movement range
+    std::unordered_map< PhrozenNozzleMoveRange, wxToggleButton* > m_kNozzleMovementRangeButtons;
+
+    //bed(z-offet) movement ragne
+    std::unordered_map< PhrozenPrintNozzleOffsetRange, wxToggleButton* > m_kNozzleOffsetRangeButtons;
+
+    // manual movement
+    std::unordered_map< PhrozenMovement, wxBitmapButton* > m_kManualMovementButtons;
+    
+#pragma endregion
+
+
+    // control panel
+    void update_nozzle_current_temp( int nTemp );
+    void update_nozzle_target_temp( int nTemp );
+
+    void update_bed_current_temp( int nTemp );
+    void update_bed_target_temp( int nTemp );
+    void update_z_offset_value( float fZOffset );
+
+    void update_cooling_auxiliary_current_power( int nPower );
+    void update_cooling_auxiliary_target_power( int nPower );
+
+    void update_cooling_part_current_power( int nPower );
+    void update_cooling_part_target_power( int nPower );
+
+    void update_cooling_shield_current_power( int nPower );
+    void update_cooling_shield_target_power( int nPower );
+
+    void update_print_speed_level( PhrozenPrintSpeed eLevel );
+    PhrozenPrintSpeed print_speed_percent_to_enum( float fPercentage );
+    float print_speed_enum_to_percent( PhrozenPrintSpeed eLevel );
+
+    float get_selected_nozzle_movement_range();
+    float get_selected_nozzle_offset_range();
+
+
+
 };
 
 class PhrozenStatusPanel : public PhrozenStatusBasePanel
@@ -88,26 +486,17 @@ private:
     friend class PhrozenMonitorPanel;
 
 protected:
-    std::shared_ptr<SliceInfoPopup> m_slice_info_popup;
-    std::shared_ptr<ImageTransientPopup> m_image_popup;
     std::shared_ptr<CameraPopup> m_camera_popup;
-    std::set<int> rated_model_id;
-    AMSSetting *m_ams_setting_dlg{nullptr};
-    PrinterPartsDialog*  print_parts_dlg { nullptr };
     PrintOptionsDialog*  print_options_dlg { nullptr };
-    CalibrationDialog*   calibration_dlg {nullptr};
-    AMSMaterialsSetting *m_filament_setting_dlg{nullptr};
+    PhrozenCalibrationDlg* calibration_dlg {nullptr};
 
     PrintErrorDialog* m_print_error_dlg = nullptr;
     SecondaryCheckDialog* m_print_error_dlg_no_action = nullptr;
     SecondaryCheckDialog* abort_dlg = nullptr;
-    SecondaryCheckDialog* con_load_dlg = nullptr;
     SecondaryCheckDialog* ctrl_e_hint_dlg = nullptr;
     SecondaryCheckDialog* sdcard_hint_dlg = nullptr;
-
+     
     FanControlPopup* m_fan_control_popup{nullptr};
-
-    ExtrusionCalibration *m_extrusion_cali_dlg{nullptr};
 
     wxString     m_request_url;
     bool         m_start_loading_thumbnail = false;
@@ -115,15 +504,10 @@ protected:
     int          m_last_sdcard    = -1;
     int          m_last_recording = -1;
     int          m_last_timelapse = -1;
-    int          m_last_extrusion = -1;
     int          m_last_vcamera   = -1;
-    int          m_model_mall_request_count = 0;
-    bool         m_is_load_with_temp = false;
-    json         m_rating_result;
 
     wxWebRequest web_request;
-    bool bed_temp_input    = false;
-    bool nozzle_temp_input = false;
+
     bool cham_temp_input   = false;
     bool request_model_info_flag = false;
     int speed_lvl = 1; // 0 - 3
@@ -133,19 +517,12 @@ protected:
     bool m_show_mode_changed = false;
     std::map<wxString, wxImage> img_list; // key: url, value: wxBitmap png Image
     std::map<std::string, std::string> m_print_connect_types;
-    std::vector<Button *>       m_buttons;
-    int last_status;
     ScoreData *m_score_data;
     wxBitmap* calib_bitmap = nullptr;
     CalibMode m_calib_mode;
     CalibrationMethod m_calib_method;
     int cali_stage;
     PrintingTaskType m_current_print_mode = PrintingTaskType::NOT_CLEAR;
-
-    void init_scaled_buttons();
-    void create_tasklist_info();
-    void show_task_list_info(bool show = true);
-    void update_tasklist_info();
 
     void on_market_scoring(wxCommandEvent &event);
     void on_market_retry(wxCommandEvent &event);
@@ -169,30 +546,9 @@ protected:
     void axis_ctrl_e_hint(bool up_down);
 
 	void on_start_unload(wxCommandEvent &event);
-    /* temp control */
-    void on_bed_temp_kill_focus(wxFocusEvent &event);
-    void on_bed_temp_set_focus(wxFocusEvent &event);
-    void on_set_bed_temp();
-    void on_nozzle_temp_kill_focus(wxFocusEvent &event);
-    void on_nozzle_temp_set_focus(wxFocusEvent &event);
-    void on_set_nozzle_temp();
-    void on_set_chamber_temp();
 
     /* extruder apis */
-    void on_ams_load(SimpleEvent &event);
-    void update_filament_step();
-    void on_ams_load_curr();
-    void on_ams_load_vams(wxCommandEvent& event);
-    void on_ams_unload(SimpleEvent &event);
-    void on_ams_filament_backup(SimpleEvent& event);
-    void on_ams_setting_click(SimpleEvent& event);
-    void on_filament_edit(wxCommandEvent &event);
-    void on_ext_spool_edit(wxCommandEvent &event);
-    void on_filament_extrusion_cali(wxCommandEvent &event);
-    void on_ams_refresh_rfid(wxCommandEvent &event);
-    void on_ams_selected(wxCommandEvent &event);
     void on_ams_guide(wxCommandEvent &event);
-    void on_ams_retry(wxCommandEvent &event);
     void on_print_error_done(wxCommandEvent& event);
 
     void on_fan_changed(wxCommandEvent& event);
@@ -211,29 +567,41 @@ protected:
     void on_auto_leveling(wxCommandEvent &event);
     void on_xyz_abs(wxCommandEvent &event);
 
-    void on_show_parts_options(wxCommandEvent& event);
-    /* print options */
-    void on_show_print_options(wxCommandEvent &event);
-
     /* calibration */
     void on_start_calibration(wxCommandEvent &event);
 
-
     /* update apis */
     void update(MachineObject* obj);
-    void show_printing_status(bool ctrl_area = true, bool temp_area = true);
+    void update_phrozen();
+    void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
+    void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
     void update_model_info();
     void update_subtask(MachineObject* obj);
+    void update_print_states(MachineObject* obj);
+    void update_print_states_phrozen();
+    void update_print_status(MachineObject* obj);
+    void update_print_progress(MachineObject* obj);
+    void update_print_file(MachineObject* obj);
+    void update_print_time(MachineObject* obj);
+    void reset_time_information();
+    void update_print_stage(MachineObject* obj);
+    void update_print_filament(MachineObject *obj);
+    void update_thumbnail(MachineObject *obj);
     void update_cloud_subtask(MachineObject *obj);
     void update_sdcard_subtask(MachineObject *obj);
     void update_temp_ctrl(MachineObject *obj);
-    void update_misc_ctrl(MachineObject *obj);
+    void update_temp_ctrl_phrozen();
+    void update_print_speed_ctrl(MachineObject *obj);
+    void update_print_speed_ctrl_phrozen();
+    void update_fan_cooling_speed_ctrl(MachineObject *obj);
+    void update_fan_cooling_speed_ctrl_phrozen();
+    void update_z_offset_ctrl(MachineObject *obj);
+    void update_webcam_lighting_status( MachineObject *obj );
+    void update_webcam_lighting_status_phrozen();
     void update_ams(MachineObject* obj);
-    void update_ams_insert_material(MachineObject* obj);
-    void update_extruder_status(MachineObject* obj);
-    void update_ams_control_state(bool is_curr_tray_selected);
+    void update_ams_phrozen();
     void update_cali(MachineObject* obj);
     void update_calib_bitmap();
 
@@ -244,6 +612,73 @@ protected:
     /* camera */
     void update_camera_state(MachineObject* obj);
     bool show_vcamera = false;
+
+    void on_update_webcam_ui_timer(wxTimerEvent& event);
+    void InitWebCamUiUpdateTimer();
+    void update_console_hyperlink( const std::string& strLink );
+
+    /* lighting(LED) */
+    void on_lighting_button_triggered( wxCommandEvent& event ) override;
+
+    // ======= phrozen checked done ========== //
+    bool bed_temp_input    = false;
+    bool nozzle_temp_input = false;
+    bool cooling_auxiliary_input   = false;
+    bool cooling_part_input   = false;
+    bool cooling_shield_input   = false;
+    bool print_speed_input    = false;
+    bool lighting_state_input = false;
+
+    int  m_temp_nozzle_timeout{ 0 };
+    int  m_temp_bed_timeout {0};
+    int  m_cooling_auxiliary_timeout {0};
+    int  m_cooling_part_timeout {0};
+    int  m_cooling_shield_timeout {0};
+    int  m_print_speed_timeout {0};
+    int  m_lighting_state_timeout {0};
+
+#pragma region Event_from_ui
+    void on_nozzle_temp_kill_focus(wxFocusEvent &event);
+    void on_nozzle_temp_set_focus(wxFocusEvent &event);
+    void on_nozzle_temp_text_enter(wxCommandEvent &event);
+    void on_set_nozzle_temp();
+
+    void on_bed_temp_kill_focus(wxFocusEvent &event);
+    void on_bed_temp_set_focus(wxFocusEvent &event);
+    void on_bed_temp_text_enter(wxCommandEvent &event);
+    void on_set_bed_temp();
+    
+    void on_cooling_auxiliary_kill_focus(wxFocusEvent &event);
+    void on_cooling_auxiliary_set_focus(wxFocusEvent &event);
+    void on_cooling_auxiliary_text_enter(wxCommandEvent &event);
+    void on_set_cooling_auxiliary();
+
+    void on_cooling_part_kill_focus(wxFocusEvent &event);
+    void on_cooling_part_set_focus(wxFocusEvent &event);
+    void on_cooling_part_text_enter(wxCommandEvent &event);
+    void on_set_cooling_part();
+
+    void on_cooling_shield_kill_focus(wxFocusEvent &event);
+    void on_cooling_shield_set_focus(wxFocusEvent &event);
+    void on_cooling_shield_text_enter(wxCommandEvent &event);
+    void on_set_cooling_shield();
+    
+    // Common handlers to prevent duplicate event processing
+    void handle_nozzle_temp_finish();
+    void handle_bed_temp_finish();
+    void handle_cooling_auxiliary_finish();
+    void handle_cooling_part_finish();
+    void handle_cooling_shield_finish();
+
+    void on_print_speed_changed( PhrozenPrintSpeed eLevel ); 
+
+    void on_nozzle_movement_range_mouse_left_down( wxMouseEvent& event );
+    void on_nozzle_offset_range_mouse_left_down( wxMouseEvent& event );
+    void on_manual_movement_changed( PhrozenMovement eMoveType );
+
+
+    void on_set_chamber_temp();// no use maybe future
+#pragma endregion
 
 public:
     void update_error_message();
@@ -265,17 +700,6 @@ public:
         STATE_COUNT = 4
     };
 
-    BBLSubTask *   last_subtask{nullptr};
-    std::string    last_profile_id;
-    std::string    last_task_id;
-    long           last_tray_exist_bits { -1 };
-    long           last_ams_exist_bits { -1 };
-    long           last_tray_is_bbl_bits{ -1 };
-    long           last_read_done_bits{ -1 };
-    long           last_reading_bits { -1 };
-    long           last_ams_version { -1 };
-    int            last_cali_version{-1};
-
     enum ThumbnailState task_thumbnail_state {ThumbnailState::PLACE_HOLDER};
     std::vector<int> last_stage_list_info;
 
@@ -284,6 +708,10 @@ public:
     void set_default();
     void show_status(int status);
     void set_hold_count(int& count);
+    void enable_Printer_control_buttons( bool bEnable );
+    void enable_ams_control_buttons( bool bEnable );
+    void enable_cali_buttons( bool bEnable );
+    void update_printing_button_status(MachineObject* obj);
 
     void rescale_camera_icons();
     void on_sys_color_changed();
