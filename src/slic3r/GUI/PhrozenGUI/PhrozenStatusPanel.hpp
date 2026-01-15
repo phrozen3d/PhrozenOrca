@@ -226,7 +226,14 @@ public:
     
     std::vector<unsigned char> m_kWebCameraImageData;
     wxBitmap m_kCurrentWebCamBitmap;
+    int m_nAiDetectPosX{ -1 };
+    int m_nAiDetectPosY{ -1 };
+    int m_nAiDetectWidth{ 0 };
+    int m_nAiDetectHeight{ 0 };
+    std::string m_strAiDetectMsg;
+
     std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
+
     bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
     wxHyperlinkCtrl* m_pConsoleControllerPage{ nullptr };
 #pragma region OrcaOriginalMember
@@ -574,6 +581,7 @@ protected:
     void update(MachineObject* obj);
     void update_phrozen();
     void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
+    void UpdateAiDetectionResult( MachineObject* obj );
     void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);

@@ -1161,10 +1161,25 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     auto fnUpdate = [this](auto& e)->void 
     {
         wxPaintDC dc(media_ctrl_panel);
-        if ( m_kCurrentWebCamBitmap.IsOk()) {
-            dc.DrawBitmap( m_kCurrentWebCamBitmap, 0, 0, false);
+        if (m_kCurrentWebCamBitmap.IsOk()) {
+            dc.DrawBitmap(m_kCurrentWebCamBitmap, 0, 0, false);
+
+            if (m_nAiDetectPosX != -1 && m_nAiDetectPosY != -1) {
+                dc.SetBrush(*wxTRANSPARENT_BRUSH);
+                dc.SetPen(wxPen(*wxYELLOW, 2));
+                dc.SetTextForeground(*wxYELLOW);
+                dc.DrawRectangle(m_nAiDetectPosX, m_nAiDetectPosY, m_nAiDetectWidth, m_nAiDetectHeight);
+
+                if (!m_strAiDetectMsg.empty()) {
+                    wxSize sz = dc.GetTextExtent(m_strAiDetectMsg);
+                    dc.DrawText(m_strAiDetectMsg,
+                                m_nAiDetectPosX + m_nAiDetectWidth - sz.x - 2,
+                                m_nAiDetectPosY + m_nAiDetectHeight - sz.y - 2);
+                }
+            }
         }
     };
+
     media_ctrl_panel->Bind(wxEVT_PAINT, fnUpdate);//called by media_ctrl_panel->Refresh();
 
 
@@ -3274,6 +3289,11 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     media_ctrl_panel->Refresh();
 }
 
+void PhrozenStatusPanel::UpdateAiDetectionResult( MachineObject* obj )
+{
+    
+}
+
 void PhrozenStatusPanel::ResetWebcamView()
 {
     int x, y;
@@ -3281,6 +3301,12 @@ void PhrozenStatusPanel::ResetWebcamView()
     wxImage image(x,y);
     m_kCurrentWebCamBitmap = wxBitmap(image);
     media_ctrl_panel->Refresh();
+
+    m_nAiDetectPosX = -1;
+    m_nAiDetectPosY = -1;
+    m_nAiDetectWidth = 0;
+    m_nAiDetectHeight = 0;
+    m_strAiDetectMsg.clear();
 }
 
 void PhrozenStatusPanel::show_recenter_dialog() {
