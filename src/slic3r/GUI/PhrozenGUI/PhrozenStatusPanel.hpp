@@ -582,6 +582,7 @@ protected:
     void update_phrozen();
     void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
     void UpdateAiDetectionResult( MachineObject* obj );
+    void PassWebcamSnapshotToAiDetector( std::vector<unsigned char>& kWebCameraImageData );
     void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);

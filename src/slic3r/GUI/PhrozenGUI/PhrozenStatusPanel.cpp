@@ -2729,6 +2729,9 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
 PhrozenStatusPanel::~PhrozenStatusPanel()
 {
+    // Ensure the AI detection process is stopped when the panel is destroyed
+    MonitorControl::AIDetector.closeReceiver();
+
     // Disconnect Events
     //m_project_task_panel->get_bitmap_thumbnail()->Disconnect(wxEVT_LEFT_DOWN, wxMouseEventHandler(PhrozenStatusPanel::refresh_thumbnail_webrequest), NULL, this);
     //m_project_task_panel->get_pause_resume_button()->Disconnect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusPanel::on_subtask_pause_resume), NULL, this);
@@ -3235,6 +3238,10 @@ void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
         m_spWebCam_refresh_timer->SetOwner(this);
         m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
         Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
+
+        // Start the AI detection process when the webcam UI starts
+        MonitorControl::AIDetector.launchReceiver();
+
         wxPostEvent(this, wxTimerEvent());
     }
 }
@@ -3242,7 +3249,10 @@ void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
     auto pObj = PhrozenObj();
-    if ( pObj ) UpdateWebCameraView( pObj );
+    if ( pObj ) {
+        UpdateWebCameraView( pObj );
+        UpdateAiDetectionResult( obj );
+    }
 }
 
 void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
@@ -3278,6 +3288,9 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     if(m_kWebCameraImageData.empty()){
         return;
     }
+
+    PassWebcamSnapshotToAiDetector( m_kWebCameraImageData );
+
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
     image = image.Rotate180(); //水平+垂直翻轉
@@ -3289,9 +3302,76 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     media_ctrl_panel->Refresh();
 }
 
+void PhrozenStatusPanel::PassWebcamSnapshotToAiDetector(  std::vector<unsigned char>& kWebCameraImageData  )
+{
+    if ( kWebCameraImageData.empty() || !MonitorControl::AIDetector.isReceiverRunning() ) return;
+
+    //cv::Mat _img = cv::imdecode(cv::Mat(image_data), cv::IMREAD_UNCHANGED);
+    //cv::flip(_img, _img, -1);
+    //std::vector<unsigned char> flipped_image_data;
+    //cv::imencode(".jpg", _img, flipped_image_data);
+    //lastPipeTime = now;
+
+    if ( !MonitorControl::AIDetector.stdinWrite ) 
+    {
+        BOOST_LOG_TRIVIAL(error) << "Ai Detector Error: stdinWrite function is null";
+        return;
+    }
+    const unsigned char* img_bytes = kWebCameraImageData.data();
+    size_t img_size = kWebCameraImageData.size();
+    uint32_t size_big_endian = htonl(img_size);
+    DWORD bytesWritten;
+    WriteFile(MonitorControl::AIDetector.stdinWrite, &size_big_endian, sizeof(uint32_t), &bytesWritten, NULL);
+    WriteFile(MonitorControl::AIDetector.stdinWrite, img_bytes, static_cast<DWORD>(img_size), &bytesWritten, NULL);
+    
+}
+
 void PhrozenStatusPanel::UpdateAiDetectionResult( MachineObject* obj )
 {
+    // Poll the AI detector for the latest results from detection_results.txt
+    MonitorControl::AIDetector.poll();
     
+    // If we have detection results, display the first one (or potentially the one with highest probability)
+    if (!MonitorControl::AIDetector.results.empty()) {
+        const auto& res = MonitorControl::AIDetector.results[0];
+        
+        // Map common detection IDs to user-friendly messages
+        std::string msg = "Detected";
+        switch(res.id) {
+            case 0: msg = "BLOB"; break;
+            case 1: msg = "CRACKS"; break;
+            case 2: msg = "LAYERSHIFT"; break;
+            case 3: msg = "NORMAL"; break;
+            case 4: msg = "SPAGHETTI"; break;
+            case 5: msg = "STRINGGING"; break;
+            case 6: msg = "UNDEREXTRUSION"; break;
+            case 7: msg = "WARPING"; break;
+        }
+        
+        // Append probability percentage
+        char probBuf[32];
+        sprintf_s(probBuf, " %.0f%%", res.probability * 100);
+        msg += probBuf;
+
+        // Update UI members for overlay drawing
+        m_nAiDetectPosX = res.x1;
+        m_nAiDetectPosY = res.y1;
+        m_nAiDetectWidth = std::max(0, res.x2 - res.x1);
+        m_nAiDetectHeight = std::max(0, res.y2 - res.y1);
+        m_strAiDetectMsg = msg;
+    } else {
+        // No results or "normal" state: clear the overlay
+        m_nAiDetectPosX = -1;
+        m_nAiDetectPosY = -1;
+        m_nAiDetectWidth = 0;
+        m_nAiDetectHeight = 0;
+        m_strAiDetectMsg.clear();
+    }
+    
+    // Trigger a repaint of the webcam panel to show the updated overlay
+    if (media_ctrl_panel) {
+        media_ctrl_panel->Refresh();
+    }
 }
 
 void PhrozenStatusPanel::ResetWebcamView()

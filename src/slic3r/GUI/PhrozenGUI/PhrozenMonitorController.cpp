@@ -138,6 +138,205 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     AMSPatterns amsPatterns = {};
     NozzleInfo nozzleInfo = {};
 
+    AIDetection AIDetector;
+
+    bool AIDetection::launchReceiver() {
+#ifdef _WIN32
+        exeRunningState = RunningState::opening;
+
+        // Get the directory where the current executable is located
+        char buffer[MAX_PATH];
+        GetModuleFileNameA(NULL, buffer, MAX_PATH);
+        std::string exePath = buffer;
+        std::string exeDir = exePath.substr(0, exePath.find_last_of("\\/"));
+
+        // AI detector path relative to build environment (based on user request)
+        // D:\Project\Phrozen_AIDetect\PhrozenOrca\build-dbginfo\src\RelWithDebInfo\AnomalyDetector\AnomalyDetector.exe
+        std::string detectorDir = exeDir + "\\AnomalyDetector";
+        std::string detectorCmd = detectorDir + "\\AnomalyDetector.exe";
+
+        SECURITY_ATTRIBUTES saAttr{};
+        saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+        saAttr.bInheritHandle = TRUE;
+
+        HANDLE hChildStdinRead = NULL;
+        HANDLE hChildStdinWrite = NULL;
+        if (!CreatePipe(&hChildStdinRead, &hChildStdinWrite, &saAttr, 0)) {
+            BOOST_LOG_TRIVIAL(error) << "AIDetection: CreatePipe failed";
+            return false;
+        }
+        SetHandleInformation(hChildStdinWrite, HANDLE_FLAG_INHERIT, 0);
+
+        STARTUPINFOA si{};
+        si.cb = sizeof(STARTUPINFOA);
+        si.dwFlags |= STARTF_USESTDHANDLES;
+        si.hStdInput = hChildStdinRead;
+        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+
+        PROCESS_INFORMATION pi{};
+        BOOL success = CreateProcessA(
+            NULL,
+            (char*)detectorCmd.c_str(),
+            NULL, NULL, TRUE,
+            CREATE_NO_WINDOW,
+            NULL, 
+            detectorDir.c_str(), // Set working directory to detector folder
+            &si, &pi
+        );
+
+        if (!success) {
+            std::string errMsg = "AIDetection: CreateProcessA failed: " + std::to_string(GetLastError()) + " Path: " + detectorCmd;
+            BOOST_LOG_TRIVIAL(error) << errMsg;
+
+            // Output to Visual Studio Debug Output
+            std::wstring wmsg;
+            int len = MultiByteToWideChar(CP_ACP, 0, errMsg.c_str(), -1, NULL, 0);
+            if (len > 0) {
+                wmsg.resize(len);
+                MultiByteToWideChar(CP_ACP, 0, errMsg.c_str(), -1, &wmsg[0], len);
+                ::OutputDebugStringW(wmsg.c_str());
+                ::OutputDebugStringW(L"\n");
+            }
+
+            CloseHandle(hChildStdinRead);
+            CloseHandle(hChildStdinWrite);
+            return false;
+        }
+
+
+        jobHandle = CreateJobObject(NULL, NULL);
+        if (jobHandle) {
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobInfo{};
+            jobInfo.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            SetInformationJobObject(jobHandle, JobObjectExtendedLimitInformation, &jobInfo, sizeof(jobInfo));
+            AssignProcessToJobObject(jobHandle, pi.hProcess);
+        }
+
+        CloseHandle(hChildStdinRead);
+        childProcess = pi.hProcess;
+        childThread = pi.hThread;
+        stdinWrite = hChildStdinWrite;
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    void AIDetection::closeReceiver() {
+#ifdef _WIN32
+        if (stdinWrite) { CloseHandle(stdinWrite); stdinWrite = nullptr; }
+        if (childThread) { CloseHandle(childThread); childThread = nullptr; }
+        if (childProcess) { TerminateProcess(childProcess, 0); CloseHandle(childProcess); childProcess = nullptr; }
+        if (jobHandle) { CloseHandle(jobHandle); jobHandle = nullptr; }
+        exeRunningState = RunningState::off;
+        detectionState = DetectionState::function_off;
+#endif
+    }
+
+    bool AIDetection::isReceiverRunning() const {
+#ifdef _WIN32
+        if (!childProcess) return false;
+        DWORD exitCode;
+        if (GetExitCodeProcess(childProcess, &exitCode)) {
+            return exitCode == STILL_ACTIVE;
+        }
+#endif
+        return false;
+    }
+
+    void AIDetection::poll() {
+        // Get the directory where the current executable is located
+        char buffer[MAX_PATH];
+        GetModuleFileNameA(NULL, buffer, MAX_PATH);
+        std::string exePath = buffer;
+        std::string exeDir = exePath.substr(0, exePath.find_last_of("\\/"));
+        std::string resultFile = exeDir + "\\AnomalyDetector\\detection_results.txt";
+
+        std::ifstream file(resultFile);
+        if (!file.is_open()) return;
+
+        std::string line;
+        bool has_new_data = false;
+        bool already_read = false;
+        std::vector<Result> new_results;
+
+        while (std::getline(file, line)) {
+            if (line.find("read at") != std::string::npos) {
+                already_read = true;
+                continue;
+            }
+            if (line.find("normal") != std::string::npos) {
+                has_new_data = true;
+                detectionState = DetectionState::normal;
+                break;
+            }
+
+            std::stringstream ss(line);
+            std::string token;
+            std::vector<double> vals;
+            while (std::getline(ss, token, ',')) {
+                try { vals.push_back(std::stod(token)); } catch (...) {}
+            }
+
+            if (vals.size() >= 6) {
+                has_new_data = true;
+                Result r;
+                r.id = (int)vals[0];
+                r.x1 = (int)(640 - vals[1]); // Flip as per example
+                r.y1 = (int)(480 - vals[2]);
+                r.x2 = (int)(640 - vals[3]);
+                r.y2 = (int)(480 - vals[4]);
+                r.probability = vals[5];
+                if (r.id <= 7) new_results.push_back(r); // Updated to handle up to ID 7
+            }
+        }
+        file.close();
+
+        if (has_new_data) {
+            results = new_results;
+            if (exeRunningState == RunningState::opening) exeRunningState = RunningState::running;
+            
+            // Update detection state based on results
+            bool need_error = false, need_warn = false;
+            for (const auto& r : results) {
+                // Logic based on expanded categories
+                if (r.id == 1 || r.id == 2 || r.id == 4 || r.id == 6 || r.id == 7) { 
+                    if (r.probability >= 0.8) need_error = true;
+                    else if (r.probability >= 0.3) need_warn = true;
+                } else if (r.id == 0 || r.id == 5) {
+                    if (r.probability >= 0.5) need_warn = true;
+                }
+            }
+            if (need_error) detectionState = DetectionState::error;
+            else if (need_warn) detectionState = DetectionState::warn;
+            else if (!results.empty()) detectionState = DetectionState::normal;
+
+            if (!already_read) {
+                // Mark as read to avoid repeated processing of old data
+                std::stringstream buffer;
+                std::ifstream infile(resultFile);
+                buffer << infile.rdbuf();
+                infile.close();
+
+                std::ofstream outfile(resultFile, std::ios::trunc);
+                time_t now = time(nullptr);
+                struct tm ltm;
+                localtime_s(&ltm, &now);
+                char timeBuf[64];
+                strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &ltm);
+                outfile << "read at " << timeBuf << "\n" << buffer.str();
+                outfile.close();
+            }
+        }
+    }
+
+    void AIDetection::reset() {
+        results.clear();
+        std::ofstream outfile("detection_results.txt", std::ios::trunc);
+        outfile.close();
+    }
+
     size_t fnWriteData(void* buffer, size_t size, size_t nmemb, void* lpVoid)
     {
         std::string* str = dynamic_cast<std::string*>((std::string*)lpVoid);
