@@ -226,8 +226,7 @@ public:
     
     std::vector<unsigned char> m_kWebCameraImageData;
     wxBitmap m_kCurrentWebCamBitmap;
-    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
-    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
+
     wxHyperlinkCtrl* m_pConsoleControllerPage{ nullptr };
 #pragma region OrcaOriginalMember
     protected:
@@ -676,8 +675,10 @@ protected:
     void on_nozzle_offset_range_mouse_left_down( wxMouseEvent& event );
     void on_manual_movement_changed( PhrozenMovement eMoveType );
 
-
     void on_set_chamber_temp();// no use maybe future
+
+    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
+    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
 #pragma endregion
 
 public:
@@ -716,6 +717,9 @@ public:
     void rescale_camera_icons();
     void on_sys_color_changed();
     void msw_rescale();
+
+    void start_webcam_update_timer();
+    void stop_webcam_update_timer();
 };
 }
 }

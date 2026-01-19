@@ -2600,6 +2600,7 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_project_task_panel->enable_pause_resume_button(false, "resume_disable");
     m_project_task_panel->enable_abort_button(false);
 
+    InitWebCamUiUpdateTimer();
 
     Bind(wxEVT_WEBREQUEST_STATE, &PhrozenStatusPanel::on_webrequest_state, this);
 
@@ -3095,10 +3096,8 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     update_z_offset_ctrl(obj);
     update_webcam_lighting_status( obj );
     update_console_hyperlink( obj->GetConsolePageHyperlink() );
-    if ( !IsWebCamRefreshTimerInitialized() )
-    {
-        InitWebCamUiUpdateTimer();
-    }
+    
+    start_webcam_update_timer();
 
     update_ams(obj);
     update_printing_button_status(obj);
@@ -3203,10 +3202,8 @@ void PhrozenStatusPanel::update_phrozen()
     update_fan_cooling_speed_ctrl_phrozen();
     update_webcam_lighting_status_phrozen();
     
-    if ( !IsWebCamRefreshTimerInitialized() )
-    {
-        InitWebCamUiUpdateTimer();
-    }
+    start_webcam_update_timer();
+
     update_ams_phrozen();
 
     m_machine_ctrl_panel->Thaw();
@@ -3214,18 +3211,45 @@ void PhrozenStatusPanel::update_phrozen()
 
 void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 {
+    m_spWebCam_refresh_timer = std::make_unique< wxTimer >();
+    m_spWebCam_refresh_timer->SetOwner(this);
+    Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
+}
+
+void PhrozenStatusPanel::start_webcam_update_timer()
+{
     if ( !m_spWebCam_refresh_timer )
     {
-        m_spWebCam_refresh_timer = std::make_unique< wxTimer >();
-        m_spWebCam_refresh_timer->SetOwner(this);
-        m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
-        Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
-        wxPostEvent(this, wxTimerEvent());
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::start_webcam_update_timer: webcame update timer not initialize";
+        return;
+    }
+    if ( m_spWebCam_refresh_timer->IsRunning() ) return;
+
+    m_spWebCam_refresh_timer->SetOwner(this);
+    m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
+    wxPostEvent(this, wxTimerEvent());
+}
+
+void PhrozenStatusPanel::stop_webcam_update_timer()
+{
+    if ( !m_spWebCam_refresh_timer )
+    {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::start_webcam_update_timer: webcame update timer not initialize";
+        return;
+    }
+    if ( m_spWebCam_refresh_timer->IsRunning() ){
+        m_spWebCam_refresh_timer->Stop();
     }
 }
 
+
 void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
+    if ( !MonitorControl::IsStartReceiving() )
+    {
+        m_spWebCam_refresh_timer->Stop();
+        return;
+    }
     auto pObj = PhrozenObj();
     if ( pObj ) UpdateWebCameraView( pObj );
 }
@@ -5436,6 +5460,9 @@ void PhrozenStatusPanel::set_default()
     m_lighting_state_timeout = 0;
     m_show_ams_group = true;
     reset_printing_values();
+
+    // webcam update 
+    stop_webcam_update_timer();
     UpdateWebCameraView( nullptr );
 
     // Reset AMS slot and External spool state when hiding panel
