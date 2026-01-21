@@ -5430,16 +5430,16 @@ msgid "This only takes effect during printing"
 msgstr "僅在列印過程中生效"
 
 msgid "Silent"
-msgstr "靜音模式（50%）"
+msgstr "靜音"
 
 msgid "Standard"
-msgstr "標準模式（100%）"
+msgstr "標準"
 
 msgid "Sport"
-msgstr "運動模式（125%）"
+msgstr "運動"
 
 msgid "Ludicrous"
-msgstr "狂暴模式（150%）"
+msgstr "狂暴"
 
 msgid "Can't start this without SD card."
 msgstr "沒有 SD 記憶卡無法開始。"
