@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: 2025-06-02 17:12+0900\n"
 "Last-Translator: crwusiz <crwusiz@gmail.com>\n"
 "Language-Team: \n"
@@ -17983,19 +17983,19 @@ msgstr "Z 오프셋"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "필라멘트 와이어를 슬롯에 삽입하고 대기 상태가 될 때까지 기다려 주세요"
 
 msgid "Heated Bed"
 msgstr "히팅 베드"
 
 msgid "Quiet"
-msgstr ""
+msgstr "조용함"
 
 msgid "Fast"
-msgstr ""
+msgstr "빠름"
 
 msgid "Turbo"
-msgstr ""
+msgstr "터보"
 
 msgid "Auxiliary"
 msgstr "보조"

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -18041,19 +18041,19 @@ msgstr "Z オフセット"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "フィラメントをスロットに挿入し、スタンバイ状態になるまでお待ちください"
 
 msgid "Heated Bed"
 msgstr "ヒートベッド"
 
 msgid "Quiet"
-msgstr ""
+msgstr "静音"
 
 msgid "Fast"
-msgstr ""
+msgstr "高速"
 
 msgid "Turbo"
-msgstr ""
+msgstr "ターボ"
 
 msgid "Auxiliary"
 msgstr "補助"

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: 2025-08-13 10:05-0300\n"
 "Last-Translator: Alexandre Folle de Menezes\n"
 "Language-Team: Portuguese, Brazilian\n"
@@ -18653,19 +18653,19 @@ msgstr "Deslocamento Z"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "Insira o fio de filamento no slot e aguarde até que esteja em espera"
 
 msgid "Heated Bed"
 msgstr "Mesa aquecida"
 
 msgid "Quiet"
-msgstr ""
+msgstr "Silencioso"
 
 msgid "Fast"
-msgstr ""
+msgstr "Rápido"
 
 msgid "Turbo"
-msgstr ""
+msgstr "Turbo"
 
 msgid "Auxiliary"
 msgstr "Auxiliar"

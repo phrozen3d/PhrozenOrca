@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrca V2.3.0 Official Release\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: 2025-07-06 21:08+0700\n"
 "Last-Translator: \n"
 "Language-Team: Andylg <andylg@yandex.ru>\n"
@@ -18922,19 +18922,19 @@ msgstr "Смещение Z"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "Вставьте нить филамента в слот и дождитесь режима ожидания"
 
 msgid "Heated Bed"
 msgstr "Подогреваемый стол"
 
 msgid "Quiet"
-msgstr ""
+msgstr "Тихий"
 
 msgid "Fast"
-msgstr ""
+msgstr "Быстрый"
 
 msgid "Turbo"
-msgstr ""
+msgstr "Турбо"
 
 msgid "Auxiliary"
 msgstr "Вспомогательный"

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Slic3rPE\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: 2024-07-28 07:12+0000\n"
 "Last-Translator: Handle <mail@bysb.net>\n"
 "Language-Team: \n"
@@ -17169,19 +17169,19 @@ msgstr "Z 偏移"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "请将耗材丝插入槽中，并等待其进入待机状态"
 
 msgid "Heated Bed"
 msgstr "热床"
 
 msgid "Quiet"
-msgstr ""
+msgstr "安静"
 
 msgid "Fast"
-msgstr ""
+msgstr "快速"
 
 msgid "Turbo"
-msgstr ""
+msgstr "极速"
 
 msgid "Auxiliary"
 msgstr "辅助"

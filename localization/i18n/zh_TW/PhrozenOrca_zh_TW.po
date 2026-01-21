@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-21 17:19+0800\n"
+"POT-Creation-Date: 2026-01-21 17:38+0800\n"
 "PO-Revision-Date: 2025-03-27 19:32+0800\n"
 "Last-Translator: 5idereal <hi@5idereal.cc>\n"
 "Language-Team: \n"
@@ -17266,19 +17266,19 @@ msgstr "Z 偏移"
 
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "請將耗材絲插入槽中，並等待其進入待機狀態"
 
 msgid "Heated Bed"
 msgstr "熱床"
 
 msgid "Quiet"
-msgstr ""
+msgstr "安靜"
 
 msgid "Fast"
-msgstr ""
+msgstr "快速"
 
 msgid "Turbo"
-msgstr ""
+msgstr "極速"
 
 msgid "Auxiliary"
 msgstr "輔助"
