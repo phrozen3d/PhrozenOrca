@@ -1119,7 +1119,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
     StateColor btn_phrozen_bd(std::pair<wxColour, int>(kBgPressed, StateColor::Hovered) );
 
-    m_pCam_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Cam_Switch");
+    m_pCam_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Cam_Switch");
     m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
     m_pCam_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_switch_button->SetTextColor(wxColour("#FFFFFE"));
@@ -1129,7 +1129,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pCam_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_camera_button_triggered), NULL, this);
 
 
-    m_pCam_light_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Light_Switch");
+    m_pCam_light_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Light_Switch");
     m_pCam_light_switch_button->SetBackgroundColor(btn_phrozen_bg);
     m_pCam_light_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_light_switch_button->SetTextColor(wxColour("#FFFFFE"));
@@ -2095,8 +2095,8 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         wxBoxSizer* itemSizer = new wxBoxSizer(wxVERTICAL);
         
         // Label on top (mode name)
-        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, label);
-        text->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, label );
+        text->SetFont(::Label::Body_13);
         itemSizer->Add(text, 0, wxALIGN_CENTER_HORIZONTAL, 0);
         
         // RadioButton in the middle (no label, only the circle)
@@ -2107,7 +2107,8 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         
         // Percentage label at the bottom (smaller font, gray color)
         wxStaticText* percentText = new wxStaticText(pParent, wxID_ANY, percentage);
-        percentText->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+        percentText->SetFont(::Label::Body_13);
+
         percentText->SetForegroundColour(wxColour(128, 128, 128)); // Gray color
         itemSizer->Add(percentText, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP, 2);
         
@@ -2117,11 +2118,11 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         bIsFirst = false;
     };
 
-    fnCreateLabeledRadioButton("Silent", PhrozenPrintSpeed::Silent, "50%");
-    fnCreateLabeledRadioButton("Quiet", PhrozenPrintSpeed::Quite, "80%");
-    fnCreateLabeledRadioButton("Standard", PhrozenPrintSpeed::Standard, "100%");
-    fnCreateLabeledRadioButton("Fast", PhrozenPrintSpeed::Fast, "120%");
-    fnCreateLabeledRadioButton("Turbo", PhrozenPrintSpeed::Turbo, "150%");
+    fnCreateLabeledRadioButton(L("Silent"), PhrozenPrintSpeed::Silent, "50%");
+    fnCreateLabeledRadioButton(L("Quiet"), PhrozenPrintSpeed::Quite, "80%");
+    fnCreateLabeledRadioButton(L("Standard"), PhrozenPrintSpeed::Standard, "100%");
+    fnCreateLabeledRadioButton(L("Fast"), PhrozenPrintSpeed::Fast, "120%");
+    fnCreateLabeledRadioButton(L("Turbo"), PhrozenPrintSpeed::Turbo, "150%");
 
     m_kPrintSpeedButtons[PhrozenPrintSpeed::Standard]->SetValue(true);
     sizerBox->Add(buttonRow, 0, wxALL, 5);
