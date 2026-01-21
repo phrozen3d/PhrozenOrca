@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-21 17:19+0800\n"
 "PO-Revision-Date: 2024-11-03 20:59+0100\n"
 "Last-Translator: René Mošner <Renemosner@seznam.cz>\n"
 "Language-Team: \n"
@@ -403,6 +403,7 @@ msgstr "Úhel drážky"
 
 msgid "Part"
 msgstr "Díl"
+
 msgid "Object"
 msgstr "Objekt"
 
@@ -17269,20 +17270,31 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Ruční nastavení"
+
 msgid "Z-Offset"
 msgstr "Z-Offset"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
 msgstr "Vyhřívaná podložka"
+
+msgid "Quiet"
+msgstr ""
+
+msgid "Fast"
+msgstr ""
+
+msgid "Turbo"
+msgstr ""
+
 msgid "Auxiliary"
 msgstr "Pomocný"
+
 msgid "Shield"
 msgstr "Štít"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -17323,6 +17335,11 @@ msgid "Please connect to a Phrozen printer first."
 msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
 msgstr ""
 
 msgid "Unload All Slots"

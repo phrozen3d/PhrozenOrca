@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-21 17:19+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -4271,6 +4271,7 @@ msgstr "色変更"
 
 msgid "Print"
 msgstr "印刷"
+
 msgid "Printer"
 msgstr "プリンター"
 
@@ -18034,20 +18035,31 @@ msgstr "ライトをオン/オフ"
 
 msgid "Manual Adjustment"
 msgstr "手動調整"
+
 msgid "Z-Offset"
 msgstr "Z オフセット"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
 msgstr "ヒートベッド"
+
+msgid "Quiet"
+msgstr ""
+
+msgid "Fast"
+msgstr ""
+
+msgid "Turbo"
+msgstr ""
+
 msgid "Auxiliary"
 msgstr "補助"
+
 msgid "Shield"
 msgstr "シールド"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr "印刷中..."
@@ -18092,6 +18104,11 @@ msgstr "まずPhrozenプリンターに接続してください。"
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr ""
 "キャリブレーションの開始に失敗しました。接続を確認して再試行してください。"
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
 
 msgid "Unload All Slots"
 msgstr "すべてのスロットをアンロード"

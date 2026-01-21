@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-21 17:19+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Heiko Liebscher <hliebschergmail.com>\n"
 "Language-Team: \n"
@@ -4423,6 +4423,7 @@ msgstr "Farbwechsel"
 
 msgid "Print"
 msgstr "Druck"
+
 msgid "Printer"
 msgstr "Drucker"
 
@@ -18908,20 +18909,31 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Manuelle Anpassung"
+
 msgid "Z-Offset"
 msgstr "Z-Versatz"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
 msgstr "Heizbett"
+
+msgid "Quiet"
+msgstr ""
+
+msgid "Fast"
+msgstr ""
+
+msgid "Turbo"
+msgstr ""
+
 msgid "Auxiliary"
 msgstr "Zusätzlich"
+
 msgid "Shield"
 msgstr "Schild"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -18962,6 +18974,11 @@ msgid "Please connect to a Phrozen printer first."
 msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
 msgstr ""
 
 msgid "Unload All Slots"

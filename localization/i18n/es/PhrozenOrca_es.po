@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-21 17:19+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Carlos Fco. Caruncho Serrano <puzzlero@gmail.com>\n"
 "Language-Team: \n"
@@ -4404,6 +4404,7 @@ msgstr "Cambio de color"
 
 msgid "Print"
 msgstr "Impresión"
+
 msgid "Printer"
 msgstr "Impresora"
 
@@ -8309,6 +8310,7 @@ msgstr "Limitación de la velocidad volumétrica"
 
 msgid "Cooling"
 msgstr "Enfriamiento"
+
 msgid "Cooling for specific layer"
 msgstr "Ventilación para la capa específica"
 
@@ -18509,20 +18511,31 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Ajuste manual"
+
 msgid "Z-Offset"
 msgstr "Desplazamiento Z"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
 
 msgid "Heated Bed"
 msgstr "Cama caliente"
+
+msgid "Quiet"
+msgstr ""
+
+msgid "Fast"
+msgstr ""
+
+msgid "Turbo"
+msgstr ""
+
 msgid "Auxiliary"
 msgstr "Auxiliar"
+
 msgid "Shield"
 msgstr "Escudo"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -18563,6 +18576,11 @@ msgid "Please connect to a Phrozen printer first."
 msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
 msgstr ""
 
 msgid "Unload All Slots"
