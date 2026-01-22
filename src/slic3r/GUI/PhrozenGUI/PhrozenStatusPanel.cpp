@@ -1164,18 +1164,8 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
         if (m_kCurrentWebCamBitmap.IsOk()) {
             dc.DrawBitmap(m_kCurrentWebCamBitmap, 0, 0, false);
 
-            if (m_nAiDetectPosX != -1 && m_nAiDetectPosY != -1) {
-                dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                dc.SetPen(wxPen(*wxYELLOW, 2));
-                dc.SetTextForeground(*wxYELLOW);
-                dc.DrawRectangle(m_nAiDetectPosX, m_nAiDetectPosY, m_nAiDetectWidth, m_nAiDetectHeight);
-
-                if (!m_strAiDetectMsg.empty()) {
-                    wxSize sz = dc.GetTextExtent(m_strAiDetectMsg);
-                    dc.DrawText(m_strAiDetectMsg,
-                                m_nAiDetectPosX + m_nAiDetectWidth - sz.x - 2,
-                                m_nAiDetectPosY + m_nAiDetectHeight - sz.y - 2);
-                }
+            if ( MonitorControl::AIDetector.isReceiverRunning()  ) {
+                draw_ai_detection_result( dc );
             }
         }
     };
@@ -1190,6 +1180,57 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     }
 
     return sizer;
+}
+
+void PhrozenStatusBasePanel::draw_ai_detection_result( wxPaintDC& dc )
+{
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    wxFont font = dc.GetFont();
+    font.SetPointSize(20);
+    dc.SetFont(font);
+
+    if ( MonitorControl::AIDetector.GetDetectMethod() == MonitorControl::AIDetection::DetectMathod::CLS ){
+        if ( m_kAiDetectResult.empty() ) return;
+
+        std::string strMostPossibleResult = m_kAiDetectResult.front().first;
+        bool bNeedAlert = strMostPossibleResult.find("NORMAL") == std::string::npos;
+    
+        int nYPos = 30;
+        if ( bNeedAlert ) {
+            dc.SetPen(wxPen(*wxRED, 2));
+            dc.SetTextForeground(*wxRED);
+        }
+        else {
+            dc.SetPen(wxPen(*wxGREEN, 2));
+            dc.SetTextForeground(*wxGREEN);
+        }
+        for ( auto kIter : m_kAiDetectResult ){
+            std::string strType = kIter.first;
+            std::string strPercent = kIter.second;
+            dc.DrawText( strType, 30, nYPos);
+            dc.DrawText( strPercent, 350, nYPos);
+            nYPos += 30;
+            dc.SetPen(wxPen(*wxBLUE, 2));
+            dc.SetTextForeground(*wxBLUE);
+        }
+    }
+    else if ( MonitorControl::AIDetector.GetDetectMethod() == MonitorControl::AIDetection::DetectMathod::ONNX ) {
+
+        if (m_nAiDetectPosX1 == -1 && m_nAiDetectPosY1 == -1)  return;
+
+            dc.SetPen(wxPen(*wxRED, 2));
+            dc.SetTextForeground(*wxRED);
+
+            wxRect rect(m_nAiDetectPosX1, m_nAiDetectPosY1, m_nAiDetectPosX2 - m_nAiDetectPosX1, m_nAiDetectPosY2 - m_nAiDetectPosY1);
+            dc.DrawRectangle(rect);
+
+            if (!m_strStateResult.empty()) {
+                wxSize sz = dc.GetTextExtent(m_strStateResult);
+                dc.DrawText(m_strStateResult,
+                            m_nAiDetectPosX1 + rect.GetWidth() - sz.x - 2,
+                            m_nAiDetectPosY1 + rect.GetHeight() - sz.y - 2);
+            }
+    }
 }
 
 wxBoxSizer* PhrozenStatusBasePanel::create_machine_control_page(wxWindow* parent)
@@ -3251,6 +3292,8 @@ void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
     auto pObj = PhrozenObj();
     if ( pObj ) {
         UpdateWebCameraView( pObj );
+
+
         UpdateAiDetectionResult( obj );
     }
 }
@@ -3288,29 +3331,32 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     if(m_kWebCameraImageData.empty()){
         return;
     }
-
-    PassWebcamSnapshotToAiDetector( m_kWebCameraImageData );
-
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
+
     image = image.Rotate180(); //水平+垂直翻轉
     int x, y;
     media_ctrl_panel->GetSize( &x, &y );
     image.Rescale(x, y);
-
     m_kCurrentWebCamBitmap = wxBitmap(image);
+
+    if ( MonitorControl::AIDetector.isReceiverRunning() )
+    {
+        wxMemoryOutputStream memOut;
+        image.SaveFile(memOut, wxBITMAP_TYPE_JPEG); // 或 PNG
+        size_t dataSize = memOut.GetSize();
+        //std::vector<unsigned char> buffer(dataSize);
+        m_kWebCameraImageData.resize( dataSize );
+        memOut.CopyTo(&m_kWebCameraImageData[0], dataSize);
+        PassWebcamSnapshotToAiDetector( m_kWebCameraImageData );
+    }
+    
     media_ctrl_panel->Refresh();
 }
 
-void PhrozenStatusPanel::PassWebcamSnapshotToAiDetector(  std::vector<unsigned char>& kWebCameraImageData  )
+void PhrozenStatusPanel::PassWebcamSnapshotToAiDetector( std::vector<unsigned char>& kWebCameraImageData )
 {
     if ( kWebCameraImageData.empty() || !MonitorControl::AIDetector.isReceiverRunning() ) return;
-
-    //cv::Mat _img = cv::imdecode(cv::Mat(image_data), cv::IMREAD_UNCHANGED);
-    //cv::flip(_img, _img, -1);
-    //std::vector<unsigned char> flipped_image_data;
-    //cv::imencode(".jpg", _img, flipped_image_data);
-    //lastPipeTime = now;
 
     if ( !MonitorControl::AIDetector.stdinWrite ) 
     {
@@ -3328,50 +3374,69 @@ void PhrozenStatusPanel::PassWebcamSnapshotToAiDetector(  std::vector<unsigned c
 
 void PhrozenStatusPanel::UpdateAiDetectionResult( MachineObject* obj )
 {
+    // reset data
+    m_kAiDetectResult.clear();
+
+    m_strStateResult.clear();
+    m_nAiDetectPosX1 = -1;
+    m_nAiDetectPosY1 = -1;
+    m_nAiDetectPosX2 = -1;
+    m_nAiDetectPosY2 = -1;
+
+    if ( !MonitorControl::AIDetector.isReceiverRunning() ) return;
+
     // Poll the AI detector for the latest results from detection_results.txt
     MonitorControl::AIDetector.poll();
-    
-    // If we have detection results, display the first one (or potentially the one with highest probability)
-    if (!MonitorControl::AIDetector.results.empty()) {
-        const auto& res = MonitorControl::AIDetector.results[0];
-        
-        // Map common detection IDs to user-friendly messages
-        std::string msg = "Detected";
-        switch(res.id) {
-            case 0: msg = "BLOB"; break;
-            case 1: msg = "CRACKS"; break;
-            case 2: msg = "LAYERSHIFT"; break;
-            case 3: msg = "NORMAL"; break;
-            case 4: msg = "SPAGHETTI"; break;
-            case 5: msg = "STRINGGING"; break;
-            case 6: msg = "UNDEREXTRUSION"; break;
-            case 7: msg = "WARPING"; break;
-        }
-        
-        // Append probability percentage
-        char probBuf[32];
-        sprintf_s(probBuf, " %.0f%%", res.probability * 100);
-        msg += probBuf;
 
-        // Update UI members for overlay drawing
-        m_nAiDetectPosX = res.x1;
-        m_nAiDetectPosY = res.y1;
-        m_nAiDetectWidth = std::max(0, res.x2 - res.x1);
-        m_nAiDetectHeight = std::max(0, res.y2 - res.y1);
-        m_strAiDetectMsg = msg;
-    } else {
-        // No results or "normal" state: clear the overlay
-        m_nAiDetectPosX = -1;
-        m_nAiDetectPosY = -1;
-        m_nAiDetectWidth = 0;
-        m_nAiDetectHeight = 0;
-        m_strAiDetectMsg.clear();
+    if ( MonitorControl::AIDetector.GetDetectMethod() == MonitorControl::AIDetection::DetectMathod::CLS )
+    {
+        const auto& res = MonitorControl::AIDetector.result_CLS;
+        if ( res.kAllStateProbability.empty() )  return;
+
+        std::vector<std::pair<std::string, float>> vec(
+            res.kAllStateProbability.begin(), 
+            res.kAllStateProbability.end()
+        );
+
+        std::sort(vec.begin(), vec.end(), [](const auto& a, const auto& b) {
+            return a.second > b.second;
+        });
+
+        for ( auto kIter : vec ){
+            m_kAiDetectResult.push_back( std::make_pair( kIter.first + ":", std::to_string(  (int)( kIter.second * 100.0 ) ) + "%" ) );
+        }
+
     }
-    
-    // Trigger a repaint of the webcam panel to show the updated overlay
-    if (media_ctrl_panel) {
-        media_ctrl_panel->Refresh();
+    else if ( MonitorControl::AIDetector.GetDetectMethod() == MonitorControl::AIDetection::DetectMathod::ONNX )
+    {
+        // If we have detection results, display the first one (or potentially the one with highest probability)
+        if (!MonitorControl::AIDetector.results.empty()) {
+            const auto& res = MonitorControl::AIDetector.results[ MonitorControl::AIDetector.results.size() - 1 ];
+            
+            // Map common detection IDs to user-friendly messages
+            std::string msg = "Detected";
+            switch(res.id) {
+                case 0: msg = "BLOB"; break;
+                case 1: msg = "CRACKS"; break;
+                case 2: msg = "SPAGHETTI"; break;
+                case 3: msg = "STRINGGING"; break;
+                case 4: msg = "UNDEREXTRUSION"; break;
+                case 5: msg = "NORMAL"; break;
+            }
+            
+            // Append probability percentage
+            char probBuf[32];
+            sprintf_s(probBuf, " %.0f%%", res.probability * 100);
+            msg += probBuf;
+
+            m_nAiDetectPosX1 = res.x2;
+            m_nAiDetectPosY1 = res.y2;
+            m_nAiDetectPosX2 = res.x1;
+            m_nAiDetectPosY2 = res.y1;
+            m_strStateResult = msg;
+        }
     }
+
 }
 
 void PhrozenStatusPanel::ResetWebcamView()
@@ -3382,11 +3447,12 @@ void PhrozenStatusPanel::ResetWebcamView()
     m_kCurrentWebCamBitmap = wxBitmap(image);
     media_ctrl_panel->Refresh();
 
-    m_nAiDetectPosX = -1;
-    m_nAiDetectPosY = -1;
-    m_nAiDetectWidth = 0;
-    m_nAiDetectHeight = 0;
-    m_strAiDetectMsg.clear();
+    m_nAiDetectPosX1 = -1;
+    m_nAiDetectPosY1 = -1;
+    m_nAiDetectPosX2 = -1;
+    m_nAiDetectPosY2 = -1;
+    m_strStateResult.clear();
+    m_kAiDetectResult.clear();
 }
 
 void PhrozenStatusPanel::show_recenter_dialog() {

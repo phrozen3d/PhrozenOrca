@@ -304,17 +304,35 @@ enum RunningState
 };
 
 struct AIDetection {
-    struct Result {
+    enum DetectMathod
+    {
+        NONE,
+        ONNX, // has bounding box coordinate
+        CLS   // has all possible result, and highest probability result
+    };
+
+    struct Result_ONNX {
         int id;
         int x1, y1, x2, y2;
         double probability;
     };
 
-    bool enabled = false;
+    struct Result_CLS {
+        std::string strHighestProbabilityState;
+        float fHighestProbability;
+        std::map< std::string, float > kAllStateProbability;
+    };
+
     RunningState exeRunningState = RunningState::off;
     DetectionState detectionState = DetectionState::function_off;
-    std::vector<Result> results;
+    std::vector<Result_ONNX> results;
+    Result_CLS result_CLS;
+
     std::string lastDetectTime;
+    DetectMathod eDetectMethod{ DetectMathod::NONE };
+    void SetDetectMethod( const DetectMathod& eMethod ) { eDetectMethod = eMethod; }
+    DetectMathod GetDetectMethod() { return eDetectMethod; }
+    bool IsEnabled() { return eDetectMethod != DetectMathod::NONE; }
 
     // Windows Process Handles (Cast to void* if windows.h not included here)
     void* childProcess = nullptr;
@@ -326,7 +344,13 @@ struct AIDetection {
     void closeReceiver();
     bool isReceiverRunning() const;
     void poll(); // Replacement for ReadDetectionFile with optimizations
+    void poll_ONNX( const std::string& strResultFilePath );
+    void pool_CLS( const std::string& strResultFilePath );
     void reset();
+
+    std::string strDetectionFolderName{ "AnomalyDetection" };
+    std::string strExecuteFileName_CLS{ "AnomalyDetection_CLS.exe" };
+    std::string strExecuteFileName_ONNX{ "AnomalyDetection_ONNX.exe" };
 };
 
 extern AIDetection AIDetector;

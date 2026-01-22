@@ -223,14 +223,21 @@ public:
     wxBoxSizer* create_temp_axis_group(wxWindow* parent);
     wxBoxSizer* create_temp_control(wxWindow* parent);
     wxBoxSizer* create_misc_control(wxWindow* parent);
+
+    void draw_ai_detection_result( wxPaintDC& dc );
     
     std::vector<unsigned char> m_kWebCameraImageData;
     wxBitmap m_kCurrentWebCamBitmap;
-    int m_nAiDetectPosX{ -1 };
-    int m_nAiDetectPosY{ -1 };
-    int m_nAiDetectWidth{ 0 };
-    int m_nAiDetectHeight{ 0 };
-    std::string m_strAiDetectMsg;
+
+    // for Ai detection CLS
+    std::vector< std::pair<std::string, std::string> > m_kAiDetectResult; // {type, percent}
+
+    // for Ai detection ONNX
+    std::string m_strStateResult;
+    int m_nAiDetectPosX1{-1};
+    int m_nAiDetectPosY1{-1};
+    int m_nAiDetectPosX2{-1};
+    int m_nAiDetectPosY2{-1};
 
     std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
 

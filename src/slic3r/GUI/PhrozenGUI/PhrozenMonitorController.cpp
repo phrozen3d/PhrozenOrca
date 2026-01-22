@@ -151,9 +151,30 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
         std::string exeDir = exePath.substr(0, exePath.find_last_of("\\/"));
 
         // AI detector path relative to build environment (based on user request)
-        // D:\Project\Phrozen_AIDetect\PhrozenOrca\build-dbginfo\src\RelWithDebInfo\AnomalyDetector\AnomalyDetector.exe
-        std::string detectorDir = exeDir + "\\AnomalyDetector";
-        std::string detectorCmd = detectorDir + "\\AnomalyDetector.exe";
+        std::string detectorDir = exeDir + "\\" + strDetectionFolderName;
+
+        // detect method and it execute file path
+        std::string detection_CLS   = detectorDir + "\\" + strExecuteFileName_CLS;
+        std::string detection_ONNX  = detectorDir + "\\" + strExecuteFileName_ONNX;
+
+        std::string detectorCmd;
+        // find which execute file path exists, then assign detectorCmd by founded path
+        bool bCLSExists = (GetFileAttributesA(detection_CLS.c_str()) != INVALID_FILE_ATTRIBUTES);
+        bool bONNXExists = (GetFileAttributesA(detection_ONNX.c_str()) != INVALID_FILE_ATTRIBUTES);
+
+        if (bCLSExists) {
+            detectorCmd = detection_CLS;
+            eDetectMethod = DetectMathod::CLS;
+        }
+        else if (bONNXExists) {
+            detectorCmd = detection_ONNX;
+            eDetectMethod = DetectMathod::ONNX;
+        }
+        else {
+            exeRunningState = RunningState::off;
+            return false;
+        }
+         
 
         SECURITY_ATTRIBUTES saAttr{};
         saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -181,7 +202,7 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
             NULL, NULL, TRUE,
             CREATE_NO_WINDOW,
             NULL, 
-            detectorDir.c_str(), // Set working directory to detector folder
+            detectorDir.c_str(), 
             &si, &pi
         );
 
@@ -203,7 +224,6 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
             CloseHandle(hChildStdinWrite);
             return false;
         }
-
 
         jobHandle = CreateJobObject(NULL, NULL);
         if (jobHandle) {
@@ -245,31 +265,47 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
         return false;
     }
 
-    void AIDetection::poll() {
-        // Get the directory where the current executable is located
+    void AIDetection::AIDetection::poll() {
+#ifdef _WIN32
+        // Path to the detection results file
         char buffer[MAX_PATH];
         GetModuleFileNameA(NULL, buffer, MAX_PATH);
         std::string exePath = buffer;
         std::string exeDir = exePath.substr(0, exePath.find_last_of("\\/"));
-        std::string resultFile = exeDir + "\\AnomalyDetector\\detection_results.txt";
+        std::string resultFile =        exeDir + "\\" + strDetectionFolderName + "\\detection_results.txt";
+        std::string processingFile =    exeDir + "\\" + strDetectionFolderName + "\\detection_results_processing.txt";
 
-        std::ifstream file(resultFile);
+        // Option B: Try to move the file to a processing name to ensure atomic access
+        if (!MoveFileExA(resultFile.c_str(), processingFile.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+            // If move fails, file might not exist or is locked by the detector
+            return;
+        }
+
+        switch( eDetectMethod )
+        {
+            case DetectMathod::ONNX:    poll_ONNX( processingFile ); break;
+            case DetectMathod::CLS:     pool_CLS( processingFile ); break;
+        }
+        //DeleteFileA(processingFile.c_str());// delete file if needed to check
+#endif
+    }
+
+    void AIDetection::poll_ONNX( const std::string& strResultFilePath )
+    {
+#ifdef _WIN32
+        std::ifstream file(strResultFilePath);
         if (!file.is_open()) return;
 
         std::string line;
         bool has_new_data = false;
-        bool already_read = false;
-        std::vector<Result> new_results;
+        std::vector<Result_ONNX> new_results;
 
         while (std::getline(file, line)) {
-            if (line.find("read at") != std::string::npos) {
-                already_read = true;
-                continue;
-            }
             if (line.find("normal") != std::string::npos) {
                 has_new_data = true;
                 detectionState = DetectionState::normal;
-                break;
+                new_results.clear();
+                continue;
             }
 
             std::stringstream ss(line);
@@ -281,54 +317,119 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
 
             if (vals.size() >= 6) {
                 has_new_data = true;
-                Result r;
+                Result_ONNX r;
                 r.id = (int)vals[0];
-                r.x1 = (int)(640 - vals[1]); // Flip as per example
-                r.y1 = (int)(480 - vals[2]);
-                r.x2 = (int)(640 - vals[3]);
-                r.y2 = (int)(480 - vals[4]);
+                r.x1 = (int)(vals[1]); 
+                r.y1 = (int)(vals[2]);
+                r.x2 = (int)(vals[3]);
+                r.y2 = (int)(vals[4]);
                 r.probability = vals[5];
-                if (r.id <= 7) new_results.push_back(r); // Updated to handle up to ID 7
+                if (r.id <= 7) new_results.push_back(r);
             }
         }
         file.close();
-
+        
         if (has_new_data) {
             results = new_results;
             if (exeRunningState == RunningState::opening) exeRunningState = RunningState::running;
             
-            // Update detection state based on results
             bool need_error = false, need_warn = false;
             for (const auto& r : results) {
-                // Logic based on expanded categories
                 if (r.id == 1 || r.id == 2 || r.id == 4 || r.id == 6 || r.id == 7) { 
                     if (r.probability >= 0.8) need_error = true;
                     else if (r.probability >= 0.3) need_warn = true;
-                } else if (r.id == 0 || r.id == 5) {
+                } else if (r.id == 0 || r.id == 3 || r.id == 5) {
                     if (r.probability >= 0.5) need_warn = true;
                 }
             }
             if (need_error) detectionState = DetectionState::error;
             else if (need_warn) detectionState = DetectionState::warn;
             else if (!results.empty()) detectionState = DetectionState::normal;
+        }
+#endif
+    }
 
-            if (!already_read) {
-                // Mark as read to avoid repeated processing of old data
-                std::stringstream buffer;
-                std::ifstream infile(resultFile);
-                buffer << infile.rdbuf();
-                infile.close();
+    void AIDetection::pool_CLS( const std::string& strResultFilePath )
+    {
+#ifdef _WIN32
+        std::ifstream file(strResultFilePath);
+        if (!file.is_open()) return;
 
-                std::ofstream outfile(resultFile, std::ios::trunc);
-                time_t now = time(nullptr);
-                struct tm ltm;
-                localtime_s(&ltm, &now);
-                char timeBuf[64];
-                strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &ltm);
-                outfile << "read at " << timeBuf << "\n" << buffer.str();
-                outfile.close();
+        std::string line;
+        bool has_new_data = false;
+        Result_CLS new_result;
+
+        bool first_line = true;
+        while (std::getline(file, line)) {
+            if (line.empty()) continue;
+
+            if (first_line) {
+                // First line format: STATE,PROBABILITY,TIMESTAMP (e.g., "SPAGHETTI,0.2194,2026-01-22 14:55:35")
+                std::stringstream ss(line);
+                std::string token;
+                std::vector<std::string> tokens;
+                while (std::getline(ss, token, ',')) {
+                    tokens.push_back(token);
+                }
+                if (tokens.size() >= 2) {
+                    new_result.strHighestProbabilityState = tokens[0];
+                    try {
+                        new_result.fHighestProbability = std::stof(tokens[1]);
+                    } catch (...) {
+                        new_result.fHighestProbability = 0.0f;
+                    }
+                    // Optional: capture timestamp if present (tokens[2] onwards)
+                    if (tokens.size() >= 3) {
+                        lastDetectTime = tokens[2];
+                    }
+                    has_new_data = true;
+                }
+                first_line = false;
+            } else {
+                // Subsequent lines format: "  STATE: PROBABILITY" (e.g., "  SPAGHETTI: 0.2194")
+                size_t colon_pos = line.find(':');
+                if (colon_pos != std::string::npos) {
+                    std::string state = line.substr(0, colon_pos);
+                    std::string value_str = line.substr(colon_pos + 1);
+
+                    // Trim leading/trailing spaces from state
+                    size_t start = state.find_first_not_of(" \t");
+                    size_t end = state.find_last_not_of(" \t");
+                    if (start != std::string::npos && end != std::string::npos) {
+                        state = state.substr(start, end - start + 1);
+                    }
+
+                    // Trim leading spaces from value
+                    start = value_str.find_first_not_of(" \t");
+                    if (start != std::string::npos) {
+                        value_str = value_str.substr(start);
+                    }
+
+                    try {
+                        float prob = std::stof(value_str);
+                        new_result.kAllStateProbability[state] = prob;
+                    } catch (...) {}
+                }
             }
         }
+        file.close();
+
+        if (has_new_data) {
+            result_CLS = new_result;
+            if (exeRunningState == RunningState::opening) exeRunningState = RunningState::running;
+
+            // Determine detection state based on highest probability result
+            if (new_result.strHighestProbabilityState == "NORMAL") {
+                detectionState = DetectionState::normal;
+            } else if (new_result.fHighestProbability >= 0.5f) {
+                detectionState = DetectionState::error;
+            } else if (new_result.fHighestProbability >= 0.3f) {
+                detectionState = DetectionState::warn;
+            } else {
+                detectionState = DetectionState::normal;
+            }
+        }
+#endif
     }
 
     void AIDetection::reset() {
