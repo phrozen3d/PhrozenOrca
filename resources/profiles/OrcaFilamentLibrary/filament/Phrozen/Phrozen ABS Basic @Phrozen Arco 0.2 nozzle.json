@@ -1,0 +1,18 @@
+{
+    "type": "filament",
+	"setting_id": "PRZD001_ARCO_A",
+    "name": "Phrozen ABS Basic @Phrozen Arco 0.2 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen ABS Basic @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle"
+    ],
+    "filament_max_volumetric_speed": [
+        "2"
+    ],
+    "filament_retraction_length": [
+        "0"
+    ]
+
+}
