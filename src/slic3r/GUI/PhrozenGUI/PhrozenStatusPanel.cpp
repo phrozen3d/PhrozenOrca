@@ -2091,11 +2091,11 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
     wxBoxSizer* buttonRow = new wxBoxSizer(wxHORIZONTAL);
     
     bool bIsFirst = true;
-    auto fnCreateLabeledRadioButton = [&](const std::string& label, const PhrozenPrintSpeed eSpeedType, const std::string& percentage) {
+    auto fnCreateLabeledRadioButton = [&]( wxString label, const PhrozenPrintSpeed eSpeedType, const std::string& percentage) {
         wxBoxSizer* itemSizer = new wxBoxSizer(wxVERTICAL);
         
         // Label on top (mode name)
-        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, _L(label) );
+        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, label );
         text->SetFont(::Label::Body_13);
         itemSizer->Add(text, 0, wxALIGN_CENTER_HORIZONTAL, 0);
         
@@ -2118,11 +2118,11 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         bIsFirst = false;
     };
 
-    fnCreateLabeledRadioButton("Silent", PhrozenPrintSpeed::Silent, "50%");
-    fnCreateLabeledRadioButton("Quiet", PhrozenPrintSpeed::Quite, "80%");
-    fnCreateLabeledRadioButton("Standard", PhrozenPrintSpeed::Standard, "100%");
-    fnCreateLabeledRadioButton("Fast", PhrozenPrintSpeed::Fast, "120%");
-    fnCreateLabeledRadioButton("Turbo", PhrozenPrintSpeed::Turbo, "150%");
+    fnCreateLabeledRadioButton(_L("Silent"), PhrozenPrintSpeed::Silent, "50%");
+    fnCreateLabeledRadioButton(_L("Quiet"), PhrozenPrintSpeed::Quite, "80%");
+    fnCreateLabeledRadioButton(_L("Standard"), PhrozenPrintSpeed::Standard, "100%");
+    fnCreateLabeledRadioButton(_L("Fast"), PhrozenPrintSpeed::Fast, "120%");
+    fnCreateLabeledRadioButton(_L("Turbo"), PhrozenPrintSpeed::Turbo, "150%");
 
     m_kPrintSpeedButtons[PhrozenPrintSpeed::Standard]->SetValue(true);
     sizerBox->Add(buttonRow, 0, wxALL, 5);
