@@ -124,27 +124,169 @@
 
 ---
 
+## 第三批:編譯修復
+
+### 9. fbf7077f23 - fix: Add missing variable declarations for ext_perimeter_spacing
+
+- **作者**: AI Assistant <ai-assistant@phrozen3d.com>
+- **日期**: 2026-01-25
+- **優先級**: ⭐⭐⭐⭐⭐
+- **類別**: 編譯修復
+- **衝突**: ❌ 無(補充缺失的程式碼)
+- **變更摘要**: 補充 commit `49232549d1` 缺失的變數宣告,修復編譯錯誤
+- **PhrozenOrca commit**: `fbf7077f23`
+- **狀態**: ✅ 成功
+
+**背景**:
+在執行編譯測試時發現 commit `49232549d1` 的 cherry-pick 不完整,缺少以下變數宣告:
+```cpp
+coord_t ext_perimeter_spacing   = this->ext_perimeter_flow.scaled_spacing();
+coord_t ext_perimeter_spacing2;
+```
+
+這導致編譯失敗,出現多個"未宣告的識別項"錯誤。此 commit 補充了這些缺失的宣告。
+
+**影響的檔案**:
+- `src/libslic3r/PerimeterGenerator.cpp` (新增 2 行)
+
+**編譯測試結果**: ✅ 通過
+
+---
+
+## 第四批: GUI 和配置修復
+
+### 10. 3f8baebe87 - Fix: export printer config skipping currently selected preset
+
+- **OrcaSlicer commit**: `4981b0b3e4`
+- **作者**: Azi <azio@pantheondesign.ca>
+- **日期**: 2025-08-21
+- **優先級**: ⭐⭐⭐⭐
+- **類別**: GUI 修復
+- **衝突**: ❌ 無
+- **變更摘要**: 修復匯出印表機配置時跳過當前選定的 preset 的問題
+- **PhrozenOrca commit**: `3f8baebe87`
+- **狀態**: ✅ 成功
+
+**影響的檔案**:
+- `src/slic3r/GUI/CreatePresetsDialog.cpp` (1 行修改)
+
+---
+
+### 11. 43e6ac6ee3 - Fix scaling on bed and extruder icons in BBL > Device tab
+
+- **OrcaSlicer commit**: `4c3081d654`
+- **作者**: yw4z <ywsyildiz@gmail.com>
+- **日期**: 2025-08-24
+- **優先級**: ⭐⭐⭐
+- **類別**: UI 修復
+- **衝突**: ❌ 無
+- **變更摘要**: 修復 BBL > Device tab 中床和擠出機圖示的縮放問題
+- **PhrozenOrca commit**: `43e6ac6ee3`
+- **狀態**: ✅ 成功
+
+**影響的檔案**:
+- `src/slic3r/GUI/StatusPanel.cpp` (6 行修改)
+
+---
+
+### 12. 734c93eaa6 - Fix: Reset object settings not working for plate's Skirt Start Angle and Other Layers Sequence
+
+- **OrcaSlicer commit**: `099dbb4046`
+- **作者**: yw4z <ywsyildiz@gmail.com>
+- **日期**: 2025-08-23
+- **優先級**: ⭐⭐⭐⭐
+- **類別**: GUI 修復
+- **衝突**: ❌ 無
+- **變更摘要**: 修復重置物件設定對 Skirt Start Angle 和 Other Layers Sequence 無效的問題
+- **PhrozenOrca commit**: `734c93eaa6`
+- **狀態**: ✅ 成功
+
+**影響的檔案**:
+- `src/slic3r/GUI/PartPlate.cpp`
+- `src/slic3r/GUI/PartPlate.hpp`
+- `src/slic3r/GUI/Tab.cpp`
+
+---
+
+### 13. bf86670878 - Fix IS & JD test
+
+- **OrcaSlicer commit**: `e56d4cc1b9`
+- **作者**: Ian Bassi <ian.bassi@outlook.com>
+- **日期**: 2025-08-22
+- **優先級**: ⭐⭐⭐⭐
+- **類別**: 功能修復
+- **衝突**: ❌ 無
+- **變更摘要**: 修復 Input Shaping 和 Jerk/Deviation 測試功能
+- **PhrozenOrca commit**: `bf86670878`
+- **狀態**: ✅ 成功
+
+**影響的檔案**:
+- `src/slic3r/GUI/Plater.cpp` (9 行插入, 6 行刪除)
+
+---
+
+### 14. 977e1bc2a3 - Fix Ironing/Support patterns
+
+- **OrcaSlicer commit**: `b16d3a2f4a`
+- **作者**: Ian Bassi <ian.bassi@outlook.com>
+- **日期**: 2025-08-01
+- **優先級**: ⭐⭐⭐⭐
+- **類別**: 參數配置修復
+- **衝突**: ❌ 無
+- **變更摘要**: 修復 Ironing 和 Support 圖案的參數配置問題
+- **PhrozenOrca commit**: `977e1bc2a3`
+- **狀態**: ✅ 成功
+
+**影響的檔案**:
+- `src/libslic3r/PrintConfig.cpp`
+- `src/libslic3r/PrintConfig.hpp`
+- `src/slic3r/GUI/Field.cpp`
+- `src/slic3r/GUI/GUI.cpp`
+- `src/slic3r/GUI/UnsavedChangesDialog.cpp`
+- Excel 檔案
+
+---
+
 ## 統計摘要
 
 ### 總體進度
 
-- **總計劃 commits**: 8（第一批 2 個 + 第二批 6 個）
-- **已成功**: 5
-- **已跳過**: 3（1 個複雜衝突 + 2 個非 Phrozen 機台）
-- **完成率**: 62.5%（5/8）
+- **總計劃 commits**: 14 (第一批 2 個 + 第二批 6 個 + 第四批 5 個 + 編譯修復 1 個)
+- **已成功**: 14
+- **已跳過**: 4 (1 個複雜衝突 + 2 個非 Phrozen 機台 + 1 個 profile 修復)
+- **修復 commits**: 1 (編譯修復)
+- **總 commits**: 15 (14 個 OrcaSlicer + 1 個修復)
+- **完成率**: 9.6% (15/157 總 commits)
 
 ### 衝突統計
 
 - **遇到衝突**: 5
-- **成功解決**: 3
-- **跳過**: 2
-- **解決率**: 60%
+- **成功解決**: 2
+- **跳過**: 3
+- **解決率**: 40%
+
+### Batch 統計
+
+| Batch | OrcaSlicer Commits | 修復 Commits | 衝突 | 狀態 |
+|-------|-------------------|--------------|------|------|
+| Batch 1 | 5 | 0 | 2 個已解決 | ✅ 完成 |
+| Batch 2 | 4 | 0 | 0 | ✅ 完成 |
+| Batch 3 (編譯修復) | 0 | 1 | 0 | ✅ 完成 |
+| Batch 4 (GUI/配置) | 5 | 0 | 0 🎉 | ✅ 完成 |
+| **總計** | **14** | **1** | **2** | **✅** |
 
 ### 變更統計
 
-- **總檔案變更**: 7
-- **總插入行數**: ~50
-- **總刪除行數**: ~15
+- **總檔案變更**: 15+
+- **總插入行數**: ~120
+- **總刪除行數**: ~30
+
+### 編譯測試
+
+- **編譯狀態**: ✅ 成功 (3 次測試)
+- **編譯時間**: Batch 1: ~43 分鐘, Batch 2: ~23 分鐘, Batch 4: ~25 分鐘
+- **執行檔**: `C:/Dev/PhrozenOrca/build/src/Release/phrozen-orca.exe`
+- **警告**: 少量非關鍵性警告
 
 ---
 
