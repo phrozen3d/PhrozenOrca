@@ -1125,6 +1125,8 @@ void PerimeterGenerator::process_classic()
     // external perimeters
     m_ext_mm3_per_mm           		= this->ext_perimeter_flow.mm3_per_mm();
     coord_t ext_perimeter_width     = this->ext_perimeter_flow.scaled_width();
+    coord_t ext_perimeter_spacing   = this->ext_perimeter_flow.scaled_spacing();
+    coord_t ext_perimeter_spacing2;
 
     // Orca: ignore precise_outer_wall if wall_sequence is not InnerOuter
     if(config->precise_outer_wall && config->wall_sequence == WallSequence::InnerOuter)
