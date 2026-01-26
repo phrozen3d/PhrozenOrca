@@ -6,7 +6,6 @@
 #include "../Widgets/StepCtrl.hpp"
 #include "PhrozenSideTools.hpp"
 #include "PhrozenCalibrationDlg.hpp"
-#include "../Widgets/WebView.hpp"
 #include "../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 
 #include "../BitmapCache.hpp"
@@ -977,11 +976,6 @@ PhrozenStatusBasePanel::~PhrozenStatusBasePanel()
         delete m_media_play_ctrl;
         m_media_play_ctrl = nullptr;
     }
-
-    if (m_custom_camera_view) {
-        delete m_custom_camera_view;
-        m_custom_camera_view = nullptr;
-    }
 }
 
 void PhrozenStatusBasePanel::Initizlize() 
@@ -1170,10 +1164,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
 
     sizer->Add(media_ctrl_panel, 1, wxEXPAND | wxALL, 1);
-
-    if (wxGetApp().app_config->get("camera", "enable_custom_source") == "true") {
-        handle_camera_source_change();
-    }
 
     return sizer;
 }
@@ -1703,12 +1693,6 @@ void PhrozenStatusBasePanel::init_bitmaps()
 
 }
 
-void PhrozenStatusBasePanel::on_webview_navigating(wxWebViewEvent& evt) {
-    wxGetApp().CallAfter([this] {
-        remove_controls();
-    });
-}
-
 wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
 {
     auto sizer = new wxBoxSizer(wxVERTICAL);
@@ -1790,11 +1774,6 @@ void PhrozenStatusBasePanel::show_ams_group(bool show)
         Fit();
     }
     m_show_ams_group = show;
-}
-
-void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
-{
-    handle_camera_source_change();
 }
 
 void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& WXUNUSED(event))
@@ -1898,53 +1877,6 @@ bool PhrozenStatusBasePanel::IsLightingUiEnabled()
 {
     return m_pCam_light_switch_button->GetValue();
 }
-
-
-void PhrozenStatusBasePanel::handle_camera_source_change()
-{
-    const auto new_cam_url = wxGetApp().app_config->get("camera", "custom_source");
-    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-}
-
-void PhrozenStatusBasePanel::toggle_builtin_camera()
-{
-    m_custom_camera_view->Hide();
-    m_media_play_ctrl->Show();
-}
-
-void PhrozenStatusBasePanel::toggle_custom_camera()
-{
-    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-
-    if (enabled) {
-        m_custom_camera_view->Show();
-        m_media_play_ctrl->Hide();
-    }
-}
-
-void PhrozenStatusBasePanel::on_camera_switch_toggled(wxMouseEvent& event)
-{
-}
-
-void PhrozenStatusBasePanel::remove_controls()
-{
-    const std::string js_cleanup_video_element = R"(
-        document.body.style.overflow='hidden';
-        const video = document.querySelector('video');
-        video.setAttribute('style', 'width: 100% !important;');
-        video.removeAttribute('controls');
-        video.addEventListener('leavepictureinpicture', () => {
-            window.wx.postMessage('leavepictureinpicture');
-        });
-        video.addEventListener('enterpictureinpicture', () => {
-            window.wx.postMessage('enterpictureinpicture');
-        });
-    )";
-    m_custom_camera_view->RunScript(js_cleanup_video_element);
-}
-
-
-
 
 
 

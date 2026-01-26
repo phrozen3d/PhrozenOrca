@@ -278,7 +278,6 @@ public:
     ScalableButton *m_button_pause_resume;
     ScalableButton *m_button_abort;
     Button *        m_button_clean;
-    wxWebView *     m_custom_camera_view{nullptr};
 
     Label *  m_staticText_control;
     ImageSwitchButton *m_switch_lamp;
@@ -343,15 +342,6 @@ public:
     virtual void on_lighting_button_triggered( wxCommandEvent& event );
     bool IsWebcamUiEnabled();
     bool IsLightingUiEnabled();
-    
-public:   
-    void on_camera_source_change(wxCommandEvent& event);
-    void handle_camera_source_change();
-    void remove_controls();
-    void on_webview_navigating(wxWebViewEvent& evt);
-    void on_camera_switch_toggled(wxMouseEvent& event);
-    void toggle_custom_camera();
-    void toggle_builtin_camera();
 
 public:
 
