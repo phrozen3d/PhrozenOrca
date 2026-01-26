@@ -4472,14 +4472,6 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
             if (b_menu_item)
                 callback();
             if (checkbox) {
-<<<<<<< HEAD
-                //ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::CalcTextSize(_u8L("Display").c_str()).x / 2 - ImGui::GetFrameHeight() / 2 - 2 * window_padding);
-                //ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0, 0.0));
-                //ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(1.0f, 124.0f / 255.0f, 63.0f / 255.0f, 1.0f));
-                //ImGui::Checkbox(("##" + columns_offsets[0].first).c_str(), &visible);
-                //ImGui::PopStyleVar(1);
-=======
->>>>>>> 38ed01f61f (gCode Legend Fixes / Improvements (#10501))
                 // ORCA replace checkboxes with eye icon
                 // Use calculated position from argument. this method has predictable result compared to alingning button using window width
                 // fixes slowly resizing window and endlessly expanding window when there is a miscalculation on position
