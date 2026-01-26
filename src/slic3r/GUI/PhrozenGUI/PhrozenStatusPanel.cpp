@@ -1081,11 +1081,12 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pConsoleControllerPage = new wxHyperlinkCtrl(m_panel_monitoring_title, wxID_ANY, _L("Console Page"), wxT(""), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
     m_pConsoleControllerPage->SetBackgroundColour( m_pConsoleControllerPage->GetParent()->GetBackgroundColour() );
     m_pConsoleControllerPage->SetURL( wxT("") );
-    m_pConsoleControllerPage->Show();
+    
     bSizer_monitoring_title->Add(m_pConsoleControllerPage, 0, wxALIGN_CENTER | wxALL, FromDIP(5));
-
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0, 0);
     bSizer_monitoring_title->AddStretchSpacer();
+    m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
+
 
     m_staticText_timelapse = new wxStaticText(m_panel_monitoring_title, wxID_ANY, _L("Timelapse"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_timelapse->Wrap(-1);
@@ -3257,8 +3258,8 @@ void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 
 void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
 {
-    m_pConsoleControllerPage->Show();
     m_pConsoleControllerPage->SetURL( strLink );
+    m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
 }
 
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
