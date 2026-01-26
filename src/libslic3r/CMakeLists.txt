@@ -565,7 +565,6 @@ target_link_libraries(libslic3r
         boost_libs
         cereal::cereal
         clipper
-        eigen
         glu-libtess
         JPEG::JPEG
         libslic3r_cgal
@@ -579,6 +578,7 @@ target_link_libraries(libslic3r
         TBB::tbbmalloc
         ZLIB::ZLIB
     )
+
 
 if(NOT WIN32)
     # Link freetype for OCCT dependency (CAD operations need font rendering)
