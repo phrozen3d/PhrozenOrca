@@ -1,0 +1,23 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA007_ARCO_A",
+    "name": "Phrozen PLA Tough @Phrozen Arco 0.2 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA Tough @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle"
+    ],
+    "enable_pressure_advance": [
+        "0"
+    ],
+    "filament_flow_ratio": [
+        "1"
+    ],
+    "filament_max_volumetric_speed": [
+        "10"
+    ],
+    "pressure_advance": [
+        "0"
+    ]
+}

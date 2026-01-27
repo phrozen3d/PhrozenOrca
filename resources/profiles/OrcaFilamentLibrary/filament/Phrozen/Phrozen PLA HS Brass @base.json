@@ -1,10 +1,10 @@
 {
     "type": "filament",
-    "name": "Phrozen PLA Tough @base",
+    "name": "Phrozen PLA HS Brass @base",
     "inherits": "fdm_filament_pla",
     "from": "system",
-    "filament_id": "PRZA07",
-    "filament_settings_id": ["Phrozen PLA Tough"],
+    "filament_id": "PRZA05",
+    "filament_settings_id": ["Phrozen PLA HS Brass"],
     "instantiation": "false", 
     "filament_vendor": [
         "Phrozen"
@@ -28,7 +28,7 @@
         "0"
     ],
     "additional_cooling_fan_speed": [
-        "70"
+        "100"
     ],
     "chamber_temperature": [
         "0"
@@ -37,7 +37,7 @@
         "1"
     ],
     "complete_print_exhaust_fan_speed": [
-        "70"
+        "100"
     ],
     "cool_plate_temp": [
         "35"
@@ -52,7 +52,7 @@
         "1"
     ],
     "during_print_exhaust_fan_speed": [
-        "70"
+        "100"
     ],
     "enable_overhang_bridge_fan": [
         "1"
@@ -82,13 +82,13 @@
         "2.2"
     ],
     "filament_cooling_moves": [
-        "4"
+        "8"
     ],
     "filament_cost": [
         "20"
     ],
     "filament_density": [
-        "1.23"
+        "1.21"
     ],
     "filament_deretraction_speed": [
         "nil"
@@ -100,7 +100,7 @@
         "; filament end gcode \nM106 P3 S0\n"
     ],
     "filament_flow_ratio": [
-        "1.02"
+        "1"
     ],
     "filament_is_support": [
         "0"
@@ -115,13 +115,13 @@
         "nil"
     ],
     "filament_max_volumetric_speed": [
-        "30"
+        "50"
     ],
     "filament_minimal_purge_on_wipe_tower": [
         "15"
     ],
     "filament_multitool_ramming": [
-        "0"
+        "1"
     ],
     "filament_multitool_ramming_flow": [
         "10"
@@ -219,6 +219,9 @@
     "internal_bridge_fan_speed": [
         "-1"
     ],
+    "ironing_fan_speed": [
+        "-1"
+    ],
     "nozzle_temperature": [
         "210"
     ],
@@ -229,7 +232,7 @@
         "230"
     ],
     "nozzle_temperature_range_low": [
-        "210"
+        "180"
     ],
     "overhang_fan_speed": [
         "100"
@@ -241,7 +244,7 @@
         "0.4157"
     ],
     "pressure_advance": [
-        "0.03"
+        "0.038"
     ],
     "reduce_fan_stop_start_freq": [
         "1"
@@ -253,7 +256,7 @@
         "1"
     ],
     "slow_down_layer_time": [
-        "0"
+        "4"
     ],
     "slow_down_min_speed": [
         "20"
@@ -277,9 +280,9 @@
         "40"
     ],
     "textured_plate_temp": [
-        "55"
+        "60"
     ],
     "textured_plate_temp_initial_layer": [
-        "55"
+        "60"
     ]
 }
