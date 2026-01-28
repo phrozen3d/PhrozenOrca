@@ -25,6 +25,7 @@
 #include "libslic3r/PresetBundle.hpp"
 
 #include "Tab.hpp"
+#include "PhrozenGUI/PhrozenLCDTab.hpp"
 #include "ProgressStatusBar.hpp"
 #include "3DScene.hpp"
 #include "ParamsDialog.hpp"
@@ -1000,6 +1001,7 @@ void MainFrame::show_option(bool show)
     }
 }
 
+bool bUsePhrozenLCDTap = 0;
 void MainFrame::init_tabpanel() {
     // wxNB_NOPAGETHEME: Disable Windows Vista theme for the Notebook background. The theme performance is terrible on
     // Windows 10 with multiple high resolution displays connected.
@@ -1088,7 +1090,12 @@ void MainFrame::init_tabpanel() {
 
     wxGetApp().plater_ = m_plater;
 
-    create_preset_tabs();
+    if ( bUsePhrozenLCDTap ) {
+        create_phorzen_lcd_preset_tabs();
+    }
+    else {
+        create_preset_tabs();
+    }
 
     //BBS add pages
     m_monitor = new MonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
@@ -1311,6 +1318,31 @@ void MainFrame::create_preset_tabs()
     add_created_tab(new TabPrintPart(m_param_panel), "cog");
     add_created_tab(new TabPrintLayer(m_param_panel), "cog");
     add_created_tab(new TabFilament(m_param_dialog->panel()), "spool");
+    /* BBS work around to avoid appearance bug */
+    //add_created_tab(new TabSLAPrint(m_param_panel));
+    //add_created_tab(new TabSLAMaterial(m_param_panel));
+    add_created_tab(new TabPrinter(m_param_dialog->panel()), "printer");
+
+    m_param_panel->rebuild_panels();
+    m_param_dialog->panel()->rebuild_panels();
+    //m_tabpanel->AddPage(m_param_panel, "Parameters", "notebook_presets_active");
+    //m_tabpanel->InsertPage(tpSettings, m_param_panel, _L("Parameters"), std::string("cog"));
+}
+
+void MainFrame::create_phorzen_lcd_preset_tabs()
+{
+    wxGetApp().update_label_colours_from_appconfig();
+
+    //BBS: GUI refactor
+    //m_param_panel = new ParamsPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_LEFT | wxTAB_TRAVERSAL);
+    m_param_dialog = new ParamsDialog(m_plater);
+
+    add_created_tab(new PhrozenLCDTabPrint(m_param_panel), "cog");
+    add_created_tab(new PhrozenLCDTabPrintPlate(m_param_panel), "cog");
+    add_created_tab(new PhrozenLCDTabPrintObject(m_param_panel), "cog");
+    add_created_tab(new PhrozenLCDTabPrintPart(m_param_panel), "cog");
+    add_created_tab(new PhrozenLCDTabPrintLayer(m_param_panel), "cog");
+    add_created_tab(new PhrozenLCDTabFilament(m_param_dialog->panel()), "spool");
     /* BBS work around to avoid appearance bug */
     //add_created_tab(new TabSLAPrint(m_param_panel));
     //add_created_tab(new TabSLAMaterial(m_param_panel));
