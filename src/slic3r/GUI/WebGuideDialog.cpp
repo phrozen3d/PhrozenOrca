@@ -223,6 +223,9 @@ wxString GuideFrame::SetStartPage(GuidePage startpage, bool load)
     } else if (startpage == BBL_REGION) {
         SetTitle(_L("Setup Wizard"));
         TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=11").make_preferred().string());
+    } else if (startpage == BBL_PHROZEN_LCD) {
+        SetTitle(_L("Setup Wizard"));
+        TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=12").make_preferred().string());
     } else if (startpage == BBL_MODELS) {
         SetTitle(_L("Setup Wizard"));
         TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=21").make_preferred().string());
@@ -458,6 +461,29 @@ void GuideFrame::OnScriptMessage(wxWebViewEvent &evt)
 
                 m_ProfileJson["filament"][fName]["selected"] = 1;
             }
+        }
+        else if (strCmd == "save_printer_type") {
+            std::string printer_type = j["data"]["type"];
+            m_ProfileJson["printer_type"] = printer_type;
+            wxGetApp().app_config->set("printer_type", printer_type);
+            wxGetApp().app_config->save();
+        }
+        else if (strCmd == "request_printer_type") {
+            // Always return default "filament" on wizard start, don't remember previous selection
+            std::string printer_type = "filament";
+            
+            // Use value from m_ProfileJson if it exists (user may have changed it in current session)
+            if (m_ProfileJson.contains("printer_type")) {
+                printer_type = m_ProfileJson["printer_type"];
+            }
+            
+            json m_Res = json::object();
+            m_Res["command"] = "response_printer_type";
+            m_Res["sequence_id"] = "10001";
+            m_Res["type"] = printer_type;
+            
+            wxString strJS = wxString::Format("HandleStudio(%s)", m_Res.dump(-1, ' ', true));
+            wxGetApp().CallAfter([this, strJS] { RunScript(strJS); });
         }
         else if (strCmd == "user_guide_finish") {
             SaveProfile();
@@ -992,6 +1018,7 @@ int GuideFrame::LoadProfileData()
         m_ProfileJson["machine"]  = json::object();
         m_ProfileJson["filament"] = json::object();
         m_ProfileJson["process"]  = json::array();
+        m_ProfileJson["printer_type"] = "filament"; // Reset to default on each wizard start
 
         vendor_dir      = (boost::filesystem::path(Slic3r::data_dir()) / PRESET_SYSTEM_DIR).make_preferred();
         rsrc_vendor_dir = (boost::filesystem::path(resources_dir()) / "profiles").make_preferred();
@@ -1150,6 +1177,13 @@ int GuideFrame::SaveProfileData()
 
         StealthMode = wxGetApp().app_config->get_bool("app","stealth_mode");
         m_ProfileJson["stealth_mode"] = StealthMode;
+
+        //----printer_type
+        // Always use default "filament" on wizard start, don't read from saved config
+        // If printer_type is already set in m_ProfileJson (from current session), keep it
+        if (!m_ProfileJson.contains("printer_type")) {
+            m_ProfileJson["printer_type"] = "filament";
+        }
     }
     catch (std::exception &e) {
         BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ", error: "<< e.what() <<std::endl;

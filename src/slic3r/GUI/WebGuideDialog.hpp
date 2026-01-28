@@ -46,7 +46,8 @@ public:
         BBL_MODELS,
         BBL_FILAMENTS,
         BBL_FILAMENT_ONLY,
-        BBL_MODELS_ONLY
+        BBL_MODELS_ONLY,
+        BBL_PHROZEN_LCD
     }m_page;
 
     //Web Function
