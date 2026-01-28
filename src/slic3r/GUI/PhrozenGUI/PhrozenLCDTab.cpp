@@ -72,20 +72,7 @@ void add_correct_opts_to_options_list(const std::string &opt_key, std::map<std::
         map.emplace(opt_key + "#" + std::to_string(i), value);
 }
 
-std::pair<OG_CustomCtrl*, bool*> Tab::get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int opt_index/* = -1*/)
-{
-    if (!m_active_page)
-        return {nullptr, nullptr};
 
-    std::pair<OG_CustomCtrl*, bool*> ret = {nullptr, nullptr};
-
-    for (auto opt_group : m_active_page->m_optgroups) {
-        ret = opt_group->get_custom_ctrl_with_blinking_ptr(opt_key, opt_index);
-        if (ret.first && ret.second)
-            break;
-    }
-    return ret;
-}
 
 static wxString support_combo_value_for_config(const DynamicPrintConfig &config, bool is_fff)
 {
@@ -138,6 +125,21 @@ static std::vector<std::string> substruct(std::vector<std::string> const& l, std
 
 
 #if 0
+std::pair<OG_CustomCtrl*, bool*> Tab::get_custom_ctrl_with_blinking_ptr(const t_config_option_key& opt_key, int opt_index/* = -1*/)
+{
+    if (!m_active_page)
+        return {nullptr, nullptr};
+
+    std::pair<OG_CustomCtrl*, bool*> ret = {nullptr, nullptr};
+
+    for (auto opt_group : m_active_page->m_optgroups) {
+        ret = opt_group->get_custom_ctrl_with_blinking_ptr(opt_key, opt_index);
+        if (ret.first && ret.second)
+            break;
+    }
+    return ret;
+}
+
 void Tab::Highlighter::set_timer_owner(wxEvtHandler* owner, int timerid/* = wxID_ANY*/)
 {
     m_timer.SetOwner(owner, timerid);
