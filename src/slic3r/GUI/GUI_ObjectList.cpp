@@ -1316,12 +1316,16 @@ void ObjectList::list_manipulation(const wxPoint& mouse_pos, bool evt_context_me
 
             get_selected_item_indexes(obj_idx, vol_idx, item);
             //wxGetApp().plater()->PopupObjectTable(obj_idx, vol_idx, mouse_pos);
-            if (m_objects_model->GetItemType(item) & itPlate)
-                dynamic_cast<TabPrintPlate*>(wxGetApp().get_plate_tab())->reset_model_config();
-            else if (m_objects_model->GetItemType(item) & itLayer)
-                dynamic_cast<TabPrintLayer*>(wxGetApp().get_layer_tab())->reset_model_config();
-            else if (item.IsOk())
-                dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+            if (m_objects_model->GetItemType(item) & itPlate) {
+                auto* tab = dynamic_cast<TabPrintPlate*>(wxGetApp().get_plate_tab());
+                if (tab) tab->reset_model_config();
+            } else if (m_objects_model->GetItemType(item) & itLayer) {
+                auto* tab = dynamic_cast<TabPrintLayer*>(wxGetApp().get_layer_tab());
+                if (tab) tab->reset_model_config();
+            } else if (item.IsOk()) {
+                auto* tab = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0));
+                if (tab) tab->reset_model_config();
+            }
         }
         else if (col_num == colName)
         {
@@ -3486,8 +3490,9 @@ wxDataViewItem ObjectList::add_settings_item(wxDataViewItem parent_item, const D
     SettingsFactory::Bundle cat_options = SettingsFactory::get_bundle(config, is_object_settings, is_layer_settings);
     if (is_layer_settings) {
         auto tab_object = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab());
-        auto object_cfg = tab_object->get_config();
-        if (config->opt_float("layer_height") == object_cfg->opt_float("layer_height")) {
+        if (tab_object) {
+            auto object_cfg = tab_object->get_config();
+            if (config->opt_float("layer_height") == object_cfg->opt_float("layer_height")) {
             SettingsFactory::Bundle new_cat_options;
             for (auto cat_opt : cat_options) {
                 std::vector<string> temp;
@@ -3499,6 +3504,7 @@ wxDataViewItem ObjectList::add_settings_item(wxDataViewItem parent_item, const D
                     new_cat_options[cat_opt.first] = temp;
             }
             cat_options = new_cat_options;
+        }
         }
     }
 
@@ -5641,7 +5647,8 @@ void ObjectList::OnEditingStarted(wxDataViewEvent &event)
 
         get_selected_item_indexes(obj_idx, vol_idx, item);
         //wxGetApp().plater()->PopupObjectTable(obj_idx, vol_idx, mouse_pos);
-        dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+        auto* tab = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0));
+        if (tab) tab->reset_model_config();
         return;
     }
     if (col != colFilament && col != colName)

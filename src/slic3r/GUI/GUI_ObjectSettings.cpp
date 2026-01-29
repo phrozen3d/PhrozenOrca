@@ -265,6 +265,11 @@ bool ObjectSettings::update_settings_list()
     auto tab_volume = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(true));
     auto tab_layer = dynamic_cast<TabPrintModel*>(wxGetApp().get_layer_tab());
 
+    // When using LCD preset tabs (PhrozenLCDTab*), dynamic_cast to TabPrintModel* fails and returns nullptr.
+    // Do not call set_model_config on null tabs to avoid crash.
+    if (!tab_plate || !tab_object || !tab_volume || !tab_layer)
+        return false;
+
     if (is_plate_settings) {
         tab_plate->set_model_config(plate_configs);
         tab_object->set_model_config({});

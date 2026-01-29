@@ -1090,7 +1090,7 @@ void MainFrame::init_tabpanel() {
 
     wxGetApp().plater_ = m_plater;
 
-    if ( bUsePhrozenLCDTap ) {
+    if ( bUsePhrozenLCDTap ==0) {
         create_phorzen_lcd_preset_tabs();
     }
     else {
