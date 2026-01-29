@@ -704,7 +704,13 @@ public:
     PhrozenNetworkAgent* GetPhrozenNetworkAgent() { return m_spPhrozenAgent ? m_spPhrozenAgent.get() : nullptr; }
     bool m_bPhrozenDeveloperMode{ false };
     bool IsPhrozenDeveloperMode() { return m_bPhrozenDeveloperMode; } 
+#pragma endregion
 
+
+#pragma region Phrozen LCD 
+    void SetPhrozenLCDEditMode( bool bEnable ) { m_bPhrozenLCDEdditMode = bEnable; }
+    bool IsPhrozenLCDEditMode() { return m_bPhrozenLCDEdditMode; }
+    bool m_bPhrozenLCDEdditMode{ true };
 #pragma endregion
 
 

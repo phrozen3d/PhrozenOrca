@@ -2,6 +2,7 @@
 #include "GUI_ObjectList.hpp"
 #include "GUI_Factories.hpp"
 #include "Tab.hpp"
+#include "PhrozenGUI/PhrozenLCDTab.hpp"
 #include "MainFrame.hpp"
 
 #include "OptionsGroup.hpp"
@@ -260,52 +261,103 @@ bool ObjectSettings::update_settings_list()
         }
     }
 
-    auto tab_plate = dynamic_cast<TabPrintPlate*>(wxGetApp().get_plate_tab());
-    auto tab_object = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab());
-    auto tab_volume = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(true));
-    auto tab_layer = dynamic_cast<TabPrintModel*>(wxGetApp().get_layer_tab());
 
-    // When using LCD preset tabs (PhrozenLCDTab*), dynamic_cast to TabPrintModel* fails and returns nullptr.
-    // Do not call set_model_config on null tabs to avoid crash.
-    if (!tab_plate || !tab_object || !tab_volume || !tab_layer)
-        return false;
+    auto fnSetPhrozenLCDTabConfig =[&]() -> void
+    {
+        auto tab_plate =    dynamic_cast<PhrozenLCDTabPrintPlate*>(wxGetApp().get_plate_tab());
+        auto tab_object =   dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab());
+        auto tab_volume =   dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab(true));
+        auto tab_layer =    dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_layer_tab());
+        if (is_plate_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({});
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            ;// m_tab_active = tab_plate;
+        }
+        else if (is_object_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config(object_configs);
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            //m_tab_active = tab_object;
+        }   
+        else if (is_volume_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({ {parent_object, &parent_object->config} });
+            tab_volume->set_model_config(object_configs);
+            tab_layer->set_model_config({});
+            //m_tab_active = tab_volume;
+        }
+        else if (is_layer_range_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({ {parent_object, &parent_object->config} });
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config(object_configs);
+            //m_tab_active = tab_layer;
+        }    
+        else {
+            tab_plate->set_model_config({});
+            tab_object->set_model_config({});
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            //m_tab_active = nullptr;
+        }
+        ((ParamsPanel*) tab_object->GetParent())->set_active_tab(nullptr);
+    
+    };
 
-    if (is_plate_settings) {
-        tab_plate->set_model_config(plate_configs);
-        tab_object->set_model_config({});
-        tab_volume->set_model_config({});
-        tab_layer->set_model_config({});
-        ;// m_tab_active = tab_plate;
+    auto fnSetTabConfig =[&]() -> void
+    {
+        auto tab_plate = dynamic_cast<TabPrintPlate*>(wxGetApp().get_plate_tab());
+        auto tab_object = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab());
+        auto tab_volume = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(true));
+        auto tab_layer = dynamic_cast<TabPrintModel*>(wxGetApp().get_layer_tab());
+
+        if (is_plate_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({});
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            ;// m_tab_active = tab_plate;
+        }
+        else if (is_object_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config(object_configs);
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            //m_tab_active = tab_object;
+        }   
+        else if (is_volume_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({ {parent_object, &parent_object->config} });
+            tab_volume->set_model_config(object_configs);
+            tab_layer->set_model_config({});
+            //m_tab_active = tab_volume;
+        }
+        else if (is_layer_range_settings) {
+            tab_plate->set_model_config(plate_configs);
+            tab_object->set_model_config({ {parent_object, &parent_object->config} });
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config(object_configs);
+            //m_tab_active = tab_layer;
+        }    
+        else {
+            tab_plate->set_model_config({});
+            tab_object->set_model_config({});
+            tab_volume->set_model_config({});
+            tab_layer->set_model_config({});
+            //m_tab_active = nullptr;
+        }
+        ((ParamsPanel*) tab_object->GetParent())->set_active_tab(nullptr);
+    };
+
+    if ( wxGetApp().IsPhrozenLCDEditMode() ) {
+        fnSetPhrozenLCDTabConfig();
     }
-    else if (is_object_settings) {
-        tab_plate->set_model_config(plate_configs);
-        tab_object->set_model_config(object_configs);
-        tab_volume->set_model_config({});
-        tab_layer->set_model_config({});
-        //m_tab_active = tab_object;
-    }   
-    else if (is_volume_settings) {
-        tab_plate->set_model_config(plate_configs);
-        tab_object->set_model_config({ {parent_object, &parent_object->config} });
-        tab_volume->set_model_config(object_configs);
-        tab_layer->set_model_config({});
-        //m_tab_active = tab_volume;
-    }
-    else if (is_layer_range_settings) {
-        tab_plate->set_model_config(plate_configs);
-        tab_object->set_model_config({ {parent_object, &parent_object->config} });
-        tab_volume->set_model_config({});
-        tab_layer->set_model_config(object_configs);
-        //m_tab_active = tab_layer;
-    }    
     else {
-        tab_plate->set_model_config({});
-        tab_object->set_model_config({});
-        tab_volume->set_model_config({});
-        tab_layer->set_model_config({});
-        //m_tab_active = nullptr;
+        fnSetTabConfig();
     }
-    ((ParamsPanel*) tab_object->GetParent())->set_active_tab(nullptr);
     return true;
 }
 

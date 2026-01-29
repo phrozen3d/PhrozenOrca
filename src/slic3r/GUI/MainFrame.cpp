@@ -1001,7 +1001,6 @@ void MainFrame::show_option(bool show)
     }
 }
 
-bool bUsePhrozenLCDTap = 0;
 void MainFrame::init_tabpanel() {
     // wxNB_NOPAGETHEME: Disable Windows Vista theme for the Notebook background. The theme performance is terrible on
     // Windows 10 with multiple high resolution displays connected.
@@ -1090,7 +1089,7 @@ void MainFrame::init_tabpanel() {
 
     wxGetApp().plater_ = m_plater;
 
-    if ( bUsePhrozenLCDTap ==0) {
+    if ( wxGetApp().IsPhrozenLCDEditMode() ) {
         create_phorzen_lcd_preset_tabs();
     }
     else {

@@ -13,6 +13,7 @@
 #include "GUI_App.hpp"
 #include "MainFrame.hpp"
 #include "Tab.hpp"
+#include "PhrozenGUI/PhrozenLCDTab.hpp"
 #include "format.hpp"
 #include "BitmapCache.hpp"
 #include "GUI_ObjectTable.hpp"
@@ -2196,10 +2197,18 @@ void ObjectGridTable::reload_cell_data(int row, const std::string& category)
     object_volume_id.object = m_panel->m_model->objects[grid_row->object_id];
     object_volume_id.volume = (grid_row->row_type == row_object)?nullptr:object_volume_id.object->volumes[grid_row->volume_id];
     wxGetApp().obj_list()->object_config_options_changed(object_volume_id);
-    TabPrintModel* tab = object_volume_id.volume
-        ? dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(true))
-        : dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab());
-    if (tab) tab->update_model_config();
+    if (object_volume_id.volume) {
+        if ( wxGetApp().IsPhrozenLCDEditMode() )
+            dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab(true))->update_model_config();
+        else
+            dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(true))->update_model_config();
+    }
+    else {
+        if ( wxGetApp().IsPhrozenLCDEditMode() )
+            dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab())->update_model_config();
+        else
+            dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab())->update_model_config();
+    }
     //m_panel->m_plater->update();
 }
 
