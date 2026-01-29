@@ -3,7 +3,7 @@
     "name": "Phrozen PLA Tough @base",
     "inherits": "fdm_filament_pla",
     "from": "system",
-    "setting_id": "PRZ002",
+    "filament_id": "PRZA07",
     "filament_settings_id": ["Phrozen PLA Tough"],
     "instantiation": "false", 
     "filament_vendor": [

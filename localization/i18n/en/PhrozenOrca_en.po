@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-26 13:31+0800\n"
 "PO-Revision-Date: 2025-05-18 09:32-0300\n"
 "Last-Translator: Alexandre Folle de Menezes\n"
 "Language-Team: \n"
@@ -28,6 +28,7 @@ msgstr ""
 
 msgid "Temperature"
 msgstr "Temperature"
+
 msgid "Left Time"
 msgstr ""
 
@@ -395,6 +396,7 @@ msgstr ""
 
 msgid "Part"
 msgstr "Part"
+
 msgid "Object"
 msgstr ""
 
@@ -1684,6 +1686,7 @@ msgstr ""
 
 msgid "Speed"
 msgstr "Speed"
+
 msgid "Strength"
 msgstr ""
 
@@ -4122,6 +4125,7 @@ msgstr ""
 
 msgid "Print"
 msgstr "Print"
+
 msgid "Printer"
 msgstr ""
 
@@ -7684,6 +7688,7 @@ msgstr ""
 
 msgid "Nozzle"
 msgstr "Nozzle"
+
 msgid "Nozzle temperature when printing"
 msgstr ""
 
@@ -7754,6 +7759,7 @@ msgstr ""
 
 msgid "Cooling"
 msgstr "Cooling"
+
 msgid "Cooling for specific layer"
 msgstr ""
 
@@ -16467,20 +16473,32 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Manual Adjustment"
+
 msgid "Z-Offset"
 msgstr "Z-Offset"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
+"Please insert the filament wire into the slot and wait until it's on standby"
 
 msgid "Heated Bed"
 msgstr "Heated Bed"
+
+msgid "Quiet"
+msgstr "Quiet"
+
+msgid "Fast"
+msgstr "Fast"
+
+msgid "Turbo"
+msgstr "Turbo"
+
 msgid "Auxiliary"
 msgstr "Auxiliary"
+
 msgid "Shield"
 msgstr "Shield"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -16522,6 +16540,13 @@ msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
+"Spool\n"
+"Holder"
 
 msgid "Unload All Slots"
 msgstr ""

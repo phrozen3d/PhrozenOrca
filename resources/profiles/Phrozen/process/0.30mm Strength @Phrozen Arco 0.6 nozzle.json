@@ -1,0 +1,23 @@
+{
+    "type": "process",
+    "from": "system",
+    "setting_id": "GP004",
+    "name": "0.30mm Strength @Phrozen Arco 0.6 nozzle",
+    "inherits": "fdm_process_common_0.6_nozzle",
+    "instantiation": "true",
+    "is_custom_defined": "0",
+    "version": "1.3.2412.13",
+    "print_settings_id": "0.30mm Strength @Phrozen Arco 0.6 nozzle",
+    "filename_format": "{input_filename_base}_{filament_type[0]}_{layer_height}_{print_time}.gcode",
+    "compatible_printers": [
+        "Phrozen Arco 0.6 nozzle"
+    ],
+
+    "layer_height": "0.3",
+    "initial_layer_print_height": "0.3",
+
+    "wall_loops": "4",
+
+    "sparse_infill_density": "25%"
+
+}

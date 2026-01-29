@@ -1,0 +1,11 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA001_ARCO_B",
+    "name": "Phrozen PLA Basic @Phrozen Arco 0.4 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA Basic @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.4 nozzle"
+    ]
+}
