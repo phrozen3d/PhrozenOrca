@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-26 13:31+0800\n"
 "PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -18779,20 +18779,32 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Regolazione manuale"
+
 msgid "Z-Offset"
 msgstr "Offset Z"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
+"Inserire il filo di filamento nello slot e attendere che sia in standby"
 
 msgid "Heated Bed"
 msgstr "Piano riscaldato"
+
+msgid "Quiet"
+msgstr "Silenzioso"
+
+msgid "Fast"
+msgstr "Veloce"
+
+msgid "Turbo"
+msgstr "Turbo"
+
 msgid "Auxiliary"
 msgstr "Ausiliario"
+
 msgid "Shield"
 msgstr "Scudo"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -18834,6 +18846,13 @@ msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
+"Porta\n"
+"Bobina"
 
 msgid "Unload All Slots"
 msgstr ""

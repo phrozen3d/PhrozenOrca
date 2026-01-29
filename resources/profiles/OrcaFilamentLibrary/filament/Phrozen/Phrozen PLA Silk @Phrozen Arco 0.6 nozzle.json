@@ -1,0 +1,11 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA003_ARCO_C",
+    "name": "Phrozen PLA Silk @Phrozen Arco 0.6 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA Silk @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.6 nozzle"
+    ]
+}

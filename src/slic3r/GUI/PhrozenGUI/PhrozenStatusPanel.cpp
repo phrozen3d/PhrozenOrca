@@ -6,7 +6,6 @@
 #include "../Widgets/StepCtrl.hpp"
 #include "PhrozenSideTools.hpp"
 #include "PhrozenCalibrationDlg.hpp"
-#include "../Widgets/WebView.hpp"
 #include "../Utils/Phrozen/PhrozenNetworkAgent.hpp"
 
 #include "../BitmapCache.hpp"
@@ -977,11 +976,6 @@ PhrozenStatusBasePanel::~PhrozenStatusBasePanel()
         delete m_media_play_ctrl;
         m_media_play_ctrl = nullptr;
     }
-
-    if (m_custom_camera_view) {
-        delete m_custom_camera_view;
-        m_custom_camera_view = nullptr;
-    }
 }
 
 void PhrozenStatusBasePanel::Initizlize() 
@@ -1081,11 +1075,12 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pConsoleControllerPage = new wxHyperlinkCtrl(m_panel_monitoring_title, wxID_ANY, _L("Console Page"), wxT(""), wxDefaultPosition, wxDefaultSize, wxHL_DEFAULT_STYLE);
     m_pConsoleControllerPage->SetBackgroundColour( m_pConsoleControllerPage->GetParent()->GetBackgroundColour() );
     m_pConsoleControllerPage->SetURL( wxT("") );
-    m_pConsoleControllerPage->Show();
+    
     bSizer_monitoring_title->Add(m_pConsoleControllerPage, 0, wxALIGN_CENTER | wxALL, FromDIP(5));
-
     bSizer_monitoring_title->Add(FromDIP(13), 0, 0, 0);
     bSizer_monitoring_title->AddStretchSpacer();
+    m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
+
 
     m_staticText_timelapse = new wxStaticText(m_panel_monitoring_title, wxID_ANY, _L("Timelapse"), wxDefaultPosition, wxDefaultSize, 0);
     m_staticText_timelapse->Wrap(-1);
@@ -1119,7 +1114,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
     StateColor btn_phrozen_bd(std::pair<wxColour, int>(kBgPressed, StateColor::Hovered) );
 
-    m_pCam_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Cam_Switch");
+    m_pCam_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Cam_Switch");
     m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
     m_pCam_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_switch_button->SetTextColor(wxColour("#FFFFFE"));
@@ -1129,7 +1124,7 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pCam_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_camera_button_triggered), NULL, this);
 
 
-    m_pCam_light_switch_button = new Button(m_panel_monitoring_title, _L(""), "PhrozenImages/Camera_Light_Switch");
+    m_pCam_light_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Light_Switch");
     m_pCam_light_switch_button->SetBackgroundColor(btn_phrozen_bg);
     m_pCam_light_switch_button->SetBorderColor(btn_phrozen_bd);
     m_pCam_light_switch_button->SetTextColor(wxColour("#FFFFFE"));
@@ -1169,10 +1164,6 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
 
 
     sizer->Add(media_ctrl_panel, 1, wxEXPAND | wxALL, 1);
-
-    if (wxGetApp().app_config->get("camera", "enable_custom_source") == "true") {
-        handle_camera_source_change();
-    }
 
     return sizer;
 }
@@ -1702,12 +1693,6 @@ void PhrozenStatusBasePanel::init_bitmaps()
 
 }
 
-void PhrozenStatusBasePanel::on_webview_navigating(wxWebViewEvent& evt) {
-    wxGetApp().CallAfter([this] {
-        remove_controls();
-    });
-}
-
 wxBoxSizer* PhrozenStatusBasePanel::create_ams_group(wxWindow* parent)
 {
     auto sizer = new wxBoxSizer(wxVERTICAL);
@@ -1789,11 +1774,6 @@ void PhrozenStatusBasePanel::show_ams_group(bool show)
         Fit();
     }
     m_show_ams_group = show;
-}
-
-void PhrozenStatusBasePanel::on_camera_source_change(wxCommandEvent& event)
-{
-    handle_camera_source_change();
 }
 
 void PhrozenStatusBasePanel::on_ams_unload_all(wxCommandEvent& WXUNUSED(event))
@@ -1897,53 +1877,6 @@ bool PhrozenStatusBasePanel::IsLightingUiEnabled()
 {
     return m_pCam_light_switch_button->GetValue();
 }
-
-
-void PhrozenStatusBasePanel::handle_camera_source_change()
-{
-    const auto new_cam_url = wxGetApp().app_config->get("camera", "custom_source");
-    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-}
-
-void PhrozenStatusBasePanel::toggle_builtin_camera()
-{
-    m_custom_camera_view->Hide();
-    m_media_play_ctrl->Show();
-}
-
-void PhrozenStatusBasePanel::toggle_custom_camera()
-{
-    const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-
-    if (enabled) {
-        m_custom_camera_view->Show();
-        m_media_play_ctrl->Hide();
-    }
-}
-
-void PhrozenStatusBasePanel::on_camera_switch_toggled(wxMouseEvent& event)
-{
-}
-
-void PhrozenStatusBasePanel::remove_controls()
-{
-    const std::string js_cleanup_video_element = R"(
-        document.body.style.overflow='hidden';
-        const video = document.querySelector('video');
-        video.setAttribute('style', 'width: 100% !important;');
-        video.removeAttribute('controls');
-        video.addEventListener('leavepictureinpicture', () => {
-            window.wx.postMessage('leavepictureinpicture');
-        });
-        video.addEventListener('enterpictureinpicture', () => {
-            window.wx.postMessage('enterpictureinpicture');
-        });
-    )";
-    m_custom_camera_view->RunScript(js_cleanup_video_element);
-}
-
-
-
 
 
 
@@ -2091,12 +2024,12 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
     wxBoxSizer* buttonRow = new wxBoxSizer(wxHORIZONTAL);
     
     bool bIsFirst = true;
-    auto fnCreateLabeledRadioButton = [&](const std::string& label, const PhrozenPrintSpeed eSpeedType, const std::string& percentage) {
+    auto fnCreateLabeledRadioButton = [&]( wxString label, const PhrozenPrintSpeed eSpeedType, const std::string& percentage) {
         wxBoxSizer* itemSizer = new wxBoxSizer(wxVERTICAL);
         
         // Label on top (mode name)
-        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, label);
-        text->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+        wxStaticText* text = new wxStaticText(pParent, wxID_ANY, label );
+        text->SetFont(::Label::Body_13);
         itemSizer->Add(text, 0, wxALIGN_CENTER_HORIZONTAL, 0);
         
         // RadioButton in the middle (no label, only the circle)
@@ -2107,7 +2040,8 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         
         // Percentage label at the bottom (smaller font, gray color)
         wxStaticText* percentText = new wxStaticText(pParent, wxID_ANY, percentage);
-        percentText->SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+        percentText->SetFont(::Label::Body_13);
+
         percentText->SetForegroundColour(wxColour(128, 128, 128)); // Gray color
         itemSizer->Add(percentText, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP, 2);
         
@@ -2117,11 +2051,11 @@ wxBoxSizer* PhrozenStatusBasePanel::GenSpeed_PrintLevel(wxWindow* pParent)
         bIsFirst = false;
     };
 
-    fnCreateLabeledRadioButton("Silent", PhrozenPrintSpeed::Silent, "50%");
-    fnCreateLabeledRadioButton("Quiet", PhrozenPrintSpeed::Quite, "80%");
-    fnCreateLabeledRadioButton("Standard", PhrozenPrintSpeed::Standard, "100%");
-    fnCreateLabeledRadioButton("Fast", PhrozenPrintSpeed::Fast, "120%");
-    fnCreateLabeledRadioButton("Turbo", PhrozenPrintSpeed::Turbo, "150%");
+    fnCreateLabeledRadioButton(_L("Silent"), PhrozenPrintSpeed::Silent, "50%");
+    fnCreateLabeledRadioButton(_L("Quiet"), PhrozenPrintSpeed::Quite, "80%");
+    fnCreateLabeledRadioButton(_L("Standard"), PhrozenPrintSpeed::Standard, "100%");
+    fnCreateLabeledRadioButton(_L("Fast"), PhrozenPrintSpeed::Fast, "120%");
+    fnCreateLabeledRadioButton(_L("Turbo"), PhrozenPrintSpeed::Turbo, "150%");
 
     m_kPrintSpeedButtons[PhrozenPrintSpeed::Standard]->SetValue(true);
     sizerBox->Add(buttonRow, 0, wxALL, 5);
@@ -2600,6 +2534,7 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
     m_project_task_panel->enable_pause_resume_button(false, "resume_disable");
     m_project_task_panel->enable_abort_button(false);
 
+    InitWebCamUiUpdateTimer();
 
     Bind(wxEVT_WEBREQUEST_STATE, &PhrozenStatusPanel::on_webrequest_state, this);
 
@@ -3095,10 +3030,8 @@ void PhrozenStatusPanel::update(MachineObject *obj)
     update_z_offset_ctrl(obj);
     update_webcam_lighting_status( obj );
     update_console_hyperlink( obj->GetConsolePageHyperlink() );
-    if ( !IsWebCamRefreshTimerInitialized() )
-    {
-        InitWebCamUiUpdateTimer();
-    }
+    
+    start_webcam_update_timer();
 
     update_ams(obj);
     update_printing_button_status(obj);
@@ -3203,10 +3136,8 @@ void PhrozenStatusPanel::update_phrozen()
     update_fan_cooling_speed_ctrl_phrozen();
     update_webcam_lighting_status_phrozen();
     
-    if ( !IsWebCamRefreshTimerInitialized() )
-    {
-        InitWebCamUiUpdateTimer();
-    }
+    start_webcam_update_timer();
+
     update_ams_phrozen();
 
     m_machine_ctrl_panel->Thaw();
@@ -3214,26 +3145,53 @@ void PhrozenStatusPanel::update_phrozen()
 
 void PhrozenStatusPanel::InitWebCamUiUpdateTimer()
 {
+    m_spWebCam_refresh_timer = std::make_unique< wxTimer >();
+    m_spWebCam_refresh_timer->SetOwner(this);
+    Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
+}
+
+void PhrozenStatusPanel::start_webcam_update_timer()
+{
     if ( !m_spWebCam_refresh_timer )
     {
-        m_spWebCam_refresh_timer = std::make_unique< wxTimer >();
-        m_spWebCam_refresh_timer->SetOwner(this);
-        m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
-        Bind(wxEVT_TIMER, &PhrozenStatusPanel::on_update_webcam_ui_timer, this);
-        wxPostEvent(this, wxTimerEvent());
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::start_webcam_update_timer: webcame update timer not initialize";
+        return;
+    }
+    if ( m_spWebCam_refresh_timer->IsRunning() ) return;
+
+    m_spWebCam_refresh_timer->SetOwner(this);
+    m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
+    wxPostEvent(this, wxTimerEvent());
+}
+
+void PhrozenStatusPanel::stop_webcam_update_timer()
+{
+    if ( !m_spWebCam_refresh_timer )
+    {
+        BOOST_LOG_TRIVIAL(error) << "PhrozenStatusPanel::start_webcam_update_timer: webcame update timer not initialize";
+        return;
+    }
+    if ( m_spWebCam_refresh_timer->IsRunning() ){
+        m_spWebCam_refresh_timer->Stop();
     }
 }
 
+
 void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
 {
+    if ( !MonitorControl::IsStartReceiving() )
+    {
+        m_spWebCam_refresh_timer->Stop();
+        return;
+    }
     auto pObj = PhrozenObj();
     if ( pObj ) UpdateWebCameraView( pObj );
 }
 
 void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
 {
-    m_pConsoleControllerPage->Show();
     m_pConsoleControllerPage->SetURL( strLink );
+    m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
 }
 
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
@@ -5436,6 +5394,9 @@ void PhrozenStatusPanel::set_default()
     m_lighting_state_timeout = 0;
     m_show_ams_group = true;
     reset_printing_values();
+
+    // webcam update 
+    stop_webcam_update_timer();
     UpdateWebCameraView( nullptr );
 
     // Reset AMS slot and External spool state when hiding panel

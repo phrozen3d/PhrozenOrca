@@ -1185,7 +1185,10 @@ void PhrozenDeviceSearcher::ProcessSearchMachine( std::map< std::string, std::st
             }
         }
 
+    } catch (const boost::thread_interrupted&) {
+        // Normal thread interruption, do nothing
     } catch (...) {
+        BOOST_LOG_TRIVIAL(error) << "[Phrozen] Exception in PhrozenDeviceSearcher::ProcessSearchMachine";
         throw;
     }
 }

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-26 13:31+0800\n"
 "PO-Revision-Date: 2025-08-28 13:09+0300\n"
 "Last-Translator: GlauTech\n"
 "Language-Team: \n"
@@ -18473,20 +18473,32 @@ msgstr ""
 
 msgid "Manual Adjustment"
 msgstr "Manuel ayar"
+
 msgid "Z-Offset"
 msgstr "Z-Ofseti"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
 msgstr ""
+"Lütfen filament telini yuvaya takın ve bekleme moduna geçene kadar bekleyin"
 
 msgid "Heated Bed"
 msgstr "Isıtmalı yatak"
+
+msgid "Quiet"
+msgstr "Sessiz"
+
+msgid "Fast"
+msgstr "Hızlı"
+
+msgid "Turbo"
+msgstr "Turbo"
+
 msgid "Auxiliary"
 msgstr "Yardımcı"
+
 msgid "Shield"
 msgstr "Kalkan"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr ""
@@ -18528,6 +18540,13 @@ msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr ""
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
+"Makara\n"
+"Tutucu"
 
 msgid "Unload All Slots"
 msgstr ""

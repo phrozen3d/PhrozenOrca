@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-26 13:31+0800\n"
 "PO-Revision-Date: 2025-03-27 19:32+0800\n"
 "Last-Translator: 5idereal <hi@5idereal.cc>\n"
 "Language-Team: \n"
@@ -402,6 +402,7 @@ msgstr "凹槽角"
 
 msgid "Part"
 msgstr "部件"
+
 msgid "Object"
 msgstr "物件"
 
@@ -5430,16 +5431,16 @@ msgid "This only takes effect during printing"
 msgstr "僅在列印過程中生效"
 
 msgid "Silent"
-msgstr "靜音模式（50%）"
+msgstr "靜音"
 
 msgid "Standard"
-msgstr "標準模式（100%）"
+msgstr "標準"
 
 msgid "Sport"
-msgstr "運動模式（125%）"
+msgstr "運動"
 
 msgid "Ludicrous"
-msgstr "狂暴模式（150%）"
+msgstr "狂暴"
 
 msgid "Can't start this without SD card."
 msgstr "沒有 SD 記憶卡無法開始。"
@@ -17259,20 +17260,31 @@ msgstr "開啟/關閉光源"
 
 msgid "Manual Adjustment"
 msgstr "手動調整"
+
 msgid "Z-Offset"
 msgstr "Z 偏移"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "請將耗材絲插入槽中，並等待其進入待機狀態"
 
 msgid "Heated Bed"
 msgstr "熱床"
+
+msgid "Quiet"
+msgstr "安靜"
+
+msgid "Fast"
+msgstr "快速"
+
+msgid "Turbo"
+msgstr "極速"
+
 msgid "Auxiliary"
 msgstr "輔助"
+
 msgid "Shield"
 msgstr "護罩"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr "列印中..."
@@ -17316,6 +17328,13 @@ msgstr "請先連接到 Phrozen 列印設備。"
 
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr "無法啟動校正。請檢查連接並重試。"
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
+"料盤\n"
+"支架"
 
 msgid "Unload All Slots"
 msgstr "卸載所有槽位"

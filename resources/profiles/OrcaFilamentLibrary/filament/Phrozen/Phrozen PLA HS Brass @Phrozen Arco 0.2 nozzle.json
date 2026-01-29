@@ -1,0 +1,20 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA005_ARCO_A",
+    "name": "Phrozen PLA HS Brass @Phrozen Arco 0.2 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA HS Brass @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle"
+    ],
+    "enable_pressure_advance": [
+        "0"
+    ],
+    "filament_max_volumetric_speed": [
+        "30"
+    ],
+    "pressure_advance": [
+        "0"
+    ]
+}

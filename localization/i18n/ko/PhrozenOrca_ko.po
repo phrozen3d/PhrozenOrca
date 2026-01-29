@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-10 23:59+0800\n"
+"POT-Creation-Date: 2026-01-26 13:31+0800\n"
 "PO-Revision-Date: 2025-06-02 17:12+0900\n"
 "Last-Translator: crwusiz <crwusiz@gmail.com>\n"
 "Language-Team: \n"
@@ -4264,6 +4264,7 @@ msgstr "색 변경"
 
 msgid "Print"
 msgstr "인쇄"
+
 msgid "Printer"
 msgstr "프린터"
 
@@ -17976,20 +17977,31 @@ msgstr "조명 켜기/끄기"
 
 msgid "Manual Adjustment"
 msgstr "수동 조정"
+
 msgid "Z-Offset"
 msgstr "Z 오프셋"
+
 msgid ""
 "Please insert the filament wire into the slot and wait until it's on standby"
-msgstr ""
+msgstr "필라멘트 와이어를 슬롯에 삽입하고 대기 상태가 될 때까지 기다려 주세요"
 
 msgid "Heated Bed"
 msgstr "히팅 베드"
+
+msgid "Quiet"
+msgstr "조용함"
+
+msgid "Fast"
+msgstr "빠름"
+
+msgid "Turbo"
+msgstr "터보"
+
 msgid "Auxiliary"
 msgstr "보조"
+
 msgid "Shield"
 msgstr "쉴드"
-msgid "Z"
-msgstr ""
 
 msgid "Printing..."
 msgstr "프린팅 중..."
@@ -18033,6 +18045,13 @@ msgstr "먼저 Phrozen 프린터에 연결하십시오."
 
 msgid "Failed to start calibration. Please check the connection and try again."
 msgstr "캘리브레이션 시작 실패. 연결을 확인하고 다시 시도하십시오."
+
+msgid ""
+"Spool\n"
+"Holder"
+msgstr ""
+"스풀\n"
+"홀더"
 
 msgid "Unload All Slots"
 msgstr "모든 슬롯 언로드"
