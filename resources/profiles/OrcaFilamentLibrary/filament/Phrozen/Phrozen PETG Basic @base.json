@@ -1,0 +1,151 @@
+{
+    "type": "filament",
+    "filament_id": "PRZB01",
+    "from": "system",
+    "is_custom_defined": "0",
+    "instantiation": "false",
+    "version": "0",
+
+    "name": "Phrozen PETG Basic @base",
+    "inherits": "fdm_filament_pet",
+    "filament_vendor": [ "Phrozen" ],
+    "filament_settings_id": [ "Phrozen PETG Basic" ],
+    "filament_type": [ "PETG" ],
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle",
+        "Phrozen Arco 0.4 nozzle",
+        "Phrozen Arco 0.6 nozzle"
+    ],
+
+
+    "filament_density": [
+        "1.25"
+    ],
+    "filament_cost": [
+        "24.99"
+    ],
+    "temperature_vitrification": [
+        "60"
+    ],
+    "idle_temperature": [
+        "0"
+    ],
+    "nozzle_temperature_range_low": [
+        "230"
+    ],
+    "nozzle_temperature_range_high": [
+        "270"
+    ],
+    "filament_flow_ratio": [
+        "0.95"
+    ],
+
+    "nozzle_temperature_initial_layer": [
+        "245"
+    ],
+    "nozzle_temperature": [
+        "255"
+    ],
+
+    "supertack_plate_temp_initial_layer": [
+        "70"
+    ],
+    "supertack_plate_temp": [
+        "70"
+    ],
+    "cool_plate_temp_initial_layer": [
+        "0"
+    ],
+    "cool_plate_temp": [
+        "0"
+    ],
+    "textured_cool_plate_temp_initial_layer": [
+        "0"
+    ],
+    "textured_cool_plate_temp": [
+        "0"
+    ],
+    "eng_plate_temp_initial_layer": [
+        "70"
+    ],
+    "eng_plate_temp": [
+        "70"
+    ],
+    "hot_plate_temp_initial_layer": [
+        "70"
+    ],
+    "hot_plate_temp": [
+        "70"
+    ],
+    "textured_plate_temp_initial_layer": [
+        "70"
+    ],
+    "textured_plate_temp": [
+        "70"
+    ],
+
+
+    "filament_max_volumetric_speed": [
+        "14"
+    ],
+
+
+    "close_fan_the_first_x_layers": [
+        "3"
+    ],
+    "full_fan_speed_layer": [
+        "0"
+    ],
+
+
+    "fan_min_speed": [
+        "20"
+    ],
+    "fan_cooling_layer_time": [
+        "30"
+    ],
+    "fan_max_speed": [
+        "40"
+    ],
+    "slow_down_layer_time": [
+        "12"
+    ],
+    "reduce_fan_stop_start_freq": [
+        "1"
+    ],
+     "slow_down_for_layer_cooling ": [
+        "1"
+    ],
+    "slow_down_min_speed": [
+        "10"
+    ],
+    "enable_overhang_bridge_fan": [
+        "1"
+    ],
+    "overhang_fan_threshold": [
+        "10%"
+    ],
+    "overhang_fan_speed": [
+        "90"
+    ],
+
+
+    "additional_cooling_fan_speed": [
+        "0"
+    ],
+
+    "filament_retraction_length": [
+        "0.4"
+    ],
+    "z_hop_types": [
+        "Spiral Lift"
+    ],
+
+
+    "filament_start_gcode": [
+        "; filament start gcode\n"
+    ],
+    "filament_end_gcode": [
+        "; filament end gcode\n"
+    ]
+}

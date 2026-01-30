@@ -1090,7 +1090,7 @@ void MainFrame::init_tabpanel() {
 
     create_preset_tabs();
 
-    //BBS add pages
+        //BBS add pages
     m_monitor = new MonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
     m_monitor->SetBackgroundColour(*wxWHITE);
     m_tabpanel->AddPage(m_monitor, _L("Device"), std::string("tab_monitor_active"), std::string("tab_monitor_active"), false);

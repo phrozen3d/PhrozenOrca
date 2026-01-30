@@ -674,12 +674,11 @@ void FilamentStatusPanel::DrawSpoolHolder(wxGraphicsContext* gc)
     }
     gc->SetFont(font, text_color);
 
+    auto strSpoolHolder = _L("Spool\nHolder");
+
     // Get text extents for centering
     double text_width1, text_height1;
-    gc->GetTextExtent("Spool", &text_width1, &text_height1);
-
-    double text_width2, text_height2;
-    gc->GetTextExtent("Holder", &text_width2, &text_height2);
+    gc->GetTextExtent(strSpoolHolder, &text_width1, &text_height1);
 
     // Calculate centered positions
     double text_y = 18.0;  // Starting y position
@@ -687,11 +686,7 @@ void FilamentStatusPanel::DrawSpoolHolder(wxGraphicsContext* gc)
 
     // Center "Spool" horizontally
     double text_x1 = (SPOOL_HOLDER_WIDTH - text_width1) / 2.0;
-    gc->DrawText("Spool", text_x1, text_y);
-
-    // Center "Holder" horizontally
-    double text_x2 = (SPOOL_HOLDER_WIDTH - text_width2) / 2.0;
-    gc->DrawText("Holder", text_x2, text_y + line_spacing);
+    gc->DrawText(strSpoolHolder, text_x1, text_y);
 
     // Restore state
     gc->PopState();

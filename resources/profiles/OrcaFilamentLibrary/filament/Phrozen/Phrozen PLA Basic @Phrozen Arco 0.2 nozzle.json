@@ -1,0 +1,14 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA001_ARCO_A",
+    "name": "Phrozen PLA Basic @Phrozen Arco 0.2 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA Basic @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle"
+    ],
+    "filament_max_volumetric_speed": [
+        "2"
+    ]
+}

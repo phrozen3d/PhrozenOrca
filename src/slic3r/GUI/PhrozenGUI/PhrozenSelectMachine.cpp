@@ -2198,12 +2198,32 @@ void PhrozenSelectMachineDialog::on_send_print()
         // Ensure print_host restoration happens even if send_gcode_legacy throws an exception
         BOOST_LOG_TRIVIAL(error) << "Exception occurred in send_gcode_legacy()";
     }
+
     if ( bSuccessSend )
     {
-    	//確認送印成功，要同步連接device page的ip connect
-        PhrozenIpConnectDialog kConnect( this );
-        kConnect.set_ip_address( m_printer_last_select_ip );
-        kConnect.ConnectWithoutModal();
+        wxBusyCursor kWait;
+        //確認送印成功，要同步連接device page的ip connect
+        bool bConnectDevice = true;
+        if ( wxGetApp().IsConnectingMachine() )
+        {
+            std::string strCurrentConnectedIp;
+            wxGetApp().GetCurrentConnectedMachineIp( strCurrentConnectedIp );
+            if ( strCurrentConnectedIp == m_printer_last_select_ip )
+            {
+                bConnectDevice = false;
+            }
+            else
+            {
+                wxGetApp().ProcessPhrozenDisconnect();
+                std::this_thread::sleep_for(std::chrono::seconds(1));// wait for process end
+            }
+        }
+
+        if ( bConnectDevice )
+        {
+            wxGetApp().InitPhrozenConnector(m_printer_last_select_ip);
+            wxGetApp().ProcessPhrozenConnector();
+        }
     }
 
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";

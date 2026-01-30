@@ -291,9 +291,16 @@ bool PhrozenMonitorPanel::Show(bool show)
         m_refresh_timer->SetOwner(this);
         m_refresh_timer->Start(REFRESH_INTERVAL);
         wxPostEvent(this, wxTimerEvent());
+
+        if ( m_status_info_panel ){
+            m_status_info_panel->start_webcam_update_timer();
+        }
     } else {
         stop_update();
         m_refresh_timer->Stop();
+        if ( m_status_info_panel ){
+            m_status_info_panel->stop_webcam_update_timer();
+        }
     }
     return wxPanel::Show(show);
 }
@@ -354,7 +361,7 @@ void PhrozenMonitorPanel::OnConnectMachineByIp( wxCommandEvent& event )
 void PhrozenMonitorPanel::OnDisconnectMachine( wxCommandEvent& event )
 {
     stop_update();
-     m_last_status = MONITOR_UNKNOWN;
+    show_status(MONITOR_UNKNOWN);
     //Debug
     m_status_info_panel->SetMachineObject( nullptr );
     m_status_info_panel->SetPhrozenMachineObject( nullptr );

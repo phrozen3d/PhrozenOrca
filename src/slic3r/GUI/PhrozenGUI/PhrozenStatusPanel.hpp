@@ -238,10 +238,6 @@ public:
     int m_nAiDetectPosY1{-1};
     int m_nAiDetectPosX2{-1};
     int m_nAiDetectPosY2{-1};
-
-    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
-
-    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
     wxHyperlinkCtrl* m_pConsoleControllerPage{ nullptr };
 #pragma region OrcaOriginalMember
     protected:
@@ -293,7 +289,6 @@ public:
     ScalableButton *m_button_pause_resume;
     ScalableButton *m_button_abort;
     Button *        m_button_clean;
-    wxWebView *     m_custom_camera_view{nullptr};
 
     Label *  m_staticText_control;
     ImageSwitchButton *m_switch_lamp;
@@ -358,15 +353,6 @@ public:
     virtual void on_lighting_button_triggered( wxCommandEvent& event );
     bool IsWebcamUiEnabled();
     bool IsLightingUiEnabled();
-    
-public:   
-    void on_camera_source_change(wxCommandEvent& event);
-    void handle_camera_source_change();
-    void remove_controls();
-    void on_webview_navigating(wxWebViewEvent& evt);
-    void on_camera_switch_toggled(wxMouseEvent& event);
-    void toggle_custom_camera();
-    void toggle_builtin_camera();
 
 public:
 
@@ -692,8 +678,10 @@ protected:
     void on_nozzle_offset_range_mouse_left_down( wxMouseEvent& event );
     void on_manual_movement_changed( PhrozenMovement eMoveType );
 
-
     void on_set_chamber_temp();// no use maybe future
+
+    std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
+    bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
 #pragma endregion
 
 public:
@@ -732,6 +720,9 @@ public:
     void rescale_camera_icons();
     void on_sys_color_changed();
     void msw_rescale();
+
+    void start_webcam_update_timer();
+    void stop_webcam_update_timer();
 };
 }
 }

@@ -2498,10 +2498,12 @@ void PartPlate::generate_logo_polygon(ExPolygon &logo_polygon)
 	if (m_shape.size() == 4)
 	{
         bool is_bbl_vendor = false;
-
+        bool is_phrozen_vender = false;
 		if (m_plater) {
-            if (auto preset_bundle = wxGetApp().preset_bundle; preset_bundle)
+            if (auto preset_bundle = wxGetApp().preset_bundle; preset_bundle){
                 is_bbl_vendor = preset_bundle->is_bbl_vendor();
+                is_phrozen_vender = preset_bundle->is_phrozen_vendor();
+            }
 		}
 
         //rectangle case
@@ -2509,7 +2511,14 @@ void PartPlate::generate_logo_polygon(ExPolygon &logo_polygon)
 		{
 			const Vec2d& p = m_shape[i];
 			if ((i  == 0) || (i  == 1)) {
-                logo_polygon.contour.append({scale_(p(0)), scale_(is_bbl_vendor ? p(1) - 12.f : p(1))});
+                double P1 = p(1);
+                if ( is_bbl_vendor ) {
+                    P1 = p(1) - 12.f;
+                }
+                else if ( is_phrozen_vender ) {
+                    P1 = p(1) - 14.f;
+                }
+                logo_polygon.contour.append({scale_(p(0)), scale_(P1)});
             }
 			else {
 				logo_polygon.contour.append({ scale_(p(0)), scale_(p(1)) });

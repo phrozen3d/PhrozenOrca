@@ -1,0 +1,14 @@
+{
+    "type": "filament",
+	"setting_id": "PRZA006_ARCO_B",
+    "name": "Phrozen PLA HS CHT @Phrozen Arco 0.4 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PLA HS CHT @base",
+        "compatible_printers": [
+        "Phrozen Arco 0.4 nozzle"
+    ],
+    "filament_max_volumetric_speed": [
+        "42"
+    ]
+}

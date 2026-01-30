@@ -1,0 +1,29 @@
+{
+    "type": "filament",
+	"setting_id": "PRZB001_ARCO_C",
+    "name": "Phrozen PETG Basic @Phrozen Arco 0.6 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen PETG Basic @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.6 nozzle"
+    ],
+    "filament_max_volumetric_speed": [
+        "16"
+    ],
+    "fan_min_speed": [
+        "20"
+    ],
+    "fan_cooling_layer_time": [
+        "30"
+    ],
+    "fan_max_speed": [
+        "60"
+    ],
+    "slow_down_layer_time": [
+        "12"
+    ],
+    "overhang_fan_threshold": [
+        "10%"
+    ]
+}

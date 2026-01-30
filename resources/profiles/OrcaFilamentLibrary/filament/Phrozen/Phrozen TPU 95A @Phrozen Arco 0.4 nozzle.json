@@ -1,0 +1,11 @@
+{
+    "type": "filament",
+	"setting_id": "PRZC001_ARCO_B",
+    "name": "Phrozen TPU 95A @Phrozen Arco 0.4 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen TPU 95A @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.4 nozzle"
+    ]
+}

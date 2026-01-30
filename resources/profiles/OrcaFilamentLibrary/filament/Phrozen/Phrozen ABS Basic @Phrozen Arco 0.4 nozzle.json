@@ -1,0 +1,11 @@
+{
+    "type": "filament",
+	"setting_id": "PRZD001_ARCO_B",
+    "name": "Phrozen ABS Basic @Phrozen Arco 0.4 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen ABS Basic @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.4 nozzle"
+    ]
+}
