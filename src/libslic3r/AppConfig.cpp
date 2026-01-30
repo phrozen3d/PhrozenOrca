@@ -262,7 +262,7 @@ void AppConfig::set_defaults()
     }
 
     if(get("check_stable_update_only").empty()) {
-        set_bool("check_stable_update_only", false);
+        set_bool("check_stable_update_only", true);
     }
 
     // Orca
