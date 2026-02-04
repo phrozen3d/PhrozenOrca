@@ -412,7 +412,7 @@ message(STATUS "LIBDIR_BIN: ${LIBDIR_BIN}")
 # For the bundled boost libraries (boost::nowide)
 include_directories(SYSTEM ${LIBDIR})
 # For generated header files
-include_directories(SYSTEM ${LIBDIR_BIN}/platform)
+include_directories(SYSTEM ${LIBDIR_BIN}/dev-utils/platform)
 # For ligigl
 include_directories(SYSTEM ${LIBDIR}/libigl)
 
@@ -819,6 +819,7 @@ endfunction()
 
 
 # libslic3r, PhrozenOrca GUI and the PhrozenOrca executable.
+add_subdirectory(deps_src)
 add_subdirectory(src)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT PhrozenOrca_app_gui)
 
@@ -841,7 +842,7 @@ endif()
 
 if (NOT WIN32 AND NOT APPLE)
     set(SLIC3R_APP_CMD "phrozen-orca")
-    configure_file(${LIBDIR}/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh USE_SOURCE_PERMISSIONS @ONLY)
+    configure_file(${LIBDIR}/dev-utils/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh USE_SOURCE_PERMISSIONS @ONLY)
 endif()
 
 option(BUILD_BBS_TEST_TOOLS          "Build bbs test tools" OFF)
@@ -862,7 +863,7 @@ elseif (SLIC3R_FHS)
     install(DIRECTORY ${SLIC3R_RESOURCES_DIR}/ DESTINATION ${SLIC3R_FHS_RESOURCES}
         PATTERN "*/udev" EXCLUDE
     )
-    install(FILES src/platform/unix/PhrozenOrca.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
+    install(FILES src/dev-utils/platform/unix/PhrozenOrca.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications)
     foreach(SIZE 32 128 192)
         install(FILES ${SLIC3R_RESOURCES_DIR}/images/PhrozenOrca_${SIZE}px.png
             DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps RENAME PhrozenOrca.png
@@ -871,12 +872,12 @@ elseif (SLIC3R_FHS)
 elseif (CMAKE_MACOSX_BUNDLE)
     install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/PhrozenOrca.app/Contents/resources")
 else ()
-    install(FILES src/platform/unix/PhrozenOrca.desktop DESTINATION ${CMAKE_INSTALL_PREFIX}/resources/applications)
+    install(FILES src/dev-utils/platform/unix/PhrozenOrca.desktop DESTINATION ${CMAKE_INSTALL_PREFIX}/resources/applications)
     install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/resources")
 endif ()
 
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION ".")
-configure_file(${LIBDIR}/platform/unix/fhs.hpp.in ${LIBDIR_BIN}/platform/unix/fhs.hpp)
+configure_file(${LIBDIR}/dev-utils/platform/unix/fhs.hpp.in ${LIBDIR_BIN}/dev-utils/platform/unix/fhs.hpp)
 
 set (CPACK_PACKAGE_NAME "PhrozenOrca")
 set (CPACK_PACKAGE_VENDOR "Phrozen")
