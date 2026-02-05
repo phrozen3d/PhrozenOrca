@@ -979,14 +979,14 @@ void GLGizmoMmuSegmentation::render_filament_remap_ui(float window_width, float 
         if (m_selected_extruder_idx != src) flags |= ImGuiColorEditFlags_NoBorder;
         
         #ifdef __APPLE__
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_ORCA);
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_PHROZEN);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0);
             bool clicked = ImGui::ColorButton(btn_id.c_str(), col_vec, flags, button_size);
             ImGui::PopStyleVar(2);
             ImGui::PopStyleColor(1);
         #else
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_ORCA);
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_PHROZEN);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0);
             bool clicked = ImGui::ColorButton(btn_id.c_str(), col_vec, flags, button_size);
@@ -1046,14 +1046,14 @@ void GLGizmoMmuSegmentation::render_filament_remap_ui(float window_width, float 
                 if (m_extruder_remap[src] != dst) dst_flags |= ImGuiColorEditFlags_NoBorder;
                 
                 #ifdef __APPLE__
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_ORCA);
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_PHROZEN);
                     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
                     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0);
                     bool dst_clicked = ImGui::ColorButton(dst_btn.c_str(), dst_vec, dst_flags, button_size);
                     ImGui::PopStyleVar(2);
                     ImGui::PopStyleColor(1);
                 #else
-                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_ORCA);
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGuiWrapper::COL_PHROZEN);
                     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0);
                     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0);
                     bool dst_clicked = ImGui::ColorButton(dst_btn.c_str(), dst_vec, dst_flags, button_size);
