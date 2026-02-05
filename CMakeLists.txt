@@ -557,6 +557,7 @@ if(CMAKE_PREFIX_PATH)
 endif()
 
 find_package(CURL REQUIRED)
+find_package(Freetype REQUIRED)
 
 
 add_library(libcurl INTERFACE)
@@ -843,11 +844,6 @@ endif()
 if (NOT WIN32 AND NOT APPLE)
     set(SLIC3R_APP_CMD "phrozen-orca")
     configure_file(${LIBDIR}/dev-utils/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh USE_SOURCE_PERMISSIONS @ONLY)
-endif()
-
-option(BUILD_BBS_TEST_TOOLS          "Build bbs test tools" OFF)
-if(BUILD_BBS_TEST_TOOLS)
-    add_subdirectory(bbs_test_tools)
 endif()
 
 
