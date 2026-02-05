@@ -3867,9 +3867,9 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                     //         // Is there any modifier or advanced config data?
                     //         for (ModelVolume *model_volume : model_object->volumes) model_volume->config.reset();
                     //     }
-                    // } 
+                    // }
                     // Orca: check if the project is created with OrcaSlicer 2.3.1-alpha and use the sparse infill rotation template for non-safe infill patterns
-                    else if (load_config && (file_version < app_version) && file_version == Semver("2.3.1-alpha")) {
+                    else if ((file_version < app_version) && file_version == Semver("2.3.1-alpha")) {
                         if (!config_loaded.opt_string("sparse_infill_rotate_template").empty()) {
                             const auto _sparse_infill_pattern =
                                 config_loaded.option<ConfigOptionEnum<InfillPattern>>("sparse_infill_pattern")->value;
@@ -3923,8 +3923,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                                 show_info(q, text, _L("Newer 3mf version"));
                             }
                         }
-                    } 
-                    else if (!load_config) {
+                    } else if (!load_config) {
                         // reset config except color
                         for (ModelObject *model_object : model.objects) {
                             bool has_extruder = model_object->config.has("extruder");
