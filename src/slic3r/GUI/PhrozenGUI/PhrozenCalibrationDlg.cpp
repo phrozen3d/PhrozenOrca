@@ -2,8 +2,8 @@
 #include <wx/event.h>
 #include <wx/timer.h>
 #include "../I18N.hpp"
-#include "../libslic3r/Utils.hpp"
-#include "../libslic3r/Thread.hpp"
+#include "libslic3r/Utils.hpp"
+#include "libslic3r/Thread.hpp"
 #include "../GUI.hpp"
 #include "../GUI_App.hpp"
 #include "../GUI_Preview.hpp"
