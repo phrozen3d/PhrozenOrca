@@ -75,6 +75,9 @@ Spiralize smooths out the z moves of the outer contour. And turns a solid model 
 
 Smooth Spiral smooths out X and Y moves as well, resulting in no visible seam at all, even in the XY directions on walls that are not vertical.
 
+> [!NOTE]
+> If you are using absolute e distances, the smoothing may not work as expected.
+
 #### Max XY Smoothing
 
 Maximum distance to move points in XY to try to achieve a smooth spiral. If expressed as a %, it will be computed over nozzle diameter.
