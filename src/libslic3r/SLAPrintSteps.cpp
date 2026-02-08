@@ -13,6 +13,7 @@
 #include <libslic3r/SLA/SupportPointGenerator.hpp>
 
 #include <libslic3r/ElephantFootCompensation.hpp>
+#include <libslic3r/SLA/ZCorrection.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 
 #include <libslic3r/ClipperUtils.hpp>
@@ -114,6 +115,11 @@ void SLAPrint::Steps::apply_printer_corrections(SLAPrintObject &po, SliceOrigin 
         size_t idx = po.m_slice_index[i].get_slice_idx(o);
         if (idx < slices.size())
             slices[idx] = elephant_foot_compensation(slices[idx], min_w, efc(i));
+    }
+
+    if (o == soModel) { // Z correction applies only to the model slices
+        slices = sla::apply_zcorrection(slices,
+                                        m_print->m_material_config.zcorrection_layers.getInt());
     }
 }
 
