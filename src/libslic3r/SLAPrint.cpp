@@ -1,5 +1,6 @@
 #include "SLAPrint.hpp"
 #include "SLAPrintSteps.hpp"
+#include "Format/SLAArchiveWriter.hpp"
 
 #include "ClipperUtils.hpp"
 #include "Geometry.hpp"

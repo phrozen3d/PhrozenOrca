@@ -10,8 +10,10 @@
 #include "Point.hpp"
 #include "MTUtils.hpp"
 #include "Zipper.hpp"
-
 namespace Slic3r {
+
+// Forward declaration - full definition in Format/SLAArchiveWriter.hpp
+class SLAArchiveWriter;
 
 enum SLAPrintStep : unsigned int {
     slapsMergeSlicesAndEval,
@@ -388,40 +390,9 @@ struct SLAPrintStatistics
     }
 };
 
-class SLAArchive {
-protected:
-    std::vector<sla::EncodedRaster> m_layers;
-
-    virtual std::unique_ptr<sla::RasterBase> create_raster() const = 0;
-    virtual sla::RasterEncoder get_encoder() const = 0;
-
-public:
-    virtual ~SLAArchive() = default;
-
-    virtual void apply(const SLAPrinterConfig &cfg) = 0;
-
-    // Fn have to be thread safe: void(sla::RasterBase& raster, size_t lyrid);
-    template<class Fn, class CancelFn, class EP = ExecutionTBB>
-    void draw_layers(
-        size_t     layer_num,
-        Fn &&      drawfn,
-        CancelFn cancelfn = []() { return false; },
-        const EP & ep       = {})
-    {
-        m_layers.resize(layer_num);
-        execution::for_each(
-            ep, size_t(0), m_layers.size(),
-            [this, &drawfn, &cancelfn](size_t idx) {
-                if (cancelfn()) return;
-
-                sla::EncodedRaster &enc = m_layers[idx];
-                auto                rst = create_raster();
-                drawfn(*rst, idx);
-                enc = rst->encode(get_encoder());
-            },
-            execution::max_concurrency(ep));
-    }
-};
+// SLAArchive is now defined as SLAArchiveWriter in Format/SLAArchiveWriter.hpp
+// This alias maintains backward compatibility with existing code.
+using SLAArchive = SLAArchiveWriter;
 
 /**
  * @brief This class is the high level FSM for the SLA printing process.

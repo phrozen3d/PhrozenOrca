@@ -123,6 +123,12 @@ BackgroundSlicingProcess::~BackgroundSlicingProcess()
 	//boost::nowide::remove(m_temp_output_path.c_str());
 }
 
+void BackgroundSlicingProcess::set_sla_print(SLAPrint *print)
+{
+    m_sla_print = print;
+    m_sla_print->set_printer(&m_sla_archive);
+}
+
 //BBS: switch the print in background slicing process
 bool BackgroundSlicingProcess::switch_print_preprocess()
 {

@@ -14,6 +14,7 @@
 
 #include <libslic3r/ElephantFootCompensation.hpp>
 #include <libslic3r/SLA/ZCorrection.hpp>
+#include <libslic3r/Format/SLAArchiveWriter.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 
 #include <libslic3r/ClipperUtils.hpp>
