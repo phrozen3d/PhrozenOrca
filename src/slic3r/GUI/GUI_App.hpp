@@ -710,7 +710,7 @@ public:
 #pragma region Phrozen LCD 
     void SetPhrozenLCDEditMode( bool bEnable ) { m_bPhrozenLCDEdditMode = bEnable; }
     bool IsPhrozenLCDEditMode() { return m_bPhrozenLCDEdditMode; }
-    bool m_bPhrozenLCDEdditMode{ true };
+    bool m_bPhrozenLCDEdditMode{ false };
 #pragma endregion
 
 
