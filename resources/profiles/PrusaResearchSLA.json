@@ -1,0 +1,71 @@
+{
+    "name": "Prusa Research SLA",
+    "version": "01.00.03",
+    "force_update": "0",
+    "description": "Original Prusa SL1 SLA printer profiles",
+    "url": "https://files.prusa3d.com/wp-content/uploads/repository/PrusaSlicer-settings-master/live/PrusaResearchSLA/",
+    "machine_model_list": [
+        {
+            "name": "SL1",
+            "sub_path": "machine/SL1.json"
+        }
+    ],
+    "process_list": [
+        {
+            "name": "sla_print_common",
+            "sub_path": "process/sla_print_common.json"
+        },
+        {
+            "name": "0.025 UltraDetail",
+            "sub_path": "process/0.025 UltraDetail.json"
+        },
+        {
+            "name": "0.05 Normal",
+            "sub_path": "process/0.05 Normal.json"
+        },
+        {
+            "name": "0.1 Fast",
+            "sub_path": "process/0.1 Fast.json"
+        }
+    ],
+    "filament_list": [
+        {
+            "name": "sla_material_common",
+            "sub_path": "filament/sla_material_common.json"
+        },
+        {
+            "name": "sla_material_0.025",
+            "sub_path": "filament/sla_material_0.025.json"
+        },
+        {
+            "name": "sla_material_0.05",
+            "sub_path": "filament/sla_material_0.05.json"
+        },
+        {
+            "name": "sla_material_0.1",
+            "sub_path": "filament/sla_material_0.1.json"
+        },
+        {
+            "name": "sla_material_sl1_fast",
+            "sub_path": "filament/sla_material_sl1_fast.json"
+        },
+        {
+            "name": "Prusament Resin Tough Prusa Orange @0.025",
+            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.025.json"
+        },
+        {
+            "name": "Prusament Resin Tough Prusa Orange @0.05",
+            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.05.json"
+        },
+        {
+            "name": "Prusament Resin Tough Prusa Orange @0.1",
+            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.1.json"
+        }
+    ],
+    "machine_list": [
+        {
+            "name": "Original Prusa SL1",
+            "sub_path": "machine/Original Prusa SL1.json"
+        }
+    ]
+}

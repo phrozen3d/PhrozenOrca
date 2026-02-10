@@ -3116,7 +3116,26 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
     std::map<std::string, DynamicPrintConfig> configs;
     std::map<std::string, std::string> filament_id_maps;
     //3.1) paste the process
-    presets = &this->prints;
+    // Determine if this is SLA or FDM by checking the first process file
+    presets = &this->prints;  // Default to FDM
+    if (!process_subfiles.empty()) {
+        std::string first_process_file = path + "/" + vendor_name + "/" + process_subfiles[0].second;
+        try {
+            std::map<std::string, std::string> temp_key_values;
+            DynamicPrintConfig temp_config;
+            ConfigSubstitutionContext temp_context { compatibility_rule };
+            std::string temp_reason;
+            temp_config.load_from_json(first_process_file, temp_context, false, temp_key_values, temp_reason);
+            // Check if this is SLA by looking for printer_technology config option
+            auto* tech_opt = temp_config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+            if (tech_opt && tech_opt->value == ptSLA) {
+                presets = &this->sla_prints;
+                BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": detected SLA process profiles, routing to sla_prints";
+            }
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ": failed to detect printer_technology from " << first_process_file << ", defaulting to FDM";
+        }
+    }
     configs.clear();
     filament_id_maps.clear();
     for (auto& subfile : process_subfiles)
@@ -3132,7 +3151,26 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
     }
 
     //3.2) paste the filaments
-    presets = &this->filaments;
+    // Determine if this is SLA or FDM by checking the first filament file
+    presets = &this->filaments;  // Default to FDM
+    if (!filament_subfiles.empty()) {
+        std::string first_filament_file = path + "/" + vendor_name + "/" + filament_subfiles[0].second;
+        try {
+            std::map<std::string, std::string> temp_key_values;
+            DynamicPrintConfig temp_config;
+            ConfigSubstitutionContext temp_context { compatibility_rule };
+            std::string temp_reason;
+            temp_config.load_from_json(first_filament_file, temp_context, false, temp_key_values, temp_reason);
+            // Check if this is SLA by looking for printer_technology config option
+            auto* tech_opt = temp_config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+            if (tech_opt && tech_opt->value == ptSLA) {
+                presets = &this->sla_materials;
+                BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": detected SLA material profiles, routing to sla_materials";
+            }
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ": failed to detect printer_technology from " << first_filament_file << ", defaulting to FDM";
+        }
+    }
     configs.clear();
     filament_id_maps.clear();
     const auto is_orca_lib = vendor_name == ORCA_FILAMENT_LIBRARY;

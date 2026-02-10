@@ -1,0 +1,14 @@
+{
+    "from": "User",
+    "instantiation": "true",
+    "type": "filament",
+    "printer_technology": "SLA",
+    "version": "1.0.3",
+    "name": "Prusament Resin Tough Prusa Orange @0.1",
+    "inherits": "sla_material_0.1;sla_material_sl1_fast",
+    "exposure_time": "13",
+    "initial_exposure_time": "45",
+    "material_type": "Tough",
+    "material_vendor": "Prusa Polymers",
+    "material_colour": "#FF8040"
+}

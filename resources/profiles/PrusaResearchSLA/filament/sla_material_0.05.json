@@ -1,0 +1,9 @@
+{
+    "from": "User",
+    "instantiation": "false",
+    "type": "filament",
+    "printer_technology": "SLA",
+    "version": "1.0.3",
+    "name": "sla_material_0.05",
+    "inherits": "sla_material_common"
+}
