@@ -610,10 +610,26 @@ PresetsConfigSubstitutions PresetBundle::load_user_presets(std::string user, For
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
+    // Restore SLA print preset loading (Phase 1 Step 1.3)
+    try {
+        std::string sla_print_selected_preset_name = sla_prints.get_selected_preset().name;
+        this->sla_prints.load_presets(dir_user_presets, PRESET_SLA_PRINT_NAME, substitutions, substitution_rule);
+        sla_prints.select_preset_by_name(sla_print_selected_preset_name, false);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
     try {
         std::string filament_selected_preset_name = filaments.get_selected_preset().name;
         this->filaments.load_presets(dir_user_presets, PRESET_FILAMENT_NAME, substitutions, substitution_rule);
         filaments.select_preset_by_name(filament_selected_preset_name, false);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
+    // Restore SLA material preset loading (Phase 1 Step 1.3)
+    try {
+        std::string sla_material_selected_preset_name = sla_materials.get_selected_preset().name;
+        this->sla_materials.load_presets(dir_user_presets, PRESET_SLA_MATERIALS_NAME, substitutions, substitution_rule);
+        sla_materials.select_preset_by_name(sla_material_selected_preset_name, false);
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }

@@ -4128,61 +4128,79 @@ void TabPrinter::build_fff()
 
 void TabPrinter::build_sla()
 {
-    //if (!m_pages.empty())
-    //    m_pages.resize(0);
-    //auto page = add_options_page(L("General"), "printer");
-    //auto optgroup = page->new_optgroup(L("Size and coordinates"));
+    // Phase 1 Step 1.5: Restored from PrusaSlicer (was entirely commented out)
+    if (!m_pages.empty())
+        m_pages.resize(0);
 
-    //create_line_with_widget(optgroup.get(), "printable_area", "custom-svg-and-png-bed-textures_124612", [this](wxWindow* parent) {
-    //    return 	create_bed_shape_widget(parent);
-    //});
-    //optgroup->append_single_option_line("printable_height");
+    auto page = add_options_page(L("General"), "printer");
+    auto optgroup = page->new_optgroup(L("Size and coordinates"));
 
-    //optgroup = page->new_optgroup(L("Display"));
-    //optgroup->append_single_option_line("display_width");
-    //optgroup->append_single_option_line("display_height");
+    create_line_with_widget(optgroup.get(), "printable_area", "custom-svg-and-png-bed-textures_124612", [this](wxWindow* parent) {
+        return create_bed_shape_widget(parent);
+    });
+    optgroup->append_single_option_line("printable_height");
 
-    //auto option = optgroup->get_option("display_pixels_x");
-    //Line line = { option.opt.full_label, "" };
-    //line.append_option(option);
-    //line.append_option(optgroup->get_option("display_pixels_y"));
-    //optgroup->append_line(line);
-    //optgroup->append_single_option_line("display_orientation");
+    optgroup = page->new_optgroup(L("Display"));
+    optgroup->append_single_option_line("display_width");
+    optgroup->append_single_option_line("display_height");
 
-    //// FIXME: This should be on one line in the UI
-    //optgroup->append_single_option_line("display_mirror_x");
-    //optgroup->append_single_option_line("display_mirror_y");
+    auto option = optgroup->get_option("display_pixels_x");
+    Line line = { option.opt.full_label, "" };
+    line.append_option(option);
+    line.append_option(optgroup->get_option("display_pixels_y"));
+    optgroup->append_line(line);
+    optgroup->append_single_option_line("display_orientation");
 
-    //optgroup = page->new_optgroup(L("Tilt"));
-    //line = { L("Tilt time"), "" };
-    //line.append_option(optgroup->get_option("fast_tilt_time"));
-    //line.append_option(optgroup->get_option("slow_tilt_time"));
-    //optgroup->append_line(line);
-    //optgroup->append_single_option_line("area_fill");
+    // FIXME: This should be on one line in the UI
+    optgroup->append_single_option_line("display_mirror_x");
+    optgroup->append_single_option_line("display_mirror_y");
 
-    //optgroup = page->new_optgroup(L("Corrections"));
-    //line = Line{ m_config->def()->get("relative_correction")->full_label, "" };
-    //for (auto& axis : { "X", "Y", "Z" }) {
-    //    auto opt = optgroup->get_option(std::string("relative_correction_") + char(std::tolower(axis[0])));
-    //    opt.opt.label = axis;
-    //    line.append_option(opt);
-    //}
-    //optgroup->append_line(line);
-    //optgroup->append_single_option_line("absolute_correction");
-    //optgroup->append_single_option_line("elefant_foot_compensation");
-    //optgroup->append_single_option_line("elefant_foot_min_width");
-    //optgroup->append_single_option_line("gamma_correction");
-    //
-    //optgroup = page->new_optgroup(L("Exposure"));
-    //optgroup->append_single_option_line("min_exposure_time");
-    //optgroup->append_single_option_line("max_exposure_time");
-    //optgroup->append_single_option_line("min_initial_exposure_time");
-    //optgroup->append_single_option_line("max_initial_exposure_time");
+    optgroup = page->new_optgroup(L("Tilt"));
+    line = { L("Tilt time"), "" };
+    line.append_option(optgroup->get_option("fast_tilt_time"));
+    line.append_option(optgroup->get_option("slow_tilt_time"));
+    line.append_option(optgroup->get_option("high_viscosity_tilt_time"));
+    optgroup->append_line(line);
+//    optgroup->append_single_option_line("area_fill");
 
-    //page = add_options_page(L("Dependencies"), "wrench.png");
-    //optgroup = page->new_optgroup(L("Profile dependencies"));
+    optgroup = page->new_optgroup(L("Corrections"));
+    line = Line{ m_config->def()->get("relative_correction")->full_label, "" };
+    for (auto& axis : { "X", "Y", "Z" }) {
+        auto opt = optgroup->get_option(std::string("relative_correction_") + char(std::tolower(axis[0])));
+        opt.opt.label = axis;
+        line.append_option(opt);
+    }
+    optgroup->append_line(line);
+    optgroup->append_single_option_line("absolute_correction");
+    optgroup->append_single_option_line("elefant_foot_compensation");
+    optgroup->append_single_option_line("elefant_foot_min_width");
+    optgroup->append_single_option_line("gamma_correction");
 
-    //build_preset_description_line(optgroup.get());
+    optgroup = page->new_optgroup(L("Exposure"));
+    optgroup->append_single_option_line("min_exposure_time");
+    optgroup->append_single_option_line("max_exposure_time");
+    optgroup->append_single_option_line("min_initial_exposure_time");
+    optgroup->append_single_option_line("max_initial_exposure_time");
+
+    optgroup = page->new_optgroup(L("Output"));
+    optgroup->append_single_option_line("sla_archive_format");
+    optgroup->append_single_option_line("sla_output_precision");
+
+    // Phase 1 Step 1.5: build_print_host_upload_group not available in PhrozenOrca
+
+    const int notes_field_height = 25; // 250
+
+    page = add_options_page(L("Notes"), "note");
+    optgroup = page->new_optgroup(L("Notes"), "note", 0);
+    option = optgroup->get_option("printer_notes");
+    option.opt.full_width = true;
+    option.opt.height = notes_field_height;
+    optgroup->append_single_option_line(option);
+
+    page = add_options_page(L("Dependencies"), "advanced");
+    optgroup = page->new_optgroup(L("Profile dependencies"));
+
+    build_preset_description_line(optgroup.get());
 }
 
 void TabPrinter::extruders_count_changed(size_t extruders_count)
@@ -4933,8 +4951,11 @@ void Tab::load_current_preset()
                     }
                     else {
                         int page_id = wxGetApp().tab_panel()->FindPage(tab);
-                        wxGetApp().tab_panel()->GetPage(page_id)->Show(false);
-                        wxGetApp().tab_panel()->RemovePage(page_id);
+                        // Phase 1 Step 1.3: Skip removal if tab was never added to tab_panel
+                        if (page_id != -1) {
+                            wxGetApp().tab_panel()->GetPage(page_id)->Show(false);
+                            wxGetApp().tab_panel()->RemovePage(page_id);
+                        }
                     }
                 }
                 static_cast<TabPrinter*>(this)->m_printer_technology = printer_technology;
