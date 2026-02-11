@@ -6006,6 +6006,10 @@ bool CLI::setup(int argc, char **argv)
     if (! m_config.read_cli(argc, argv, &m_input_files, &opt_order)) {
         // Separate error message reported by the CLI parser from the help.
         boost::nowide::cerr << std::endl;
+        BOOST_LOG_TRIVIAL(error) << "CLI::setup failed: read_cli returned false (invalid or unknown CLI options)";
+#ifdef _WIN32
+        MessageBoxW(NULL, L"CLI::setup failed: read_cli returned false (invalid or unknown CLI options).", L"PhrozenOrca setup failed", MB_OK | MB_ICONERROR);
+#endif
         this->print_help();
         return false;
     }
@@ -6030,8 +6034,16 @@ bool CLI::setup(int argc, char **argv)
     //FIXME Validating at this stage most likely does not make sense, as the config is not fully initialized yet.
     if (!validity.empty()) {
         boost::nowide::cerr << "Params in command line error: "<< std::endl;
-        for (std::map<std::string, std::string>::iterator it=validity.begin(); it!=validity.end(); ++it)
+        BOOST_LOG_TRIVIAL(error) << "CLI::setup failed: config validation failed";
+        std::string validity_msg = "CLI::setup failed: config validation failed\n\n";
+        for (std::map<std::string, std::string>::iterator it=validity.begin(); it!=validity.end(); ++it) {
             boost::nowide::cerr << it->first <<": "<< it->second << std::endl;
+            BOOST_LOG_TRIVIAL(error) << "  " << it->first << ": " << it->second;
+            validity_msg += it->first + ": " + it->second + "\n";
+        }
+#ifdef _WIN32
+        MessageBoxW(NULL, boost::nowide::widen(validity_msg).c_str(), L"PhrozenOrca setup failed", MB_OK | MB_ICONERROR);
+#endif
         return false;
     }
 

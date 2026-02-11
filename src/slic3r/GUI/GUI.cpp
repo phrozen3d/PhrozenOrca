@@ -139,8 +139,15 @@ void change_opt_value(DynamicPrintConfig& config, const t_config_option_key& opt
 			break;
 		}
 		case coFloats:{
-			ConfigOptionFloats* vec_new = new ConfigOptionFloats{ boost::any_cast<double>(value) };
-			config.option<ConfigOptionFloats>(opt_key)->set_at(vec_new, opt_index, opt_index);
+			#pragma region Phrozen LCD Parameter
+			const std::type_info& ti = value.type();
+			if (ti == typeid(std::vector<double>)) {
+				config.set_key_value(opt_key, new ConfigOptionFloats(boost::any_cast<std::vector<double>>(value)));
+			} else {
+				ConfigOptionFloats* vec_new = new ConfigOptionFloats{ boost::any_cast<double>(value) };
+				config.option<ConfigOptionFloats>(opt_key)->set_at(vec_new, opt_index, opt_index);
+			}
+			#pragma endregion
  			break;
 		}
 		case coString:

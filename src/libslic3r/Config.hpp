@@ -1780,6 +1780,10 @@ public:
         legend,
         // Vector value, but edited as a single string.
         one_string,
+#pragma region Phrozen LCD Parameter
+        // Two floats displayed as "value1 + value2" in one row (e.g. lift/retract distance).
+        dual_float,
+#pragma endregion
     };
 
 	// Identifier of this option. It is stored here so that it is accessible through the by_serialization_key_ordinal map.
@@ -1913,6 +1917,12 @@ public:
     int                                 height          = -1;
     // Optional width of an input field.
     int                                 width           = -1;
+#pragma region Phrozen LCD Parameter
+    // For dual_float: width of the first input (em). -1 = use width or default.
+    int                                 dual_float_width         = -1;
+    // For dual_float: width of the second input (em). -1 = same as first.
+    int                                 dual_float_width_second  = -1;
+#pragma endregion
     // <min, max> limit of a numeric input.
     // If not set, the <min, max> is set to <INT_MIN, INT_MAX>
     // By setting min=0, only nonnegative input is allowed.

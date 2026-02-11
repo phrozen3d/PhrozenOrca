@@ -2172,6 +2172,136 @@ boost::any& PointCtrl::get_value()
 	return m_value = Vec2d(x, y);
 }
 
+#pragma region Phrozen LCD Parameter
+void DualFloatField::BUILD()
+{
+	auto temp = new wxBoxSizer(wxHORIZONTAL);
+	m_combine_side_text = true;
+
+	// Per-input width: first from dual_float_width (or width or default), second from dual_float_width_second (or same as first)
+	static const int dual_float_em_width = 8;
+	const int w1_em = m_opt.dual_float_width >= 0 ? m_opt.dual_float_width : (m_opt.width >= 0 ? m_opt.width : dual_float_em_width);
+	const int w2_em = m_opt.dual_float_width_second >= 0 ? m_opt.dual_float_width_second : w1_em;
+	const wxSize field_size1(w1_em * m_em_unit, -1);
+	const wxSize field_size2(w2_em * m_em_unit, -1);
+	std::vector<double> default_vals;
+	if (m_opt.get_default_value<ConfigOptionFloats>()->values.size() >= 2) {
+		default_vals = m_opt.get_default_value<ConfigOptionFloats>()->values;
+	} else {
+		default_vals = { 0.2, 0.2 };
+	}
+	wxString v1 = double_to_string(default_vals[0]);
+	wxString v2 = double_to_string(default_vals[1]);
+
+	long style = wxTE_PROCESS_ENTER;
+	m_input1 = new ::TextInput(m_parent, v1, "", "", wxDefaultPosition, field_size1, style);
+	m_input2 = new ::TextInput(m_parent, v2, _L(m_opt.sidetext), "", wxDefaultPosition, field_size2, style);
+	m_text1 = m_input1->GetTextCtrl();
+	m_text2 = m_input2->GetTextCtrl();
+	if (parent_is_custom_ctrl && m_opt.height < 0)
+		opt_height = (double)m_text1->GetSize().GetHeight() / m_em_unit;
+
+	m_input1->SetFont(wxGetApp().normal_font());
+	m_input1->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	m_input2->SetFont(wxGetApp().normal_font());
+	m_input2->SetBackgroundStyle(wxBG_STYLE_PAINT);
+	wxGetApp().UpdateDarkUI(m_input1);
+	wxGetApp().UpdateDarkUI(m_input2);
+
+	wxStaticText* plus_lbl = new wxStaticText(m_parent, wxID_ANY, " + ", wxDefaultPosition, wxDefaultSize);
+	plus_lbl->SetFont(wxGetApp().normal_font());
+	plus_lbl->SetBackgroundStyle(wxBG_STYLE_PAINT);
+
+	temp->Add(m_input1, 0, wxALIGN_CENTER_VERTICAL, 0);
+	temp->Add(plus_lbl, 0, wxALIGN_CENTER_VERTICAL, 2);
+	temp->Add(m_input2, 0, wxALIGN_CENTER_VERTICAL, 0);
+
+	m_text1->Bind(wxEVT_TEXT_ENTER, [this](wxCommandEvent& e) { propagate_value(); });
+	m_text2->Bind(wxEVT_TEXT_ENTER, [this](wxCommandEvent& e) { propagate_value(); });
+	m_text1->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& e) { e.Skip(); propagate_value(); });
+	m_text2->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& e) { e.Skip(); propagate_value(); });
+
+	sizer = temp;
+	window = m_input1;
+}
+
+void DualFloatField::propagate_value()
+{
+	get_value();
+	on_change_field();
+}
+
+void DualFloatField::set_value(const boost::any& value, bool change_event)
+{
+	m_disable_change_event = !change_event;
+	std::vector<double> vals;
+	try {
+		vals = boost::any_cast<std::vector<double>>(value);
+	} catch (...) {
+		vals = { 0.2, 0.2 };
+	}
+	if (vals.size() < 2)
+		vals.resize(2, 0.2);
+	m_text1->SetValue(double_to_string(vals[0]));
+	m_text2->SetValue(double_to_string(vals[1]));
+	m_disable_change_event = false;
+}
+
+boost::any& DualFloatField::get_value()
+{
+	double a = 0.2, b = 0.2;
+	if (!m_text1->GetValue().ToDouble(&a) || !m_text2->GetValue().ToDouble(&b)) {
+		if (!m_value.empty()) {
+			try {
+				set_value(boost::any_cast<std::vector<double>>(m_value), true);
+			} catch (...) {
+				show_error(m_parent, _L("Invalid numeric."));
+			}
+		} else
+			show_error(m_parent, _L("Invalid numeric."));
+		return m_value;
+	}
+	if (m_opt.min > a || a > m_opt.max || m_opt.min > b || b > m_opt.max) {
+		const double min_val = (double)m_opt.min;
+		const double max_val = (double)m_opt.max;
+		a = std::max(min_val, std::min(max_val, a));
+		b = std::max(min_val, std::min(max_val, b));
+		set_value(std::vector<double>{ a, b }, true);
+		show_error(m_parent, _L("Value is out of range."));
+	}
+	return m_value = std::vector<double>{ a, b };
+}
+
+void DualFloatField::msw_rescale()
+{
+	Field::msw_rescale();
+	static const int dual_float_em_width = 8;
+	const int w1_em = m_opt.dual_float_width >= 0 ? m_opt.dual_float_width : (m_opt.width >= 0 ? m_opt.width : dual_float_em_width);
+	const int w2_em = m_opt.dual_float_width_second >= 0 ? m_opt.dual_float_width_second : w1_em;
+	wxSize size1(w1_em * m_em_unit, -1);
+	wxSize size2(w2_em * m_em_unit, -1);
+	if (parent_is_custom_ctrl && m_opt.height >= 0) {
+		const int h = lround(opt_height * m_em_unit);
+		size1.SetHeight(h);
+		size2.SetHeight(h);
+	}
+	m_input1->SetMinSize(size1);
+	m_input2->SetMinSize(size2);
+}
+
+void DualFloatField::enable()
+{
+	m_input1->Enable();
+	m_input2->Enable();
+}
+
+void DualFloatField::disable()
+{
+	m_input1->Disable();
+	m_input2->Disable();
+}
+#pragma endregion
+
 void StaticText::BUILD()
 {
 	auto size = wxSize(wxDefaultSize);

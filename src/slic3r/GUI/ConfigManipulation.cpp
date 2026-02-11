@@ -885,6 +885,58 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, co
 
 
     toggle_line("infill_overhang_angle", config->opt_enum<InfillPattern>("sparse_infill_pattern") == InfillPattern::ipLateralHoneycomb);
+
+    #pragma region Phrozen LCD Parameter
+    if (config->has("waiting_mode_during_printing")) {
+        bool use_resting_time = config->opt_enum<WaitingModeDuringPrinting>("waiting_mode_during_printing") == spRestingTime;
+        toggle_line("rest_time_before_lift", use_resting_time);
+        toggle_line("rest_time_after_lift", use_resting_time);
+        toggle_line("rest_time_after_retract", use_resting_time);
+        toggle_line("light_off_day", !use_resting_time);
+        toggle_line("bottom_light_off_day", !use_resting_time);
+    }
+
+    if (config->has("anti_aliasing")) {
+        auto aa                       = config->opt_enum<AntiAliasing>("anti_aliasing");
+        bool show_grayscale_options   = (aa == spGrayScaleLevel);
+        bool show_anti_aliasing_level = (aa == spAntiAliasingLevel);
+        toggle_line("gray_scale_level", show_grayscale_options);
+        toggle_line("image_blur_enable", show_grayscale_options);
+        toggle_line("image_blur_pixel", show_grayscale_options);
+        toggle_line("anti_aliasing_level", show_anti_aliasing_level);
+    }
+
+    toggle_field("transition_layer_interval_time_difference", true);
+
+    auto is_image_blur_enable = config->opt_bool("image_blur_enable");
+    toggle_field("image_blur_pixel", is_image_blur_enable);
+
+    auto is_shrinkage_compensation = config->opt_bool("shrinkage_compensation");
+    toggle_field("shrinkage_compensation_x", is_shrinkage_compensation);
+    toggle_field("shrinkage_compensation_y", is_shrinkage_compensation);
+    toggle_field("shrinkage_compensation_z", is_shrinkage_compensation);
+
+    auto is_tolerance_compensation = config->opt_bool("tolerance_compensation");
+    toggle_field("tolerance_compensation_a", is_tolerance_compensation);
+    toggle_field("tolerance_compensation_b", is_tolerance_compensation);
+
+    auto is_bottom_tolerance_compensation = config->opt_bool("bottom_tolerance_compensation");
+    toggle_field("bottom_tolerance_compensation_a", is_bottom_tolerance_compensation);
+    toggle_field("bottom_tolerance_compensation_b", is_bottom_tolerance_compensation);
+
+    auto is_support = config->opt_bool("generate_support");
+    toggle_field("top_upper_diameter", is_support);
+    toggle_field("top_contact_depth", is_support);
+    toggle_field("pinhead_width", is_support);
+    toggle_field("pillar_diameter", is_support);
+    toggle_field("angle_between_top_and_middle", is_support);
+    toggle_field("support_bottom_diameter", is_support);
+    toggle_field("support_boss_height", is_support);
+    toggle_field("object_elevation", is_support);
+    toggle_field("support_points_density", is_support);
+    //toggle_field("max_bridge_length", is_support);
+    toggle_field("max_pillar_linking_distance", is_support);
+#pragma endregion
 }
 
 void ConfigManipulation::update_print_sla_config(DynamicPrintConfig* config, const bool is_global_config/* = false*/)

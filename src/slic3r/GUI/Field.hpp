@@ -535,6 +535,33 @@ public:
 	wxWindow*		getWindow() override { return window; }
 };
 
+#pragma region Phrozen LCD Parameter
+// Two float inputs displayed as "value1 + value2" (e.g. lift/retract distance).
+class DualFloatField : public Field {
+	using Field::Field;
+public:
+	DualFloatField(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
+	DualFloatField(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	~DualFloatField() {}
+
+	wxSizer*		sizer{ nullptr };
+	::TextInput*		m_input1{ nullptr };
+	::TextInput*		m_input2{ nullptr };
+	wxTextCtrl*		m_text1{ nullptr };
+	wxTextCtrl*		m_text2{ nullptr };
+	wxWindow*		window{ nullptr };
+
+	void			BUILD() override;
+	void			propagate_value();
+	void			set_value(const boost::any& value, bool change_event = false) override;
+	boost::any&		get_value() override;
+	void			msw_rescale() override;
+	void			enable() override;
+	void			disable() override;
+	wxSizer*		getSizer() override { return sizer; }
+	wxWindow*		getWindow() override { return window; }
+};
+
 class StaticText : public Field {
 	using Field::Field;
 public:

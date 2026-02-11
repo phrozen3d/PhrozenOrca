@@ -56,6 +56,11 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::one_string:
         m_fields.emplace(id, TextCtrl::Create<TextCtrl>(this->ctrl_parent(), opt, id));
         break;
+#pragma region Phrozen LCD Parameter
+    case ConfigOptionDef::GUIType::dual_float:
+        m_fields.emplace(id, DualFloatField::Create<DualFloatField>(this->ctrl_parent(), opt, id));
+        break;
+#pragma endregion
     default:
         switch (opt.type) {
             case coFloatOrPercent:
@@ -981,10 +986,18 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 	case coPercents:
 	case coFloats:
 	case coFloat:{
+#pragma region Phrozen LCD Parameter
+		if (opt->type == coFloats && opt->gui_type == ConfigOptionDef::GUIType::dual_float) {
+			auto vals = config.option<ConfigOptionFloats>(opt_key)->values;
+			if (vals.size() == 1) vals = { vals[0], vals[0] };
+			ret = vals;
+			break;
+		}
 		double val = opt->type == coFloats ?
 					config.opt_float(opt_key, idx) :
-						opt->type == coFloat ? config.opt_float(opt_key) :
-						config.option<ConfigOptionPercents>(opt_key)->get_at(idx);
+					opt->type == coFloat ? config.opt_float(opt_key) :
+					config.option<ConfigOptionPercents>(opt_key)->get_at(idx);
+#pragma endregion
 		ret = double_to_string(val);
 		}
 		break;
@@ -1115,6 +1128,14 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
     case coPercents:
     case coFloats:
     case coFloat:{
+#pragma region Phrozen LCD Parameter
+        if (opt->type == coFloats && opt->gui_type == ConfigOptionDef::GUIType::dual_float) {
+            auto vals = config.option<ConfigOptionFloats>(opt_key)->values;
+            if (vals.size() == 1) vals = { vals[0], vals[0] };
+            ret = vals;
+            break;
+        }
+#pragma endregion
         double val = opt->type == coFloats ?
             config.opt_float(opt_key, idx) :
             opt->type == coFloat ? config.opt_float(opt_key) :
