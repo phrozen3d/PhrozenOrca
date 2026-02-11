@@ -3991,7 +3991,19 @@ void MainFrame::update_side_preset_ui()
 
     //BBS: update the preset
     m_plater->sidebar().update_presets(Preset::TYPE_PRINTER);
-    m_plater->sidebar().update_presets(Preset::TYPE_FILAMENT);
+
+    // Update process and material presets based on printer technology
+    PresetBundle &preset_bundle = *wxGetApp().preset_bundle;
+    const auto print_tech = preset_bundle.printers.get_edited_preset().printer_technology();
+
+    if (print_tech == ptFFF) {
+        // FDM: update filament presets
+        m_plater->sidebar().update_presets(Preset::TYPE_FILAMENT);
+    } else {
+        // SLA: update SLA print and material presets
+        m_plater->sidebar().update_presets(Preset::TYPE_SLA_PRINT);
+        m_plater->sidebar().update_presets(Preset::TYPE_SLA_MATERIAL);
+    }
 
 
     //take off multi machine

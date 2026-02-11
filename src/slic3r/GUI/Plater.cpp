@@ -1275,18 +1275,29 @@ void Sidebar::update_all_preset_comboboxes()
         connection_btn->Show();
         ams_btn->Hide();
         auto print_btn_type = MainFrame::PrintSelectType::eExportGcode;
-        wxString url = cfg.opt_string("print_host_webui").empty() ? cfg.opt_string("print_host") : cfg.opt_string("print_host_webui");
+        // Safely check print_host_webui and print_host options (may not exist for SLA printers)
+        const auto webui_opt = cfg.option<ConfigOptionString>("print_host_webui");
+        const auto host_opt = cfg.option<ConfigOptionString>("print_host");
+        wxString url;
+        if (webui_opt && !webui_opt->value.empty())
+            url = webui_opt->value;
+        else if (host_opt && !host_opt->value.empty())
+            url = host_opt->value;
+
         wxString apikey;
         if(url.empty())
             url = wxString::Format("file://%s/web/orca/missing_connection.html", from_u8(resources_dir()));
         else {
             if (!url.Lower().starts_with("http"))
                 url = wxString::Format("http://%s", url);
-            const auto host_type = cfg.option<ConfigOptionEnum<PrintHostType>>("host_type")->value;
-            if ( host_type == htPhrozenConnect && url.find(":8808") == std::string::npos )
-                url += ":8808";
-            if (cfg.has("printhost_apikey") && (host_type != htSimplyPrint))
-                apikey = cfg.opt_string("printhost_apikey");
+            const auto host_type_opt = cfg.option<ConfigOptionEnum<PrintHostType>>("host_type");
+            if (host_type_opt) {
+                const auto host_type = host_type_opt->value;
+                if ( host_type == htPhrozenConnect && url.find(":8808") == std::string::npos )
+                    url += ":8808";
+                if (cfg.has("printhost_apikey") && (host_type != htSimplyPrint))
+                    apikey = cfg.opt_string("printhost_apikey");
+            }
             print_btn_type = ( preset_bundle.is_bbl_vendor() || preset_bundle.is_phrozen_vendor() ) ? MainFrame::PrintSelectType::ePrintPlate : MainFrame::PrintSelectType::eSendGcode;
         }
 
@@ -1297,41 +1308,56 @@ void Sidebar::update_all_preset_comboboxes()
 
     }
 
-    if (cfg.opt_bool("pellet_modded_printer")) {
-		p->m_staticText_filament_settings->SetLabel(_L("Pellets"));
-        p->m_filament_icon->SetBitmap_("pellets");
-    } else {
-		p->m_staticText_filament_settings->SetLabel(_L("Filament"));
-        p->m_filament_icon->SetBitmap_("filament");
-    }
-
-    show_SEMM_buttons(cfg.opt_bool("single_extruder_multi_material"));
-
-    //p->m_staticText_filament_settings->Update();
-
-    if (is_bbl_vendor || cfg.opt_bool("support_multi_bed_types")) {
-        m_bed_type_list->Enable();
-        // Orca: don't update bed type if loading project
-        if (!p->plater->is_loading_project()) {
-            auto str_bed_type = wxGetApp().app_config->get_printer_setting(wxGetApp().preset_bundle->printers.get_selected_preset_name(),
-                                                                           "curr_bed_type");
-            if (!str_bed_type.empty()) {
-                int bed_type_value = atoi(str_bed_type.c_str());
-                if (bed_type_value <= 0 || bed_type_value >= btCount) {
-                    bed_type_value = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
-                }
-
-                m_bed_type_list->SelectAndNotify(bed_type_value - 1);
-            } else {
-                BedType bed_type = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
-                m_bed_type_list->SelectAndNotify((int) bed_type - 1);
-            }
+    // FDM-specific UI updates (pellet mode, SEMM, bed types, filament combos)
+    // Only execute these for FFF printers, as SLA printers don't have these parameters
+    if (print_tech == ptFFF) {
+        // Check for pellet_modded_printer option (FDM only)
+        const auto pellet_opt = cfg.option<ConfigOptionBool>("pellet_modded_printer");
+        if (pellet_opt && pellet_opt->value) {
+            p->m_staticText_filament_settings->SetLabel(_L("Pellets"));
+            p->m_filament_icon->SetBitmap_("pellets");
+        } else {
+            p->m_staticText_filament_settings->SetLabel(_L("Filament"));
+            p->m_filament_icon->SetBitmap_("filament");
         }
-    } else {
-        // m_bed_type_list->SelectAndNotify(btPEI - 1);
-        BedType bed_type = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
-        m_bed_type_list->SelectAndNotify((int) bed_type - 1);
-        m_bed_type_list->Disable();
+
+        // Check for single_extruder_multi_material option (FDM only)
+        const auto semm_opt = cfg.option<ConfigOptionBool>("single_extruder_multi_material");
+        show_SEMM_buttons(semm_opt ? semm_opt->value : false);
+
+        //p->m_staticText_filament_settings->Update();
+
+        // Check for support_multi_bed_types option (FDM only)
+        const auto bed_types_opt = cfg.option<ConfigOptionBool>("support_multi_bed_types");
+        if (is_bbl_vendor || (bed_types_opt && bed_types_opt->value)) {
+            m_bed_type_list->Enable();
+            // Orca: don't update bed type if loading project
+            if (!p->plater->is_loading_project()) {
+                auto str_bed_type = wxGetApp().app_config->get_printer_setting(wxGetApp().preset_bundle->printers.get_selected_preset_name(),
+                                                                               "curr_bed_type");
+                if (!str_bed_type.empty()) {
+                    int bed_type_value = atoi(str_bed_type.c_str());
+                    if (bed_type_value <= 0 || bed_type_value >= btCount) {
+                        bed_type_value = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
+                    }
+
+                    m_bed_type_list->SelectAndNotify(bed_type_value - 1);
+                } else {
+                    BedType bed_type = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
+                    m_bed_type_list->SelectAndNotify((int) bed_type - 1);
+                }
+            }
+        } else {
+            // m_bed_type_list->SelectAndNotify(btPEI - 1);
+            BedType bed_type = preset_bundle.printers.get_edited_preset().get_default_bed_type(&preset_bundle);
+            m_bed_type_list->SelectAndNotify((int) bed_type - 1);
+            m_bed_type_list->Disable();
+        }
+
+        // Update the filament choosers to only contain the compatible presets, update the color preview,
+        // update the dirty flags.
+        for (PlaterPresetComboBox* cb : p->combos_filament)
+            cb->update();
     }
 
     // Update the print choosers to only contain the compatible presets, update the dirty flags.
@@ -1339,12 +1365,6 @@ void Sidebar::update_all_preset_comboboxes()
 
     // Update the printer choosers, update the dirty flags.
     //p->combo_printer->update();
-    // Update the filament choosers to only contain the compatible presets, update the color preview,
-    // update the dirty flags.
-    if (print_tech == ptFFF) {
-        for (PlaterPresetComboBox* cb : p->combos_filament)
-            cb->update();
-    }
 
     if (p->combo_printer)
         p->combo_printer->update();
@@ -1401,11 +1421,15 @@ void Sidebar::update_presets(Preset::Type preset_type)
         break;
         }
     case Preset::TYPE_SLA_PRINT:
-        ;// p->combo_sla_print->update();
+        // Update SLA print preset combobox
+        if (p->combo_sla_print)
+            p->combo_sla_print->update();
         break;
 
     case Preset::TYPE_SLA_MATERIAL:
-        ;// p->combo_sla_material->update();
+        // Update SLA material preset combobox
+        if (p->combo_sla_material)
+            p->combo_sla_material->update();
         break;
 
     case Preset::TYPE_PRINTER:
@@ -7379,7 +7403,15 @@ void Plater::priv::on_tab_selection_changing(wxBookCtrlEvent& e)
     } else {
         if (new_sel == MainFrame::tpMonitor && wxGetApp().preset_bundle != nullptr) {
             auto     cfg = wxGetApp().preset_bundle->printers.get_edited_preset().config;
-            wxString url = cfg.opt_string("print_host_webui").empty() ? cfg.opt_string("print_host") : cfg.opt_string("print_host_webui");
+            // Safely check print_host_webui and print_host options (may not exist for SLA printers)
+            const auto webui_opt = cfg.option<ConfigOptionString>("print_host_webui");
+            const auto host_opt = cfg.option<ConfigOptionString>("print_host");
+            wxString url;
+            if (webui_opt && !webui_opt->value.empty())
+                url = webui_opt->value;
+            else if (host_opt && !host_opt->value.empty())
+                url = host_opt->value;
+
             if (main_frame->m_printer_view && url.empty()) {
                 // It's missing_connection page, reload so that we can replay the gif image
                 main_frame->m_printer_view->reload();
