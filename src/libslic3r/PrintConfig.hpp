@@ -366,6 +366,12 @@ enum CounterboreHoleBridgingOption {
      wtwRib
  };
 
+#pragma region Phrozen LCD Parameter
+ enum TransitionType { spLinear };
+ enum WaitingModeDuringPrinting { spRestingTime, spLightOffDelay };
+ enum AntiAliasing { spNone, spGrayScaleLevel, spAntiAliasingLevel };
+#pragma endregion
+
 static std::string bed_type_to_gcode_string(const BedType type)
 {
     std::string type_str;
@@ -476,6 +482,10 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PrintHostType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(AuthorizationType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(WipeTowerWallType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PerimeterGeneratorType)
+// PhrozenLCD
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TransitionType)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(WaitingModeDuringPrinting)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(AntiAliasing)
 
 #undef CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS
 
@@ -550,6 +560,9 @@ public:
 
     // Overrides ConfigBase::def(). Static configuration definition. Any value stored into this ConfigBase shall have its definition here.
     const ConfigDef*    def() const override { return &print_config_def; }
+
+    // Override diff so that dual_float options (ConfigOptionFloats with 1 element) compare equal to 2-element form [a, a].
+    t_config_option_keys diff(const DynamicConfig &other) const;
 
     void                normalize_fdm(int used_filaments = 0);
     void                normalize_fdm_1();
@@ -1431,7 +1444,61 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionPoint,               bed_mesh_probe_distance))
     ((ConfigOptionFloat,               adaptive_bed_mesh_margin))
 
+    //((ConfigOptionFloat, layer_height))
+    ((ConfigOptionInt, bottom_layer_count))
+    ((ConfigOptionFloat, exposure_time))
+    ((ConfigOptionFloat, bottom_exposure_time))
+    ((ConfigOptionInt, transition_layer_count))
+    ((ConfigOptionEnum<TransitionType>, transition_type))
+    ((ConfigOptionFloat, transition_layer_interval_time_difference))
+    ((ConfigOptionEnum<WaitingModeDuringPrinting>, waiting_mode_during_printing))
+    ((ConfigOptionFloat, rest_time_before_lift))
+    ((ConfigOptionFloat, rest_time_after_lift))
+    ((ConfigOptionFloat, rest_time_after_retract))
+    ((ConfigOptionFloats, bottom_lift_distance))
+    ((ConfigOptionFloats, lifting_distance))
+    ((ConfigOptionFloats, bottom_retract_distance))
+    ((ConfigOptionFloats, retract_distance))
+    ((ConfigOptionFloats, bottom_lift_speed))
+    ((ConfigOptionFloats, lifting_speed))
+    ((ConfigOptionFloats, bottom_retract_speed))
+    ((ConfigOptionFloats, retract_speed))
+    ((ConfigOptionInt, bottom_light_pwm))
+    ((ConfigOptionInt, light_pwm))
+    ((ConfigOptionInt, picture_grayscale))
+    ((ConfigOptionEnum<AntiAliasing>, anti_aliasing))
+    ((ConfigOptionInt, gray_scale_level))
+    ((ConfigOptionBool, image_blur_enable))
+    ((ConfigOptionInt, image_blur_pixel))
+    ((ConfigOptionInt, anti_aliasing_level))
+    ((ConfigOptionBool, shrinkage_compensation))
+    ((ConfigOptionFloat, shrinkage_compensation_x))
+    ((ConfigOptionFloat, shrinkage_compensation_y))
+    ((ConfigOptionFloat, shrinkage_compensation_z))
+    ((ConfigOptionBool, tolerance_compensation))
+    ((ConfigOptionFloat, tolerance_compensation_a))
+    ((ConfigOptionFloat, tolerance_compensation_b))
+    ((ConfigOptionBool, bottom_tolerance_compensation))
+    ((ConfigOptionFloat, bottom_tolerance_compensation_a))
+    ((ConfigOptionFloat, bottom_tolerance_compensation_b))
 
+    ((ConfigOptionBool, generate_support))
+
+    ((ConfigOptionFloat, top_upper_diameter))
+    ((ConfigOptionFloat, top_contact_depth))
+    ((ConfigOptionFloat, pinhead_width))
+
+    ((ConfigOptionFloat, pillar_diameter))
+    ((ConfigOptionFloat, angle_between_top_and_middle))
+
+    ((ConfigOptionFloat, support_bottom_diameter))
+    ((ConfigOptionFloat, support_boss_height))
+
+    ((ConfigOptionFloat, object_elevation))
+
+    ((ConfigOptionInt, support_points_density))
+    //((ConfigOptionFloat, max_bridge_length))
+    ((ConfigOptionFloat, max_pillar_linking_distance))
 )
 
 // This object is mapped to Perl as Slic3r::Config::Full.

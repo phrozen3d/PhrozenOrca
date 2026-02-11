@@ -5,6 +5,7 @@
 #include "format.hpp"
 
 #include "GCode/Thumbnails.hpp"
+#include <cmath>
 #include <set>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
@@ -465,6 +466,26 @@ static const t_config_enum_values s_keys_map_WipeTowerWallType{
     {"rib", wtwRib},
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WipeTowerWallType)
+
+#pragma region Phrozen LCD Parameter
+static const t_config_enum_values s_keys_map_TransitionType = {
+    { "linear", spLinear }
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(TransitionType)
+
+static const t_config_enum_values s_keys_map_WaitingModeDuringPrinting = {
+    { "resting_time", spRestingTime },
+    { "light_off_delay", spLightOffDelay }
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WaitingModeDuringPrinting)
+
+static const t_config_enum_values s_keys_map_AntiAliasing = {
+    { "none", spNone },
+    { "gray_scale_level", spGrayScaleLevel },
+    { "anti_aliasing_level", spAntiAliasingLevel }
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(AntiAliasing)
+#pragma endregion
 
 static void assign_printer_technology_to_unknown(t_optiondef_map &options, PrinterTechnology printer_technology)
 {
@@ -6078,6 +6099,10 @@ void PrintConfigDef::init_fff_params()
                      "Otherwise, the rectilinear pattern will be used by default.");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool(true));
+
+
+
+
 }
 
 void PrintConfigDef::init_extruder_option_keys()
@@ -6149,6 +6174,458 @@ void PrintConfigDef::init_sla_params()
     ConfigOptionDef* def;
 
     // SLA Printer settings
+#pragma region Phrozen LCD Parameter
+    // Quality
+    ////Layer & Exposure
+    // def           = this->add("layer_height", coFloat);
+    // def->label    = L("Layer Height");
+    // def->category = L("Quality");
+    // def->tooltip  = L("Layer Height for quality.");
+    // def->sidetext = "mm or %";
+    // def->min      = 0;
+    // def->set_default_value(new ConfigOptionFloat(0.5));
+
+    def           = this->add("bottom_layer_count", coInt);
+    def->label    = L("Bottom Layer Count");
+    def->category = L("Quality");
+    def->tooltip  = L("Bottom Layer Count for quality.");
+    def->min      = 3;
+    def->max      = 8;
+    def->set_default_value(new ConfigOptionInt(8));
+
+    def           = this->add("exposure_time", coFloat);
+    def->label    = L("Exposure time");
+    def->category = L("Quality");
+    def->tooltip  = L("Exposure time for quality.");
+    def->sidetext = "s";
+    def->min      = 1.5;
+    // def->max      = 4.0;
+    def->set_default_value(new ConfigOptionFloat(2.7));
+
+    def           = this->add("bottom_exposure_time", coFloat);
+    def->label    = L("Bottom exposure time");
+    def->category = L("Quality");
+    def->tooltip  = L("Bottom exposure time for quality.");
+    def->sidetext = "s";
+    def->min      = 15.0;
+    def->max      = 45.0;
+    def->set_default_value(new ConfigOptionFloat(35.0));
+
+    // Transition
+    def           = this->add("transition_layer_count", coInt);
+    def->label    = L("Transition Layer Count");
+    def->category = L("Quality");
+    def->tooltip  = L("Transition Layer Count for quality.");
+    def->sidetext = "";
+    def->min      = 0;
+    def->max      = 5000;
+    def->set_default_value(new ConfigOptionInt(6));
+
+    def                = this->add("transition_type", coEnum);
+    def->label         = L("Transition Type");
+    def->category      = L("Quality");
+    def->tooltip       = L("Transition Type for quality.");
+    def->enum_keys_map = &ConfigOptionEnum<TransitionType>::get_enum_values();
+    def->enum_values.push_back("line");
+    def->enum_labels.push_back(L("Line"));
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<TransitionType>(spLinear));
+
+    def           = this->add("transition_layer_interval_time_difference", coFloat);
+    def->label    = L("Transition Layer Interval Time Difference");
+    def->category = L("Quality");
+    def->tooltip  = L("Transition Layer Interval Time Difference for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(4.614));
+
+    // Wait& Rest
+    def                = this->add("waiting_mode_during_printing", coEnum);
+    def->label         = L("Waiting Mode During Printing");
+    def->category      = L("Quality");
+    def->tooltip       = L("Waiting Mode During Printing for quality.");
+    def->enum_keys_map = &ConfigOptionEnum<WaitingModeDuringPrinting>::get_enum_values();
+    def->enum_values.push_back("resting_time");
+    def->enum_values.push_back("light_off_delay");
+    def->enum_labels.push_back(L("Resting time"));
+    def->enum_labels.push_back(L("Light off delay"));
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<WaitingModeDuringPrinting>(spRestingTime));
+
+    def           = this->add("rest_time_before_lift", coFloat);
+    def->label    = L("Rest Time Before Lift");
+    def->category = L("Quality");
+    def->tooltip  = L("Rest Time Before Lift for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->max      = 5000.000;
+    def->set_default_value(new ConfigOptionFloat(0.000));
+
+    def           = this->add("rest_time_after_lift", coFloat);
+    def->label    = L("Rest Time After Lift");
+    def->category = L("Quality");
+    def->tooltip  = L("Rest Time After Lift for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->max      = 5000.000;
+    def->set_default_value(new ConfigOptionFloat(0.000));
+
+    def           = this->add("rest_time_after_retract", coFloat);
+    def->label    = L("Rest Time After Retract");
+    def->category = L("Quality");
+    def->tooltip  = L("Rest Time After Retract for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->max      = 5000.000;
+    def->set_default_value(new ConfigOptionFloat(4.000));
+
+    def           = this->add("light_off_day", coFloat);
+    def->label    = L("Light-off Delay");
+    def->category = L("Quality");
+    def->tooltip  = L("Light-off Delay for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->max      = 5000.000;
+    def->set_default_value(new ConfigOptionFloat(16.000));
+
+    def           = this->add("bottom_light_off_day", coFloat);
+    def->label    = L("Bottom Light-off Delay");
+    def->category = L("Quality");
+    def->tooltip  = L("Bottom Light-off Delay for quality.");
+    def->sidetext = "s";
+    def->min      = 0;
+    def->max      = 5000.000;
+    def->set_default_value(new ConfigOptionFloat(16.000));
+
+    // Distance
+    // Lift& Retract Distance (two values shown as "value1 + value2")
+    def                          = this->add("bottom_lift_distance", coFloats);
+    def->label                   = L("Bottom Lift Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Bottom Lift Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+
+    def                          = this->add("lifting_distance", coFloats);
+    def->label                   = L("Lifting Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Lifting Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+
+    def                          = this->add("bottom_retract_distance", coFloats);
+    def->label                   = L("Bottom Retract Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Bottom Retract Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+
+    def                          = this->add("retract_distance", coFloats);
+    def->label                   = L("Retract Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Retract Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+
+    // Speed
+    //  Lift & Retract Speed
+    def                          = this->add("bottom_lift_speed", coFloats);
+    def->label                   = L("Bottom Lift Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Bottom Lift Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+
+    def                          = this->add("lifting_speed", coFloats);
+    def->label                   = L("Lifting Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Lifting Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+
+    def                          = this->add("bottom_retract_speed", coFloats);
+    def->label                   = L("Bottom Retract Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Bottom Retract Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+
+    def                          = this->add("retract_speed", coFloats);
+    def->label                   = L("Retract Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Retract Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+
+    // Advanced
+    // Advance
+    def           = this->add("bottom_light_pwm", coInt);
+    def->label    = L("Bottom Light PWM");
+    def->category = L("Advanced");
+    def->tooltip  = L("Bottom Light PWM for advanced");
+    def->min      = 0;
+    def->max      = 255;
+    def->set_default_value(new ConfigOptionInt(3));
+
+    def           = this->add("light_pwm", coInt);
+    def->label    = L("Light PWM");
+    def->category = L("Advanced");
+    def->tooltip  = L("Light PWM for advanced");
+    def->min      = 0;
+    def->max      = 255;
+    def->set_default_value(new ConfigOptionInt(3));
+
+    def           = this->add("picture_grayscale", coInt);
+    def->label    = L("Picture Grayscale");
+    def->category = L("Advanced");
+    def->tooltip  = L("Picture Grayscale for advanced");
+    def->min      = 0;
+    def->max      = 255;
+    def->set_default_value(new ConfigOptionInt(3));
+
+    def                = this->add("anti_aliasing", coEnum);
+    def->label         = L("Anti-Aliasing");
+    def->category      = L("Advanced");
+    def->tooltip       = L("Anti-Aliasing for advanced.");
+    def->enum_keys_map = &ConfigOptionEnum<AntiAliasing>::get_enum_values();
+    def->enum_values.push_back("none");
+    def->enum_values.push_back("gray_scale_level");
+    def->enum_values.push_back("anti_aliasing_level");
+    def->enum_labels.push_back(L("None"));
+    def->enum_labels.push_back(L("Gray Scale Level"));
+    def->enum_labels.push_back(L("Anti-aliasing Level"));
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<AntiAliasing>(spNone));
+
+    def           = this->add("gray_scale_level", coInt);
+    def->label    = L("Gray Scale Level");
+    def->category = L("Advanced");
+    def->tooltip  = L("Gray Scale Level for advanced");
+    def->min      = 1;
+    def->set_default_value(new ConfigOptionInt(1));
+
+    def           = this->add("image_blur_enable", coBool);
+    def->label    = L("Image Blur Enable");
+    def->category = L("Advanced");
+    def->tooltip  = L("Image Blur Enable for advanced");
+    def->set_default_value(new ConfigOptionBool(true));
+
+    def           = this->add("image_blur_pixel", coInt);
+    def->label    = L("Image Blur Pixel");
+    def->category = L("Advanced");
+    def->tooltip  = L("Image Blur Pixel for advanced");
+    def->min      = 1;
+    def->set_default_value(new ConfigOptionInt(1));
+
+    def           = this->add("anti_aliasing_level", coInt);
+    def->label    = L("Anti-aliasing level");
+    def->category = L("Advanced");
+    def->tooltip  = L("Anti-aliasing level");
+    def->min      = 1;
+    def->set_default_value(new ConfigOptionInt(2));
+
+    def           = this->add("shrinkage_compensation", coBool);
+    def->label    = L("Shrinkage Compensation");
+    def->category = L("Advanced");
+    def->tooltip  = L("Shrinkage Compensation for advanced");
+    def->set_default_value(new ConfigOptionBool(true));
+
+    def           = this->add("shrinkage_compensation_x", coFloat);
+    def->label    = L("X");
+    def->category = L("Advanced");
+    def->tooltip  = L("X for advanced.");
+    def->sidetext = "%";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("shrinkage_compensation_y", coFloat);
+    def->label    = L("Y");
+    def->category = L("Advanced");
+    def->tooltip  = L("Y for advanced.");
+    def->sidetext = "%";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("shrinkage_compensation_z", coFloat);
+    def->label    = L("Z");
+    def->category = L("Advanced");
+    def->tooltip  = L("Z for advanced.");
+    def->sidetext = "%";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("tolerance_compensation", coBool);
+    def->label    = L("Tolerance Compensation");
+    def->category = L("Advanced");
+    def->tooltip  = L("Tolerance Compensation for advanced");
+    def->set_default_value(new ConfigOptionBool(true));
+
+    def           = this->add("tolerance_compensation_a", coFloat);
+    def->label    = L("A");
+    def->category = L("Advanced");
+    def->tooltip  = L("A for advanced.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("tolerance_compensation_b", coFloat);
+    def->label    = L("B");
+    def->category = L("Advanced");
+    def->tooltip  = L("B for advanced.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("bottom_tolerance_compensation", coBool);
+    def->label    = L("Bottom Tolerance Compensation");
+    def->category = L("Advanced");
+    def->tooltip  = L("Bottom Tolerance Compensation for advanced");
+    def->set_default_value(new ConfigOptionBool(true));
+
+    def           = this->add("bottom_tolerance_compensation_a", coFloat);
+    def->label    = L("A");
+    def->category = L("Advanced");
+    def->tooltip  = L("A for advanced.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    def           = this->add("bottom_tolerance_compensation_b", coFloat);
+    def->label    = L("B");
+    def->category = L("Advanced");
+    def->tooltip  = L("B for advanced.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(100));
+
+    // Support
+    def           = this->add("generate_support", coBool);
+    def->label    = L("Generate support");
+    def->category = L("Support");
+    def->tooltip  = L("Generate support for support");
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("top_upper_diameter", coFloat);
+    def->label    = L("Upper Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Upper Diameter for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.4));
+
+    def           = this->add("top_contact_depth", coFloat);
+    def->label    = L("Contact Depth");
+    def->category = L("Support");
+    def->tooltip  = L("Contact Depth for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.4));
+
+    def           = this->add("pinhead_width", coFloat);
+    def->label    = L("Pinhead Width");
+    def->category = L("Support");
+    def->tooltip  = L("Pinhead Width for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(3));
+
+    def           = this->add("pillar_diameter", coFloat);
+    def->label    = L("Pillar Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Pillar Diameter for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(1));
+
+    def           = this->add("angle_between_top_and_middle", coFloat);
+    def->label    = L("Angle Between Top And Middle");
+    def->category = L("Support");
+    def->tooltip  = L("Angle Between Top And Middle for support.");
+    def->sidetext = "°";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(45));
+
+    def           = this->add("support_bottom_diameter", coFloat);
+    def->label    = L("Support Bottom Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Support Bottom Diameter for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(3.0));
+
+    def           = this->add("support_boss_height", coFloat);
+    def->label    = L("Support Boss Height");
+    def->category = L("Support");
+    def->tooltip  = L("Support Boss Height for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def           = this->add("object_elevation", coFloat);
+    def->label    = L("Object Elevation");
+    def->category = L("Support");
+    def->tooltip  = L("Object Elevation for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(5.0));
+
+    def           = this->add("support_points_density", coInt);
+    def->label    = L("Support Points Density");
+    def->category = L("Support");
+    def->tooltip  = L("Support Points Density for support.");
+    def->sidetext = "%";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionInt(100));
+
+    //def           = this->add("max_bridge_length", coFloat);
+    //def->label    = L("Max BridgeLength");
+    //def->category = L("Support");
+    //def->tooltip  = L("Max BridgeLength for support.");
+    //def->sidetext = "mm";
+    //def->min      = 0;
+    //def->set_default_value(new ConfigOptionFloat(10));
+
+    def           = this->add("max_pillar_linking_distance", coFloat);
+    def->label    = L("Max Pillar Linking Distance");
+    def->category = L("Support");
+    def->tooltip  = L("Max Pillar Linking Distance for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(10));
+
+#pragma endregion
 
     def = this->add("display_width", coFloat);
     //def->label = L("");
@@ -7009,6 +7486,44 @@ DynamicPrintConfig DynamicPrintConfig::full_print_config()
 
 DynamicPrintConfig::DynamicPrintConfig(const StaticPrintConfig& rhs) : DynamicConfig(rhs, rhs.keys_ref())
 {
+}
+
+// Normalize dual_float ConfigOptionFloats to 2 elements for comparison (so [a] equals [a, a]).
+static bool dual_float_options_equal(const ConfigOption *l, const ConfigOption *r)
+{
+    const auto *fl = dynamic_cast<const ConfigOptionFloats*>(l);
+    const auto *fr = dynamic_cast<const ConfigOptionFloats*>(r);
+    if (!fl || !fr) return *l == *r;
+    auto vl = fl->values;
+    auto vr = fr->values;
+    if (vl.size() == 1) vl = { vl[0], vl[0] };
+    if (vr.size() == 1) vr = { vr[0], vr[0] };
+    if (vl.size() != 2 || vr.size() != 2) return vl == vr;
+    return std::abs(vl[0] - vr[0]) < 1e-9 && std::abs(vl[1] - vr[1]) < 1e-9;
+}
+
+t_config_option_keys DynamicPrintConfig::diff(const DynamicConfig &other) const
+{
+    t_config_option_keys diff;
+    const ConfigDef *def = this->def();
+    for (const t_config_option_key &opt_key : this->keys()) {
+        const ConfigOption *this_opt  = this->option(opt_key);
+        const ConfigOption *other_opt = other.option(opt_key);
+        if (this_opt == nullptr || other_opt == nullptr)
+            continue;
+        bool different = true;
+        if (def && this_opt->type() == coFloats && other_opt->type() == coFloats) {
+            const ConfigOptionDef *opt_def = def->get(opt_key);
+            if (opt_def && opt_def->gui_type == ConfigOptionDef::GUIType::dual_float)
+                different = !dual_float_options_equal(this_opt, other_opt);
+            else
+                different = *this_opt != *other_opt;
+        } else
+            different = *this_opt != *other_opt;
+        if (different)
+            diff.emplace_back(opt_key);
+    }
+    return diff;
 }
 
 DynamicPrintConfig* DynamicPrintConfig::new_from_defaults_keys(const std::vector<std::string> &keys)
