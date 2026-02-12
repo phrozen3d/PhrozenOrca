@@ -238,6 +238,46 @@ enum SLAPillarConnectionMode {
     slapcmDynamic
 };
 
+// SLA support tree type (for Phase 2 branching support)
+enum SLASupportTreeType : int {
+    sla_stt_Default,
+    sla_stt_Branching,
+    // sla_stt_Organic  // TODO: future
+};
+
+enum TowerSpeeds : int {
+    tsLayer1,
+    tsLayer2,
+    tsLayer3,
+    tsLayer4,
+    tsLayer5,
+    tsLayer8,
+    tsLayer11,
+    tsLayer14,
+    tsLayer18,
+    tsLayer22,
+    tsLayer24,
+};
+
+enum TiltSpeeds : int {
+    tsMove120,
+    tsLayer200,
+    tsMove300,
+    tsLayer400,
+    tsLayer600,
+    tsLayer800,
+    tsLayer1000,
+    tsLayer1250,
+    tsLayer1500,
+    tsLayer1750,
+    tsLayer2000,
+    tsLayer2250,
+    tsMove5120,
+    tsMove8000,
+};
+
+enum SLAMaterialSpeed { slamsSlow, slamsFast, slamsHighViscosity };
+
 enum BrimType {
     btAutoBrim,  // BBS
     btEar, // Orca
@@ -470,6 +510,10 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamPosition)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamScarfType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLADisplayOrientation)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAPillarConnectionMode)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLASupportTreeType)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAMaterialSpeed)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TowerSpeeds)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TiltSpeeds)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BrimType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TimelapseType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BedType)
@@ -517,6 +561,8 @@ private:
     void init_fff_params();
     void init_extruder_option_keys();
     void init_sla_params();
+    void init_sla_support_params(const std::string &prefix);
+    void init_sla_tilt_params();
 
     std::vector<std::string>    m_extruder_option_keys;
     std::vector<std::string>    m_extruder_retract_keys;
@@ -1524,9 +1570,12 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionInt,  faded_layers))/*= 10*/
 
     ((ConfigOptionFloat, slice_closing_radius))
+    ((ConfigOptionEnum<SlicingMode>, slicing_mode))
 
     // Enabling or disabling support creation
     ((ConfigOptionBool,  supports_enable))
+
+    ((ConfigOptionEnum<SLASupportTreeType>, support_tree_type))
 
     // Diameter in mm of the pointing side of the head.
     ((ConfigOptionFloat, support_head_front_diameter))/*= 0.2*/
@@ -1552,6 +1601,11 @@ PRINT_CONFIG_CLASS_DEFINE(
 
     // Generate only ground facing supports
     ((ConfigOptionBool, support_buildplate_only))
+
+    ((ConfigOptionFloat, support_max_weight_on_model))
+
+    // Generate only ground facing supports
+    ((ConfigOptionBool, support_enforcers_only))
 
     // TODO: unimplemented at the moment. This coefficient will have an impact
     // when bridges and pillars are merged. The resulting pillar should be a bit
@@ -1580,6 +1634,27 @@ PRINT_CONFIG_CLASS_DEFINE(
     // The elevation in Z direction upwards. This is the space between the pad
     // and the model object's bounding box bottom. Units in mm.
     ((ConfigOptionFloat, support_object_elevation))/*= 5.0*/
+
+
+    // Branching tree support parameters
+
+    ((ConfigOptionFloat, branchingsupport_head_front_diameter))/*= 0.2*/
+    ((ConfigOptionFloat, branchingsupport_head_penetration))/*= 0.2*/
+    ((ConfigOptionFloat, branchingsupport_head_width))/*= 1.0*/
+    ((ConfigOptionFloat, branchingsupport_pillar_diameter))/*= 0.8*/
+    ((ConfigOptionPercent, branchingsupport_small_pillar_diameter_percent))
+    ((ConfigOptionInt,   branchingsupport_max_bridges_on_pillar))
+    ((ConfigOptionEnum<SLAPillarConnectionMode>, branchingsupport_pillar_connection_mode))
+    ((ConfigOptionBool, branchingsupport_buildplate_only))
+    ((ConfigOptionFloat, branchingsupport_max_weight_on_model))
+    ((ConfigOptionFloat, branchingsupport_pillar_widening_factor))
+    ((ConfigOptionFloat, branchingsupport_base_diameter))/*= 2.0*/
+    ((ConfigOptionFloat, branchingsupport_base_height))/*= 1.0*/
+    ((ConfigOptionFloat, branchingsupport_base_safety_distance)) /*= 1.0*/
+    ((ConfigOptionFloat, branchingsupport_critical_angle))/*= 45*/
+    ((ConfigOptionFloat, branchingsupport_max_bridge_length))/*= 15.0*/
+    ((ConfigOptionFloat, branchingsupport_max_pillar_link_distance))
+    ((ConfigOptionFloat, branchingsupport_object_elevation))/*= 5.0*/
 
     /////// Following options influence automatic support points placement:
     ((ConfigOptionInt, support_points_density_relative))
@@ -1657,8 +1732,6 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat, hollowing_closing_distance))
 )
 
-enum SLAMaterialSpeed { slamsSlow, slamsFast };
-
 PRINT_CONFIG_CLASS_DEFINE(
     SLAMaterialConfig,
 
@@ -1674,6 +1747,42 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                       material_correction_y))
     ((ConfigOptionFloat,                       material_correction_z))
     ((ConfigOptionEnum<SLAMaterialSpeed>,      material_print_speed))
+    ((ConfigOptionInt,                         zcorrection_layers))
+
+    // Material overrides for support params (PrusaSlicer uses ConfigOptionFloatNullable;
+    // PhrozenOrca lacks singular nullable types, using regular types with -1 = unset)
+    ((ConfigOptionFloat,                       material_ow_support_pillar_diameter))
+    ((ConfigOptionFloat,                       material_ow_branchingsupport_pillar_diameter))
+    ((ConfigOptionFloat,                       material_ow_support_head_front_diameter))
+    ((ConfigOptionFloat,                       material_ow_branchingsupport_head_front_diameter))
+    ((ConfigOptionFloat,                       material_ow_support_head_penetration))
+    ((ConfigOptionFloat,                       material_ow_branchingsupport_head_penetration))
+    ((ConfigOptionFloat,                       material_ow_support_head_width))
+    ((ConfigOptionFloat,                       material_ow_branchingsupport_head_width))
+    ((ConfigOptionInt,                         material_ow_support_points_density_relative))
+    ((ConfigOptionFloat,                       material_ow_elefant_foot_compensation))
+    ((ConfigOptionFloat,                       material_ow_absolute_correction))
+    ((ConfigOptionFloat,                       area_fill)) // PrusaSlicer 新增到 Material, TODO: 確認是否保留
+
+    //tilt params
+    ((ConfigOptionFloats,                      delay_before_exposure))
+    ((ConfigOptionFloats,                      delay_after_exposure))
+    ((ConfigOptionFloats,                      tower_hop_height))
+    // PrusaSlicer uses ConfigOptionEnums<T>; PhrozenOrca lacks this template, using ConfigOptionInts
+    ((ConfigOptionInts,                        tower_speed))
+    ((ConfigOptionBools,                       use_tilt))
+    ((ConfigOptionInts,                        tilt_down_initial_speed))
+    ((ConfigOptionInts,                        tilt_down_offset_steps))
+    ((ConfigOptionFloats,                      tilt_down_offset_delay))
+    ((ConfigOptionInts,                        tilt_down_finish_speed))
+    ((ConfigOptionInts,                        tilt_down_cycles))
+    ((ConfigOptionFloats,                      tilt_down_delay))
+    ((ConfigOptionInts,                        tilt_up_initial_speed))
+    ((ConfigOptionInts,                        tilt_up_offset_steps))
+    ((ConfigOptionFloats,                      tilt_up_offset_delay))
+    ((ConfigOptionInts,                        tilt_up_finish_speed))
+    ((ConfigOptionInts,                        tilt_up_cycles))
+    ((ConfigOptionFloats,                      tilt_up_delay))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -1699,11 +1808,14 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                      gamma_correction))
     ((ConfigOptionFloat,                      fast_tilt_time))
     ((ConfigOptionFloat,                      slow_tilt_time))
+    ((ConfigOptionFloat,                      high_viscosity_tilt_time))
     ((ConfigOptionFloat,                      area_fill))
     ((ConfigOptionFloat,                      min_exposure_time))
     ((ConfigOptionFloat,                      max_exposure_time))
     ((ConfigOptionFloat,                      min_initial_exposure_time))
     ((ConfigOptionFloat,                      max_initial_exposure_time))
+    ((ConfigOptionString,                     sla_archive_format))
+    ((ConfigOptionFloat,                      sla_output_precision))
 )
 
 PRINT_CONFIG_CLASS_DERIVED_DEFINE0(

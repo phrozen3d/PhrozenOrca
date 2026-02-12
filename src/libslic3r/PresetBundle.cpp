@@ -80,25 +80,27 @@ PresetBundle::PresetBundle()
     this->sla_materials.default_preset().config.optptr("sla_material_settings_id", true);
     this->sla_materials.default_preset().compatible_printers_condition();
     this->sla_materials.default_preset().inherits();
+    // Set all the nullable values to nils.
+    this->sla_materials.default_preset().config.null_nullables();
 
     this->sla_prints.default_preset().config.optptr("sla_print_settings_id", true);
     this->sla_prints.default_preset().config.opt_string("filename_format", true) = "[input_filename_base].sl1";
     this->sla_prints.default_preset().compatible_printers_condition();
     this->sla_prints.default_preset().inherits();
 
-    //this->printers.add_default_preset(Preset::sla_printer_options(), static_cast<const SLAMaterialConfig &>(SLAFullPrintConfig::defaults()), "- default SLA -");
-    //this->printers.preset(1).printer_technology_ref() = ptSLA;
-    for (size_t i = 0; i < 1; ++i) {
+    this->printers.add_default_preset(Preset::sla_printer_options(), static_cast<const SLAMaterialConfig &>(SLAFullPrintConfig::defaults()), "- default SLA -");
+    this->printers.preset(1).printer_technology_ref() = ptSLA;
+    for (size_t i = 0; i < 2; ++i) {
         // The following ugly switch is to avoid printers.preset(0) to return the edited instance, as the 0th default is the current one.
         Preset &preset = this->printers.default_preset(i);
         for (const char *key : {"printer_settings_id", "printer_model", "printer_variant", "thumbnails"}) preset.config.optptr(key, true);
-        //if (i == 0) {
+        if (i == 0) {
             preset.config.optptr("default_print_profile", true);
             preset.config.option<ConfigOptionStrings>("default_filament_profile", true);
-        //} else {
-        //    preset.config.optptr("default_sla_print_profile", true);
-        //    preset.config.optptr("default_sla_material_profile", true);
-        //}
+        } else {
+            preset.config.optptr("default_sla_print_profile", true);
+            preset.config.optptr("default_sla_material_profile", true);
+        }
         // default_sla_material_profile
         preset.inherits();
     }
@@ -485,19 +487,21 @@ void PresetBundle::reset_project_embedded_presets()
 
     //this->update_multi_material_filament_presets();
 
-    //update filament_presets
-    for (size_t i = 0; i < filament_presets.size(); ++ i)
-    {
-        Preset* selected_filament = this->filaments.find_preset(filament_presets[i], false);
-        if (!selected_filament) {
-            //it should be the project embedded presets
-            Preset& current_printer = this->printers.get_selected_preset();
-            const std::vector<std::string> &prefered_filament_profiles = current_printer.config.option<ConfigOptionStrings>("default_filament_profile")->values;
-            const std::string prefered_filament_profile = prefered_filament_profiles.empty() ? std::string() : prefered_filament_profiles.front();
-            if (!prefered_filament_profile.empty())
-                filament_presets[i] = prefered_filament_profile;
-            else
-            filament_presets[i] = this->filaments.first_visible().name;
+    //update filament_presets (FDM only - SLA printers don't use filaments)
+    if (this->printers.get_selected_preset().printer_technology() != ptSLA) {
+        for (size_t i = 0; i < filament_presets.size(); ++ i)
+        {
+            Preset* selected_filament = this->filaments.find_preset(filament_presets[i], false);
+            if (!selected_filament) {
+                //it should be the project embedded presets
+                Preset& current_printer = this->printers.get_selected_preset();
+                const std::vector<std::string> &prefered_filament_profiles = current_printer.config.option<ConfigOptionStrings>("default_filament_profile")->values;
+                const std::string prefered_filament_profile = prefered_filament_profiles.empty() ? std::string() : prefered_filament_profiles.front();
+                if (!prefered_filament_profile.empty())
+                    filament_presets[i] = prefered_filament_profile;
+                else
+                filament_presets[i] = this->filaments.first_visible().name;
+            }
         }
     }
 }
@@ -610,10 +614,26 @@ PresetsConfigSubstitutions PresetBundle::load_user_presets(std::string user, For
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
+    // Restore SLA print preset loading (Phase 1 Step 1.3)
+    try {
+        std::string sla_print_selected_preset_name = sla_prints.get_selected_preset().name;
+        this->sla_prints.load_presets(dir_user_presets, PRESET_SLA_PRINT_NAME, substitutions, substitution_rule);
+        sla_prints.select_preset_by_name(sla_print_selected_preset_name, false);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
     try {
         std::string filament_selected_preset_name = filaments.get_selected_preset().name;
         this->filaments.load_presets(dir_user_presets, PRESET_FILAMENT_NAME, substitutions, substitution_rule);
         filaments.select_preset_by_name(filament_selected_preset_name, false);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
+    // Restore SLA material preset loading (Phase 1 Step 1.3)
+    try {
+        std::string sla_material_selected_preset_name = sla_materials.get_selected_preset().name;
+        this->sla_materials.load_presets(dir_user_presets, PRESET_SLA_MATERIALS_NAME, substitutions, substitution_rule);
+        sla_materials.select_preset_by_name(sla_material_selected_preset_name, false);
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
@@ -1693,20 +1713,43 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     //BBS: set default print/filament profiles to BBL's default setting
     if (preferred_printer)
     {
-        const std::string& prefered_print_profile = preferred_printer->config.opt_string("default_print_profile");
-        if ((!initial_print_profile_name.compare("Default Setting")) && (prefered_print_profile.size() > 0))
-            initial_print_profile_name = prefered_print_profile;
+        // Check printer technology to use correct config keys
+        PrinterTechnology printer_tech = preferred_printer->config.opt_enum<PrinterTechnology>("printer_technology");
+        if (printer_tech == ptSLA) {
+            // SLA printer: use default_sla_print_profile and default_sla_material_profile
+            if (const ConfigOption* opt = preferred_printer->config.optptr("default_sla_print_profile")) {
+                const std::string& prefered_print_profile = static_cast<const ConfigOptionString*>(opt)->value;
+                if ((!initial_print_profile_name.compare("Default Setting")) && (prefered_print_profile.size() > 0))
+                    initial_print_profile_name = prefered_print_profile;
+            }
+            if (const ConfigOption* opt = preferred_printer->config.optptr("default_sla_material_profile")) {
+                const std::string& prefered_material_profile = static_cast<const ConfigOptionString*>(opt)->value;
+                if ((!initial_filament_profile_name.compare("Default Filament")) && (prefered_material_profile.size() > 0))
+                    initial_filament_profile_name = prefered_material_profile;
+            }
+        } else {
+            // FDM printer: use default_print_profile and default_filament_profile
+            const std::string& prefered_print_profile = preferred_printer->config.opt_string("default_print_profile");
+            if ((!initial_print_profile_name.compare("Default Setting")) && (prefered_print_profile.size() > 0))
+                initial_print_profile_name = prefered_print_profile;
 
-        const std::vector<std::string>& prefered_filament_profiles = preferred_printer->config.option<ConfigOptionStrings>("default_filament_profile")->values;
-        if ((!initial_filament_profile_name.compare("Default Filament")) && (prefered_filament_profiles.size() > 0))
-            initial_filament_profile_name = prefered_filament_profiles[0];
+            const std::vector<std::string>& prefered_filament_profiles = preferred_printer->config.option<ConfigOptionStrings>("default_filament_profile")->values;
+            if ((!initial_filament_profile_name.compare("Default Filament")) && (prefered_filament_profiles.size() > 0))
+                initial_filament_profile_name = prefered_filament_profiles[0];
+        }
     }
 
     // Selects the profile, leaves it to -1 if the initial profile name is empty or if it was not found.
-    prints.select_preset_by_name_strict(initial_print_profile_name);
-    filaments.select_preset_by_name_strict(initial_filament_profile_name);
-	// sla_prints.select_preset_by_name_strict(initial_sla_print_profile_name);
-    // sla_materials.select_preset_by_name_strict(initial_sla_material_profile_name);
+    // Use the correct preset collection based on the selected printer technology
+    const Preset& selected_printer = printers.get_selected_preset();
+    PrinterTechnology selected_tech = selected_printer.config.opt_enum<PrinterTechnology>("printer_technology");
+    if (selected_tech == ptSLA) {
+        sla_prints.select_preset_by_name_strict(initial_print_profile_name);
+        sla_materials.select_preset_by_name_strict(initial_filament_profile_name);
+    } else {
+        prints.select_preset_by_name_strict(initial_print_profile_name);
+        filaments.select_preset_by_name_strict(initial_filament_profile_name);
+    }
 
     // Load the names of the other filament profiles selected for a multi-material printer.
     // Load it even if the current printer technology is SLA.
@@ -3100,7 +3143,26 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
     std::map<std::string, DynamicPrintConfig> configs;
     std::map<std::string, std::string> filament_id_maps;
     //3.1) paste the process
-    presets = &this->prints;
+    // Determine if this is SLA or FDM by checking the first process file
+    presets = &this->prints;  // Default to FDM
+    if (!process_subfiles.empty()) {
+        std::string first_process_file = path + "/" + vendor_name + "/" + process_subfiles[0].second;
+        try {
+            std::map<std::string, std::string> temp_key_values;
+            DynamicPrintConfig temp_config;
+            ConfigSubstitutionContext temp_context { compatibility_rule };
+            std::string temp_reason;
+            temp_config.load_from_json(first_process_file, temp_context, false, temp_key_values, temp_reason);
+            // Check if this is SLA by looking for printer_technology config option
+            auto* tech_opt = temp_config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+            if (tech_opt && tech_opt->value == ptSLA) {
+                presets = &this->sla_prints;
+                BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": detected SLA process profiles, routing to sla_prints";
+            }
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ": failed to detect printer_technology from " << first_process_file << ", defaulting to FDM";
+        }
+    }
     configs.clear();
     filament_id_maps.clear();
     for (auto& subfile : process_subfiles)
@@ -3116,7 +3178,26 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
     }
 
     //3.2) paste the filaments
-    presets = &this->filaments;
+    // Determine if this is SLA or FDM by checking the first filament file
+    presets = &this->filaments;  // Default to FDM
+    if (!filament_subfiles.empty()) {
+        std::string first_filament_file = path + "/" + vendor_name + "/" + filament_subfiles[0].second;
+        try {
+            std::map<std::string, std::string> temp_key_values;
+            DynamicPrintConfig temp_config;
+            ConfigSubstitutionContext temp_context { compatibility_rule };
+            std::string temp_reason;
+            temp_config.load_from_json(first_filament_file, temp_context, false, temp_key_values, temp_reason);
+            // Check if this is SLA by looking for printer_technology config option
+            auto* tech_opt = temp_config.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+            if (tech_opt && tech_opt->value == ptSLA) {
+                presets = &this->sla_materials;
+                BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": detected SLA material profiles, routing to sla_materials";
+            }
+        } catch (...) {
+            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ": failed to detect printer_technology from " << first_filament_file << ", defaulting to FDM";
+        }
+    }
     configs.clear();
     filament_id_maps.clear();
     const auto is_orca_lib = vendor_name == ORCA_FILAMENT_LIBRARY;

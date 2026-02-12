@@ -1321,8 +1321,9 @@ void MainFrame::create_preset_tabs()
     add_created_tab(new TabPrintLayer(m_param_panel), "cog");
     add_created_tab(new TabFilament(m_param_dialog->panel()), "spool");
     /* BBS work around to avoid appearance bug */
-    //add_created_tab(new TabSLAPrint(m_param_panel));
-    //add_created_tab(new TabSLAMaterial(m_param_panel));
+    // Restore SLA tabs (Phase 1 Step 1.3)
+    add_created_tab(new TabSLAPrint(m_param_panel));
+    add_created_tab(new TabSLAMaterial(m_param_panel));
     add_created_tab(new TabPrinter(m_param_dialog->panel()), "printer");
 
     m_param_panel->rebuild_panels();
@@ -3953,6 +3954,10 @@ void MainFrame::RunScript(wxString js)
 
 void MainFrame::technology_changed()
 {
+    // Phase 1 Step 1.5: Add null check for m_menubar
+    if (!m_menubar)
+        return;
+
     // update menu titles
     PrinterTechnology pt = plater()->printer_technology();
     if (int id = m_menubar->FindMenu(pt == ptFFF ? _omitL("Material Settings") : _L("Filament Settings")); id != wxNOT_FOUND)
@@ -3986,7 +3991,19 @@ void MainFrame::update_side_preset_ui()
 
     //BBS: update the preset
     m_plater->sidebar().update_presets(Preset::TYPE_PRINTER);
-    m_plater->sidebar().update_presets(Preset::TYPE_FILAMENT);
+
+    // Update process and material presets based on printer technology
+    PresetBundle &preset_bundle = *wxGetApp().preset_bundle;
+    const auto print_tech = preset_bundle.printers.get_edited_preset().printer_technology();
+
+    if (print_tech == ptFFF) {
+        // FDM: update filament presets
+        m_plater->sidebar().update_presets(Preset::TYPE_FILAMENT);
+    } else {
+        // SLA: update SLA print and material presets
+        m_plater->sidebar().update_presets(Preset::TYPE_SLA_PRINT);
+        m_plater->sidebar().update_presets(Preset::TYPE_SLA_MATERIAL);
+    }
 
 
     //take off multi machine

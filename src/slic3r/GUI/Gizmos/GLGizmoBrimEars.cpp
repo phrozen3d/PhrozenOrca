@@ -40,7 +40,11 @@ GLGizmoBrimEars::GLGizmoBrimEars(GLCanvas3D &parent, const std::string &icon_fil
 
 bool GLGizmoBrimEars::on_init()
 {
-    m_new_point_head_diameter = get_brim_default_radius();
+    // BrimEars is FDM-only; skip FDM config access for SLA printers (on_init is called for all gizmos)
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptFFF)
+        m_new_point_head_diameter = 0.f;
+    else
+        m_new_point_head_diameter = get_brim_default_radius();
 
     m_shortcut_key = WXK_CONTROL_E;
 
@@ -823,6 +827,10 @@ void GLGizmoBrimEars::show_tooltip_information(float x, float y)
 
 bool GLGizmoBrimEars::on_is_activable() const
 {
+    // BrimEars is FDM-only - requires nozzle_diameter and print settings
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptFFF)
+        return false;
+
     const Selection &selection = m_parent.get_selection();
 
     if (!selection.is_single_full_instance()) return false;

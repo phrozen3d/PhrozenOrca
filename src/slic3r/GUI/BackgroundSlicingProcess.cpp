@@ -123,6 +123,12 @@ BackgroundSlicingProcess::~BackgroundSlicingProcess()
 	//boost::nowide::remove(m_temp_output_path.c_str());
 }
 
+void BackgroundSlicingProcess::set_sla_print(SLAPrint *print)
+{
+    m_sla_print = print;
+    m_sla_print->set_printer(&m_sla_archive);
+}
+
 //BBS: switch the print in background slicing process
 bool BackgroundSlicingProcess::switch_print_preprocess()
 {
@@ -631,17 +637,25 @@ bool BackgroundSlicingProcess::execute_ui_task(std::function<void()> task)
 	bool result = false;
 	if (running) {
 		std::shared_ptr<UITask> ctx = m_ui_task;
-		GUI::wxGetApp().mainframe->m_plater->CallAfter([task, ctx]() {
-			// Running on the UI thread, thus ctx->state does not need to be guarded with mutex against ::cancel_ui_task().
-			assert(ctx->state == UITask::Planned || ctx->state == UITask::Canceled);
-			if (ctx->state == UITask::Planned) {
-				task();
-				std::unique_lock<std::mutex> lck(ctx->mutex);
-	    		ctx->state = UITask::Finished;
-	    	}
-	    	// Wake up the worker thread from the UI thread.
-    		ctx->condition.notify_all();
-	    });
+		auto mainframe = GUI::wxGetApp().mainframe;
+		if (mainframe && mainframe->m_plater) {  // Guard against early initialization or shutdown
+			mainframe->m_plater->CallAfter([task, ctx]() {
+				// Running on the UI thread, thus ctx->state does not need to be guarded with mutex against ::cancel_ui_task().
+				assert(ctx->state == UITask::Planned || ctx->state == UITask::Canceled);
+				if (ctx->state == UITask::Planned) {
+					task();
+					std::unique_lock<std::mutex> lck(ctx->mutex);
+		    		ctx->state = UITask::Finished;
+		    	}
+		    	// Wake up the worker thread from the UI thread.
+	    		ctx->condition.notify_all();
+		    });
+		} else {
+			// Mainframe or plater not ready, mark as canceled
+			std::unique_lock<std::mutex> lck(ctx->mutex);
+			ctx->state = UITask::Canceled;
+			ctx->condition.notify_all();
+		}
 
 	    {
 			std::unique_lock<std::mutex> lock(ctx->mutex);
@@ -693,9 +707,12 @@ Print::ApplyStatus BackgroundSlicingProcess::apply(const Model &model, const Dyn
 
 	// Orca: prevent resetting under gcode viewer mode
     if (invalidated != PrintBase::APPLY_STATUS_UNCHANGED) {
-        const auto plater = GUI::wxGetApp().mainframe->m_plater;
-        if (plater && plater->only_gcode_mode()) {
-            invalidated = PrintBase::APPLY_STATUS_UNCHANGED;
+        auto mainframe = GUI::wxGetApp().mainframe;
+        if (mainframe) {  // Guard against early initialization or shutdown
+            const auto plater = mainframe->m_plater;
+            if (plater && plater->only_gcode_mode()) {
+                invalidated = PrintBase::APPLY_STATUS_UNCHANGED;
+            }
         }
     }
 

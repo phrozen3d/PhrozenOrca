@@ -334,10 +334,50 @@ static const t_config_enum_values s_keys_map_SLAPillarConnectionMode = {
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLAPillarConnectionMode)
 
 static const t_config_enum_values s_keys_map_SLAMaterialSpeed = {
-    {"slow", slamsSlow},
-    {"fast", slamsFast}
+    {"slow",            slamsSlow},
+    {"fast",            slamsFast},
+    {"high_viscosity",  slamsHighViscosity}
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLAMaterialSpeed);
+
+static inline const t_config_enum_values s_keys_map_SLASupportTreeType = {
+    {"default",   int(sla_stt_Default)},
+    {"branching", int(sla_stt_Branching)},
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLASupportTreeType);
+
+static const t_config_enum_values s_keys_map_TowerSpeeds{
+    { "layer1",  tsLayer1    },
+    { "layer2",  tsLayer2    },
+    { "layer3",  tsLayer3    },
+    { "layer4",  tsLayer4    },
+    { "layer5",  tsLayer5    },
+    { "layer8",  tsLayer8    },
+    { "layer11", tsLayer11   },
+    { "layer14", tsLayer14   },
+    { "layer18", tsLayer18   },
+    { "layer22", tsLayer22   },
+    { "layer24", tsLayer24   },
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(TowerSpeeds)
+
+static const t_config_enum_values s_keys_map_TiltSpeeds{
+    { "move120",    tsMove120    },
+    { "layer200",   tsLayer200   },
+    { "move300",    tsMove300    },
+    { "layer400",   tsLayer400   },
+    { "layer600",   tsLayer600   },
+    { "layer800",   tsLayer800   },
+    { "layer1000",  tsLayer1000  },
+    { "layer1250",  tsLayer1250  },
+    { "layer1500",  tsLayer1500  },
+    { "layer1750",  tsLayer1750  },
+    { "layer2000",  tsLayer2000  },
+    { "layer2250",  tsLayer2250  },
+    { "move5120",   tsMove5120   },
+    { "move8000",   tsMove8000   },
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(TiltSpeeds)
 
 static const t_config_enum_values s_keys_map_BrimType = {
     {"no_brim",         btNoBrim},
@@ -6169,6 +6209,321 @@ void PrintConfigDef::init_filament_option_keys()
     assert(std::is_sorted(m_filament_retract_keys.begin(), m_filament_retract_keys.end()));
 }
 
+// Branching support params use a prefix to create branchingsupport_* variants.
+// Default (non-prefixed) support params are already defined in init_sla_params().
+void PrintConfigDef::init_sla_support_params(const std::string &prefix)
+{
+    ConfigOptionDef* def;
+
+    def = this->add(prefix + "support_head_front_diameter", coFloat);
+    //def->label = L("Pinhead front diameter");
+    //def->category = L("Supports");
+    //def->tooltip = L("Diameter of the pointing side of the head");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.4));
+
+    def = this->add(prefix + "support_head_penetration", coFloat);
+    //def->label = L("Head penetration");
+    //def->category = L("Supports");
+    //def->tooltip = L("How much the pinhead has to penetrate the model surface");
+    //def->sidetext = L("mm");
+    def->mode = comAdvanced;
+    def->min = 0;
+    def->set_default_value(new ConfigOptionFloat(0.2));
+
+    def = this->add(prefix + "support_head_width", coFloat);
+    //def->label = L("Pinhead width");
+    //def->category = L("Supports");
+    //def->tooltip = L("Width from the back sphere center to the front sphere center");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 20;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def = this->add(prefix + "support_pillar_diameter", coFloat);
+    //def->label = L("Pillar diameter");
+    //def->category = L("Supports");
+    //def->tooltip = L("Diameter in mm of the support pillars");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 15;
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def = this->add(prefix + "support_small_pillar_diameter_percent", coPercent);
+    //def->label = L("Small pillar diameter percent");
+    //def->category = L("Supports");
+    //def->tooltip = L("The percentage of smaller pillars compared to the normal pillar diameter "
+    //                  "which are used in problematic areas where a normal pilla cannot fit.");
+    //def->sidetext = L("%");
+    def->min = 1;
+    def->max = 100;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionPercent(50));
+
+    def = this->add(prefix + "support_max_bridges_on_pillar", coInt);
+    //def->label = L("Max bridges on a pillar");
+    //def->tooltip = L("Maximum number of bridges that can be placed on a pillar.");
+    def->min = 0;
+    def->max = 50;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(prefix == "branching" ? 2 : 3));
+
+    def = this->add(prefix + "support_max_weight_on_model", coFloat);
+    //def->label = L("Max weight on model");
+    //def->category = L("Supports");
+    //def->tooltip = L("Maximum weight of sub-trees that terminate on the model instead of the print bed.");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.));
+
+    def = this->add(prefix + "support_pillar_connection_mode", coEnum);
+    //def->label = L("Pillar connection mode");
+    //def->tooltip = L("Controls the bridge type between two neighboring pillars.");
+    def->enum_keys_map = &ConfigOptionEnum<SLAPillarConnectionMode>::get_enum_values();
+    def->enum_values.push_back("zigzag");
+    def->enum_values.push_back("cross");
+    def->enum_values.push_back("dynamic");
+    def->enum_labels.push_back(" ");
+    def->enum_labels.push_back(" ");
+    def->enum_labels.push_back(" ");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionEnum<SLAPillarConnectionMode>(slapcmDynamic));
+
+    def = this->add(prefix + "support_buildplate_only", coBool);
+    //def->label = L("Support on build plate only");
+    //def->category = L("Supports");
+    //def->tooltip = L("Only create support if it lies on a build plate.");
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add(prefix + "support_pillar_widening_factor", coFloat);
+    //def->label = L("Pillar widening factor");
+    //def->category = L("Supports");
+    //def->tooltip = L("Merging bridges or pillars into another pillars can increase the radius.");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(prefix == "branching" ? 0.5 : 0.0)); // PhrozenOrca default=0.0
+
+    def = this->add(prefix + "support_base_diameter", coFloat);
+    //def->label = L("Support base diameter");
+    //def->category = L("Supports");
+    //def->tooltip = L("Diameter in mm of the pillar base");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 30;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(4.0));
+
+    def = this->add(prefix + "support_base_height", coFloat);
+    //def->label = L("Support base height");
+    //def->category = L("Supports");
+    //def->tooltip = L("The height of the pillar base cone");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def = this->add(prefix + "support_base_safety_distance", coFloat);
+    //def->label = L("Support base safety distance");
+    //def->category = L("Supports");
+    //def->tooltip = L("The minimum distance of the pillar base from the model in mm.");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1));
+
+    def = this->add(prefix + "support_critical_angle", coFloat);
+    //def->label = L("Critical angle");
+    //def->category = L("Supports");
+    //def->tooltip = L("The default angle for connecting support sticks and junctions.");
+    //def->sidetext = L("°");
+    def->min = 0;
+    def->max = 90;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(45));
+
+    def = this->add(prefix + "support_max_bridge_length", coFloat);
+    //def->label = L("Max bridge length");
+    //def->category = L("Supports");
+    //def->tooltip = L("The max length of a bridge");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(prefix == "branching" ? 5.0 : 15.0));
+
+    def = this->add(prefix + "support_max_pillar_link_distance", coFloat);
+    //def->label = L("Max pillar linking distance");
+    //def->category = L("Supports");
+    //def->tooltip = L("The max distance of two pillars to get linked with each other.");
+    //def->sidetext = L("mm");
+    def->min = 0;   // 0 means no linking
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.0));
+
+    def = this->add(prefix + "support_object_elevation", coFloat);
+    //def->label = L("Object elevation");
+    //def->category = L("Supports");
+    //def->tooltip = L("How much the supports should lift up the supported object.");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 150;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(5.0));
+}
+
+// Tilt and tower parameters for SLA printers with tilt mechanism.
+// PrusaSlicer uses ConfigOptionEnums<T> + set_enum<T>(); PhrozenOrca lacks these,
+// so we use coInts with integer enum ordinals as defaults.
+void PrintConfigDef::init_sla_tilt_params()
+{
+    ConfigOptionDef* def;
+
+    def = this->add("delay_before_exposure", coFloats);
+    //def->full_label = L("Delay before exposure");
+    //def->tooltip = L("Delay before exposure after previous layer separation.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 30;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 3., 3.}));
+
+    def = this->add("delay_after_exposure", coFloats);
+    //def->full_label = L("Delay after exposure");
+    //def->tooltip = L("Delay after exposure before layer separation.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 30;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0.}));
+
+    def = this->add("tower_hop_height", coFloats);
+    //def->full_label = L("Tower hop height");
+    //def->tooltip = L("The height of the tower raise.");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0.}));
+
+    def = this->add("tower_speed", coInts);
+    //def->full_label = L("Tower speed");
+    //def->tooltip = L("Tower speed used for tower raise.");
+    //def->sidetext = L("mm/s");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ tsLayer22, tsLayer22 }));
+
+    def = this->add("use_tilt", coBools);
+    //def->full_label = L("Use tilt");
+    //def->tooltip = L("If enabled, tilt is used for layer separation.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBools({ true, true }));
+
+    def = this->add("tilt_down_initial_speed", coInts);
+    //def->full_label = L("Tilt down initial speed");
+    //def->tooltip = L("Tilt speed used for an initial portion of tilt down move.");
+    //def->sidetext = L("μ-steps/s");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ tsLayer1750, tsLayer1750 }));
+
+    def = this->add("tilt_down_offset_steps", coInts);
+    //def->full_label = L("Tilt down offset steps");
+    //def->tooltip = L("Number of steps to move down from the calibrated position.");
+    //def->sidetext = L("μ-steps");
+    def->min = 0;
+    def->max = 10000;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ 0, 0 }));
+
+    def = this->add("tilt_down_offset_delay", coFloats);
+    //def->full_label = L("Tilt down offset delay");
+    //def->tooltip = L("Delay after the tilt reaches offset position.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 20;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0. }));
+
+    def = this->add("tilt_down_finish_speed", coInts);
+    //def->full_label = L("Tilt down finish speed");
+    //def->tooltip = L("Tilt speed used for the rest of the tilt down move.");
+    //def->sidetext = L("μ-steps/s");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ tsLayer1750, tsLayer1750 }));
+
+    def = this->add("tilt_down_cycles", coInts);
+    //def->full_label = L("Tilt down cycles");
+    //def->tooltip = L("Number of cycles to split the rest of the tilt down move.");
+    def->min = 0;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ 1, 1 }));
+
+    def = this->add("tilt_down_delay", coFloats);
+    //def->full_label = L("Tilt down delay");
+    //def->tooltip = L("The delay between tilt-down cycles.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 20;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0. }));
+
+    def = this->add("tilt_up_initial_speed", coInts);
+    //def->full_label = L("Tilt up initial speed");
+    //def->tooltip = L("Tilt speed used for an initial portion of tilt up move.");
+    //def->sidetext = L("μ-steps/s");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ tsMove8000, tsMove8000 }));
+
+    def = this->add("tilt_up_offset_steps", coInts);
+    //def->full_label = L("Tilt up offset steps");
+    //def->tooltip = L("Move tilt up to calibrated position minus this offset.");
+    //def->sidetext = L("μ-steps");
+    def->min = 0;
+    def->max = 10000;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ 1200, 1200 }));
+
+    def = this->add("tilt_up_offset_delay", coFloats);
+    //def->full_label = L("Tilt up offset delay");
+    //def->tooltip = L("Delay after the tilt reaches offset position.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 20;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0. }));
+
+    def = this->add("tilt_up_finish_speed", coInts);
+    //def->full_label = L("Tilt up finish speed");
+    //def->tooltip = L("Tilt speed used for the rest of the tilt-up.");
+    //def->sidetext = L("μ-steps/s");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ tsLayer1750, tsLayer1750 }));
+
+    def = this->add("tilt_up_cycles", coInts);
+    //def->full_label = L("Tilt up cycles");
+    //def->tooltip = L("Number of cycles to split the rest of the tilt-up.");
+    def->min = 0;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInts({ 1, 1 }));
+
+    def = this->add("tilt_up_delay", coFloats);
+    //def->full_label = L("Tilt up delay");
+    //def->tooltip = L("The delay between tilt-up cycles.");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->max = 20;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloats({ 0., 0. }));
+}
+
 void PrintConfigDef::init_sla_params()
 {
     ConfigOptionDef* def;
@@ -7253,10 +7608,95 @@ void PrintConfigDef::init_sla_params()
     def->enum_keys_map = &ConfigOptionEnum<SLAMaterialSpeed>::get_enum_values();
     def->enum_values.push_back("slow");
     def->enum_values.push_back("fast");
+    def->enum_values.push_back("high_viscosity");
+    def->enum_labels.push_back(" ");
     def->enum_labels.push_back(" ");
     def->enum_labels.push_back(" ");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionEnum<SLAMaterialSpeed>(slamsFast));
+
+    // === PrusaSlicer SLA additions below ===
+
+    def = this->add("support_tree_type", coEnum);
+    //def->label = L("Support tree type");
+    //def->tooltip = L("Support tree building strategy");
+    def->enum_keys_map = &ConfigOptionEnum<SLASupportTreeType>::get_enum_values();
+    def->enum_values.push_back("default");
+    def->enum_values.push_back("branching");
+    def->enum_labels.push_back(" ");
+    def->enum_labels.push_back(" ");
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<SLASupportTreeType>(sla_stt_Default));
+
+    // Branching support params (mirrors default support params with "branching" prefix)
+    init_sla_support_params("branching");
+
+    def = this->add("support_enforcers_only", coBool);
+    //def->label = L("Support only in enforced regions");
+    //def->category = L("Supports");
+    //def->tooltip = L("Only create support if it lies in a support enforcer.");
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("zcorrection_layers", coInt);
+    //def->label = L("Z compensation");
+    //def->category = L("Advanced");
+    //def->tooltip = L("Number of layers to Z correct to avoid cross layer bleed");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(0));
+
+    // Material overrides for support params (PrusaSlicer uses nullable types;
+    // PhrozenOrca lacks ConfigOptionFloatNullable, using regular types with -1 = unset)
+    for (const char* opt_key : {
+        "support_head_front_diameter", "branchingsupport_head_front_diameter",
+        "support_head_penetration", "branchingsupport_head_penetration",
+        "support_head_width", "branchingsupport_head_width",
+        "support_pillar_diameter", "branchingsupport_pillar_diameter",
+        "elefant_foot_compensation", "absolute_correction"
+        }) {
+        auto it_opt = options.find(opt_key);
+        if (it_opt != options.end()) {
+            def = this->add(std::string("material_ow_") + opt_key, coFloat);
+            def->min  = it_opt->second.min;
+            def->max  = it_opt->second.max;
+            def->mode = it_opt->second.mode;
+            def->set_default_value(new ConfigOptionFloat(-1.)); // -1 = unset
+        }
+    }
+    {
+        auto it_opt = options.find("support_points_density_relative");
+        if (it_opt != options.end()) {
+            def = this->add("material_ow_support_points_density_relative", coInt);
+            def->min  = it_opt->second.min;
+            def->mode = it_opt->second.mode;
+            def->set_default_value(new ConfigOptionInt(-1)); // -1 = unset
+        }
+    }
+
+    def = this->add("high_viscosity_tilt_time", coFloat);
+    //def->label = L("High viscosity tilt time");
+    //def->tooltip = L("Time of the super slow tilt");
+    //def->sidetext = L("s");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.));
+
+    def = this->add("sla_archive_format", coString);
+    //def->label = L("Format of the output SLA archive");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionString("SL1"));
+
+    def = this->add("sla_output_precision", coFloat);
+    //def->label = L("SLA output precision");
+    //def->tooltip = L("Minimum resolution in nanometers");
+    //def->sidetext = L("mm");
+    def->min = float(SCALING_FACTOR);
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.001));
+
+    // Tilt and tower params
+    init_sla_tilt_params();
 }
 
 void PrintConfigDef::handle_legacy(t_config_option_key &opt_key, std::string &value)

@@ -143,6 +143,12 @@ set(lisbslic3r_sources
     Format/STL.hpp
     Format/SL1.hpp
     Format/SL1.cpp
+    Format/SLAArchiveWriter.hpp
+    Format/SLAArchiveWriter.cpp
+    Format/SLAArchiveReader.hpp
+    Format/SLAArchiveReader.cpp
+    Format/SLAArchiveFormatRegistry.hpp
+    Format/SLAArchiveFormatRegistry.cpp
 	Format/svg.hpp
     Format/svg.cpp
     Format/ZipperArchiveImport.hpp
@@ -410,6 +416,8 @@ set(lisbslic3r_sources
     SLA/Clustering.hpp
     SLA/Clustering.cpp
     SLA/ReprojectPointsOnMesh.hpp
+    SLA/ZCorrection.hpp
+    SLA/ZCorrection.cpp
     Arachne/BeadingStrategy/BeadingStrategy.hpp
     Arachne/BeadingStrategy/BeadingStrategy.cpp
     Arachne/BeadingStrategy/BeadingStrategyFactory.hpp

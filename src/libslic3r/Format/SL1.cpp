@@ -478,6 +478,25 @@ sla::RasterEncoder SL1Archive::get_encoder() const
     return sla::PNGRasterEncoder{};
 }
 
+static void write_thumbnail(Zipper &zipper, const ThumbnailData &data)
+{
+    size_t png_size = 0;
+
+    void  *png_data = tdefl_write_image_to_png_file_in_memory_ex(
+         (const void *) data.pixels.data(), data.width, data.height, 4,
+         &png_size, MZ_DEFAULT_LEVEL, 1);
+
+    if (png_data != nullptr) {
+        zipper.add_entry("thumbnail/thumbnail" + std::to_string(data.width) +
+                             "x" + std::to_string(data.height) + ".png",
+                         static_cast<const std::uint8_t *>(png_data),
+                         png_size);
+
+        mz_free(png_data);
+    }
+}
+
+// Legacy export (without thumbnails) - used by BackgroundSlicingProcess
 void SL1Archive::export_print(Zipper& zipper,
                               const SLAPrint &print,
                               const std::string &prjname)
@@ -486,10 +505,10 @@ void SL1Archive::export_print(Zipper& zipper,
         prjname.empty() ?
             boost::filesystem::path(zipper.get_filename()).stem().string() :
             prjname;
-    
+
     ConfMap iniconf, slicerconf;
     fill_iniconf(iniconf, print);
-    
+
     iniconf["jobDir"] = project;
 
     fill_slicerconf(slicerconf, print);
@@ -499,13 +518,13 @@ void SL1Archive::export_print(Zipper& zipper,
         zipper << to_ini(iniconf);
         zipper.add_entry("prusaslicer.ini");
         zipper << to_ini(slicerconf);
-        
+
         size_t i = 0;
         for (const sla::EncodedRaster &rst : m_layers) {
 
             std::string imgname = project + string_printf("%.5d", i++) + "." +
                                   rst.extension();
-            
+
             zipper.add_entry(imgname.c_str(), rst.data(), rst.size());
         }
     } catch(std::exception& e) {
@@ -513,6 +532,120 @@ void SL1Archive::export_print(Zipper& zipper,
         // Rethrow the exception
         throw;
     }
+}
+
+// Protected export with thumbnails (Zipper-based)
+void SL1Archive::export_print(Zipper               &zipper,
+                              const SLAPrint       &print,
+                              const ThumbnailsList &thumbnails,
+                              const std::string    &prjname)
+{
+    std::string project =
+        prjname.empty() ?
+            boost::filesystem::path(zipper.get_filename()).stem().string() :
+            prjname;
+
+    ConfMap iniconf, slicerconf;
+    fill_iniconf(iniconf, print);
+
+    iniconf["jobDir"] = project;
+
+    fill_slicerconf(slicerconf, print);
+
+    try {
+        zipper.add_entry("config.ini");
+        zipper << to_ini(iniconf);
+        zipper.add_entry("prusaslicer.ini");
+        zipper << to_ini(slicerconf);
+
+        size_t i = 0;
+        for (const sla::EncodedRaster &rst : m_layers) {
+
+            std::string imgname = project + string_printf("%.5d", i++) + "." +
+                                  rst.extension();
+
+            zipper.add_entry(imgname.c_str(), rst.data(), rst.size());
+        }
+
+        for (const ThumbnailData& data : thumbnails)
+            if (data.is_valid())
+                write_thumbnail(zipper, data);
+
+        zipper.finalize();
+    } catch(std::exception& e) {
+        BOOST_LOG_TRIVIAL(error) << e.what();
+        // Rethrow the exception
+        throw;
+    }
+}
+
+// SLAArchiveWriter override (filename-based with thumbnails)
+void SL1Archive::export_print(const std::string     fname,
+                              const SLAPrint       &print,
+                              const ThumbnailsList &thumbnails,
+                              const std::string    &prjname)
+{
+    Zipper zipper{fname, Zipper::FAST_COMPRESSION};
+
+    export_print(zipper, print, thumbnails, prjname);
+}
+
+// --- SL1Reader implementation ---
+
+ConfigSubstitutions SL1Reader::read(std::vector<ExPolygons> &slices,
+                                    DynamicPrintConfig      &profile_out)
+{
+    Vec2i32 windowsize;
+
+    switch(m_quality)
+    {
+    case SLAImportQuality::Fast: windowsize = {8, 8}; break;
+    case SLAImportQuality::Balanced: windowsize = {4, 4}; break;
+    default:
+    case SLAImportQuality::Accurate:
+        windowsize = {2, 2}; break;
+    };
+
+    // Ensure minimum window size for marching squares
+    windowsize.x() = std::max(2, windowsize.x());
+    windowsize.y() = std::max(2, windowsize.y());
+
+    std::string exclude_entries{"thumbnail"};
+    ArchiveData arch = extract_sla_archive(m_fname, exclude_entries);
+    DynamicPrintConfig profile_in, profile_use;
+    ConfigSubstitutions config_substitutions =
+        profile_in.load(arch.profile,
+                        ForwardCompatibilitySubstitutionRule::Enable);
+
+    if (profile_in.empty()) {
+        if (auto lh_opt = arch.config.find("layerHeight");
+            lh_opt != arch.config.not_found())
+        {
+            auto lh_str = lh_opt->second.data();
+            size_t pos;
+            double lh = string_to_double_decimal_point(lh_str, &pos);
+            if (pos) {
+                profile_out.set("layer_height", lh);
+                profile_out.set("initial_layer_height", lh);
+            }
+        }
+    }
+
+    profile_use = profile_in.empty() ? profile_out : profile_in;
+    profile_out = profile_in;
+
+    RasterParams rstp = get_raster_params(profile_use);
+    rstp.win          = {windowsize.y(), windowsize.x()};
+
+    slices = extract_slices_from_sla_archive(arch, rstp, m_progr);
+
+    return config_substitutions;
+}
+
+ConfigSubstitutions SL1Reader::read(DynamicPrintConfig &out)
+{
+    ArchiveData arch = extract_sla_archive(m_fname, "png");
+    return out.load(arch.profile, ForwardCompatibilitySubstitutionRule::Enable);
 }
 
 } // namespace Slic3r

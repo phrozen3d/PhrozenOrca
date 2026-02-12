@@ -85,7 +85,7 @@ public:
 	~BackgroundSlicingProcess();
 
 	void set_fff_print(Print *print) { m_fff_print = print; }
-    void set_sla_print(SLAPrint *print) { m_sla_print = print; m_sla_print->set_printer(&m_sla_archive); }
+    void set_sla_print(SLAPrint *print);
 	void set_thumbnail_cb(ThumbnailsGeneratorCallback cb) { m_thumbnail_cb = cb; }
 	void set_gcode_result(GCodeProcessorResult* result) { m_gcode_result = result; }
 
