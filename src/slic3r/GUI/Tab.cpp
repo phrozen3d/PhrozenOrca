@@ -2564,6 +2564,11 @@ void TabPrint::update_description_lines()
 void TabPrint::toggle_options()
 {
     if (!m_active_page) return;
+
+    // TabPrint is FDM-only, skip for SLA printers
+    if (m_preset_bundle && m_preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA)
+        return;
+
     // BBS: whether the preset is Bambu Lab printer
     if (m_preset_bundle) {
         bool is_BBL_printer = wxGetApp().preset_bundle->is_bbl_vendor();
@@ -4618,11 +4623,15 @@ if (is_marlin_flavor)
 void TabPrinter::on_preset_loaded()
 {
     // Orca
-    // update the extruders count field
-    auto   *nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(m_config->option("nozzle_diameter"));
-    size_t extruders_count = nozzle_diameter->values.size();
-    // update the GUI field according to the number of nozzle diameters supplied
-    extruders_count_changed(extruders_count);
+    // update the extruders count field (FDM only - SLA printers don't have nozzle_diameter)
+    if (m_printer_technology == ptFFF) {
+        auto   *nozzle_diameter = dynamic_cast<const ConfigOptionFloats*>(m_config->option("nozzle_diameter"));
+        if (nozzle_diameter) {  // Additional nullptr check for safety
+            size_t extruders_count = nozzle_diameter->values.size();
+            // update the GUI field according to the number of nozzle diameters supplied
+            extruders_count_changed(extruders_count);
+        }
+    }
 }
 
 void TabPrinter::update_pages()

@@ -367,6 +367,20 @@ struct Sidebar::priv
     wxStaticText* m_text_printer_settings = nullptr;
     wxPanel* m_panel_printer_content = nullptr;
 
+    // SLA print config
+    StaticBox* m_panel_sla_print_title = nullptr;
+    ScalableButton* m_sla_print_icon = nullptr;
+    ScalableButton* m_sla_print_setting = nullptr;
+    Label* m_text_sla_print_settings = nullptr;
+    wxPanel* m_panel_sla_print_content = nullptr;
+
+    // SLA material config
+    StaticBox* m_panel_sla_material_title = nullptr;
+    ScalableButton* m_sla_material_icon = nullptr;
+    ScalableButton* m_sla_material_setting = nullptr;
+    Label* m_text_sla_material_settings = nullptr;
+    wxPanel* m_panel_sla_material_content = nullptr;
+
     ObjectList          *m_object_list{ nullptr };
     ObjectSettings      *object_settings{ nullptr };
     ObjectLayers        *object_layers{ nullptr };
@@ -409,18 +423,21 @@ void Sidebar::priv::show_preset_comboboxes()
 {
     const bool showSLA = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA;
 
-//BBS
-#if 0
-    for (size_t i = 0; i < 4; ++i)
-        sizer_presets->Show(i, !showSLA);
-
-    for (size_t i = 4; i < 8; ++i) {
-        if (sizer_presets->IsShown(i) != showSLA)
-            sizer_presets->Show(i, showSLA);
+    // Show/Hide FDM panels (filament settings)
+    if (m_panel_filament_title && m_panel_filament_content) {
+        m_panel_filament_title->Show(!showSLA);
+        m_panel_filament_content->Show(!showSLA);
     }
 
-    frequently_changed_parameters->Show(!showSLA);
-#endif
+    // Show/Hide SLA panels (print and material settings)
+    if (m_panel_sla_print_title && m_panel_sla_print_content) {
+        m_panel_sla_print_title->Show(showSLA);
+        m_panel_sla_print_content->Show(showSLA);
+    }
+    if (m_panel_sla_material_title && m_panel_sla_material_content) {
+        m_panel_sla_material_title->Show(showSLA);
+        m_panel_sla_material_content->Show(showSLA);
+    }
 
     scrolled->GetParent()->Layout();
     scrolled->Refresh();
@@ -856,6 +873,160 @@ Sidebar::Sidebar(Plater *parent)
         scrolled_sizer->Add(p->m_panel_printer_content, 0, wxEXPAND, 0);
     }
 
+    // add SLA print settings section
+    {
+        /***************** SLA Print Title Bar **************/
+        p->m_panel_sla_print_title = new StaticBox(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxBORDER_NONE);
+        p->m_panel_sla_print_title->SetBackgroundColor(title_bg);
+        p->m_panel_sla_print_title->SetBackgroundColor2(0xF1F1F1);
+
+        p->m_sla_print_icon = new ScalableButton(p->m_panel_sla_print_title, wxID_ANY, "cog");
+        p->m_text_sla_print_settings = new Label(p->m_panel_sla_print_title, _L("SLA Print Settings"), LB_PROPAGATE_MOUSE_EVENT);
+
+        p->m_sla_print_setting = new ScalableButton(p->m_panel_sla_print_title, wxID_ANY, "settings");
+        p->m_sla_print_setting->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
+            wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
+        });
+
+        wxBoxSizer* h_sizer_sla_print_title = new wxBoxSizer(wxHORIZONTAL);
+        h_sizer_sla_print_title->Add(p->m_sla_print_icon, 0, wxALIGN_CENTRE | wxLEFT, FromDIP(SidebarProps::TitlebarMargin()));
+        h_sizer_sla_print_title->AddSpacer(FromDIP(SidebarProps::ElementSpacing()));
+        h_sizer_sla_print_title->Add(p->m_text_sla_print_settings, 0, wxALIGN_CENTER);
+        h_sizer_sla_print_title->AddStretchSpacer();
+        h_sizer_sla_print_title->Add(p->m_sla_print_setting, 0, wxALIGN_CENTER);
+        h_sizer_sla_print_title->AddSpacer(FromDIP(SidebarProps::TitlebarMargin()));
+        h_sizer_sla_print_title->SetMinSize(-1, 3 * em);
+
+        p->m_panel_sla_print_title->SetSizer(h_sizer_sla_print_title);
+        p->m_panel_sla_print_title->Layout();
+
+        p->m_panel_sla_print_title->Bind(wxEVT_LEFT_UP, [this](auto &e) {
+            if (p->m_panel_sla_print_content->GetMaxHeight() == 0)
+                p->m_panel_sla_print_content->SetMaxSize({-1, -1});
+            else
+                p->m_panel_sla_print_content->SetMaxSize({-1, 0});
+            m_scrolled_sizer->Layout();
+        });
+
+        auto spliter_sla_print_1 = new ::StaticLine(p->scrolled);
+        spliter_sla_print_1->SetLineColour("#A6A9AA");
+        scrolled_sizer->Add(spliter_sla_print_1, 0, wxEXPAND);
+        scrolled_sizer->Add(p->m_panel_sla_print_title, 0, wxEXPAND | wxALL, 0);
+        auto spliter_sla_print_2 = new ::StaticLine(p->scrolled);
+        spliter_sla_print_2->SetLineColour("#CECECE");
+        scrolled_sizer->Add(spliter_sla_print_2, 0, wxEXPAND);
+
+        /*************************** SLA Print Content ************************/
+        p->m_panel_sla_print_content = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+        p->m_panel_sla_print_content->SetBackgroundColour(wxColour(255, 255, 255));
+
+        PlaterPresetComboBox* combo_sla_print = new PlaterPresetComboBox(p->m_panel_sla_print_content, Preset::TYPE_SLA_PRINT);
+        ScalableButton* edit_btn_sla_print = new ScalableButton(p->m_panel_sla_print_content, wxID_ANY, "edit");
+        edit_btn_sla_print->SetToolTip(_L("Click to edit preset"));
+        edit_btn_sla_print->Bind(wxEVT_BUTTON, [this, combo_sla_print](wxCommandEvent) {
+            combo_sla_print->switch_to_tab();
+        });
+        combo_sla_print->edit_btn = edit_btn_sla_print;
+        p->combo_sla_print = combo_sla_print;
+
+        wxBoxSizer* vsizer_sla_print = new wxBoxSizer(wxVERTICAL);
+        wxBoxSizer* hsizer_sla_print = new wxBoxSizer(wxHORIZONTAL);
+
+        vsizer_sla_print->AddSpacer(FromDIP(16));
+        hsizer_sla_print->Add(combo_sla_print, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
+        hsizer_sla_print->Add(edit_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
+        hsizer_sla_print->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
+        vsizer_sla_print->Add(hsizer_sla_print, 0, wxEXPAND, 0);
+        vsizer_sla_print->AddSpacer(FromDIP(16));
+
+        p->m_panel_sla_print_content->SetSizer(vsizer_sla_print);
+        p->m_panel_sla_print_content->Layout();
+        scrolled_sizer->Add(p->m_panel_sla_print_content, 0, wxEXPAND, 0);
+
+        // Initially hide SLA print section (will be shown for SLA printers)
+        p->m_panel_sla_print_title->Hide();
+        spliter_sla_print_1->Hide();
+        spliter_sla_print_2->Hide();
+        p->m_panel_sla_print_content->Hide();
+    }
+
+    // add SLA material section
+    {
+        /***************** SLA Material Title Bar **************/
+        p->m_panel_sla_material_title = new StaticBox(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxBORDER_NONE);
+        p->m_panel_sla_material_title->SetBackgroundColor(title_bg);
+        p->m_panel_sla_material_title->SetBackgroundColor2(0xF1F1F1);
+
+        p->m_sla_material_icon = new ScalableButton(p->m_panel_sla_material_title, wxID_ANY, "resin");
+        p->m_text_sla_material_settings = new Label(p->m_panel_sla_material_title, _L("SLA Material"), LB_PROPAGATE_MOUSE_EVENT);
+
+        p->m_sla_material_setting = new ScalableButton(p->m_panel_sla_material_title, wxID_ANY, "settings");
+        p->m_sla_material_setting->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
+            wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
+        });
+
+        wxBoxSizer* h_sizer_sla_material_title = new wxBoxSizer(wxHORIZONTAL);
+        h_sizer_sla_material_title->Add(p->m_sla_material_icon, 0, wxALIGN_CENTRE | wxLEFT, FromDIP(SidebarProps::TitlebarMargin()));
+        h_sizer_sla_material_title->AddSpacer(FromDIP(SidebarProps::ElementSpacing()));
+        h_sizer_sla_material_title->Add(p->m_text_sla_material_settings, 0, wxALIGN_CENTER);
+        h_sizer_sla_material_title->AddStretchSpacer();
+        h_sizer_sla_material_title->Add(p->m_sla_material_setting, 0, wxALIGN_CENTER);
+        h_sizer_sla_material_title->AddSpacer(FromDIP(SidebarProps::TitlebarMargin()));
+        h_sizer_sla_material_title->SetMinSize(-1, 3 * em);
+
+        p->m_panel_sla_material_title->SetSizer(h_sizer_sla_material_title);
+        p->m_panel_sla_material_title->Layout();
+
+        p->m_panel_sla_material_title->Bind(wxEVT_LEFT_UP, [this](auto &e) {
+            if (p->m_panel_sla_material_content->GetMaxHeight() == 0)
+                p->m_panel_sla_material_content->SetMaxSize({-1, -1});
+            else
+                p->m_panel_sla_material_content->SetMaxSize({-1, 0});
+            m_scrolled_sizer->Layout();
+        });
+
+        auto spliter_sla_material_1 = new ::StaticLine(p->scrolled);
+        spliter_sla_material_1->SetLineColour("#A6A9AA");
+        scrolled_sizer->Add(spliter_sla_material_1, 0, wxEXPAND);
+        scrolled_sizer->Add(p->m_panel_sla_material_title, 0, wxEXPAND | wxALL, 0);
+        auto spliter_sla_material_2 = new ::StaticLine(p->scrolled);
+        spliter_sla_material_2->SetLineColour("#CECECE");
+        scrolled_sizer->Add(spliter_sla_material_2, 0, wxEXPAND);
+
+        /*************************** SLA Material Content ************************/
+        p->m_panel_sla_material_content = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+        p->m_panel_sla_material_content->SetBackgroundColour(wxColour(255, 255, 255));
+
+        PlaterPresetComboBox* combo_sla_material = new PlaterPresetComboBox(p->m_panel_sla_material_content, Preset::TYPE_SLA_MATERIAL);
+        ScalableButton* edit_btn_sla_material = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "edit");
+        edit_btn_sla_material->SetToolTip(_L("Click to edit preset"));
+        edit_btn_sla_material->Bind(wxEVT_BUTTON, [this, combo_sla_material](wxCommandEvent) {
+            combo_sla_material->switch_to_tab();
+        });
+        combo_sla_material->edit_btn = edit_btn_sla_material;
+        p->combo_sla_material = combo_sla_material;
+
+        wxBoxSizer* vsizer_sla_material = new wxBoxSizer(wxVERTICAL);
+        wxBoxSizer* hsizer_sla_material = new wxBoxSizer(wxHORIZONTAL);
+
+        vsizer_sla_material->AddSpacer(FromDIP(16));
+        hsizer_sla_material->Add(combo_sla_material, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
+        hsizer_sla_material->Add(edit_btn_sla_material, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
+        hsizer_sla_material->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
+        vsizer_sla_material->Add(hsizer_sla_material, 0, wxEXPAND, 0);
+        vsizer_sla_material->AddSpacer(FromDIP(16));
+
+        p->m_panel_sla_material_content->SetSizer(vsizer_sla_material);
+        p->m_panel_sla_material_content->Layout();
+        scrolled_sizer->Add(p->m_panel_sla_material_content, 0, wxEXPAND, 0);
+
+        // Initially hide SLA material section (will be shown for SLA printers)
+        p->m_panel_sla_material_title->Hide();
+        spliter_sla_material_1->Hide();
+        spliter_sla_material_2->Hide();
+        p->m_panel_sla_material_content->Hide();
+    }
+
     {
     // add filament title
     p->m_panel_filament_title = new StaticBox(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxBORDER_NONE);
@@ -1148,6 +1319,9 @@ Sidebar::Sidebar(Plater *parent)
     auto *sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(p->scrolled, 1, wxEXPAND);
     SetSizer(sizer);
+
+    // Initialize panel visibility based on default printer technology
+    p->show_preset_comboboxes();
 }
 
 Sidebar::~Sidebar() {}
@@ -1372,6 +1546,9 @@ void Sidebar::update_all_preset_comboboxes()
     // Orca:: show device tab based on vendor type
     p_mainframe->show_device(preset_bundle.use_bbl_device_tab());
     p_mainframe->m_tabpanel->SetSelection(p_mainframe->m_tabpanel->GetSelection());
+
+    // Show/hide FDM vs SLA preset panels based on printer technology
+    p->show_preset_comboboxes();
 }
 
 void Sidebar::update_presets(Preset::Type preset_type)
@@ -13350,7 +13527,9 @@ void Plater::on_config_change(const DynamicPrintConfig &config)
     if (update_scheduled)
         update();
 
-    if (p->main_frame->is_loaded()) {
+    // Ensure both MainFrame is loaded AND Plater is fully initialized before triggering background process
+    // This prevents crashes during startup when loading SLA presets (m_plater may not be created yet)
+    if (p->main_frame->is_loaded() && p->main_frame->m_plater) {
         this->p->schedule_background_process();
         update_title_dirty_status();
     }
