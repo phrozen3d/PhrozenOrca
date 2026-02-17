@@ -3,6 +3,8 @@
 
 #include "GLGizmoBase.hpp"
 #include "slic3r/GUI/GLSelectionRectangle.hpp"
+#include "slic3r/GUI/MeshUtils.hpp"
+#include "slic3r/GUI/SceneRaycaster.hpp"
 
 #include "libslic3r/SLA/SupportPoint.hpp"
 #include "libslic3r/ObjectID.hpp"
@@ -58,6 +60,8 @@ public:
     GLGizmoSlaSupports(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
     virtual ~GLGizmoSlaSupports() = default;
     void set_sla_support_data(ModelObject* model_object, const Selection& selection);
+    void data_changed(bool is_serializing) override;
+    bool on_mouse(const wxMouseEvent &mouse_event) override;
     bool gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_position, bool shift_down, bool alt_down, bool control_down);
     void delete_selected_points(bool force = false);
     //ClippingPlane get_sla_clipping_plane() const;
@@ -73,7 +77,7 @@ public:
 
 private:
     bool on_init() override;
-    void on_update(const UpdateData& data) override;
+    void on_dragging(const UpdateData& data) override;
     void on_render() override;
 
     void render_points(const Selection& selection, bool picking = false);
@@ -90,9 +94,12 @@ private:
     std::vector<sla::SupportPoint> m_normal_cache; // to restore after discarding changes or undo/redo
     ObjectID m_old_mo_id;
 
-    GLModel m_cone;
+    PickingModel m_cone;
     GLModel m_cylinder;
-    GLModel m_sphere;
+    PickingModel m_sphere;
+
+    // Step 2.3 Mod 6: Raycasters for support point hover/picking
+    std::vector<std::pair<std::shared_ptr<SceneRaycasterItem>, std::shared_ptr<SceneRaycasterItem>>> m_point_raycasters;
 
     // This map holds all translated description texts, so they can be easily referenced during layout calculations
     // etc. When language changes, GUI is recreated and this class constructed again, so the change takes effect.
@@ -126,7 +133,14 @@ private:
     void disable_editing_mode();
     void ask_about_changes_call_after(std::function<void()> on_yes, std::function<void()> on_no);
 
+    // Step 2.3 Mod 6: Raycaster management for support point picking
+    void register_point_raycasters_for_picking();
+    void unregister_point_raycasters_for_picking();
+    void update_point_raycasters_for_picking_transform();
+
 protected:
+    void on_register_raycasters_for_picking() override;
+    void on_unregister_raycasters_for_picking() override;
     void on_set_state() override;
     void on_set_hover_id() override
 

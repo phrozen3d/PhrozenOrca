@@ -38,7 +38,7 @@ public:
 
 private:
     bool on_init() override;
-    void on_update(const UpdateData& data) override;
+    void on_dragging(const UpdateData& data) override;
     void on_render() override;
 
     void render_points(const Selection& selection, bool picking = false);

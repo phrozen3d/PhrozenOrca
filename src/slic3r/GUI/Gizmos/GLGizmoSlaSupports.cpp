@@ -5,6 +5,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmosCommon.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <GL/glew.h>
 
@@ -25,6 +26,16 @@
 
 namespace Slic3r {
 namespace GUI {
+
+// Encode index into a color for legacy GPU picking (used by SLA gizmo render_points)
+static ColorRGBA picking_color_component(size_t id)
+{
+    return ColorRGBA(
+        float((id >>  0) & 0xFF) / 255.f,
+        float((id >>  8) & 0xFF) / 255.f,
+        float((id >> 16) & 0xFF) / 255.f,
+        1.0f);
+}
 
 GLGizmoSlaSupports::GLGizmoSlaSupports(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
     : GLGizmoBase(parent, icon_filename, sprite_id)
@@ -63,7 +74,7 @@ void GLGizmoSlaSupports::set_sla_support_data(ModelObject* model_object, const S
         disable_editing_mode();
         reload_cache();
         m_old_mo_id = mo->id();
-        m_c->instances_hider()->show_supports(true);
+        //[TODO] show_supports not available in PhrozenOrca InstancesHider - Phase 4
     }
 
     // If we triggered autogeneration before, check backend and fetch results if they are there
@@ -73,14 +84,86 @@ void GLGizmoSlaSupports::set_sla_support_data(ModelObject* model_object, const S
     }
 }
 
+// Step 2.3 Mod 4+6: Override data_changed() for backend polling and raycaster updates.
+void GLGizmoSlaSupports::data_changed(bool is_serializing)
+{
+    set_sla_support_data(nullptr, m_parent.get_selection());
 
+    // Step 2.3 Mod 6: Update raycasters for picking each frame
+    if (m_point_raycasters.empty())
+        register_point_raycasters_for_picking();
+    else
+        update_point_raycasters_for_picking_transform();
+}
+
+// Step 2.3: Override on_mouse() to dispatch wxMouseEvents as SLAGizmoEventType
+// to gizmo_event(). PhrozenOrca's GLGizmoSlaSupports lacks this override,
+// so mouse clicks (add/drag/delete support points) are never delivered.
+// PrusaSlicer has this in GLGizmoSlaBase, which PhrozenOrca doesn't have.
+// Removed is_input_enabled() check (requires GLGizmoSlaBase, Phase 4.1).
+bool GLGizmoSlaSupports::on_mouse(const wxMouseEvent &mouse_event)
+{
+    if (mouse_event.Moving()) return false;
+    if (!mouse_event.ShiftDown() && !mouse_event.AltDown()
+        && use_grabbers(mouse_event)) return true;
+
+    Vec2i64 mouse_coord(mouse_event.GetX(), mouse_event.GetY());
+    Vec2d mouse_pos = mouse_coord.cast<double>();
+
+    static bool pending_right_up = false;
+    if (mouse_event.LeftDown()) {
+        bool grabber_contains_mouse = (get_hover_id() != -1);
+        bool control_down = mouse_event.CmdDown();
+        if ((!control_down || grabber_contains_mouse) &&
+            gizmo_event(SLAGizmoEventType::LeftDown, mouse_pos,
+                       mouse_event.ShiftDown(), mouse_event.AltDown(), false))
+            return true;
+    } else if (mouse_event.Dragging()) {
+        bool control_down = mouse_event.CmdDown();
+        if (m_parent.get_move_volume_id() != -1) {
+            return true;
+        } else if (!control_down &&
+                gizmo_event(SLAGizmoEventType::Dragging, mouse_pos,
+                           mouse_event.ShiftDown(), mouse_event.AltDown(), false)) {
+            m_parent.set_as_dirty();
+            return true;
+        } else if (control_down && (mouse_event.LeftIsDown() || mouse_event.RightIsDown())) {
+            if (mouse_event.LeftIsDown())
+                gizmo_event(SLAGizmoEventType::LeftUp, mouse_pos,
+                           mouse_event.ShiftDown(), mouse_event.AltDown(), true);
+            else if (mouse_event.RightIsDown())
+                pending_right_up = false;
+        }
+    } else if (mouse_event.LeftUp() && !m_parent.is_mouse_dragging()) {
+        gizmo_event(SLAGizmoEventType::LeftUp, mouse_pos,
+                   mouse_event.ShiftDown(), mouse_event.AltDown(), mouse_event.CmdDown());
+        return true;
+    } else if (mouse_event.RightDown()) {
+        if (m_parent.get_selection().get_object_idx() != -1 &&
+            gizmo_event(SLAGizmoEventType::RightDown, mouse_pos, false, false, false)) {
+            pending_right_up = true;
+            return true;
+        }
+    } else if (pending_right_up && mouse_event.RightUp()) {
+        pending_right_up = false;
+        return true;
+    }
+    return false;
+}
 
 void GLGizmoSlaSupports::on_render()
 {
-    if (!m_cone.is_initialized())
-        m_cone.init_from(its_make_cone(1.0, 1.0, double(PI) / 12.0));
-    if (!m_sphere.is_initialized())
-        m_sphere.init_from(its_make_sphere(1.0, double(PI) / 12.0));
+    // Step 2.3 Mod 6: Initialize PickingModel with both GLModel and MeshRaycaster
+    if (!m_cone.model.is_initialized()) {
+        indexed_triangle_set cone_its = its_make_cone(1.0, 1.0, double(PI) / 12.0);
+        m_cone.mesh_raycaster = std::make_unique<MeshRaycaster>(std::make_shared<const TriangleMesh>(cone_its));
+        m_cone.model.init_from(std::move(cone_its));
+    }
+    if (!m_sphere.model.is_initialized()) {
+        indexed_triangle_set sphere_its = its_make_sphere(1.0, double(PI) / 12.0);
+        m_sphere.mesh_raycaster = std::make_unique<MeshRaycaster>(std::make_shared<const TriangleMesh>(sphere_its));
+        m_sphere.model.init_from(std::move(sphere_its));
+    }
     if (!m_cylinder.is_initialized())
         m_cylinder.init_from(its_make_cylinder(1.0, 1.0, double(PI) / 12.0));
 
@@ -127,7 +210,7 @@ void GLGizmoSlaSupports::render_points(const Selection& selection, bool picking)
     ScopeGuard guard([shader]() { shader->stop_using(); });
 
     const GLVolume* vol = selection.get_volume(*selection.get_volume_idxs().begin());
-    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_matrix(true, true, false, true).inverse();
+    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
     const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
 
     const Camera& camera = wxGetApp().plater()->get_camera();
@@ -166,8 +249,8 @@ void GLGizmoSlaSupports::render_points(const Selection& selection, bool picking)
             }
         }
 
-        m_cone.set_color(render_color);
-        m_sphere.set_color(render_color);
+        m_cone.model.set_color(render_color);
+        m_sphere.model.set_color(render_color);
         if (!picking)
             shader->set_uniform("emission_factor", 0.5f);
 
@@ -196,7 +279,7 @@ void GLGizmoSlaSupports::render_points(const Selection& selection, bool picking)
             shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
             const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
             shader->set_uniform("view_normal_matrix", view_normal_matrix);
-            m_cone.render();
+            m_cone.model.render();
         }
 
         const double radius = (double)support_point.head_front_radius * RenderPointScale;
@@ -206,7 +289,7 @@ void GLGizmoSlaSupports::render_points(const Selection& selection, bool picking)
         shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
         const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
         shader->set_uniform("view_normal_matrix", view_normal_matrix);
-        m_sphere.render();
+        m_sphere.model.render();
 
         if (vol->is_left_handed())
             glFrontFace(GL_CCW);
@@ -356,6 +439,9 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                 if (unproject_on_mesh(mouse_position, pos_and_normal)) { // we got an intersection
                     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add support point");
                     m_editing_cache.emplace_back(sla::SupportPoint(pos_and_normal.first, m_new_point_head_diameter/2.f, false), false, pos_and_normal.second);
+                    // Step 2.3 Mod 6: Re-register raycasters after adding a point
+                    unregister_point_raycasters_for_picking();
+                    register_point_raycasters_for_picking();
                     m_parent.set_as_dirty();
                     m_wait_for_up_event = true;
                 }
@@ -382,7 +468,8 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
 
             // Now ask the rectangle which of the points are inside.
             std::vector<Vec3f> points_inside;
-            std::vector<unsigned int> points_idxs = m_selection_rectangle.stop_dragging(m_parent, points);
+            std::vector<unsigned int> points_idxs = m_selection_rectangle.contains(points);
+            m_selection_rectangle.stop_dragging();
             for (size_t idx : points_idxs)
                 points_inside.push_back(points[idx].cast<float>());
 
@@ -478,19 +565,19 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
     if (action == SLAGizmoEventType::MouseWheelUp && control_down) {
         double pos = m_c->object_clipper()->get_position();
         pos = std::min(1., pos + 0.01);
-        m_c->object_clipper()->set_position(pos, true);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
         return true;
     }
 
     if (action == SLAGizmoEventType::MouseWheelDown && control_down) {
         double pos = m_c->object_clipper()->get_position();
         pos = std::max(0., pos - 0.01);
-        m_c->object_clipper()->set_position(pos, true);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
         return true;
     }
 
     if (action == SLAGizmoEventType::ResetClippingPlane) {
-        m_c->object_clipper()->set_position(-1., false);
+        m_c->object_clipper()->set_position_by_ratio(-1., false);
         return true;
     }
 
@@ -512,10 +599,13 @@ void GLGizmoSlaSupports::delete_selected_points(bool force)
         }
     }
 
+    // Step 2.3 Mod 6: Re-register raycasters after deleting points
+    unregister_point_raycasters_for_picking();
+    register_point_raycasters_for_picking();
     select_point(NoPoints);
 }
 
-void GLGizmoSlaSupports::on_update(const UpdateData& data)
+void GLGizmoSlaSupports::on_dragging(const UpdateData& data)
 {
     if (! m_editing_mode)
         return;
@@ -792,7 +882,7 @@ RENDER_AGAIN:
     else {
         if (m_imgui->button(m_desc.at("reset_direction"))) {
             wxGetApp().CallAfter([this](){
-                    m_c->object_clipper()->set_position(-1., false);
+                    m_c->object_clipper()->set_position_by_ratio(-1., false);
                 });
         }
     }
@@ -801,7 +891,7 @@ RENDER_AGAIN:
     ImGui::PushItemWidth(window_width - clipping_slider_left);
     float clp_dist = m_c->object_clipper()->get_position();
     if (m_imgui->slider_float("##clp_dist", &clp_dist, 0.f, 1.f, "%.2f"))
-        m_c->object_clipper()->set_position(clp_dist, true);
+        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
 
 
     if (m_imgui->button("?")) {
@@ -1141,7 +1231,11 @@ void GLGizmoSlaSupports::switch_to_editing_mode()
         m_editing_cache.emplace_back(sp);
     select_point(NoPoints);
 
-    m_c->instances_hider()->show_supports(false);
+    // Step 2.3 Mod 6: Register raycasters for editing mode points
+    unregister_point_raycasters_for_picking();
+    register_point_raycasters_for_picking();
+
+    //[TODO] show_supports not available in PhrozenOrca InstancesHider - Phase 4
     m_parent.set_as_dirty();
 }
 
@@ -1150,8 +1244,10 @@ void GLGizmoSlaSupports::disable_editing_mode()
 {
     if (m_editing_mode) {
         m_editing_mode = false;
+        // Step 2.3 Mod 6: Clean up raycasters when leaving editing mode
+        unregister_point_raycasters_for_picking();
         wxGetApp().plater()->leave_gizmos_stack();
-        m_c->instances_hider()->show_supports(true);
+        //[TODO] show_supports not available in PhrozenOrca InstancesHider - Phase 4
         m_parent.set_as_dirty();
     }
     wxGetApp().plater()->get_notification_manager()->close_notification_of_type(NotificationType::QuitSLAManualMode);
@@ -1169,6 +1265,85 @@ bool GLGizmoSlaSupports::unsaved_changes() const
             return true;
 
     return false;
+}
+
+// Step 2.3 Mod 6: Raycaster management for support point hover/picking.
+// Ported from PrusaSlicer GLGizmoSlaSupports to enable hover detection,
+// dragging, and right-click deletion of support points.
+
+void GLGizmoSlaSupports::on_register_raycasters_for_picking()
+{
+    register_point_raycasters_for_picking();
+}
+
+void GLGizmoSlaSupports::on_unregister_raycasters_for_picking()
+{
+    unregister_point_raycasters_for_picking();
+}
+
+void GLGizmoSlaSupports::register_point_raycasters_for_picking()
+{
+    if (!m_point_raycasters.empty())
+        return; // already registered
+
+    // Guard: mesh_raycaster is only created in on_render() — skip if not yet initialized
+    if (!m_sphere.mesh_raycaster || !m_cone.mesh_raycaster)
+        return;
+
+    if (m_editing_mode && !m_editing_cache.empty()) {
+        for (size_t i = 0; i < m_editing_cache.size(); ++i) {
+            m_point_raycasters.emplace_back(
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_sphere.mesh_raycaster, Transform3d::Identity()),
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cone.mesh_raycaster, Transform3d::Identity()));
+        }
+        update_point_raycasters_for_picking_transform();
+    }
+}
+
+void GLGizmoSlaSupports::unregister_point_raycasters_for_picking()
+{
+    for (size_t i = 0; i < m_point_raycasters.size(); ++i) {
+        m_parent.remove_raycasters_for_picking(SceneRaycaster::EType::Gizmo, i);
+    }
+    m_point_raycasters.clear();
+}
+
+void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
+{
+    if (m_editing_cache.empty() || m_point_raycasters.empty())
+        return;
+
+    const Selection& selection = m_parent.get_selection();
+    const GLVolume* vol = selection.get_first_volume();
+    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
+    const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
+
+    const double cone_radius = 0.25; // mm — matches render_points()
+    const double cone_height = 0.75;
+
+    for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
+        const sla::SupportPoint& sp = m_editing_cache[i].support_point;
+        const Transform3d support_matrix = Geometry::translation_transform(sp.pos.cast<double>()) * instance_scaling_matrix_inverse;
+
+        if (m_editing_cache[i].normal == Vec3f::Zero())
+            m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
+
+        Eigen::Quaterniond q;
+        q.setFromTwoVectors(Vec3d::UnitZ(), instance_scaling_matrix_inverse * m_editing_cache[i].normal.cast<double>());
+        const Eigen::AngleAxisd aa(q);
+
+        // Cone transform — matches render_points() cone rendering
+        const Transform3d cone_matrix = instance_matrix * support_matrix * Transform3d(aa.toRotationMatrix()) *
+            Geometry::assemble_transform((cone_height + sp.head_front_radius * RenderPointScale) * Vec3d::UnitZ(),
+                Vec3d(PI, 0.0, 0.0), Vec3d(cone_radius, cone_radius, cone_height));
+        m_point_raycasters[i].second->set_transform(cone_matrix);
+
+        // Sphere transform — matches render_points() sphere rendering
+        const double radius = (double)sp.head_front_radius * RenderPointScale;
+        const Transform3d sphere_matrix = instance_matrix * support_matrix *
+            Geometry::assemble_transform(Vec3d::Zero(), Vec3d::Zero(), radius * Vec3d::Ones());
+        m_point_raycasters[i].first->set_transform(sphere_matrix);
+    }
 }
 
 SlaGizmoHelpDialog::SlaGizmoHelpDialog()
@@ -1210,7 +1385,7 @@ SlaGizmoHelpDialog::SlaGizmoHelpDialog()
     shortcuts.push_back(std::make_pair(shift+_L("Drag"),              _L("Select by rectangle")));
     shortcuts.push_back(std::make_pair(alt+_(L("Drag")),              _L("Deselect by rectangle")));
     shortcuts.push_back(std::make_pair(ctrl+"A",                      _L("Select all points")));
-    shortcuts.push_back(std::make_pair(_L"Del",                       _L("Remove selected points")));
+    shortcuts.push_back(std::make_pair(_L("Del"),                     _L("Remove selected points")));
     shortcuts.push_back(std::make_pair(ctrl+_L("Mouse wheel"),        _L("Move clipping plane")));
     shortcuts.push_back(std::make_pair("R",                           _L("Reset clipping plane")));
     shortcuts.push_back(std::make_pair(_L("Enter"),                   _L("Apply changes")));

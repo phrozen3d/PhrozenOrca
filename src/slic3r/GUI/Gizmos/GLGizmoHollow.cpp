@@ -17,6 +17,16 @@
 namespace Slic3r {
 namespace GUI {
 
+// Encode index into a color for legacy GPU picking (used by SLA gizmo render_points)
+static ColorRGBA picking_color_component(size_t id)
+{
+    return ColorRGBA(
+        float((id >>  0) & 0xFF) / 255.f,
+        float((id >>  8) & 0xFF) / 255.f,
+        float((id >> 16) & 0xFF) / 255.f,
+        1.0f);
+}
+
 GLGizmoHollow::GLGizmoHollow(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
     : GLGizmoBase(parent, icon_filename, sprite_id)
 {
@@ -99,7 +109,7 @@ void GLGizmoHollow::render_points(const Selection& selection, bool picking)
     ScopeGuard guard([shader]() { shader->stop_using(); });
 
     const GLVolume* vol = selection.get_volume(*selection.get_volume_idxs().begin());
-    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_matrix(true, true, false, true).inverse();
+    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
     const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
 
     const Camera& camera = wxGetApp().plater()->get_camera();
@@ -294,7 +304,8 @@ bool GLGizmoHollow::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_pos
 
         // Now ask the rectangle which of the points are inside.
         std::vector<Vec3f> points_inside;
-        std::vector<unsigned int> points_idxs = m_selection_rectangle.stop_dragging(m_parent, points);
+        std::vector<unsigned int> points_idxs = m_selection_rectangle.contains(points);
+        m_selection_rectangle.stop_dragging();
         for (size_t idx : points_idxs)
             points_inside.push_back(points[idx].cast<float>());
 
@@ -357,19 +368,19 @@ bool GLGizmoHollow::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_pos
     if (action == SLAGizmoEventType::MouseWheelUp && control_down) {
         double pos = m_c->object_clipper()->get_position();
         pos = std::min(1., pos + 0.01);
-        m_c->object_clipper()->set_position(pos, true);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
         return true;
     }
 
     if (action == SLAGizmoEventType::MouseWheelDown && control_down) {
         double pos = m_c->object_clipper()->get_position();
         pos = std::max(0., pos - 0.01);
-        m_c->object_clipper()->set_position(pos, true);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
         return true;
     }
 
     if (action == SLAGizmoEventType::ResetClippingPlane) {
-        m_c->object_clipper()->set_position(-1., false);
+        m_c->object_clipper()->set_position_by_ratio(-1., false);
         return true;
     }
 
@@ -391,7 +402,7 @@ void GLGizmoHollow::delete_selected_points()
     select_point(NoPoints);
 }
 
-void GLGizmoHollow::on_update(const UpdateData& data)
+void GLGizmoHollow::on_dragging(const UpdateData& data)
 {
     sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
 
@@ -667,7 +678,7 @@ RENDER_AGAIN:
     else {
         if (m_imgui->button(m_desc.at("reset_direction"))) {
             wxGetApp().CallAfter([this](){
-                    m_c->object_clipper()->set_position(-1., false);
+                    m_c->object_clipper()->set_position_by_ratio(-1., false);
                 });
         }
     }
@@ -676,14 +687,9 @@ RENDER_AGAIN:
     ImGui::PushItemWidth(window_width - settings_sliders_left);
     float clp_dist = m_c->object_clipper()->get_position();
     if (m_imgui->slider_float("##clp_dist", &clp_dist, 0.f, 1.f, "%.2f"))
-        m_c->object_clipper()->set_position(clp_dist, true);
+        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
 
-    // make sure supports are shown/hidden as appropriate
-    bool show_sups = m_c->instances_hider()->are_supports_shown();
-    if (m_imgui->checkbox(m_desc["show_supports"], show_sups)) {
-        m_c->instances_hider()->show_supports(show_sups);
-        force_refresh = true;
-    }
+    //[TODO] show_supports/are_supports_shown not available in PhrozenOrca InstancesHider - Phase 4
 
     m_imgui->end();
 
