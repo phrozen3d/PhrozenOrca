@@ -3052,6 +3052,11 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
 
     //BBS: use the first partplate's print for background process
     partplate_list.update_slice_context_to_current_plate(background_process);
+    // Step 2.3: Connect SLAPrint to BackgroundSlicingProcess.
+    // PartPlate system only manages FFF prints (no SLA concept).
+    // SLA printers don't use multi-plate, so we directly connect
+    // the single sla_print instance from Plater::priv.
+    background_process.set_sla_print(&sla_print);
     /*
     background_process.set_fff_print(&fff_print);
     background_process.set_sla_print(&sla_print);
@@ -5526,8 +5531,15 @@ unsigned int Plater::priv::update_background_process(bool force_validation, bool
     if (switch_print)
     {
         //BBS: update the current print to the current plate
-        this->partplate_list.update_slice_context_to_current_plate(background_process);
-        this->preview->update_gcode_result(partplate_list.get_current_slice_result());
+        // Step 2.3: PartPlate only manages FFF prints. In SLA mode, skip
+        // update_slice_context which would override m_print back to FFF.
+        // Instead, re-apply select_technology to ensure m_print points to SLAPrint.
+        if (this->printer_technology == ptSLA) {
+            background_process.select_technology(ptSLA);
+        } else {
+            this->partplate_list.update_slice_context_to_current_plate(background_process);
+            this->preview->update_gcode_result(partplate_list.get_current_slice_result());
+        }
     }
     //    Print::ApplyStatus invalidated = background_process.apply(this->model, wxGetApp().preset_bundle->full_config());
     Print::ApplyStatus invalidated;
