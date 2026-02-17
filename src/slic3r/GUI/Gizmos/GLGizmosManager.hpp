@@ -90,10 +90,10 @@ public:
         Assembly,
         Simplify,
         BrimEars,
-        //SlaSupports,
+        SlaSupports,
         // BBS
         //FaceRecognition,
-        //Hollow,
+        Hollow,
         Undefined,
     };
 
