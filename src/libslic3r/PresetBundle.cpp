@@ -1037,6 +1037,14 @@ static std::set<std::string> gcodes_key_set =  {"filament_end_gcode", "filament_
             "template_custom_gcode", "printing_by_object_gcode", "before_layer_change_gcode", "time_lapse_gcode"};
 int PresetBundle::validate_presets(const std::string &file_name, DynamicPrintConfig& config, std::set<std::string>& different_gcodes)
 {
+    // SLA presets don't have filament_diameter, G-code, or FDM-specific validation needs.
+    // Skip the entire FDM-centric validation for SLA technology.
+    PrinterTechnology printer_technology = Preset::printer_technology(config);
+    if (printer_technology == ptSLA) {
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(":file_name %1%, SLA technology detected, skip FDM preset validation") % file_name;
+        return VALIDATE_PRESETS_SUCCESS;
+    }
+
     bool    validated = false;
     std::vector<std::string> inherits_values                        = config.option<ConfigOptionStrings>("inherits_group", true)->values;
     std::vector<std::string> filament_preset_name                   = config.option<ConfigOptionStrings>("filament_settings_id", true)->values;
@@ -1048,7 +1056,6 @@ int PresetBundle::validate_presets(const std::string &file_name, DynamicPrintCon
     if (has_different_settings_to_system)
         different_values = config.option<ConfigOptionStrings>("different_settings_to_system", true)->values;
 
-    //PrinterTechnology printer_technology = Preset::printer_technology(config);
     size_t filament_count = config.option<ConfigOptionFloats>("filament_diameter")->values.size();
     inherits_values.resize(filament_count + 2, std::string());
     different_values.resize(filament_count + 2, std::string());

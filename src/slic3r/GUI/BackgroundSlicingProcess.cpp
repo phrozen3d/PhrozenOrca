@@ -688,8 +688,19 @@ bool BackgroundSlicingProcess::empty() const
 StringObjectException BackgroundSlicingProcess::validate(StringObjectException *warning, Polygons* collison_polygons, std::vector<std::pair<Polygon, float>>* height_polygons)
 {
 	assert(m_print != nullptr);
-    assert(m_print == m_fff_print);
 
+    // Detect actual printer technology from preset, since m_printer_tech may not yet
+    // be updated during startup when the default printer is SLA.
+    const PrinterTechnology tech = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+    if (tech == ptSLA) {
+        // When SLA, validate through SLAPrint if available; skip FFF validation entirely.
+        if (m_sla_print)
+            return m_sla_print->validate(warning, collison_polygons, height_polygons);
+        // SLAPrint not yet initialized — nothing to validate
+        return {};
+    }
+
+    assert(m_print == m_fff_print);
     m_fff_print->is_BBL_printer() = wxGetApp().preset_bundle->is_bbl_vendor();
     return m_print->validate(warning, collison_polygons, height_polygons);
 }

@@ -7651,14 +7651,18 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << FILAMENT_MAP_MODE_ATTR << "\" " << VALUE_ATTR << "=\"" << "Auto For Flush" << "\"/>\n";
 
                 // filament map override global settings only when group mode overrides the global settings
-                stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << FILAMENT_MAP_ATTR << "\" " << VALUE_ATTR << "=\"";
-                const size_t filaments_count = dynamic_cast<const ConfigOptionStrings*>(config.option("filament_colour"))->values.size();
-                for (int i = 0; i < filaments_count; ++i) {
-                    stream << "1"; // Orca hack: for now, all filaments are mapped to extruder 1
-                    if (i != (filaments_count - 1))
-                        stream << " ";
+                // Guard: filament_colour is FDM-only, skip filament map when not available (e.g. SLA mode)
+                const auto* filament_colour_opt = dynamic_cast<const ConfigOptionStrings*>(config.option("filament_colour"));
+                if (filament_colour_opt) {
+                    stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << FILAMENT_MAP_ATTR << "\" " << VALUE_ATTR << "=\"";
+                    const size_t filaments_count = filament_colour_opt->values.size();
+                    for (int i = 0; i < filaments_count; ++i) {
+                        stream << "1"; // Orca hack: for now, all filaments are mapped to extruder 1
+                        if (i != (filaments_count - 1))
+                            stream << " ";
+                    }
+                    stream << "\"/>\n";
                 }
-                stream << "\"/>\n";
 
                 if (save_gcode)
                     stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << GCODE_FILE_ATTR << "\" " << VALUE_ATTR << "=\"" << std::boolalpha << xml_escape(plate_data->gcode_file) << "\"/>\n";
@@ -7811,11 +7815,15 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 //plate index
                 stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << PLATE_IDX_ATTR        << "\" " << VALUE_ATTR << "=\"" << plate_data->plate_index + 1 << "\"/>\n";
 
-                int timelapse_type = int(config.opt_enum<TimelapseType>("timelapse_type"));
-                for (auto it = plate_data->warnings.begin(); it != plate_data->warnings.end(); it++) {
-                    if (it->msg == NOT_GENERATE_TIMELAPSE) {
-                        timelapse_type = -1;
-                        break;
+                // Guard: timelapse_type is FDM-only, default to -1 when not available (e.g. SLA mode)
+                int timelapse_type = -1;
+                if (config.option("timelapse_type")) {
+                    timelapse_type = int(config.opt_enum<TimelapseType>("timelapse_type"));
+                    for (auto it = plate_data->warnings.begin(); it != plate_data->warnings.end(); it++) {
+                        if (it->msg == NOT_GENERATE_TIMELAPSE) {
+                            timelapse_type = -1;
+                            break;
+                        }
                     }
                 }
                 stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << PRINTER_MODEL_ID_ATTR       << "\" " << VALUE_ATTR << "=\"" << plate_data->printer_model_id << "\"/>\n";
@@ -7829,14 +7837,18 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << LABEL_OBJECT_ENABLED_ATTR << "\" " << VALUE_ATTR << "=\"" << std::boolalpha<< plate_data->is_label_object_enabled << "\"/>\n";
 
                 // TODO: Orca: hack
-                stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << FILAMENT_MAP_ATTR << "\" " << VALUE_ATTR << "=\"";
-                const size_t filaments_count = dynamic_cast<const ConfigOptionStrings*>(config.option("filament_colour"))->values.size();
-                for (int i = 0; i < filaments_count; ++i) {
-                    stream << "1"; // Orca hack: for now, all filaments are mapped to extruder 1
-                    if (i != (filaments_count - 1))
-                        stream << " ";
+                // Guard: filament_colour is FDM-only, skip filament map when not available (e.g. SLA mode)
+                const auto* filament_colour_opt2 = dynamic_cast<const ConfigOptionStrings*>(config.option("filament_colour"));
+                if (filament_colour_opt2) {
+                    stream << "    <" << METADATA_TAG << " " << KEY_ATTR << "=\"" << FILAMENT_MAP_ATTR << "\" " << VALUE_ATTR << "=\"";
+                    const size_t filaments_count = filament_colour_opt2->values.size();
+                    for (int i = 0; i < filaments_count; ++i) {
+                        stream << "1"; // Orca hack: for now, all filaments are mapped to extruder 1
+                        if (i != (filaments_count - 1))
+                            stream << " ";
+                    }
+                    stream << "\"/>\n";
                 }
-                stream << "\"/>\n";
 
                 for (auto it = plate_data->objects_and_instances.begin(); it != plate_data->objects_and_instances.end(); it++)
                 {

@@ -1107,14 +1107,19 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
 
     {
         const auto& o = model.objects;
-        const auto opt_has_scarf_joint_seam = [](const DynamicConfig& c) {
-            return c.has("seam_slope_type") && c.opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None;
-        };
-        const bool has_scarf_joint_seam = std::any_of(o.begin(), o.end(), [&new_full_config, &opt_has_scarf_joint_seam](ModelObject* obj) {
-            return obj->get_config_value<ConfigOptionEnum<SeamScarfType>>(new_full_config, "seam_slope_type")->value != SeamScarfType::None ||
-                   std::any_of(obj->volumes.begin(), obj->volumes.end(), [&opt_has_scarf_joint_seam](const ModelVolume* v) { return opt_has_scarf_joint_seam(v->config.get());}) ||
-                   std::any_of(obj->layer_config_ranges.begin(), obj->layer_config_ranges.end(), [&opt_has_scarf_joint_seam](const auto& r) { return opt_has_scarf_joint_seam(r.second.get());});
-        });
+        // Guard: seam_slope_type is FDM-only, skip when config doesn't contain it (e.g. SLA mode)
+        bool has_scarf_joint_seam = false;
+        if (new_full_config.option("seam_slope_type") != nullptr) {
+            const auto opt_has_scarf_joint_seam = [](const DynamicConfig& c) {
+                return c.has("seam_slope_type") && c.opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None;
+            };
+            has_scarf_joint_seam = std::any_of(o.begin(), o.end(), [&new_full_config, &opt_has_scarf_joint_seam](ModelObject* obj) {
+                auto opt = obj->get_config_value<ConfigOptionEnum<SeamScarfType>>(new_full_config, "seam_slope_type");
+                return (opt && opt->value != SeamScarfType::None) ||
+                       std::any_of(obj->volumes.begin(), obj->volumes.end(), [&opt_has_scarf_joint_seam](const ModelVolume* v) { return opt_has_scarf_joint_seam(v->config.get());}) ||
+                       std::any_of(obj->layer_config_ranges.begin(), obj->layer_config_ranges.end(), [&opt_has_scarf_joint_seam](const auto& r) { return opt_has_scarf_joint_seam(r.second.get());});
+            });
+        }
 
         if (has_scarf_joint_seam) {
             new_full_config.set("has_scarf_joint_seam", true);
