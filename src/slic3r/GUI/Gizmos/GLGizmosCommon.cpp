@@ -23,10 +23,10 @@ CommonGizmosDataPool::CommonGizmosDataPool(GLCanvas3D* canvas)
     using c = CommonGizmosDataID;
     m_data[c::SelectionInfo].reset(   new SelectionInfo(this));
     m_data[c::InstancesHider].reset(  new InstancesHider(this));
-//    m_data[c::HollowedMesh].reset(    new HollowedMesh(this));
+    m_data[c::HollowedMesh].reset(    new HollowedMesh(this));
     m_data[c::Raycaster].reset(       new Raycaster(this));
     m_data[c::ObjectClipper].reset(   new ObjectClipper(this));
-    // m_data[c::SupportsClipper].reset( new SupportsClipper(this));
+    m_data[c::SupportsClipper].reset( new SupportsClipper(this));
 
 }
 
@@ -74,6 +74,20 @@ ObjectClipper* CommonGizmosDataPool::object_clipper() const
     return (oc && oc->is_valid()) ? oc : nullptr;
 }
 
+HollowedMesh* CommonGizmosDataPool::hollowed_mesh() const
+{
+    HollowedMesh* hm = dynamic_cast<HollowedMesh*>(m_data.at(CommonGizmosDataID::HollowedMesh).get());
+    assert(hm);
+    return hm->is_valid() ? hm : nullptr;
+}
+
+SupportsClipper* CommonGizmosDataPool::supports_clipper() const
+{
+    SupportsClipper* sc = dynamic_cast<SupportsClipper*>(m_data.at(CommonGizmosDataID::SupportsClipper).get());
+    assert(sc);
+    return sc->is_valid() ? sc : nullptr;
+}
+
 #ifndef NDEBUG
 // Check the required resources one by one and return true if all
 // dependencies are met.
@@ -105,18 +119,27 @@ void SelectionInfo::on_update()
     const Selection& selection = get_pool()->get_canvas()->get_selection();
 
     m_model_object = nullptr;
+    m_print_object = nullptr;
 
     // BBS still keep object pointer when selection is volume
     // if (selection.is_single_full_instance()) {
     if (!selection.is_empty()) {
         m_model_object = selection.get_model()->objects[selection.get_object_idx()];
-        m_z_shift = selection.get_first_volume()->get_sla_shift_z();
+        if (m_model_object) {
+            // Guard: sla_print() may return nullptr when SLAPrint is not initialized
+            // (PartPlate system never calls set_sla_print() - Step 2.3 known issue)
+            const SLAPrint* sla_print = get_pool()->get_canvas()->sla_print();
+            if (sla_print)
+                m_print_object = sla_print->get_print_object_by_model_object_id(m_model_object->id());
+        }
+        m_z_shift = m_print_object ? m_print_object->get_current_elevation() : selection.get_first_volume()->get_sla_shift_z();
     }
 }
 
 void SelectionInfo::on_release()
 {
     m_model_object = nullptr;
+    m_print_object = nullptr;
 }
 
 int SelectionInfo::get_active_instance() const
@@ -580,6 +603,122 @@ void ModelObjectsClipper::set_position(double pos, bool keep_normal)
     m_clp.reset(new ClippingPlane(normal, (dist - (-m_active_inst_bb_radius * GLVolume::explosion_ratio) - m_clp_ratio * 2 * m_active_inst_bb_radius * GLVolume::explosion_ratio)));
     get_pool()->get_canvas()->set_as_dirty();
 
+}
+
+
+// HollowedMesh implementation
+void HollowedMesh::on_update()
+{
+    const ModelObject* mo = get_pool()->selection_info()->model_object();
+    bool is_sla = wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA;
+    if (! mo || ! is_sla) {
+        m_has_hollowed_mesh = false;
+        return;
+    }
+
+    const SLAPrintObject* po = get_pool()->selection_info()->print_object();
+    if (po == nullptr) {
+        m_has_hollowed_mesh = false;
+        return;
+    }
+
+    if (po->is_step_done(slaposDrillHoles)) {
+        m_hollowed_mesh_cache = po->get_mesh_to_print();
+        m_has_hollowed_mesh = true;
+
+        // Update drain holes with failure info
+        m_drainholes = mo->sla_drain_holes;
+    } else {
+        m_has_hollowed_mesh = false;
+        m_drainholes = mo->sla_drain_holes;
+    }
+}
+
+void HollowedMesh::on_release()
+{
+    m_hollowed_mesh_cache.clear();
+    m_has_hollowed_mesh = false;
+    m_drainholes.clear();
+}
+
+const TriangleMesh* HollowedMesh::get_hollowed_mesh() const
+{
+    return m_has_hollowed_mesh ? &m_hollowed_mesh_cache : nullptr;
+}
+
+const std::vector<sla::DrainHole>& HollowedMesh::get_drainholes() const
+{
+    return m_drainholes;
+}
+
+
+// SupportsClipper implementation
+void SupportsClipper::on_update()
+{
+    const ModelObject* mo = get_pool()->selection_info()->model_object();
+    bool is_sla = wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA;
+    if (! mo || ! is_sla)
+        return;
+
+    const SLAPrintObject* po = get_pool()->selection_info()->print_object();
+    if (po == nullptr)
+        return;
+
+    const TriangleMesh& support_mesh = po->support_mesh();
+    if (support_mesh.empty()) {
+        m_supports_clipper.reset();
+    }
+    else {
+        m_supports_clipper.reset(new MeshClipper);
+        m_supports_clipper->set_mesh(support_mesh.its);
+    }
+
+    const TriangleMesh& pad_mesh = po->pad_mesh();
+    if (pad_mesh.empty()) {
+        m_pad_clipper.reset();
+    }
+    else {
+        m_pad_clipper.reset(new MeshClipper);
+        m_pad_clipper->set_mesh(pad_mesh.its);
+    }
+}
+
+
+void SupportsClipper::on_release()
+{
+    m_supports_clipper.reset();
+    m_pad_clipper.reset();
+    m_print_object_idx = -1;
+}
+
+void SupportsClipper::render_cut() const
+{
+    const CommonGizmosDataObjects::ObjectClipper* ocl = get_pool()->object_clipper();
+    if (ocl->get_position() == 0.)
+        return;
+
+    const SLAPrintObject* po = get_pool()->selection_info()->print_object();
+    if (po == nullptr)
+        return;
+
+    Geometry::Transformation po_trafo(po->trafo());
+
+    const SelectionInfo* sel_info = get_pool()->selection_info();
+    Geometry::Transformation inst_trafo = sel_info->model_object()->instances[sel_info->get_active_instance()]->get_transformation();
+    inst_trafo = Geometry::Transformation(inst_trafo.get_matrix() * po_trafo.get_matrix().inverse());
+    inst_trafo.set_offset(inst_trafo.get_offset() + Vec3d(0.0, 0.0, sel_info->get_sla_shift()));
+
+    if (m_supports_clipper != nullptr) {
+        m_supports_clipper->set_plane(*ocl->get_clipping_plane());
+        m_supports_clipper->set_transformation(inst_trafo);
+        m_supports_clipper->render_cut({ 1.0f, 0.f, 0.37f, 1.0f });
+    }
+
+    if (m_pad_clipper != nullptr) {
+        m_pad_clipper->set_plane(*ocl->get_clipping_plane());
+        m_pad_clipper->set_transformation(inst_trafo);
+        m_pad_clipper->render_cut({ 0.6f, 0.f, 0.222f, 1.0f });
+    }
 }
 
 

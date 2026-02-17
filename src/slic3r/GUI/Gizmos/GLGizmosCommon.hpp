@@ -6,6 +6,7 @@
 
 #include "slic3r/GUI/3DScene.hpp"
 #include "slic3r/GUI/MeshUtils.hpp"
+#include "libslic3r/SLA/Hollowing.hpp"
 
 namespace Slic3r {
 
@@ -74,7 +75,8 @@ enum class CommonGizmosDataID {
     InstancesHider       = 1 << 1,
     Raycaster            = 1 << 3,
     ObjectClipper        = 1 << 4,
-
+    HollowedMesh         = 1 << 5,
+    SupportsClipper      = 1 << 6,
 };
 
 
@@ -92,10 +94,10 @@ public:
     // Getters for the data that need to be accessed from the gizmos directly.
     CommonGizmosDataObjects::SelectionInfo* selection_info() const;
     CommonGizmosDataObjects::InstancesHider* instances_hider() const;
-//    CommonGizmosDataObjects::HollowedMesh* hollowed_mesh() const;
+    CommonGizmosDataObjects::HollowedMesh* hollowed_mesh() const;
     CommonGizmosDataObjects::Raycaster* raycaster() const;
     CommonGizmosDataObjects::ObjectClipper* object_clipper() const;
-    // CommonGizmosDataObjects::SupportsClipper* supports_clipper() const;
+    CommonGizmosDataObjects::SupportsClipper* supports_clipper() const;
 
 
     GLCanvas3D* get_canvas() const { return m_canvas; }
@@ -163,6 +165,7 @@ public:
         : CommonGizmosDataBase(cgdp) {}
 
     ModelObject* model_object() const { return m_model_object; }
+    const SLAPrintObject* print_object() const { return m_print_object; }
     int get_active_instance() const;
     float get_sla_shift() const { return m_z_shift; }
 
@@ -172,6 +175,7 @@ protected:
 
 private:
     ModelObject* m_model_object = nullptr;
+    const SLAPrintObject* m_print_object = nullptr;
     // int m_active_inst = -1;
     float m_z_shift = 0.f;
 };
@@ -257,6 +261,62 @@ private:
     double m_clp_ratio = 0.;
     double m_active_inst_bb_radius = 0.;
     bool m_hide_clipped = true;
+};
+
+
+
+class HollowedMesh : public CommonGizmosDataBase
+{
+public:
+    explicit HollowedMesh(CommonGizmosDataPool* cgdp)
+        : CommonGizmosDataBase(cgdp) {}
+#ifndef NDEBUG
+    CommonGizmosDataID get_dependencies() const override {
+        return CommonGizmosDataID(
+                    int(CommonGizmosDataID::SelectionInfo)
+               );
+    }
+#endif // NDEBUG
+
+    const TriangleMesh* get_hollowed_mesh() const;
+    const std::vector<sla::DrainHole>& get_drainholes() const;
+
+protected:
+    void on_update() override;
+    void on_release() override;
+
+private:
+    TriangleMesh m_hollowed_mesh_cache;
+    bool m_has_hollowed_mesh = false;
+    std::vector<sla::DrainHole> m_drainholes;
+};
+
+
+
+class SupportsClipper : public CommonGizmosDataBase
+{
+public:
+    explicit SupportsClipper(CommonGizmosDataPool* cgdp)
+        : CommonGizmosDataBase(cgdp) {}
+#ifndef NDEBUG
+    CommonGizmosDataID get_dependencies() const override {
+        return CommonGizmosDataID(
+                    int(CommonGizmosDataID::SelectionInfo)
+                  | int(CommonGizmosDataID::ObjectClipper)
+               );
+    }
+#endif // NDEBUG
+
+    void render_cut() const;
+
+protected:
+    void on_update() override;
+    void on_release() override;
+
+private:
+    int m_print_object_idx = -1;
+    std::unique_ptr<MeshClipper> m_supports_clipper;
+    std::unique_ptr<MeshClipper> m_pad_clipper;
 };
 
 } // namespace CommonGizmosDataObjects
