@@ -3057,6 +3057,18 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
     // SLA printers don't use multi-plate, so we directly connect
     // the single sla_print instance from Plater::priv.
     background_process.set_sla_print(&sla_print);
+    // Step 2.5: Register SLA slicing progress callback.
+    // The commented-out block below registers this for both FFF and SLA, but
+    // PhrozenOrca's PartPlate system handles FFF via update_slice_context() instead.
+    // SLA has no PartPlate equivalent, so we register sla_print's callback here directly.
+    // Without this, SLAPrintSteps emits RELOAD_SCENE/RELOAD_SLA_PREVIEW but the
+    // EVT_SLICING_UPDATE events are never posted → on_slicing_update() never fires for SLA.
+    {
+        auto statuscb_sla = [this](const Slic3r::PrintBase::SlicingStatus &status) {
+            wxQueueEvent(this->q, new Slic3r::SlicingStatusEvent(EVT_SLICING_UPDATE, 0, status));
+        };
+        sla_print.set_status_callback(statuscb_sla);
+    }
     /*
     background_process.set_fff_print(&fff_print);
     background_process.set_sla_print(&sla_print);

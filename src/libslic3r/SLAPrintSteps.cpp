@@ -757,6 +757,12 @@ void SLAPrint::Steps::slice_supports(SLAPrintObject &po) {
 
         for(auto& rec : po.m_slice_index) heights.emplace_back(rec.slice_level());
 
+        // Step 2.5: Report that slice_supports is starting so the progress bar
+        // advances from slaposSupportTree (prev step) into this step's range.
+        // Without this, the UI stays stuck at the slaposSupportTree end-percent
+        // until RELOAD_SLA_PREVIEW fires at the very end of this step.
+        report_status(current_status(), OBJ_STEP_LABELS(slaposSliceSupports));
+
         sd->support_slices = sd->support_tree_ptr->slice(
             heights, float(po.config().slice_closing_radius.value));
     }
