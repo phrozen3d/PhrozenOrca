@@ -327,6 +327,8 @@ void Preview::load_print(bool keep_z_range, bool only_gcode)
     PrinterTechnology tech = m_process->current_printer_technology();
     if (tech == ptFFF)
         load_print_as_fff(keep_z_range, only_gcode);
+    else if (tech == ptSLA)     // Step 2.4: SLA preview branch
+        load_print_as_sla();
 
     Layout();
 }
@@ -777,6 +779,40 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
             m_canvas_widget->Refresh();
         } else
             update_layers_slider(zs, keep_z_range);
+    }
+}
+
+// Step 2.4: Load SLA print preview shells and set up clipping planes.
+// Ported from PrusaSlicer GUI_Preview.cpp:1021 (load_print_as_sla).
+// Adapted for PhrozenOrca: use m_loaded_print instead of m_loaded bool;
+// skip FFF-specific IMSlider (GCodeViewer slider cannot drive SLA clipping planes).
+void Preview::load_print_as_sla()
+{
+    const SLAPrint* print = m_process->sla_print();
+    if (print == nullptr)
+        return;
+
+    // Cache check: avoid redundant reloads within the same slicing result.
+    // m_loaded_print is reset to nullptr by reload_print(keep_volumes=false).
+    if (m_loaded_print == print)
+        return;
+
+    m_canvas->reset_clipping_planes_cache();
+    m_canvas->set_use_clipping_planes(true);
+
+    if (IsShown()) {
+        // Load SLA object mesh + support tree + pad meshes into Preview canvas.
+        // Internally calls reset_volumes() then _load_sla_shells().
+        // Only loads objects whose slaposSliceSupports step has completed.
+        m_canvas->load_sla_preview();
+
+        // SLA has no GCode moves slider
+        show_moves_sliders(false);
+        // SLA layer slider (clipping-plane driven) not yet implemented.
+        // The GCodeViewer IMSlider is FFF-specific and cannot drive SLA clipping planes.
+        show_layers_sliders(false);
+
+        m_loaded_print = print;
     }
 }
 

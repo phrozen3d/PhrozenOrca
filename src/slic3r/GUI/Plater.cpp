@@ -3651,14 +3651,16 @@ void Plater::priv::select_view_3D(const std::string& name, bool no_slice)
     }
     else if (name == "Preview") {
         BOOST_LOG_TRIVIAL(info) << "select preview";
-        //BBS update extruder params and speed table before slicing
-        const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
-        auto& print = q->get_partplate_list().get_current_fff_print();
-        auto print_config = print.config();
-        int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
-
-        Model::setExtruderParams(config, numExtruders);
-        Model::setPrintSpeedTable(config, print_config);
+        // Step 2.4: SLA mode has no FFF extruder/speed table.
+        if (this->printer_technology != ptSLA) {
+            //BBS update extruder params and speed table before slicing
+            const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
+            auto& print = q->get_partplate_list().get_current_fff_print();
+            auto print_config = print.config();
+            int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
+            Model::setExtruderParams(config, numExtruders);
+            Model::setPrintSpeedTable(config, print_config);
+        }
         set_current_panel(preview, no_slice);
     }
     else if (name == "Assemble") {
@@ -7436,17 +7438,22 @@ void Plater::priv::on_action_slice_plate(SimpleEvent&)
 {
     if (q != nullptr) {
         BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << ":received slice plate event\n" ;
-        //BBS update extruder params and speed table before slicing
-        const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
-        auto& print = q->get_partplate_list().get_current_fff_print();
-        auto print_config = print.config();
-        int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
-
-        Model::setExtruderParams(config, numExtruders);
-        Model::setPrintSpeedTable(config, print_config);
+        // Step 2.4: SLA mode does not use FFF extruder/speed table params.
+        // Also skip Preview auto-switch for SLA: stay in 3D Editor during slicing
+        // (supports appear incrementally); user manually switches to Preview for layer view.
+        if (this->printer_technology != ptSLA) {
+            //BBS update extruder params and speed table before slicing
+            const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
+            auto& print = q->get_partplate_list().get_current_fff_print();
+            auto print_config = print.config();
+            int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
+            Model::setExtruderParams(config, numExtruders);
+            Model::setPrintSpeedTable(config, print_config);
+        }
         m_slice_all = false;
         q->reslice();
-        q->select_view_3D("Preview");
+        if (this->printer_technology != ptSLA)   // Step 2.4: SLA stays in 3D editor
+            q->select_view_3D("Preview");
     }
 }
 

@@ -181,6 +181,7 @@ private:
     void update_layers_slider_from_canvas(wxKeyEvent &event);
     //BBS: add only gcode mode
     void load_print_as_fff(bool keep_z_range = false, bool only_gcode = false);
+    void load_print_as_sla();   // Step 2.4: SLA preview support
 };
 
 
