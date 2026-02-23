@@ -885,8 +885,43 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, co
 
 
     toggle_line("infill_overhang_angle", config->opt_enum<InfillPattern>("sparse_infill_pattern") == InfillPattern::ipLateralHoneycomb);
+}
 
-    #pragma region Phrozen LCD Parameter
+void ConfigManipulation::update_print_sla_config(DynamicPrintConfig* config, const bool is_global_config/* = false*/)
+{
+    // Only validate Prusa-style SLA support options when present (Phrozen LCD presets use different keys)
+    if (config->has("support_head_penetration") && config->has("support_head_width")) {
+        double head_penetration = config->opt_float("support_head_penetration");
+        double head_width = config->opt_float("support_head_width");
+        if (head_penetration > head_width) {
+            wxString msg_text = "Head penetration should not be greater than the head width.";
+            MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid Head penetration", wxICON_WARNING | wxOK);
+            DynamicPrintConfig new_conf = *config;
+            if (dialog.ShowModal() == wxID_OK) {
+                new_conf.set_key_value("support_head_penetration", new ConfigOptionFloat(head_width));
+                apply(config, &new_conf);
+            }
+        }
+    }
+
+    if (config->has("support_head_front_diameter") && config->has("support_pillar_diameter")) {
+        double pinhead_d = config->opt_float("support_head_front_diameter");
+        double pillar_d = config->opt_float("support_pillar_diameter");
+        if (pinhead_d > pillar_d) {
+            wxString msg_text = "Pinhead diameter should be smaller than the pillar diameter.";
+            MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid pinhead diameter", wxICON_WARNING | wxOK);
+            DynamicPrintConfig new_conf = *config;
+            if (dialog.ShowModal() == wxID_OK) {
+                new_conf.set_key_value("support_head_front_diameter", new ConfigOptionFloat(pillar_d / 2.0));
+                apply(config, &new_conf);
+            }
+        }
+    }
+}
+
+void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
+{
+#pragma region Phrozen LCD Parameter
     if (config->has("waiting_mode_during_printing")) {
         bool use_resting_time = config->opt_enum<WaitingModeDuringPrinting>("waiting_mode_during_printing") == spRestingTime;
         toggle_line("rest_time_before_lift", use_resting_time);
@@ -934,85 +969,9 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, co
     toggle_field("support_boss_height", is_support);
     toggle_field("object_elevation", is_support);
     toggle_field("support_points_density", is_support);
-    //toggle_field("max_bridge_length", is_support);
+    // toggle_field("max_bridge_length", is_support);
     toggle_field("max_pillar_linking_distance", is_support);
 #pragma endregion
-}
-
-void ConfigManipulation::update_print_sla_config(DynamicPrintConfig* config, const bool is_global_config/* = false*/)
-{
-    double head_penetration = config->opt_float("support_head_penetration");
-    double head_width = config->opt_float("support_head_width");
-    if (head_penetration > head_width) {
-        //wxString msg_text = _(L("Head penetration should not be greater than the head width."));
-        wxString msg_text = "Head penetration should not be greater than the head width.";
-
-        //MessageDialog dialog(m_msg_dlg_parent, msg_text, _(L("Invalid Head penetration")), wxICON_WARNING | wxOK);
-        MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid Head penetration", wxICON_WARNING | wxOK);
-        DynamicPrintConfig new_conf = *config;
-        if (dialog.ShowModal() == wxID_OK) {
-            new_conf.set_key_value("support_head_penetration", new ConfigOptionFloat(head_width));
-            apply(config, &new_conf);
-        }
-    }
-
-    double pinhead_d = config->opt_float("support_head_front_diameter");
-    double pillar_d = config->opt_float("support_pillar_diameter");
-    if (pinhead_d > pillar_d) {
-        //wxString msg_text = _(L("Pinhead diameter should be smaller than the pillar diameter."));
-        wxString msg_text = "Pinhead diameter should be smaller than the pillar diameter.";
-
-        //MessageDialog dialog(m_msg_dlg_parent, msg_text, _(L("Invalid pinhead diameter")), wxICON_WARNING | wxOK);
-        MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid pinhead diameter", wxICON_WARNING | wxOK);
-
-        DynamicPrintConfig new_conf = *config;
-        if (dialog.ShowModal() == wxID_OK) {
-            new_conf.set_key_value("support_head_front_diameter", new ConfigOptionFloat(pillar_d / 2.0));
-            apply(config, &new_conf);
-        }
-    }
-}
-
-void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
-{
-    bool supports_en = config->opt_bool("supports_enable");
-
-    toggle_field("support_head_front_diameter", supports_en);
-    toggle_field("support_head_penetration", supports_en);
-    toggle_field("support_head_width", supports_en);
-    toggle_field("support_pillar_diameter", supports_en);
-    toggle_field("support_small_pillar_diameter_percent", supports_en);
-    toggle_field("support_max_bridges_on_pillar", supports_en);
-    toggle_field("support_pillar_connection_mode", supports_en);
-    toggle_field("support_buildplate_only", supports_en);
-    toggle_field("support_base_diameter", supports_en);
-    toggle_field("support_base_height", supports_en);
-    toggle_field("support_base_safety_distance", supports_en);
-    toggle_field("support_critical_angle", supports_en);
-    toggle_field("support_max_bridge_length", supports_en);
-    toggle_field("support_max_pillar_link_distance", supports_en);
-    toggle_field("support_points_density_relative", supports_en);
-    toggle_field("support_points_minimal_distance", supports_en);
-
-    bool pad_en = config->opt_bool("pad_enable");
-
-    toggle_field("pad_wall_thickness", pad_en);
-    toggle_field("pad_wall_height", pad_en);
-    toggle_field("pad_brim_size", pad_en);
-    toggle_field("pad_max_merge_distance", pad_en);
- // toggle_field("pad_edge_radius", supports_en);
-    toggle_field("pad_wall_slope", pad_en);
-    toggle_field("pad_around_object", pad_en);
-    toggle_field("pad_around_object_everywhere", pad_en);
-
-    bool zero_elev = config->opt_bool("pad_around_object") && pad_en;
-
-    toggle_field("support_object_elevation", supports_en && !zero_elev);
-    toggle_field("pad_object_gap", zero_elev);
-    toggle_field("pad_around_object_everywhere", zero_elev);
-    toggle_field("pad_object_connector_stride", zero_elev);
-    toggle_field("pad_object_connector_width", zero_elev);
-    toggle_field("pad_object_connector_penetration", zero_elev);
 }
 
 int ConfigManipulation::show_spiral_mode_settings_dialog(bool is_object_config)

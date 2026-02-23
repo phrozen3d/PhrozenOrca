@@ -6664,101 +6664,94 @@ void TabSLAPrint::build()
     m_presets = &m_preset_bundle->sla_prints;
     load_initial_data();
 
-//    auto page = add_options_page(L("Layers and perimeters"), "layers");
-//
-//    auto optgroup = page->new_optgroup(L("Layers"));
-//    optgroup->append_single_option_line("layer_height");
-//    optgroup->append_single_option_line("faded_layers");
-//
-//    page = add_options_page(L("Supports"), "support"/*"sla_supports"*/);
-//    optgroup = page->new_optgroup(L("Supports"));
-//    optgroup->append_single_option_line("supports_enable");
-//
-//    optgroup = page->new_optgroup(L("Support head"));
-//    optgroup->append_single_option_line("support_head_front_diameter");
-//    optgroup->append_single_option_line("support_head_penetration");
-//    optgroup->append_single_option_line("support_head_width");
-//
-//    optgroup = page->new_optgroup(L("Support pillar"));
-//    optgroup->append_single_option_line("support_pillar_diameter");
-//    optgroup->append_single_option_line("support_small_pillar_diameter_percent");
-//    optgroup->append_single_option_line("support_max_bridges_on_pillar");
-//
-//    optgroup->append_single_option_line("support_pillar_connection_mode");
-//    optgroup->append_single_option_line("support_buildplate_only");
-//    // TODO: This parameter is not used at the moment.
-//    // optgroup->append_single_option_line("support_pillar_widening_factor");
-//    optgroup->append_single_option_line("support_base_diameter");
-//    optgroup->append_single_option_line("support_base_height");
-//    optgroup->append_single_option_line("support_base_safety_distance");
-//
-//    // Mirrored parameter from Pad page for toggling elevation on the same page
-//    optgroup->append_single_option_line("support_object_elevation");
-//
-//    Line line{ "", "" };
-//    line.full_width = 1;
-//    line.widget = [this](wxWindow* parent) {
-//        return description_line_widget(parent, &m_support_object_elevation_description_line);
-//    };
-//    optgroup->append_line(line);
-//
-//    optgroup = page->new_optgroup(L("Connection of the support sticks and junctions"));
-//    optgroup->append_single_option_line("support_critical_angle");
-//    optgroup->append_single_option_line("support_max_bridge_length");
-//    optgroup->append_single_option_line("support_max_pillar_link_distance");
-//
-//    optgroup = page->new_optgroup(L("Automatic generation"));
-//    optgroup->append_single_option_line("support_points_density_relative");
-//    optgroup->append_single_option_line("support_points_minimal_distance");
-//
-//    page = add_options_page(L("Pad"), "");
-//    optgroup = page->new_optgroup(L("Pad"));
-//    optgroup->append_single_option_line("pad_enable");
-//    optgroup->append_single_option_line("pad_wall_thickness");
-//    optgroup->append_single_option_line("pad_wall_height");
-//    optgroup->append_single_option_line("pad_brim_size");
-//    optgroup->append_single_option_line("pad_max_merge_distance");
-//    // TODO: Disabling this parameter for the beta release
-////    optgroup->append_single_option_line("pad_edge_radius");
-//    optgroup->append_single_option_line("pad_wall_slope");
-//
-//    optgroup->append_single_option_line("pad_around_object");
-//    optgroup->append_single_option_line("pad_around_object_everywhere");
-//    optgroup->append_single_option_line("pad_object_gap");
-//    optgroup->append_single_option_line("pad_object_connector_stride");
-//    optgroup->append_single_option_line("pad_object_connector_width");
-//    optgroup->append_single_option_line("pad_object_connector_penetration");
-//
-//    page = add_options_page(L("Hollowing"), "hollowing");
-//    optgroup = page->new_optgroup(L("Hollowing"));
-//    optgroup->append_single_option_line("hollowing_enable");
-//    optgroup->append_single_option_line("hollowing_min_thickness");
-//    optgroup->append_single_option_line("hollowing_quality");
-//    optgroup->append_single_option_line("hollowing_closing_distance");
-//
-//    page = add_options_page(L("Advanced"), "advanced");
-//    optgroup = page->new_optgroup(L("Slicing"));
-//    optgroup->append_single_option_line("slice_closing_radius");
-//    optgroup->append_single_option_line("slicing_mode");
-//
-//    page = add_options_page(L("Output options"), "output+page_white");
-//    optgroup = page->new_optgroup(L("Output file"));
-//    Option option = optgroup->get_option("filename_format");
-//    option.opt.full_width = true;
-//    optgroup->append_single_option_line(option);
-//
-//    page = add_options_page(L("Dependencies"), "advanced");
-//    optgroup = page->new_optgroup(L("Profile dependencies"));
-//
-//    create_line_with_widget(optgroup.get(), "compatible_printers", "", [this](wxWindow* parent) {
-//        return compatible_widget_create(parent, m_compatible_printers);
-//    });
-//
-//    option = optgroup->get_option("compatible_printers_condition");
-//    option.opt.full_width = true;
-//    optgroup->append_single_option_line(option);
-//
-//    build_preset_description_line(optgroup.get());
+ #pragma region Phrozen LCD Parameter
+    // Layer
+    auto page     = add_options_page(L("Layer"), "custom-gcode_quality"); // ORCA: icon only visible on placeholders
+    auto optgroup = page->new_optgroup(L("Layer & Exposure"), L"PhrozenImages_Resin/param_layer & Exposure");
+    optgroup->append_single_option_line("layer_height", "123");
+    optgroup->append_single_option_line("bottom_layer_count", "123");
+    optgroup->append_single_option_line("exposure_time", "123");
+    optgroup->append_single_option_line("bottom_exposure_time", "123");
+
+    optgroup = page->new_optgroup(L("Transition"), L"PhrozenImages_Resin/param_Transition");
+    optgroup->append_single_option_line("transition_layer_count", "123");
+    optgroup->append_single_option_line("transition_type", "123");
+    optgroup->append_single_option_line("transition_layer_interval_time_difference", "123");
+
+    optgroup = page->new_optgroup(L("Wait & Rest"), L"PhrozenImages_Resin/param_wait & rest");
+    optgroup->append_single_option_line("waiting_mode_during_printing", "123");
+    optgroup->append_single_option_line("rest_time_before_lift", "123");
+    optgroup->append_single_option_line("rest_time_after_lift", "123");
+    optgroup->append_single_option_line("rest_time_after_retract", "123");
+    optgroup->append_single_option_line("light_off_day", "123");
+    optgroup->append_single_option_line("bottom_light_off_day", "123");
+
+    // Distance
+    page     = add_options_page(L("Distance"), "custom-gcode_strength"); // ORCA: icon only visible on placeholders
+    optgroup = page->new_optgroup(L("Lift & Retract Distance"), L"PhrozenImages_Resin/param_distance");
+    optgroup->append_single_option_line("bottom_lift_distance", "123");
+    optgroup->append_single_option_line("lifting_distance", "123");
+    optgroup->append_single_option_line("bottom_retract_distance", "123");
+    optgroup->append_single_option_line("retract_distance", "123");
+
+    // Speed
+    page     = add_options_page(L("Speed"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
+    optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 15);
+    optgroup->append_single_option_line("bottom_lift_speed", "123");
+    optgroup->append_single_option_line("lifting_speed", "123");
+    optgroup->append_single_option_line("bottom_retract_speed", "123");
+    optgroup->append_single_option_line("retract_speed", "123");
+
+    // Advanced
+    page     = add_options_page(L("Advanced"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
+    optgroup = page->new_optgroup(L("Advance"), L"PhrozenImages_Resin/param_advanced", 15);
+    optgroup->append_single_option_line("bottom_light_pwm", "123");
+    optgroup->append_single_option_line("light_pwm", "123");
+    optgroup->append_single_option_line("picture_grayscale", "123");
+    optgroup->append_single_option_line("anti_aliasing", "123");
+    optgroup->append_single_option_line("gray_scale_level", "123");
+    optgroup->append_single_option_line("image_blur_enable", "123");
+    optgroup->append_single_option_line("image_blur_pixel", "123");
+    optgroup->append_single_option_line("anti_aliasing_level", "123");
+    optgroup->append_single_option_line("shrinkage_compensation", "123");
+    optgroup->append_single_option_line("shrinkage_compensation_x", "123");
+    optgroup->append_single_option_line("shrinkage_compensation_y", "123");
+    optgroup->append_single_option_line("shrinkage_compensation_z", "123");
+    optgroup->append_single_option_line("tolerance_compensation", "123");
+    optgroup->append_single_option_line("tolerance_compensation_a", "123");
+    optgroup->append_single_option_line("tolerance_compensation_b", "123");
+    optgroup->append_single_option_line("bottom_tolerance_compensation", "123");
+    optgroup->append_single_option_line("bottom_tolerance_compensation_a", "123");
+    optgroup->append_single_option_line("bottom_tolerance_compensation_b", "123");
+
+    // Support
+    page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
+
+    optgroup = page->new_optgroup(L("Supports"), L"PhrozenImages_Resin/param_top", 15);
+    optgroup->append_single_option_line("generate_support", "123");
+
+    optgroup = page->new_optgroup(L("Top"), L"PhrozenImages_Resin/param_main", 15);
+    optgroup->append_single_option_line("top_upper_diameter", "123");
+    optgroup->append_single_option_line("top_contact_depth", "123");
+    optgroup->append_single_option_line("pinhead_width", "123");
+
+    optgroup = page->new_optgroup(L("Main"), L"PhrozenImages_Resin/param_bottom", 15);
+    optgroup->append_single_option_line("pillar_diameter", "123");
+    optgroup->append_single_option_line("angle_between_top_and_middle", "123");
+
+    optgroup = page->new_optgroup(L("Bottom"), L"PhrozenImages_Resin/param_bottom", 15);
+    optgroup->append_single_option_line("support_bottom_diameter", "123");
+    optgroup->append_single_option_line("support_boss_height", "123");
+
+    optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_bottom", 15);
+    optgroup->append_single_option_line("object_elevation", "123");
+
+    optgroup = page->new_optgroup(L("Automatic Generation"), L"param_speed_first", 15);
+    optgroup->append_single_option_line("support_points_density", "123");
+    // optgroup->append_single_option_line("max_bridge_length", "123");
+    optgroup->append_single_option_line("max_pillar_linking_distance", "123");
+
+#pragma endregion
 }
 
 // Reload current config (aka presets->edited_preset->config) into the UI fields.

@@ -6805,9 +6805,9 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionInt(1));
 
     def           = this->add("anti_aliasing_level", coInt);
-    def->label    = L("Anti-aliasing level");
+    def->label    = L("Anti-aliasing Level");
     def->category = L("Advanced");
-    def->tooltip  = L("Anti-aliasing level");
+    def->tooltip  = L("Anti-aliasing Level");
     def->min      = 1;
     def->set_default_value(new ConfigOptionInt(2));
 

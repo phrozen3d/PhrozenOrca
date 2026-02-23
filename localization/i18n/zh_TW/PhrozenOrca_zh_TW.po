@@ -18583,3 +18583,169 @@ msgstr ""
 
 #~ msgid ", ver: "
 #~ msgstr "，版本"
+
+#Resin
+msgid "Layer & Exposure"
+msgstr "層與曝光"
+
+msgid "Bottom Layer Count"
+msgstr "底層數"
+
+msgid "Exposure time"
+msgstr "曝光時間"
+
+msgid "Bottom exposure time"
+msgstr "底層曝光時間"
+
+msgid "Transition"
+msgstr "過渡層"
+
+msgid "Transition Layer Count"
+msgstr "過渡層數"
+
+msgid "Transition Type"
+msgstr "過渡類型"
+
+msgid "Transition Layer Interval Time Difference"
+msgstr "過渡層間隔時間差"
+
+msgid "Wait & Rest"
+msgstr "等待與靜止"
+
+msgid "Waiting Mode During Printing"
+msgstr "列印過程等待模式"
+
+msgid "Resting Time"
+msgstr "靜止時間"
+
+msgid "Resting time"
+msgstr "靜止時間"
+
+msgid "Rest Time Before Lift"
+msgstr "抬升前的靜止時間"
+
+msgid "Rest Time After Lift"
+msgstr "抬升後的靜止時間"
+
+msgid "Rest Time After Retract"
+msgstr "回程後的靜止時間"
+
+msgid "Light off delay"
+msgstr "燈滅延遲"
+
+msgid "Light-off Delay"
+msgstr "燈滅延遲"
+
+msgid "Bottom Light-off Delay"
+msgstr "底層燈滅延遲"
+
+msgid "Lift & Retract Distance"
+msgstr "抬升與回程距離"
+
+msgid "Bottom Lift Distance"
+msgstr "底層抬升距離"
+
+msgid "Lifting Distance"
+msgstr "抬升距離"
+
+msgid "Bottom Retract Distance"
+msgstr "底層回程距離"
+
+msgid "Retract Distance"
+msgstr "回程距離"
+
+msgid "Lift & Retract Speed"
+msgstr "抬升與回程速度"
+
+msgid "Bottom Lift Speed"
+msgstr "底層抬升速度"
+
+msgid "Lifting Speed"
+msgstr "抬升速度"
+
+msgid "Bottom Retract Speed"
+msgstr "底層回程速度"
+
+msgid "Retract Speed"
+msgstr "回程速度"
+
+msgid "Bottom Light PWM"
+msgstr "底層光牆PWM"
+
+msgid "Light PWM"
+msgstr "光牆PWM"
+
+msgid "Picture GrayScale"
+msgstr "圖片灰度"
+
+msgid "Anti-Aliasing"
+msgstr "抗鋸齒"
+
+msgid "Gray Scale Level"
+msgstr "灰度級別"
+
+msgid "Image Blur Enable"
+msgstr "圖像模糊"
+
+msgid "Image Blur Pixel"
+msgstr "圖像模糊像素"
+
+msgid "Anti-aliasing Level"
+msgstr "抗鋸齒級別"
+
+msgid "Shrinkage Compensation"
+msgstr "收縮補償"
+
+msgid "Tolerance Compensation"
+msgstr "公差補償"
+
+msgid "Bottom Tolerance Compensation"
+msgstr "底部公差補償"
+
+msgid "Generate support"
+msgstr "產生支撐"
+
+msgid "Upper Diameter"
+msgstr "上直徑"
+
+msgid "Contact Depth"
+msgstr "接觸深度"
+
+msgid "Pinhead Width"
+msgstr "頂部連接長度"
+
+msgid "Pillar Diameter"
+msgstr "支撐柱直徑"
+
+msgid "Angle Between Top And Middle"
+msgstr "臨界角度"
+
+msgid "Support Bottom Diameter"
+msgstr "支撐底座直徑"
+
+msgid "Support Boss Height"
+msgstr "支撐底座高度"
+
+msgid "Object Elevation"
+msgstr "模型標高"
+
+msgid "Support Points Density"
+msgstr "支撐點密度"
+
+msgid "Max BridgeLength"
+msgstr "最大橋接"
+
+msgid "Max Pillar Linking Distance"
+msgstr "最大支撐柱連接距離"
+
+msgid "Main"
+msgstr "中部"
+
+msgid "Supports"
+msgstr "支撐"
+
+msgid "Raft Setting"
+msgstr "底筏設定"
+
+msgid "Automatic Generation"
+msgstr "自動長支撐"
