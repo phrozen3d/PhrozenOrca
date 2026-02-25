@@ -879,19 +879,36 @@ void Preview::on_sla_layer_slider_changed()
     if (slider == nullptr)
         return;
 
-    int pos = slider->GetHigherValue();
-    if (pos < 0 || pos >= static_cast<int>(m_sla_layers_z.size()))
+    const int low_pos  = slider->GetLowerValue();
+    const int high_pos = slider->GetHigherValue();
+    const int max_pos  = static_cast<int>(m_sla_layers_z.size()) - 1;
+    if (low_pos < 0 || high_pos < 0 || high_pos > max_pos || low_pos > max_pos)
         return;
 
-    const double z = m_sla_layers_z[pos];
+    const double z_low  = m_sla_layers_z[low_pos];
+    const double z_high = m_sla_layers_z[high_pos];
 
-    // Bottom plane: no lower clip — show everything from floor up.
-    m_canvas->set_clipping_plane(0, ClippingPlane::ClipsNothing());
-    // Top plane: clip everything above selected layer z.
-    // ClippingPlane(-UnitZ, z): normal points down, offset z → clips where P.z > z.
-    m_canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z));
+    // Bottom plane: clip below lower thumb.
+    // When lower thumb is at 0, use ClipsNothing to avoid clipping into pad geometry.
+    // ClippingPlane(+UnitZ, -z_low): clips where P.z < z_low.
+    if (low_pos == 0)
+        m_canvas->set_clipping_plane(0, ClippingPlane::ClipsNothing());
+    else
+        m_canvas->set_clipping_plane(0, ClippingPlane(Vec3d::UnitZ(), -z_low));
 
-    m_canvas->render();
+    // Top plane: clip above upper thumb.
+    // When upper thumb is at max, use ClipsNothing to avoid clipping top of model.
+    // ClippingPlane(-UnitZ, z_high): clips where P.z > z_high.
+    if (high_pos == max_pos)
+        m_canvas->set_clipping_plane(1, ClippingPlane::ClipsNothing());
+    else
+        m_canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z_high));
+
+    // Do not call m_canvas->render() here — this callback fires inside an ImGui render frame,
+    // so render() hits the m_in_render re-entrancy guard (sets m_dirty=true, returns early).
+    // Instead: mark dirty + post wxEVT_PAINT so the next frame picks up the new clipping planes.
+    m_canvas->set_as_dirty();
+    m_canvas_widget->Refresh();
 }
 
 AssembleView::AssembleView(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)

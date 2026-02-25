@@ -1151,6 +1151,10 @@ bool IMSlider::render(int canvas_width, int canvas_height)
             is_one_layer() ? m_one_layer_on_hover_id : m_one_layer_off_hover_id;
         if (ImGui::ImageButton3(normal_id, hover_id, ONE_LAYER_BUTTON_SIZE * m_scale)) {
             switch_one_layer_mode();
+            // Step 2.5: Notify SLA clipping planes of mode change.
+            // result is not set here (mode change ≠ value change for FFF), so fire directly.
+            if (m_on_change_callback)
+                m_on_change_callback();
         }
         imgui.end();
     }
