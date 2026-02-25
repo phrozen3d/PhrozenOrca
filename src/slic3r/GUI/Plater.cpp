@@ -12967,6 +12967,14 @@ void Plater::reslice()
 
 void Plater::record_slice_preset(std::string action)
 {
+    // Step 2.5 Fix: This function records FFF-specific analytics (filament presets, bed type,
+    // print process params). None of these concepts apply to SLA printers, and the filament
+    // lookup (bundle->filaments.find_preset) returns nullptr for SLA material names because
+    // SLA materials live in bundle->sla_materials, not bundle->filaments.
+    // Skip entirely for SLA to avoid nullptr dereference crash.
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA)
+        return;
+
     // record slice preset
     try
     {
