@@ -439,7 +439,11 @@ void Preview::show_moves_sliders(bool show)
 
 void Preview::show_layers_sliders(bool show)
 {
-    ;//TODO
+    // Step 2.5: Control IMSlider visibility for SLA layer preview.
+    // FFF path never calls this function — FFF slider visibility is managed by GCodeViewer.
+    IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
+    if (slider != nullptr)
+        slider->Show(show);
 }
 
 
@@ -660,6 +664,16 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
         // avoid processing while mainframe is being constructed
         return;
 
+    // Step 2.5: Reset IMSlider from SLA mode back to FFF mode.
+    // Clears SLA callback and restores visibility (was hidden during SLA preview).
+    {
+        IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
+        if (slider != nullptr) {
+            slider->set_on_change_callback(nullptr); // clear SLA callback
+            slider->Show(true);                      // restore FFF visibility
+        }
+    }
+
     //BBS: add m_loaded_print logic
     const Print *print = m_process->fff_print();
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(" %1%: previous print %2%, new print %3%")%__LINE__ %m_loaded_print %print;
@@ -783,9 +797,8 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
 }
 
 // Step 2.4: Load SLA print preview shells and set up clipping planes.
+// Step 2.5: Extract layer z-values and configure IMSlider for SLA layer preview.
 // Ported from PrusaSlicer GUI_Preview.cpp:1021 (load_print_as_sla).
-// Adapted for PhrozenOrca: use m_loaded_print instead of m_loaded bool;
-// skip FFF-specific IMSlider (GCodeViewer slider cannot drive SLA clipping planes).
 void Preview::load_print_as_sla()
 {
     const SLAPrint* print = m_process->sla_print();
@@ -800,20 +813,77 @@ void Preview::load_print_as_sla()
     m_canvas->reset_clipping_planes_cache();
     m_canvas->set_use_clipping_planes(true);
 
+    // Step 2.5: Extract layer z-coordinates for IMSlider.
+    // Only collect from objects that have completed slaposSliceSupports.
+    m_sla_layers_z.clear();
+    double initial_layer_height = print->material_config().initial_layer_height.value;
+    for (const SLAPrintObject* obj : print->objects()) {
+        if (obj->is_step_done(slaposSliceSupports) && !obj->get_slice_index().empty()) {
+            auto low_coord = obj->get_slice_index().front().print_level();
+            for (const auto& rec : obj->get_slice_index())
+                m_sla_layers_z.emplace_back(
+                    initial_layer_height + (rec.print_level() - low_coord) * SCALING_FACTOR);
+        }
+    }
+    sort_remove_duplicates(m_sla_layers_z);
+
     if (IsShown()) {
         // Load SLA object mesh + support tree + pad meshes into Preview canvas.
         // Internally calls reset_volumes() then _load_sla_shells().
-        // Only loads objects whose slaposSliceSupports step has completed.
         m_canvas->load_sla_preview();
 
-        // SLA has no GCode moves slider
+        // SLA has no GCode moves slider.
         show_moves_sliders(false);
-        // SLA layer slider (clipping-plane driven) not yet implemented.
-        // The GCodeViewer IMSlider is FFF-specific and cannot drive SLA clipping planes.
-        show_layers_sliders(false);
+
+        IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
+        if (!m_sla_layers_z.empty() && slider != nullptr) {
+            // Configure IMSlider with SLA layer z-values.
+            slider->SetSliderValues(m_sla_layers_z);
+            slider->SetMaxValue((int)m_sla_layers_z.size() - 1);
+            slider->SetSelectionSpan(0, (int)m_sla_layers_z.size() - 1);
+            slider->SetHigherValue((int)m_sla_layers_z.size() - 1); // start at top = show all
+
+            // Initial clipping: show all layers (no clip).
+            m_canvas->set_clipping_plane(0, ClippingPlane::ClipsNothing());
+            m_canvas->set_clipping_plane(1, ClippingPlane::ClipsNothing());
+
+            // Register SLA callback — fires when user moves slider.
+            slider->set_on_change_callback([this]() { on_sla_layer_slider_changed(); });
+
+            show_layers_sliders(true);
+        } else {
+            // Slicing not yet complete — hide slider.
+            show_layers_sliders(false);
+        }
 
         m_loaded_print = print;
     }
+}
+
+// Step 2.5: Called when IMSlider vertical slider value changes (SLA mode only).
+// Reads current slider position → looks up z-coordinate → updates top clipping plane.
+void Preview::on_sla_layer_slider_changed()
+{
+    if (m_canvas == nullptr)
+        return;
+
+    IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
+    if (slider == nullptr)
+        return;
+
+    int pos = slider->GetHigherValue();
+    if (pos < 0 || pos >= static_cast<int>(m_sla_layers_z.size()))
+        return;
+
+    const double z = m_sla_layers_z[pos];
+
+    // Bottom plane: no lower clip — show everything from floor up.
+    m_canvas->set_clipping_plane(0, ClippingPlane::ClipsNothing());
+    // Top plane: clip everything above selected layer z.
+    // ClippingPlane(-UnitZ, z): normal points down, offset z → clips where P.z > z.
+    m_canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z));
+
+    m_canvas->render();
 }
 
 AssembleView::AssembleView(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)

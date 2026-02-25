@@ -1079,6 +1079,16 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
 
 bool IMSlider::render(int canvas_width, int canvas_height)
 {
+    // Step 2.5: Visibility guard — returns false immediately when hidden.
+    // m_visible defaults to true so FFF layers slider is unaffected.
+    if (!m_visible)
+        return false;
+
+    // Step 2.5: Empty-values guard — don't render before any print is loaded.
+    // Prevents rendering an empty/broken slider when m_roles is empty (pre-slice state).
+    if (m_values.empty())
+        return false;
+
     bool result = false;
     ImGuiWrapper &imgui = *wxGetApp().imgui();
     /* style and colors */
@@ -1147,6 +1157,11 @@ bool IMSlider::render(int canvas_width, int canvas_height)
 
     ImGui::PopStyleVar(3);
     ImGui::PopStyleColor(2);
+
+    // Step 2.5: Fire SLA callback when vertical slider value changes.
+    // m_on_change_callback is nullptr for FFF (set only from load_print_as_sla).
+    if (result && m_on_change_callback)
+        m_on_change_callback();
 
     return result;
 }

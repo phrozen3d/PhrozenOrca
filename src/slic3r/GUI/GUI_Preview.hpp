@@ -182,6 +182,10 @@ private:
     //BBS: add only gcode mode
     void load_print_as_fff(bool keep_z_range = false, bool only_gcode = false);
     void load_print_as_sla();   // Step 2.4: SLA preview support
+
+    // Step 2.5: SLA layer slider (drives IMSlider via callback → clipping planes).
+    std::vector<double> m_sla_layers_z; // SLA layer z-coordinates in mm
+    void on_sla_layer_slider_changed(); // Updates clipping planes on IMSlider value change
 };
 
 

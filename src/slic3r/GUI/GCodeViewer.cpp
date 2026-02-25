@@ -1250,8 +1250,14 @@ void GCodeViewer::render(int canvas_width, int canvas_height, int right_margin)
     glsafe(::glEnable(GL_DEPTH_TEST));
     render_shells(canvas_width, canvas_height);
 
-    if (m_roles.empty())
+    if (m_roles.empty()) {
+        // Step 2.5: SLA mode has no GCode roles but still needs the layer slider.
+        // render_slider() is normally called at the end of this function, but since
+        // we return early here, we call it explicitly so IMSlider can render in SLA mode.
+        // IMSlider::m_visible and m_values.empty() guard against unwanted renders.
+        render_slider(canvas_width, canvas_height);
         return;
+    }
 
     render_toolpaths();
     float legend_height = 0.0f;

@@ -5,6 +5,7 @@
 #include <imgui/imgui.h>
 #include <wx/slider.h>
 
+#include <functional>
 #include <set>
 
 class wxMenu;
@@ -131,6 +132,14 @@ public:
     void on_change_color_mode(bool is_dark);
     void set_menu_enable(bool enable = true) { m_menu_enable = enable; }
 
+    // Step 2.5: SLA layer preview visibility and callback.
+    // m_visible guards render(); defaults to true so FFF path is unaffected.
+    // m_on_change_callback fires when vertical slider changes value; nullptr = no-op.
+    void Show(bool show = true) { m_visible = show; }
+    void Hide() { m_visible = false; }
+    bool IsShown() const { return m_visible; }
+    void set_on_change_callback(std::function<void()> cb) { m_on_change_callback = std::move(cb); }
+
 protected:
     void add_custom_gcode(std::string custom_gcode);
     void add_code_as_tick(Type type, int selected_extruder = -1);
@@ -183,6 +192,8 @@ private:
     bool m_dirty = false;
 
     bool m_render_as_disabled{ false };
+    bool m_visible { true };                     // Step 2.5: controls render() visibility
+    std::function<void()> m_on_change_callback;  // Step 2.5: fired on value change (SLA only)
 
     SelectedSlider m_selection;
     bool m_is_one_layer       = false;
