@@ -2925,6 +2925,14 @@ void GLCanvas3D::load_sla_preview()
         _set_current();
 	    // Release OpenGL data before generating new data.
 	    reset_volumes();
+        // Step 2.5 Fix: Clear FDM GCodeViewer data when entering SLA mode.
+        // GCodeViewer::render() calls render_shells() BEFORE the m_roles.empty() guard,
+        // so stale FDM shell meshes from a previous FDM slice would render as a
+        // semi-transparent overlay on top of the SLA preview.
+        // reset()       — clears m_roles, m_buffers (toolpath GPU data)
+        // reset_shell() — clears m_shells.volumes (the FDM semi-transparent model)
+        m_gcode_viewer.reset();
+        m_gcode_viewer.reset_shell();
         _load_sla_shells();
         _update_sla_shells_outside_state();
         _set_warning_notification_if_needed(EWarning::SlaSupportsOutside);
