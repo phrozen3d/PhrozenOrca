@@ -434,7 +434,12 @@ void Preview::show_sliders(bool show)
 
 void Preview::show_moves_sliders(bool show)
 {
-    ;//TODO
+    // Step 2.5: Control IMSlider visibility for SLA mode.
+    // Hides the horizontal moves slider when in SLA mode (SLA has no toolpath moves to scrub).
+    // IMSlider::Show() uses m_visible guard in render() so it works for both slider instances.
+    IMSlider* slider = m_canvas->get_gcode_viewer().get_moves_slider();
+    if (slider != nullptr)
+        slider->Show(show);
 }
 
 void Preview::show_layers_sliders(bool show)
@@ -665,13 +670,16 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
         return;
 
     // Step 2.5: Reset IMSlider from SLA mode back to FFF mode.
-    // Clears SLA callback and restores visibility (was hidden during SLA preview).
+    // Clears SLA callback and restores visibility for both sliders (hidden during SLA preview).
     {
-        IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
-        if (slider != nullptr) {
-            slider->set_on_change_callback(nullptr); // clear SLA callback
-            slider->Show(true);                      // restore FFF visibility
+        IMSlider* layers_slider = m_canvas->get_gcode_viewer().get_layers_slider();
+        if (layers_slider != nullptr) {
+            layers_slider->set_on_change_callback(nullptr); // clear SLA callback
+            layers_slider->Show(true);                      // restore FFF layers slider
         }
+        IMSlider* moves_slider = m_canvas->get_gcode_viewer().get_moves_slider();
+        if (moves_slider != nullptr)
+            moves_slider->Show(true);                       // restore FFF moves slider
     }
 
     //BBS: add m_loaded_print logic
