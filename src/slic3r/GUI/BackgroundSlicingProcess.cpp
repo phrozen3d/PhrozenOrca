@@ -20,6 +20,7 @@
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/GCode/PostProcessor.hpp"
+#include "libslic3r/GCode/Thumbnails.hpp"
 #include "libslic3r/Format/SL1.hpp"
 #include "libslic3r/Thread.hpp"
 #include "libslic3r/libslic3r.h"
@@ -287,9 +288,17 @@ void BackgroundSlicingProcess::process_sla()
 
             const std::string export_path = m_sla_print->print_statistics().finalize_output_path(m_export_path);
 
-			//BBS: add plate id for thumbnail generation
+			// Step 2.7 Bug Fix: thumbnails is coString in OrcaSlicer, NOT coPoints (old BambuStudio type).
+            // option<ConfigOptionPoints>("thumbnails") returns nullptr due to type mismatch → crash.
+            // Use GCodeThumbnails::make_and_check_thumbnail_list() to correctly parse the string format.
+            auto [thumbnails_def, thumb_errors] = GCodeThumbnails::make_and_check_thumbnail_list(
+                current_print()->full_print_config());
+            Vec2ds thumb_sizes;
+            thumb_sizes.reserve(thumbnails_def.size());
+            for (const auto& [format, size] : thumbnails_def)
+                thumb_sizes.emplace_back(size);
             ThumbnailsList thumbnails = this->render_thumbnails(
-				ThumbnailsParams{ current_print()->full_print_config().option<ConfigOptionPoints>("thumbnails")->values, true, true, true, true, 0 });
+                ThumbnailsParams{ thumb_sizes, true, true, true, true, 0 });
 
             Zipper zipper(export_path);
             m_sla_archive.export_print(zipper, *m_sla_print);																											         // true, false, true, true); // renders also supports and pad
