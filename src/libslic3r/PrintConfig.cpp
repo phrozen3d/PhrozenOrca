@@ -7347,6 +7347,15 @@ void PrintConfigDef::init_sla_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionInt(3));
 
+    def = this->add("support_max_weight_on_model", coFloat);
+    //def->label = L("Max weight on model");
+    //def->category = L("Supports");
+    //def->tooltip = L("Maximum weight of sub-trees that terminate on the model instead of the print bed.");
+    //def->sidetext = L("mm");
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10.));
+
     def = this->add("support_pillar_connection_mode", coEnum);
     //def->label = L("");
     //def->tooltip = L("");

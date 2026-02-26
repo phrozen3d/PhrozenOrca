@@ -970,6 +970,77 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "support_points_density",
     /*"max_bridge_length",*/ "max_pillar_linking_distance",
 #pragma endregion
+#pragma region PrusaSlicer SLA Parameters
+    // Step 2.6: PrusaSlicer-named SLA parameters required so load_preset() does not strip them.
+    // GLGizmoSlaSupports reads support_head_front_diameter (line 995) and
+    // support_pillar_diameter (line 751) — crash if either is missing.
+    "faded_layers",
+    "slice_closing_radius",
+    "slicing_mode",
+    "supports_enable",
+    // Support structure (standard)
+    "support_tree_type",
+    "support_head_front_diameter",           // GLGizmoSlaSupports line 995 — CRASH if missing
+    "support_head_penetration",
+    "support_head_width",
+    "support_pillar_diameter",               // GLGizmoSlaSupports line 751 — potential crash
+    "support_small_pillar_diameter_percent",
+    "support_max_bridges_on_pillar",
+    "support_pillar_connection_mode",
+    "support_buildplate_only",
+    "support_enforcers_only",
+    "support_max_weight_on_model",
+    "support_pillar_widening_factor",
+    "support_base_diameter",
+    "support_base_height",
+    "support_base_safety_distance",
+    "support_critical_angle",
+    "support_max_bridge_length",
+    "support_max_pillar_link_distance",
+    "support_object_elevation",
+    // Support structure (branching)
+    "branchingsupport_head_front_diameter",
+    "branchingsupport_head_penetration",
+    "branchingsupport_head_width",
+    "branchingsupport_pillar_diameter",
+    "branchingsupport_small_pillar_diameter_percent",
+    "branchingsupport_max_bridges_on_pillar",
+    "branchingsupport_pillar_connection_mode",
+    "branchingsupport_buildplate_only",
+    "branchingsupport_max_weight_on_model",
+    "branchingsupport_pillar_widening_factor",
+    "branchingsupport_base_diameter",
+    "branchingsupport_base_height",
+    "branchingsupport_base_safety_distance",
+    "branchingsupport_critical_angle",
+    "branchingsupport_max_bridge_length",
+    "branchingsupport_max_pillar_link_distance",
+    "branchingsupport_object_elevation",
+    // Support point generation
+    "support_points_density_relative",       // GLGizmoSlaSupports line 820
+    "support_points_minimal_distance",       // GLGizmoSlaSupports line 822
+    // Pad
+    "pad_enable",
+    "pad_wall_thickness",
+    "pad_wall_height",
+    "pad_brim_size",
+    "pad_max_merge_distance",
+    "pad_wall_slope",
+    "pad_around_object",
+    "pad_around_object_everywhere",
+    "pad_object_gap",
+    "pad_object_connector_stride",
+    "pad_object_connector_width",
+    "pad_object_connector_penetration",
+    // Hollowing
+    "hollowing_enable",
+    "hollowing_min_thickness",
+    "hollowing_quality",
+    "hollowing_closing_distance",
+    // Metadata
+    "default_sla_print_profile",
+    "compatible_printers", "compatible_printers_condition", "inherits",
+#pragma endregion
 };
 
 static std::vector<std::string> s_Preset_sla_material_options {
