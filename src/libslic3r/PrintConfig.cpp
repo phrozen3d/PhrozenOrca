@@ -7626,14 +7626,16 @@ void PrintConfigDef::init_sla_params()
 
     // === PrusaSlicer SLA additions below ===
 
+    // Step 3.1: Support tree type selection (aligned with PrusaSlicer).
+    // Internal SLA code uses sla::SupportTreeType; config layer keeps SLASupportTreeType for serialization.
     def = this->add("support_tree_type", coEnum);
-    //def->label = L("Support tree type");
-    //def->tooltip = L("Support tree building strategy");
+    def->label = L("Support tree type");
+    def->tooltip = L("Support tree building strategy. Default uses pillar-based supports; Branching uses organic tree-like supports (requires Step 3.3 implementation).");
     def->enum_keys_map = &ConfigOptionEnum<SLASupportTreeType>::get_enum_values();
     def->enum_values.push_back("default");
     def->enum_values.push_back("branching");
-    def->enum_labels.push_back(" ");
-    def->enum_labels.push_back(" ");
+    def->enum_labels.push_back(L("Default"));
+    def->enum_labels.push_back(L("Branching"));
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionEnum<SLASupportTreeType>(sla_stt_Default));
 

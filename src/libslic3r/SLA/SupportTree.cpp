@@ -82,16 +82,29 @@ SupportTree::UPtr SupportTree::create(const SupportableMesh &sm,
 {
     auto builder = make_unique<SupportTreeBuilder>();
     builder->m_ctl = ctl;
-    
+
     if (sm.cfg.enabled) {
-        // Execute takes care about the ground_level
-        SupportTreeBuildsteps::execute(*builder, sm);
+        // Step 3.1: Strategy dispatch — aligned with PrusaSlicer SupportTree.cpp.
+        // Branching/Organic fall back to Default until BranchingTreeSLA is implemented (Step 3.3).
+        switch (sm.cfg.tree_type) {
+        case SupportTreeType::Branching:
+        case SupportTreeType::Organic:
+            // Step 3.3: create_branching_tree(*builder, sm) will be enabled here.
+            BOOST_LOG_TRIVIAL(warning)
+                << "[SLA] Branching/Organic support tree not yet implemented, falling back to Default.";
+            [[fallthrough]];
+        case SupportTreeType::Default:
+        default:
+            // Execute takes care about the ground_level
+            SupportTreeBuildsteps::execute(*builder, sm);
+            break;
+        }
         builder->merge_and_cleanup();   // clean metadata, leave only the meshes.
     } else {
         // If a pad gets added later, it will be in the right Z level
         builder->ground_level = sm.emesh.ground_level();
     }
-    
+
     return std::move(builder);
 }
 

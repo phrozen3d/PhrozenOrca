@@ -34,41 +34,96 @@ bool is_zero_elevation(const SLAPrintObjectConfig &c)
     return c.pad_enable.getBool() && c.pad_around_object.getBool();
 }
 
+// Step 3.1: Helper — map SLAPillarConnectionMode (config) to sla::PillarConnectionMode (internal).
+// Kept as explicit switch because config uses SLAPillarConnectionMode, not sla::PillarConnectionMode.
+static sla::PillarConnectionMode map_pillar_connection_mode(int m)
+{
+    switch (m) {
+    case slapcmZigZag:  return sla::PillarConnectionMode::zigzag;
+    case slapcmCross:   return sla::PillarConnectionMode::cross;
+    default:            return sla::PillarConnectionMode::dynamic;
+    }
+}
+
 // Compile the argument for support creation from the static print config.
+// Step 3.1: Now dispatches Default vs Branching support parameters based on support_tree_type.
+// Aligned with PrusaSlicer SLAPrint.cpp make_support_cfg().
 sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
 {
     sla::SupportTreeConfig scfg;
 
     scfg.enabled = c.supports_enable.getBool();
-    scfg.head_front_radius_mm = 0.5*c.support_head_front_diameter.getFloat();
-    double pillar_r = 0.5 * c.support_pillar_diameter.getFloat();
-    scfg.head_back_radius_mm = pillar_r;
-    scfg.head_fallback_radius_mm =
-        0.01 * c.support_small_pillar_diameter_percent.getFloat() * pillar_r;
-    scfg.head_penetration_mm = c.support_head_penetration.getFloat();
-    scfg.head_width_mm = c.support_head_width.getFloat();
-    scfg.object_elevation_mm = is_zero_elevation(c) ?
-                                   0. : c.support_object_elevation.getFloat();
-    scfg.bridge_slope = c.support_critical_angle.getFloat() * PI / 180.0 ;
-    scfg.max_bridge_length_mm = c.support_max_bridge_length.getFloat();
-    scfg.max_pillar_link_distance_mm = c.support_max_pillar_link_distance.getFloat();
-    switch(c.support_pillar_connection_mode.getInt()) {
-    case slapcmZigZag:
-        scfg.pillar_connection_mode = sla::PillarConnectionMode::zigzag; break;
-    case slapcmCross:
-        scfg.pillar_connection_mode = sla::PillarConnectionMode::cross; break;
-    case slapcmDynamic:
-        scfg.pillar_connection_mode = sla::PillarConnectionMode::dynamic; break;
-    }
-    scfg.ground_facing_only = c.support_buildplate_only.getBool();
-    scfg.pillar_widening_factor = c.support_pillar_widening_factor.getFloat();
-    scfg.base_radius_mm = 0.5*c.support_base_diameter.getFloat();
-    scfg.base_height_mm = c.support_base_height.getFloat();
-    scfg.pillar_base_safety_distance_mm =
-        c.support_base_safety_distance.getFloat() < EPSILON ?
-            scfg.safety_distance_mm : c.support_base_safety_distance.getFloat();
 
-    scfg.max_bridges_on_pillar = unsigned(c.support_max_bridges_on_pillar.getInt());
+    // Step 3.1: Map config enum (SLASupportTreeType) to internal enum (sla::SupportTreeType).
+    // Config layer keeps SLASupportTreeType for serialization; internal SLA code uses sla::SupportTreeType.
+    switch (c.support_tree_type.value) {
+    case sla_stt_Branching:
+        scfg.tree_type = sla::SupportTreeType::Branching;
+        break;
+    default:
+        scfg.tree_type = sla::SupportTreeType::Default;
+        break;
+    }
+
+    // Step 3.1: Read parameters per strategy (mirrors PrusaSlicer's switch(scfg.tree_type) pattern).
+    switch (scfg.tree_type) {
+    case sla::SupportTreeType::Default:
+    default: {
+        scfg.head_front_radius_mm = 0.5 * c.support_head_front_diameter.getFloat();
+        double pillar_r = 0.5 * c.support_pillar_diameter.getFloat();
+        scfg.head_back_radius_mm = pillar_r;
+        scfg.head_fallback_radius_mm =
+            0.01 * c.support_small_pillar_diameter_percent.getFloat() * pillar_r;
+        scfg.head_penetration_mm = c.support_head_penetration.getFloat();
+        scfg.head_width_mm = c.support_head_width.getFloat();
+        scfg.object_elevation_mm = is_zero_elevation(c) ?
+                                       0. : c.support_object_elevation.getFloat();
+        scfg.bridge_slope = c.support_critical_angle.getFloat() * PI / 180.0;
+        scfg.max_bridge_length_mm = c.support_max_bridge_length.getFloat();
+        scfg.max_pillar_link_distance_mm = c.support_max_pillar_link_distance.getFloat();
+        scfg.pillar_connection_mode =
+            map_pillar_connection_mode(c.support_pillar_connection_mode.getInt());
+        scfg.ground_facing_only = c.support_buildplate_only.getBool();
+        scfg.pillar_widening_factor = c.support_pillar_widening_factor.getFloat();
+        scfg.base_radius_mm = 0.5 * c.support_base_diameter.getFloat();
+        scfg.base_height_mm = c.support_base_height.getFloat();
+        scfg.pillar_base_safety_distance_mm =
+            c.support_base_safety_distance.getFloat() < EPSILON ?
+                scfg.safety_distance_mm : c.support_base_safety_distance.getFloat();
+        scfg.max_bridges_on_pillar = unsigned(c.support_max_bridges_on_pillar.getInt());
+        scfg.max_weight_on_model_support = c.support_max_weight_on_model.getFloat();
+        break;
+    }
+    case sla::SupportTreeType::Branching:
+    case sla::SupportTreeType::Organic: {
+        // Step 3.3: BranchingTreeSLA will use these parameters when implemented.
+        // For now, parameters are loaded here; SupportTree.cpp falls back to Default algorithm.
+        scfg.head_front_radius_mm = 0.5 * c.branchingsupport_head_front_diameter.getFloat();
+        double pillar_r = 0.5 * c.branchingsupport_pillar_diameter.getFloat();
+        scfg.head_back_radius_mm = pillar_r;
+        scfg.head_fallback_radius_mm =
+            0.01 * c.branchingsupport_small_pillar_diameter_percent.getFloat() * pillar_r;
+        scfg.head_penetration_mm = c.branchingsupport_head_penetration.getFloat();
+        scfg.head_width_mm = c.branchingsupport_head_width.getFloat();
+        scfg.object_elevation_mm = is_zero_elevation(c) ?
+                                       0. : c.branchingsupport_object_elevation.getFloat();
+        scfg.bridge_slope = c.branchingsupport_critical_angle.getFloat() * PI / 180.0;
+        scfg.max_bridge_length_mm = c.branchingsupport_max_bridge_length.getFloat();
+        scfg.max_pillar_link_distance_mm = c.branchingsupport_max_pillar_link_distance.getFloat();
+        scfg.pillar_connection_mode =
+            map_pillar_connection_mode(c.branchingsupport_pillar_connection_mode.getInt());
+        scfg.ground_facing_only = c.branchingsupport_buildplate_only.getBool();
+        scfg.pillar_widening_factor = c.branchingsupport_pillar_widening_factor.getFloat();
+        scfg.base_radius_mm = 0.5 * c.branchingsupport_base_diameter.getFloat();
+        scfg.base_height_mm = c.branchingsupport_base_height.getFloat();
+        scfg.pillar_base_safety_distance_mm =
+            c.branchingsupport_base_safety_distance.getFloat() < EPSILON ?
+                scfg.safety_distance_mm : c.branchingsupport_base_safety_distance.getFloat();
+        scfg.max_bridges_on_pillar = unsigned(c.branchingsupport_max_bridges_on_pillar.getInt());
+        scfg.max_weight_on_model_support = c.branchingsupport_max_weight_on_model.getFloat();
+        break;
+    }
+    }
 
     return scfg;
 }

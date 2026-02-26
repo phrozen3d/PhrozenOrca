@@ -12,6 +12,7 @@
 #include <libslic3r/SLA/IndexedMesh.hpp>
 #include <libslic3r/SLA/SupportPoint.hpp>
 #include <libslic3r/SLA/JobController.hpp>
+#include <libslic3r/SLA/SupportTreeStrategies.hpp>
 
 namespace Slic3r {
 
@@ -32,7 +33,11 @@ enum class PillarConnectionMode
 struct SupportTreeConfig
 {
     bool   enabled = true;
-    
+
+    // Step 3.1: Support tree building strategy (Default = pillar, Branching = organic).
+    // Aligned with PrusaSlicer naming. Filled by make_support_cfg() in SLAPrint.cpp.
+    SupportTreeType tree_type = SupportTreeType::Default;
+
     // Radius in mm of the pointing side of the head.
     double head_front_radius_mm = 0.2;
 
@@ -83,7 +88,11 @@ struct SupportTreeConfig
     double pillar_base_safety_distance_mm = 0.5;
     
     unsigned max_bridges_on_pillar = 3;
-    
+
+    // Step 3.1: Max weight of sub-trees terminating on model surface (Branching strategy).
+    // Aligned with PrusaSlicer's max_weight_on_model_support field.
+    double max_weight_on_model_support = 10.;
+
     double head_fullwidth() const {
         return 2 * head_front_radius_mm + head_width_mm +
                2 * head_back_radius_mm - head_penetration_mm;
