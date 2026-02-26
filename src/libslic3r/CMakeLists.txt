@@ -419,6 +419,41 @@ set(lisbslic3r_sources
     SLA/ZCorrection.hpp
     SLA/ZCorrection.cpp
     SLA/SupportTreeStrategies.hpp
+    SLA/SupportTreeUtils.hpp
+    SLA/BranchingTreeSLA.hpp
+    SLA/BranchingTreeSLA.cpp
+    # Step 3.4: SupportIslands sub-system (Voronoi island analysis for support point quality).
+    # VoronoiDiagramCGAL.hpp/.cpp are in libslic3r_cgal target (uses CGAL directly).
+    SLA/SupportIslands/EvaluateNeighbor.hpp
+    SLA/SupportIslands/EvaluateNeighbor.cpp
+    SLA/SupportIslands/ExpandNeighbor.hpp
+    SLA/SupportIslands/ExpandNeighbor.cpp
+    SLA/SupportIslands/IStackFunction.hpp
+    SLA/SupportIslands/LineUtils.hpp
+    SLA/SupportIslands/LineUtils.cpp
+    SLA/SupportIslands/NodeDataWithResult.hpp
+    SLA/SupportIslands/Parabola.hpp
+    SLA/SupportIslands/ParabolaUtils.hpp
+    SLA/SupportIslands/ParabolaUtils.cpp
+    SLA/SupportIslands/PointUtils.hpp
+    SLA/SupportIslands/PointUtils.cpp
+    SLA/SupportIslands/PolygonUtils.hpp
+    SLA/SupportIslands/PolygonUtils.cpp
+    SLA/SupportIslands/PostProcessNeighbor.hpp
+    SLA/SupportIslands/PostProcessNeighbor.cpp
+    SLA/SupportIslands/PostProcessNeighbors.hpp
+    SLA/SupportIslands/PostProcessNeighbors.cpp
+    SLA/SupportIslands/SampleConfig.hpp
+    SLA/SupportIslands/SampleConfigFactory.hpp
+    SLA/SupportIslands/SampleConfigFactory.cpp
+    SLA/SupportIslands/SupportIslandPoint.hpp
+    SLA/SupportIslands/SupportIslandPoint.cpp
+    SLA/SupportIslands/UniformSupportIsland.hpp
+    SLA/SupportIslands/UniformSupportIsland.cpp
+    SLA/SupportIslands/VectorUtils.hpp
+    SLA/SupportIslands/VoronoiGraph.hpp
+    SLA/SupportIslands/VoronoiGraphUtils.hpp
+    SLA/SupportIslands/VoronoiGraphUtils.cpp
     BranchingTree/BranchingTree.hpp
     BranchingTree/BranchingTree.cpp
     BranchingTree/PointCloud.hpp
@@ -492,12 +527,15 @@ find_package(CGAL REQUIRED)
 find_package(OpenCV REQUIRED core)
 cmake_policy(POP)
 
-add_library(libslic3r_cgal STATIC 
+add_library(libslic3r_cgal STATIC
     CutSurface.hpp CutSurface.cpp
     IntersectionPoints.hpp IntersectionPoints.cpp
     MeshBoolean.hpp MeshBoolean.cpp
     TryCatchSignal.hpp TryCatchSignal.cpp
     Triangulation.hpp Triangulation.cpp
+    # Step 3.4: VoronoiDiagramCGAL uses CGAL headers directly → belongs in libslic3r_cgal.
+    SLA/SupportIslands/VoronoiDiagramCGAL.hpp
+    SLA/SupportIslands/VoronoiDiagramCGAL.cpp
 )
 target_include_directories(libslic3r_cgal PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 

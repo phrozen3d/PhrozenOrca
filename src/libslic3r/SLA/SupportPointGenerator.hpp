@@ -224,6 +224,19 @@ private:
     std::mt19937 m_rng;
 };
 
+// Step 3.4: Peninsula struct ported from PrusaSlicer for SupportIslands sub-system.
+// Represents a large overhang connected on one side to already-supported geometry.
+struct Peninsula {
+    // Part of the layer that is unsupported (treated as an island).
+    ExPolygon unsuported_area;
+
+    // Flag per line of unsuported_area (same size as to_lines(unsuported_area)).
+    // True  = peninsula outline (coast side, needs support).
+    // False = connection to land (already supported by previous layer).
+    std::vector<bool> is_outline;
+};
+using Peninsulas = std::vector<Peninsula>;
+
 void remove_bottom_points(std::vector<SupportPoint> &pts, float lvl);
 
 std::vector<Vec2f> sample_expolygon(const ExPolygon &expoly, float samples_per_mm2, std::mt19937 &rng);
