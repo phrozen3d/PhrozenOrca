@@ -222,11 +222,14 @@ public:
 };
 
 // Predefinded NLopt algorithms
-using AlgNLoptGenetic = detail::NLoptAlgComb<NLOPT_GN_ESCH>;
-using AlgNLoptSubplex = detail::NLoptAlg<NLOPT_LN_SBPLX>;
-using AlgNLoptSimplex = detail::NLoptAlg<NLOPT_LN_NELDERMEAD>;
-using AlgNLoptDIRECT  = detail::NLoptAlg<NLOPT_GN_DIRECT>;
-using AlgNLoptMLSL    = detail::NLoptAlg<NLOPT_GN_MLSL>;
+using AlgNLoptGenetic     = detail::NLoptAlgComb<NLOPT_GN_ESCH>;
+using AlgNLoptSubplex     = detail::NLoptAlg<NLOPT_LN_SBPLX>;
+using AlgNLoptSimplex     = detail::NLoptAlg<NLOPT_LN_NELDERMEAD>;
+using AlgNLoptDIRECT      = detail::NLoptAlg<NLOPT_GN_DIRECT>;
+using AlgNLoptMLSL        = detail::NLoptAlg<NLOPT_GN_MLSL>;
+// Step 3.3: Global+local combined optimizer (MLSL_LDS global + Subplex local).
+// Ported from PrusaSlicer to support BranchingTreeSLA deepsearch_ground_connection.
+using AlgNLoptMLSL_Subplx = detail::NLoptAlgComb<NLOPT_GN_MLSL_LDS, NLOPT_LN_SBPLX>;
 
 }} // namespace Slic3r::opt
 

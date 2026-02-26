@@ -8,6 +8,7 @@
 #include <libslic3r/SLA/SpatIndex.hpp>
 #include <libslic3r/SLA/SupportTreeBuilder.hpp>
 #include <libslic3r/SLA/SupportTreeBuildsteps.hpp>
+#include <libslic3r/SLA/BranchingTreeSLA.hpp>
 
 #include <libslic3r/MTUtils.hpp>
 #include <libslic3r/ClipperUtils.hpp>
@@ -84,15 +85,18 @@ SupportTree::UPtr SupportTree::create(const SupportableMesh &sm,
     builder->m_ctl = ctl;
 
     if (sm.cfg.enabled) {
-        // Step 3.1: Strategy dispatch — aligned with PrusaSlicer SupportTree.cpp.
-        // Branching/Organic fall back to Default until BranchingTreeSLA is implemented (Step 3.3).
+        // Step 3.3: Strategy dispatch — Branching now uses create_branching_tree().
+        // Aligned with PrusaSlicer SupportTree.cpp strategy switch.
         switch (sm.cfg.tree_type) {
         case SupportTreeType::Branching:
+            create_branching_tree(*builder, sm);
+            break;
         case SupportTreeType::Organic:
-            // Step 3.3: create_branching_tree(*builder, sm) will be enabled here.
+            // TODO: Phase 4+ — Organic not yet implemented, fall back to Branching.
             BOOST_LOG_TRIVIAL(warning)
-                << "[SLA] Branching/Organic support tree not yet implemented, falling back to Default.";
-            [[fallthrough]];
+                << "[SLA] Organic support tree not yet implemented, using Branching.";
+            create_branching_tree(*builder, sm);
+            break;
         case SupportTreeType::Default:
         default:
             // Execute takes care about the ground_level

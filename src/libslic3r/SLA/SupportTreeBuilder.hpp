@@ -184,6 +184,12 @@ struct DiffBridge: public Bridge {
     DiffBridge(const Vec3d &p_s, const Vec3d &p_e, double r_s, double r_e)
         : Bridge{p_s, p_e, r_s}, end_r{r_e}
     {}
+
+    // Step 3.3: Junction-pair constructor (ported from PrusaSlicer).
+    // Used by build_ground_connection() in SupportTreeUtils.hpp.
+    DiffBridge(const Junction &j_s, const Junction &j_e)
+        : Bridge{j_s.pos, j_e.pos, j_s.r}, end_r{j_e.r}
+    {}
 };
 
 // A wrapper struct around the pad

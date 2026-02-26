@@ -108,6 +108,14 @@ struct SupportTreeConfig
     // The shortest distance of any support structure from the model surface
     static const double constexpr safety_distance_mm = 0.5;
 
+    // Step 3.3: safety_distance helpers (ported from PrusaSlicer SupportTree.hpp).
+    // Used by SupportTreeUtils.hpp (BranchingTreeSLA dependency).
+    double safety_distance() const { return safety_distance_mm; }
+    double safety_distance(double r) const
+    {
+        return std::min(safety_distance_mm, r * safety_distance_mm / head_back_radius_mm);
+    }
+
     static const double constexpr max_solo_pillar_height_mm = 15.0;
     static const double constexpr max_dual_pillar_height_mm = 35.0;
     static const double constexpr optimizer_rel_score_diff = 1e-6;
