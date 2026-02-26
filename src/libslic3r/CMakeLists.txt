@@ -418,6 +418,11 @@ set(lisbslic3r_sources
     SLA/ReprojectPointsOnMesh.hpp
     SLA/ZCorrection.hpp
     SLA/ZCorrection.cpp
+    SLA/SupportTreeStrategies.hpp
+    BranchingTree/BranchingTree.hpp
+    BranchingTree/BranchingTree.cpp
+    BranchingTree/PointCloud.hpp
+    BranchingTree/PointCloud.cpp
     Arachne/BeadingStrategy/BeadingStrategy.hpp
     Arachne/BeadingStrategy/BeadingStrategy.cpp
     Arachne/BeadingStrategy/BeadingStrategyFactory.hpp
