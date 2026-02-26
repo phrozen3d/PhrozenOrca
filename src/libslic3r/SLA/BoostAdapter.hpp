@@ -90,6 +90,35 @@ template<std::size_t d> struct access<Slic3r::Vec3d, d > {
     }
 };
 
+// For Vec<N, T> (generic — covers Vec3f, Vec2f, etc.) //////////////////////
+// Ported from PrusaSlicer's BoostAdapter.hpp (Step 3.2).
+// Required by BranchingTree/PointCloud.hpp R-tree which stores std::pair<Vec3f, unsigned>.
+// Explicit specializations above (Vec2d, Vec3d) take priority over this partial specialization.
+
+template<int N, class T> struct tag<Slic3r::Vec<N, T>> {
+    using type = point_tag;
+};
+
+template<int N, class T> struct coordinate_type<Slic3r::Vec<N, T>> {
+    using type = T;
+};
+
+template<int N, class T> struct coordinate_system<Slic3r::Vec<N, T>> {
+    using type = cs::cartesian;
+};
+
+template<int N, class T> struct dimension<Slic3r::Vec<N, T>>: boost::mpl::int_<N> {};
+
+template<int N, class T, std::size_t d> struct access<Slic3r::Vec<N, T>, d> {
+    static inline T get(Slic3r::Vec<N, T> const& a) {
+        return a(d);
+    }
+
+    static inline void set(Slic3r::Vec<N, T>& a, T const& value) {
+        a(d) = value;
+    }
+};
+
 /* ************************************************************************** */
 /* Box concept adaptation *************************************************** */
 /* ************************************************************************** */
@@ -118,6 +147,40 @@ struct indexed_access<Slic3r::BoundingBox, 1, d> {
         return box.max(d);
     }
     static inline void set(Slic3r::BoundingBox &box, coord_t const& coord) {
+        box.max(d) = coord;
+    }
+};
+
+// For BoundingBox3Base<Vec<3, T>> ///////////////////////////////////////////
+// Ported from PrusaSlicer's BoostAdapter.hpp (Step 3.2).
+// Required by BranchingTree/PointCloud.hpp foreach_reachable bgi::intersects(bb).
+
+template <class T> using BB3 = Slic3r::BoundingBox3Base<Slic3r::Vec<3, T>>;
+
+template<class T> struct tag<BB3<T>> {
+    using type = box_tag;
+};
+
+template<class T> struct point_type<BB3<T>> {
+    using type = Slic3r::Vec<3, T>;
+};
+
+template<class T, std::size_t d>
+struct indexed_access<BB3<T>, 0, d> {
+    static inline T get(BB3<T> const& box) {
+        return box.min(d);
+    }
+    static inline void set(BB3<T> &box, T const& coord) {
+        box.min(d) = coord;
+    }
+};
+
+template<class T, std::size_t d>
+struct indexed_access<BB3<T>, 1, d> {
+    static inline T get(BB3<T> const& box) {
+        return box.max(d);
+    }
+    static inline void set(BB3<T> &box, T const& coord) {
         box.max(d) = coord;
     }
 };

@@ -21,7 +21,7 @@
 #include "BranchingTree.hpp"
 //#include "libslic3r/Execution/Execution.hpp"
 #include "libslic3r/MutablePriorityQueue.hpp"
-#include "libslic3r/BoostAdapter.hpp"
+#include "libslic3r/SLA/BoostAdapter.hpp"
 #include "boost/geometry/index/rtree.hpp"
 #include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/ExPolygon.hpp"
