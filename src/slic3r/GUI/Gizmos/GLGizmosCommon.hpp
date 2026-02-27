@@ -191,6 +191,7 @@ public:
     CommonGizmosDataID get_dependencies() const override { return CommonGizmosDataID::SelectionInfo; }
 #endif // NDEBUG
 
+    void set_hide_full_scene(bool hide); // Step 4.4: hides all model objects (gizmo renders its own volumes)
     void render_cut() const;
 
 protected:
@@ -198,6 +199,7 @@ protected:
     void on_release() override;
 
 private:
+    bool m_hide_full_scene{ false }; // Step 4.4: when true, on_update() skips restoring instance visibility
     std::vector<const TriangleMesh*> m_old_meshes;
     std::vector<std::unique_ptr<MeshClipper>> m_clippers;
 };

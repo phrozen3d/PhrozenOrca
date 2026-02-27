@@ -164,8 +164,12 @@ void InstancesHider::on_update()
 
     if (mo && active_inst != -1) {
         canvas->toggle_model_objects_visibility(false);
-        canvas->toggle_model_objects_visibility(true, mo, active_inst);
-        canvas->toggle_sla_auxiliaries_visibility(false, mo, active_inst);
+        // Step 4.4: when hide_full_scene is set, keep all objects hidden so the
+        // SLA gizmo can render its own volumes via render_volumes() instead.
+        if (!m_hide_full_scene) {
+            canvas->toggle_model_objects_visibility(true, mo, active_inst);
+            canvas->toggle_sla_auxiliaries_visibility(false, mo, active_inst);
+        }
         canvas->set_use_clipping_planes(true);
         // Some objects may be sinking, do not show whatever is below the bed.
         canvas->set_clipping_plane(0, ClippingPlane(Vec3d::UnitZ(), z_min));
@@ -196,6 +200,16 @@ void InstancesHider::on_release()
     get_pool()->get_canvas()->set_use_clipping_planes(false);
     m_old_meshes.clear();
     m_clippers.clear();
+}
+
+void InstancesHider::set_hide_full_scene(bool hide)
+{
+    // Step 4.4: Called from SLA gizmo data_changed() to hide all model objects.
+    // on_update() will skip toggle_model_objects_visibility(true, ...) when this is set.
+    if (m_hide_full_scene != hide) {
+        m_hide_full_scene = hide;
+        on_update();
+    }
 }
 
 void InstancesHider::render_cut() const
