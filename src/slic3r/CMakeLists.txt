@@ -131,6 +131,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Gizmos/GLGizmoRotate.hpp
     GUI/Gizmos/GLGizmoScale.cpp
     GUI/Gizmos/GLGizmoScale.hpp
+    GUI/Gizmos/GLGizmoSlaBase.cpp
+    GUI/Gizmos/GLGizmoSlaBase.hpp
     GUI/Gizmos/GLGizmoSlaSupports.cpp
     GUI/Gizmos/GLGizmoSlaSupports.hpp
     GUI/Gizmos/GLGizmoFdmSupports.cpp
