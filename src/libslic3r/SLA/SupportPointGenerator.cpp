@@ -14,6 +14,9 @@
 #include "Tesselate.hpp"
 #include "MinAreaBoundingBox.hpp"
 #include "libslic3r.h"
+// Step 3.5: Voronoi-based uniform island support point generation.
+#include "libslic3r/SLA/SupportIslands/UniformSupportIsland.hpp"
+#include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
 
 #include <iostream>
 #include <random>
@@ -303,9 +306,19 @@ void SupportPointGenerator::add_support_points(SupportPointGenerator::Structure 
     float current = s.supports_force_total();
 
     if (s.islands_below.empty()) {
-        // completely new island - needs support no doubt
-        // deficit is full, there is nothing below that would hold this island
-        uniformly_cover({ *s.polygon }, s, s.area * tp, grid3d, IslandCoverageFlags(icfIsNew | icfWithBoundary) );
+        // Step 3.5: Completely new island — use Voronoi Medial Axis analysis for
+        // uniform support point distribution. Replaces random Poisson disk sampling
+        // (uniformly_cover) which produced spatially concentrated clusters.
+        // uniform_support_island() returns scaled integer coords (coord_t); convert
+        // with unscale<float>() before storing in m_output (mm float space).
+        const SampleConfig island_cfg = SampleConfigFactory::create(m_config.head_diameter);
+        SupportIslandPoints samples = uniform_support_island(*s.polygon, {}, island_cfg);
+        for (const SupportIslandPointPtr &sample : samples) {
+            Vec2f pt{unscale<float>(sample->point.x()), unscale<float>(sample->point.y())};
+            m_output.emplace_back(pt.x(), pt.y(), s.zlevel, m_config.head_diameter / 2.f, true);
+            s.supports_force_this_layer += m_config.support_force();
+            grid3d.insert(pt, &s);
+        }
         return;
     }
 
