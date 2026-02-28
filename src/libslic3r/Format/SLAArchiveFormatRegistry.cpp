@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "SL1.hpp"
+#include "AnycubicSLA.hpp"
 #include "SLAArchiveFormatRegistry.hpp"
 
 #include "libslic3r/libslic3r.h"
@@ -30,6 +31,10 @@ class Registry {
                     return std::make_unique<SL1Reader>(fname, quality, progr);
                 }
             },
+            // Step 4.5: Anycubic photon printer formats
+            anycubic_sla_format("pwmo", "Photon Mono"),
+            anycubic_sla_format("pwmx", "Photon Mono X"),
+            anycubic_sla_format("pwms", "Photon Mono SE"),
         };
     }
 

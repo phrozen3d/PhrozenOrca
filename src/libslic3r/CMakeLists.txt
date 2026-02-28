@@ -143,6 +143,8 @@ set(lisbslic3r_sources
     Format/STL.hpp
     Format/SL1.hpp
     Format/SL1.cpp
+    Format/AnycubicSLA.hpp
+    Format/AnycubicSLA.cpp
     Format/SLAArchiveWriter.hpp
     Format/SLAArchiveWriter.cpp
     Format/SLAArchiveReader.hpp
