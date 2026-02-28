@@ -24,12 +24,23 @@ GLGizmoSlaBase::GLGizmoSlaBase(GLCanvas3D& parent, const std::string& icon_filen
 , m_min_sla_print_object_step((int)min_step)
 {}
 
+// No-step constructor: m_min_sla_print_object_step stays -1.
+// update_volumes() treats -1 as "no minimum step" → m_input_enabled = true whenever mesh is available.
+// PhrozenOrca: used by GLGizmoSlaSupports because there is no equivalent of PrusaSlicer's
+// slaposBase/slaposAssembly (an always-complete initialization step). The first real step
+// in PhrozenOrca is slaposHollowing which requires actual computation.
+GLGizmoSlaBase::GLGizmoSlaBase(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
+: GLGizmoBase(parent, icon_filename, sprite_id)
+// m_min_sla_print_object_step stays at default -1
+{}
+
 /*static*/ bool GLGizmoSlaBase::selected_print_object_exists(const GLCanvas3D& canvas, const wxString& text)
 {
-    if (const Selection& sel = canvas.get_selection(); !sel.is_single_full_instance() || !sel.get_model()->objects[sel.get_object_idx()]
-        || ! canvas.sla_print()->get_print_object_by_model_object_id(sel.get_model()->objects[sel.get_object_idx()]->id()))
-    {
-        if (! text.IsEmpty())
+    const Selection& sel = canvas.get_selection();
+
+    // Basic selection check.
+    if (!sel.is_single_full_instance() || !sel.get_model()->objects[sel.get_object_idx()]) {
+        if (!text.IsEmpty())
             wxGetApp().CallAfter([text]() {
                 MessageDialog dlg(GUI::wxGetApp().mainframe, text,
                     _L("Bed selection mismatch"), wxICON_INFORMATION | wxOK);
@@ -37,6 +48,26 @@ GLGizmoSlaBase::GLGizmoSlaBase(GLCanvas3D& parent, const std::string& icon_filen
             });
         return false;
     }
+
+    // PhrozenOrca: sla_print() may return nullptr when SLAPrint is not initialized
+    // (PartPlate system never calls set_sla_print() — Step 2.3 known issue).
+    // When null, we cannot verify — return true so the gizmo stays open and shows
+    // the fallback model instead of trying to close every frame.
+    const SLAPrint* sla_print = canvas.sla_print();
+    if (!sla_print)
+        return true;
+
+    if (!sla_print->get_print_object_by_model_object_id(
+            sel.get_model()->objects[sel.get_object_idx()]->id())) {
+        if (!text.IsEmpty())
+            wxGetApp().CallAfter([text]() {
+                MessageDialog dlg(GUI::wxGetApp().mainframe, text,
+                    _L("Bed selection mismatch"), wxICON_INFORMATION | wxOK);
+                dlg.ShowModal();
+            });
+        return false;
+    }
+
     return true;
 }
 
@@ -74,66 +105,99 @@ void GLGizmoSlaBase::update_volumes()
         return;
 
     const SLAPrintObject* po = m_c->selection_info()->print_object();
-    if (po == nullptr)
-        return;
+    // PhrozenOrca: po may be nullptr when SLAPrint is not initialized (PartPlate system issue).
+    // Do NOT early-return here — fall through to the selection-based fallback below so the
+    // gizmo always renders something instead of making the model appear to disappear.
 
     m_input_enabled = false;
 
-    // PhrozenOrca: get_mesh_to_print() returns const TriangleMesh& (not shared_ptr<indexed_triangle_set>).
-    TriangleMesh backend_mesh = po->get_mesh_to_print();
+    if (po != nullptr) {
+        // PhrozenOrca: get_mesh_to_print() returns const TriangleMesh& (not shared_ptr<indexed_triangle_set>).
+        TriangleMesh backend_mesh = po->get_mesh_to_print();
 
-    if (!backend_mesh.empty()) {
-        // PhrozenOrca: no last_completed_step(). Use is_step_done() — semantically equivalent
-        // because SLA steps are sequential: if step N is done, all steps < N are also done.
-        m_input_enabled = po->is_step_done((SLAPrintObjectStep)m_min_sla_print_object_step)
-            || po->model_object()->sla_points_status == sla::PointsStatus::UserModified;
+        if (!backend_mesh.empty()) {
+            // PhrozenOrca: m_min_sla_print_object_step == -1 means "no step required".
+            // Used by GLGizmoSlaSupports (no PrusaSlicer-equivalent always-done init step exists).
+            // For all other gizmos (e.g. GLGizmoHollow with slaposSliceSupports), check step normally.
+            if (m_min_sla_print_object_step < 0) {
+                m_input_enabled = true; // always enable input when mesh is available
+            } else {
+                // PhrozenOrca: no last_completed_step(). Use is_step_done() — semantically equivalent
+                // because SLA steps are sequential: if step N is done, all steps < N are also done.
+                m_input_enabled = po->is_step_done((SLAPrintObjectStep)m_min_sla_print_object_step)
+                    || po->model_object()->sla_points_status == sla::PointsStatus::UserModified;
+            }
 
-        const int object_idx   = m_parent.get_selection().get_object_idx();
-        const int instance_idx = m_parent.get_selection().get_instance_idx();
+            const int object_idx   = m_parent.get_selection().get_object_idx();
+            const int instance_idx = m_parent.get_selection().get_instance_idx();
 
-        const Geometry::Transformation& inst_trafo = po->model_object()->instances[instance_idx]->get_transformation();
-        const double current_elevation = po->get_current_elevation();
+            // PhrozenOrca: GLVolume::set_render_color() has the `selected` branch commented out (BBS).
+            // Copy the original model color from the scene volume so the gizmo renders
+            // the mesh in its normal viewport color instead of the default white.
+            ColorRGBA original_model_color = ColorRGBA::WHITE();
+            {
+                const Selection& sel = m_parent.get_selection();
+                for (unsigned int idx : sel.get_volume_idxs()) {
+                    const GLVolume* sv = sel.get_volume(idx);
+                    if (!sv->is_modifier && sv->composite_id.volume_id >= 0) {
+                        original_model_color = sv->color;
+                        break;
+                    }
+                }
+            }
 
-        auto add_volume = [this, object_idx, instance_idx, &inst_trafo, current_elevation](const TriangleMesh& mesh, int volume_id, bool add_mesh_raycaster = false) {
-            GLVolume* volume = m_volumes.volumes.emplace_back(new GLVolume());
-            volume->model.init_from(mesh);
-            volume->set_instance_transformation(inst_trafo);
-            volume->set_sla_shift_z(current_elevation);
-            if (add_mesh_raycaster)
-                volume->mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh);
-            if (m_input_enabled)
-                volume->selected = true; // to set the proper color
-            else
-                volume->set_color(DISABLED_COLOR);
-            volume->composite_id = GLVolume::CompositeID(object_idx, volume_id, instance_idx);
-        };
+            const Geometry::Transformation& inst_trafo = po->model_object()->instances[instance_idx]->get_transformation();
+            const double current_elevation = po->get_current_elevation();
 
-        const Transform3d po_trafo_inverse = po->trafo().inverse();
+            auto add_volume = [this, object_idx, instance_idx, &inst_trafo, current_elevation, original_model_color](const TriangleMesh& mesh, int volume_id, bool add_mesh_raycaster = false) {
+                GLVolume* volume = m_volumes.volumes.emplace_back(new GLVolume());
+                volume->model.init_from(mesh);
+                volume->set_instance_transformation(inst_trafo);
+                volume->set_sla_shift_z(current_elevation);
+                if (add_mesh_raycaster)
+                    volume->mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh);
+                if (m_input_enabled) {
+                    // PhrozenOrca: selected flag has no visual effect (set_render_color selected
+                    // branch is commented out in BBS). Set color explicitly to match viewport.
+                    volume->selected = true;              // kept for API compatibility
+                    volume->color = original_model_color; // actual color driver
+                } else {
+                    volume->set_color(DISABLED_COLOR);
+                }
+                volume->composite_id = GLVolume::CompositeID(object_idx, volume_id, instance_idx);
+            };
 
-        // main mesh
-        // Note: MultipleBeds translate removed — PhrozenOrca uses PartPlateList, mesh coords need no bed offset.
-        backend_mesh.transform(po_trafo_inverse);
-        add_volume(backend_mesh, 0, true);
+            const Transform3d po_trafo_inverse = po->trafo().inverse();
 
-        // supports mesh
-        TriangleMesh supports_mesh = po->support_mesh();
-        if (!supports_mesh.empty()) {
-            // Note: MultipleBeds translate removed — see above.
-            supports_mesh.transform(po_trafo_inverse);
-            add_volume(supports_mesh, -int(slaposSupportTree));
-        }
+            // main mesh
+            // Note: MultipleBeds translate removed — PhrozenOrca uses PartPlateList, mesh coords need no bed offset.
+            backend_mesh.transform(po_trafo_inverse);
+            add_volume(backend_mesh, 0, true);
 
-        // pad mesh
-        TriangleMesh pad_mesh = po->pad_mesh();
-        if (!pad_mesh.empty()) {
-            // Note: MultipleBeds translate removed — see above.
-            pad_mesh.transform(po_trafo_inverse);
-            add_volume(pad_mesh, -int(slaposPad));
+            // supports mesh
+            TriangleMesh supports_mesh = po->support_mesh();
+            if (!supports_mesh.empty()) {
+                // Note: MultipleBeds translate removed — see above.
+                supports_mesh.transform(po_trafo_inverse);
+                add_volume(supports_mesh, -int(slaposSupportTree));
+            }
+
+            // pad mesh
+            TriangleMesh pad_mesh = po->pad_mesh();
+            if (!pad_mesh.empty()) {
+                // Note: MultipleBeds translate removed — see above.
+                pad_mesh.transform(po_trafo_inverse);
+                add_volume(pad_mesh, -int(slaposPad));
+            }
         }
     }
 
     if (m_volumes.volumes.empty()) {
-        // No valid mesh found in the backend. Use the selection to duplicate the volumes
+        // No valid mesh found in the backend (po==nullptr or backend_mesh empty).
+        // Use the selection to duplicate the volumes so the gizmo always shows something.
+        // PhrozenOrca: enable input in fallback so model renders in normal (selected) color,
+        // matching PrusaSlicer appearance. Manual support point editing is still possible.
+        m_input_enabled = true;
         const Selection& selection = m_parent.get_selection();
         const Selection::IndicesList& idxs = selection.get_volume_idxs();
         for (unsigned int idx : idxs) {
@@ -146,7 +210,8 @@ void GLGizmoSlaBase::update_volumes()
                 new_volume->set_instance_transformation(v->get_instance_transformation());
                 new_volume->set_volume_transformation(v->get_volume_transformation());
                 new_volume->set_sla_shift_z(v->get_sla_shift_z());
-                new_volume->set_color(DISABLED_COLOR);
+                new_volume->selected = true;  // kept for API compatibility
+                new_volume->color = v->color; // PhrozenOrca: copy original color (selected flag has no visual effect)
                 new_volume->mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh);
             }
         }
@@ -157,7 +222,9 @@ void GLGizmoSlaBase::update_volumes()
 
 void GLGizmoSlaBase::render_volumes()
 {
-    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light_clip");
+    // PhrozenOrca: "gouraud_light_clip" does not exist in this build — use "gouraud_light".
+    // GLShadersManager only registers "gouraud_light" and "gouraud_light_instanced".
+    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
     if (shader == nullptr)
         return;
 

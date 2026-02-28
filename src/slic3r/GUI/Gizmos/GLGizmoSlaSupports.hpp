@@ -6,6 +6,7 @@
 // are_sla_supports_shown(), show_sla_supports(), reslice_until_step(), is_input_enabled().
 #include "GLGizmoSlaBase.hpp"
 #include "slic3r/GUI/GLSelectionRectangle.hpp"
+#include "slic3r/GUI/IconManager.hpp"
 
 #include "libslic3r/SLA/SupportPoint.hpp"
 #include "libslic3r/ObjectID.hpp"
@@ -100,6 +101,9 @@ private:
     mutable std::vector<CacheEntry> m_editing_cache; // a support point and whether it is currently selected
     std::vector<sla::SupportPoint> m_normal_cache; // to restore after discarding changes or undo/redo
     ObjectID m_old_mo_id;
+
+    IconManager m_icon_manager;   // Step 4.5+: manages texture atlas for support structure view-mode icons
+    IconManager::Icons m_icons;   // Step 4.5+: loaded icons (support_structure / support_points toggle)
 
     PickingModel m_cone;
     PickingModel m_sphere;

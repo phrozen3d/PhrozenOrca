@@ -6,6 +6,7 @@
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "slic3r/GUI/I18N.hpp"
+#include "slic3r/GUI/format.hpp"
 
 #include <GL/glew.h>
 
@@ -22,6 +23,7 @@
 #include "slic3r/GUI/MsgDialog.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/SLAPrint.hpp"
+#include "libslic3r/Utils.hpp" // ScopeGuard
 
 static const double CONE_RADIUS = 0.25;
 static const double CONE_HEIGHT = 0.75;
@@ -29,10 +31,84 @@ static const double CONE_HEIGHT = 0.75;
 namespace Slic3r {
 namespace GUI {
 
-// Step 4.2: Constructor now passes slaposDrillHoles as the minimum SLA step (same as PrusaSlicer).
-// slaposDrillHoles exists in PhrozenOrca (unlike slaposAssembly which is PrusaSlicer-only).
+// Step 4.5+: Icon support for the display-mode toggle (support points vs support structure).
+// Ported from PrusaSlicer's GLGizmoSlaSupports with PhrozenOrca path adjustment (/images/ not /icons/).
+namespace {
+
+enum class IconType : unsigned {
+    show_support_points_selected,
+    show_support_points_unselected,
+    show_support_points_hovered,
+    show_support_structure_selected,
+    show_support_structure_unselected,
+    show_support_structure_hovered,
+    _count
+};
+
+IconManager::Icons init_support_icons(IconManager &mng, ImVec2 size = ImVec2{50, 50})
+{
+    mng.release();
+    // PhrozenOrca: icon path is /images/, not /icons/ (PrusaSlicer convention)
+    const std::string path = resources_dir() + "/images/";
+    IconManager::InitTypes init_types {
+        {path + "support_structure_invisible.svg", size, IconManager::RasterType::color},          // show_support_points_selected
+        {path + "support_structure_invisible.svg", size, IconManager::RasterType::gray_only_data}, // show_support_points_unselected
+        {path + "support_structure_invisible.svg", size, IconManager::RasterType::color},          // show_support_points_hovered
+        {path + "support_structure.svg",           size, IconManager::RasterType::color},          // show_support_structure_selected
+        {path + "support_structure.svg",           size, IconManager::RasterType::gray_only_data}, // show_support_structure_unselected
+        {path + "support_structure.svg",           size, IconManager::RasterType::color},          // show_support_structure_hovered
+    };
+    assert(init_types.size() == static_cast<size_t>(IconType::_count));
+    return mng.init(init_types);
+}
+
+const IconManager::Icon &get_support_icon(const IconManager::Icons &icons, IconType type) {
+    return *icons[static_cast<unsigned>(type)];
+}
+
+/// Draw icon buttons to swap between showing support points only vs support structure with pad.
+/// Returns true when the view mode was changed.
+bool draw_support_view_mode(bool &show_support_structure, const IconManager::Icons &icons)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 8.f);
+    bool result = false;
+    if (show_support_structure) {
+        draw(get_support_icon(icons, IconType::show_support_structure_selected));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", _u8L("Visible support structure").c_str());
+        ImGui::SameLine();
+        if (clickable(get_support_icon(icons, IconType::show_support_points_unselected),
+                      get_support_icon(icons, IconType::show_support_points_hovered))) {
+            show_support_structure = false;
+            result = true;
+        } else if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", _u8L("Click to show support points without support structure").c_str());
+    } else {
+        if (clickable(get_support_icon(icons, IconType::show_support_structure_unselected),
+                      get_support_icon(icons, IconType::show_support_structure_hovered))) {
+            show_support_structure = true;
+            result = true;
+        } else if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", _u8L("Click to show support structure with pad").c_str());
+        ImGui::SameLine();
+        draw(get_support_icon(icons, IconType::show_support_points_selected));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", _u8L("Visible support points without support structure").c_str());
+    }
+    ImGui::PopStyleVar();
+    return result;
+}
+
+} // anonymous namespace
+
+// PhrozenOrca: Use no-step constructor (m_min_sla_print_object_step = -1).
+// PrusaSlicer uses slaposBase/slaposAssembly — an always-complete init step — so
+// m_input_enabled is true as soon as the object is loaded. PhrozenOrca has no equivalent:
+// the first real step (slaposHollowing) requires actual computation and may not be done.
+// Using the no-step variant ensures the model renders in normal selected color immediately
+// upon entering the gizmo, matching PrusaSlicer UX behavior (model never appears gray).
 GLGizmoSlaSupports::GLGizmoSlaSupports(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
-    : GLGizmoSlaBase(parent, icon_filename, sprite_id, slaposDrillHoles)
+    : GLGizmoSlaBase(parent, icon_filename, sprite_id)  // no minimum step — always enable input
 {
     show_sla_supports(false); // Step 4.2: hide supports when gizmo opens (same as PrusaSlicer)
 }
@@ -79,11 +155,12 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
     if (mo) {
         m_c->instances_hider()->set_hide_full_scene(true); // Step 4.4 dependency
 
-        // PhrozenOrca: no last_completed_step(). Use is_step_done() — semantically equivalent
-        // because SLA steps are sequential: if step N is not done, reslice up to N.
+        // PhrozenOrca: required_step < 0 means no minimum step (no-step constructor was used).
+        // In that case skip the reslice trigger — update_volumes() will use get_mesh_to_print()
+        // which always returns the raw model mesh when nothing has been sliced.
         const int required_step = get_min_sla_print_object_step();
         const SLAPrintObject* po = m_c->selection_info()->print_object();
-        if (po != nullptr && !po->is_step_done((SLAPrintObjectStep)required_step))
+        if (required_step >= 0 && po != nullptr && !po->is_step_done((SLAPrintObjectStep)required_step))
             reslice_until_step((SLAPrintObjectStep)required_step, false);
 
         update_volumes(); // Step 4.2: load SLA volumes from GLGizmoSlaBase
@@ -619,6 +696,15 @@ void GLGizmoSlaSupports::make_line_segments() const
 
 void GLGizmoSlaSupports::on_render_input_window(float x, float y, float bottom_limit)
 {
+    // Step 4.5+: Lazy-init / re-init icons when resolution changes (same pattern as PrusaSlicer).
+    static float rendered_line_height = 0.f;
+    if (float line_height = ImGui::GetTextLineHeightWithSpacing();
+        m_icons.empty() || rendered_line_height != line_height) {
+        rendered_line_height = line_height;
+        float width = std::round(line_height / 8.f + 1.f) * 8.f;
+        m_icons = init_support_icons(m_icon_manager, ImVec2{width, width});
+    }
+
     static float last_y = 0.0f;
     static float last_h = 0.0f;
 
@@ -737,6 +823,21 @@ RENDER_AGAIN:
         }
     }
     else { // not in editing mode:
+        m_imgui->disabled_begin(!is_input_enabled()); // Step 4.5+: disable UI when SLA not ready (matches PrusaSlicer)
+
+        // Step 4.5+: Icon buttons to toggle between show-points and show-support-structure views.
+        if (!m_icons.empty()) {
+            if (draw_support_view_mode(m_show_support_structure, m_icons)) {
+                show_sla_supports(m_show_support_structure);
+                if (m_show_support_structure) {
+                    if (m_normal_cache.empty())
+                        auto_generate();
+                    else
+                        reslice_until_step(slaposPad);
+                }
+            }
+        }
+
         ImGui::AlignTextToFramePadding();
         m_imgui->text(m_desc.at("minimal_distance"));
         ImGui::SameLine(settings_sliders_left);
@@ -777,9 +878,23 @@ RENDER_AGAIN:
             wxGetApp().obj_list()->update_and_show_object_settings_item();
         }
 
-        bool generate = m_imgui->button(m_desc.at("auto_generate"));
+        // Step 4.5+: Support point statistics (adapted from PrusaSlicer; uses is_new_island
+        // instead of SupportPointType because PhrozenOrca's SupportPoint struct lacks the type field).
+        {
+            int count_island = 0;
+            for (const sla::SupportPoint &sp : m_normal_cache)
+                if (sp.is_new_island) ++count_island;
+            std::string stats;
+            if (m_normal_cache.empty())
+                stats = "No support points generated yet.";
+            else
+                stats = GUI::format("%d support points (%d on islands)",
+                    (int)m_normal_cache.size(), count_island);
+            ImVec4 light_gray{0.4f, 0.4f, 0.4f, 1.0f};
+            ImGui::TextColored(light_gray, "%s", stats.c_str());
+        }
 
-        if (generate)
+        if (m_imgui->button(m_desc.at("auto_generate")))
             auto_generate();
 
         ImGui::Separator();
@@ -790,11 +905,7 @@ RENDER_AGAIN:
         remove_all = m_imgui->button(m_desc.at("remove_all"));
         m_imgui->disabled_end();
 
-        // m_imgui->text("");
-        // m_imgui->text(m_c->m_model_object->sla_points_status == sla::PointsStatus::NoPoints ? _(L("No points  (will be autogenerated)")) :
-        //              (m_c->m_model_object->sla_points_status == sla::PointsStatus::AutoGenerated ? _(L("Autogenerated points (no modifications)")) :
-        //              (m_c->m_model_object->sla_points_status == sla::PointsStatus::UserModified ? _(L("User-modified points")) :
-        //              (m_c->m_model_object->sla_points_status == sla::PointsStatus::Generating ? _(L("Generation in progress...")) : "UNKNOWN STATUS"))));
+        m_imgui->disabled_end(); // close !is_input_enabled()
     }
 
 

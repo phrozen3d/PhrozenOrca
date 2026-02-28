@@ -27,6 +27,10 @@ class GLGizmoSlaBase : public GLGizmoBase
 {
 public:
     GLGizmoSlaBase(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id, SLAPrintObjectStep min_step);
+    // No-step constructor: m_min_sla_print_object_step stays -1 = input always enabled when mesh exists.
+    // PhrozenOrca: use this for GLGizmoSlaSupports because PhrozenOrca has no "always-done" early step
+    // (unlike PrusaSlicer's slaposBase/slaposAssembly which is always done once object is loaded).
+    GLGizmoSlaBase(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
 
     void reslice_until_step(SLAPrintObjectStep step, bool postpone_error_messages = false);
 
