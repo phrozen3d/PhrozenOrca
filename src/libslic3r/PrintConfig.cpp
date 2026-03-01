@@ -7576,39 +7576,44 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0.3));
 
     def = this->add("hollowing_enable", coBool);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
+    def->label = L("Enable hollowing");
+    def->category = L("Hollowing");
+    def->tooltip = L("Hollow out a model to have an empty interior");
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionBool(false));
 
     def = this->add("hollowing_min_thickness", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label = L("Wall thickness");
+    def->category = L("Hollowing");
+    def->tooltip = L("Minimum wall thickness of a hollowed model.");
+    def->sidetext = L("mm");
     def->min = 1;
     def->max = 10;
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(3.));
 
     def = this->add("hollowing_quality", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
+    def->label = L("Accuracy");
+    def->category = L("Hollowing");
+    def->tooltip = L("Performance vs accuracy of calculation. Lower values may produce unwanted artifacts.");
     def->min = 0;
     def->max = 1;
-    def->mode = comAdvanced;
+    def->mode = comAdvanced; // PrusaSlicer: comExpert (PhrozenOrca has no comExpert; comAdvanced is the highest user-facing mode)
     def->set_default_value(new ConfigOptionFloat(0.5));
 
     def = this->add("hollowing_closing_distance", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    def->sidetext = "mm";	// milimeters, don't need translation
+    def->label = L("Closing distance");
+    def->category = L("Hollowing");
+    def->tooltip = L(
+        "Hollowing is done in two steps: first, an imaginary interior is "
+        "calculated deeper (offset plus the closing distance) in the object and "
+        "then it's inflated back to the specified offset. A greater closing "
+        "distance makes the interior more rounded. At zero, the interior will "
+        "resemble the exterior the most.");
+    def->sidetext = L("mm");
     def->min = 0;
     def->max = 10;
-    def->mode = comAdvanced;
+    def->mode = comAdvanced; // PrusaSlicer: comExpert (PhrozenOrca has no comExpert; comAdvanced is the highest user-facing mode)
     def->set_default_value(new ConfigOptionFloat(2.0));
 
     def = this->add("material_print_speed", coEnum);
