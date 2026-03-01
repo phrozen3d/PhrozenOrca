@@ -342,7 +342,9 @@ remove_unconnected_vertices(const indexed_triangle_set &its)
 // Drill holes into the hollowed/original mesh.
 void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
 {
-    /*
+    // Step 4.8: Restored from BBS block comment. drill_holes() was a no-op stub:
+    // hollow_mesh_with_holes was never populated → get_mesh_to_slice() returned empty mesh
+    // when hollowing was enabled → slice_model() threw "Inconsistent slice index".
     bool needs_drilling = ! po.m_model_object->sla_drain_holes.empty();
     bool is_hollowed =
         (po.m_hollowing_data && po.m_hollowing_data->interior &&
@@ -383,10 +385,14 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
     BOOST_LOG_TRIVIAL(info) << "Drilling drainage holes.";
     sla::DrainHoles drainholes = po.transformed_drainhole_points();
 
-    auto tree = AABBTreeIndirect::build_aabb_tree_over_indexed_triangle_set(
-        hollowed_mesh.its.vertices,
-        hollowed_mesh.its.indices
-    );
+    //BBS: AABBTree optimization disabled — part_to_drill.indices is cleared each iteration
+    //BBS: and never refilled (traverse is commented out below), so cgal_meshpart is always
+    //BBS: an empty mesh. The self-intersection pre-check is effectively skipped; all holes
+    //BBS: are accumulated into holes_mesh_cgal and subtracted from the hollowed mesh.
+    //auto tree = AABBTreeIndirect::build_aabb_tree_over_indexed_triangle_set(
+    //    hollowed_mesh.its.vertices,
+    //    hollowed_mesh.its.indices
+    //);
 
     std::uniform_real_distribution<float> dist(0., float(EPSILON));
     auto holes_mesh_cgal = MeshBoolean::cgal::triangle_mesh_to_cgal({}, {});
@@ -402,9 +408,10 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
         indexed_triangle_set m = holept.to_mesh();
 
         part_to_drill.indices.clear();
-        auto bb = bounding_box(m);
-        Eigen::AlignedBox<float, 3> ebb{bb.min.cast<float>(),
-                                        bb.max.cast<float>()};
+        //BBS: bb/ebb only used in the disabled AABBTree traversal.
+        //auto bb = bounding_box(m);
+        //Eigen::AlignedBox<float, 3> ebb{bb.min.cast<float>(),
+        //                                bb.max.cast<float>()};
         //BBS
         //AABBTreeIndirect::traverse(
         //            tree,
@@ -473,7 +480,6 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
     if (hole_fail)
         po.active_step_add_warning(PrintStateBase::WarningLevel::NON_CRITICAL,
                                    L("Failed to drill some holes into the model"));
-     */
 }
 
 // The slicing will be performed on an imaginary 1D grid which starts from

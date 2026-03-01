@@ -35,11 +35,15 @@
 namespace Slic3r {
 namespace GUI {
 
-// Step 4.3: Constructor passes slaposSliceSupports as the minimum SLA step.
-// Note: PrusaSlicer uses slaposAssembly (their final step), which doesn't exist in PhrozenOrca.
-// slaposSliceSupports is the last step before slaposCount in PhrozenOrca — functionally equivalent.
+// Step 4.7: Use no-step constructor (m_min_sla_print_object_step = -1).
+// PrusaSlicer uses slaposAssembly — an always-complete early init step — so m_input_enabled
+// is true as soon as the object is loaded, and the gizmo is immediately interactive.
+// PhrozenOrca has no equivalent "always-done" early step. slaposSliceSupports (the previous choice)
+// is the LAST step in the pipeline, so it was incorrectly keeping the gizmo disabled (gray model)
+// until the full SLA pipeline completed. Using no-step (-1) makes m_input_enabled = true whenever
+// a mesh is available, matching PrusaSlicer's behavior: model displays in normal color immediately.
 GLGizmoHollow::GLGizmoHollow(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
-    : GLGizmoSlaBase(parent, icon_filename, sprite_id, slaposSliceSupports)
+    : GLGizmoSlaBase(parent, icon_filename, sprite_id)  // no minimum step — always enable input when mesh exists
 {
 }
 
@@ -65,6 +69,10 @@ bool GLGizmoHollow::on_init()
 
 // Step 4.3: Replaces set_sla_support_data(). Called by framework when selection changes.
 // Key addition: set_hide_full_scene(true) hides the model so render_volumes() can render instead.
+// Step 4.7: Guarded reslice — only trigger when required_step >= 0. With no-step constructor
+// (required_step = -1), automatic reslicing is skipped; update_volumes() uses get_mesh_to_print()
+// (hollowed mesh if slaposHollowing is done) or the Selection fallback path (raw model mesh).
+// The user explicitly triggers hollowing preview via the "Preview hollowed model" button.
 void GLGizmoHollow::data_changed(bool is_serializing)
 {
     if (!m_c->selection_info())
@@ -77,12 +85,13 @@ void GLGizmoHollow::data_changed(bool is_serializing)
             m_old_mo_id = mo->id();
         }
 
+        // PhrozenOrca: required_step < 0 means no minimum step (no-step constructor was used).
+        // Do not trigger automatic reslicing on gizmo open — update_volumes() uses the fallback
+        // (Selection volumes) when no hollowed backend mesh is available yet.
+        const int required_step = get_min_sla_print_object_step();
         const SLAPrintObject* po = m_c->selection_info()->print_object();
-        if (po != nullptr) {
-            // PhrozenOrca: get_mesh_to_print() returns const TriangleMesh& (not shared_ptr).
-            if (po->get_mesh_to_print().empty())
-                reslice_until_step(slaposSliceSupports); // slaposAssembly doesn't exist in PhrozenOrca
-        }
+        if (required_step >= 0 && po != nullptr && po->get_mesh_to_print().empty())
+            reslice_until_step((SLAPrintObjectStep)required_step);
 
         update_volumes();
 
