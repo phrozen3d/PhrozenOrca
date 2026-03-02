@@ -2,6 +2,11 @@
 
 #include <iostream>
 
+// Fix CGAL 5.4 + Boost 1.84 incompatibility: CGAL 5.4's Plane_3_Triangle_3_intersection.h
+// uses boost::prior() without including <boost/next_prior.hpp> directly, relying on
+// transitive includes that changed in Boost 1.84. Include explicitly to fix build.
+#include <boost/next_prior.hpp>
+
 // includes for defining the Voronoi diagram adaptor
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Delaunay_triangulation_2.h>
