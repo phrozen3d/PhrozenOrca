@@ -6,6 +6,7 @@
 #include "PrintBase.hpp"
 #include "SLA/RasterBase.hpp"
 #include "SLA/SupportTree.hpp"
+#include "SLA/SupportPointGenerator.hpp"
 #include "Execution/ExecutionTBB.hpp"
 #include "Point.hpp"
 #include "MTUtils.hpp"
@@ -307,6 +308,11 @@ private:
     std::vector<SliceRecord>                m_slice_index;
 
     std::vector<float>                      m_model_height_levels;
+
+    // Step A3: Pre-computed data for interactive support placement.
+    // Populated by prepare_for_generate_supports() in slice_model step.
+    // Reused by generate_support_points() in support_points step without re-slicing.
+    sla::SupportPointGeneratorData         m_support_point_generator_data;
 
     // Caching the transformed (m_trafo) raw mesh of the object
     mutable CachedObject<TriangleMesh>      m_transformed_rmesh;

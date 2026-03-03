@@ -44,7 +44,11 @@ private:
     void initialize_printer_input();
     
     void apply_printer_corrections(SLAPrintObject &po, SliceOrigin o);
-    
+
+    // Step A4: Pre-compute support generator data at the end of slice_model step.
+    // Stores result in po.m_support_point_generator_data for reuse in support_points step.
+    void prepare_for_generate_supports(SLAPrintObject &po);
+
 public:
     explicit Steps(SLAPrint *print);
     

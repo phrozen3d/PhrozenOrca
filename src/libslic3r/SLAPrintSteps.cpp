@@ -578,6 +578,30 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
     {
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
     }
+
+    // Step A5.2: Pre-compute support generator data for interactive re-generation.
+    // Called here so density changes can call generate_support_points() without re-slicing.
+    if (po.m_config.supports_enable.getBool())
+        prepare_for_generate_supports(po);
+}
+
+// Step A5.1: Pre-compute layer connectivity and island data for the support generator.
+// Stores the result in po.m_support_point_generator_data for reuse by support_points().
+// Slices are copied from po.m_model_slices so the original remains valid for other steps.
+void SLAPrint::Steps::prepare_for_generate_supports(SLAPrintObject &po)
+{
+    sla::PrepareSupportConfig prep_cfg;
+
+    // Copy slices: prepare_generator_data() moves them in, but po.m_model_slices
+    // must remain valid for slice_supports and other downstream steps.
+    std::vector<ExPolygons> slices_copy = po.get_model_slices();
+
+    po.m_support_point_generator_data = sla::prepare_generator_data(
+        std::move(slices_copy),
+        po.m_model_height_levels,
+        prep_cfg,
+        [this]() { throw_if_canceled(); }
+    );
 }
 
 // In this step we check the slices, identify island and cover them with
@@ -600,44 +624,52 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
     // frontend data into the backend cache.
     if (mo.sla_points_status != sla::PointsStatus::UserModified) {
 
-        // calculate heights of slices (slices are calculated already)
-        const std::vector<float>& heights = po.m_model_height_levels;
-
         // Tell the mesh where drain holes are. Although the points are
         // calculated on slices, the algorithm then raycasts the points
         // so they actually lie on the mesh.
 //        po.m_supportdata->emesh.load_holes(po.transformed_drainhole_points());
 
         throw_if_canceled();
-        sla::SupportPointGenerator::Config config;
+
+        // Step A5.3: Use new free-function API (Voronoi Medial Axis + NearPoints KD-tree).
+        // Replaces old class-based SupportPointGenerator (Poisson disk sampling).
+        sla::SupportPointGeneratorConfig config;
         const SLAPrintObjectConfig& cfg = po.config();
 
-        // the density config value is in percents:
+        // Density config value is in percents.
         config.density_relative = float(cfg.support_points_density_relative / 100.f);
-        config.minimal_distance = float(cfg.support_points_minimal_distance);
         config.head_diameter    = float(cfg.support_head_front_diameter);
+        config.island_configuration = sla::create_default_island_configuration(config.head_diameter);
 
         // scaling for the sub operations
         double d = objectstep_scale * OBJ_STEP_LEVELS[slaposSupportPoints] / 100.0;
         double init = current_status();
 
-        auto statuscb = [this, d, init](unsigned st)
+        auto statuscb = [this, d, init](int st)
         {
             double current = init + st * d;
             if(std::round(current_status()) < std::round(current))
                 report_status(current, OBJ_STEP_LABELS(slaposSupportPoints));
         };
 
-        // Construction of this object does the calculation.
-        throw_if_canceled();
-        sla::SupportPointGenerator auto_supports(
-            po.m_supportdata->emesh, po.get_model_slices(), heights, config,
-            [this]() { throw_if_canceled(); }, statuscb);
+        // Ensure pre-computed data is ready (should have been done in slice_model step).
+        if (po.m_support_point_generator_data.layers.empty())
+            prepare_for_generate_supports(po);
 
-        // Now let's extract the result.
-        const std::vector<sla::SupportPoint>& points = auto_supports.output();
+        // Phase 1: Generate layer support points using Voronoi + NearPoints KD-tree.
         throw_if_canceled();
-        po.m_supportdata->pts = points;
+        sla::LayerSupportPoints layer_pts = sla::generate_support_points(
+            po.m_support_point_generator_data,
+            config,
+            [this]() { throw_if_canceled(); },
+            statuscb);
+
+        // Phase 2: Project generated points from layer plane onto actual mesh surface.
+        throw_if_canceled();
+        const double allowed_move = double(cfg.support_head_front_diameter);
+        po.m_supportdata->pts = sla::move_on_mesh_surface(
+            layer_pts, po.m_supportdata->emesh, allowed_move,
+            [this]() { throw_if_canceled(); });
 
         BOOST_LOG_TRIVIAL(debug) << "Automatic support points: "
                                  << po.m_supportdata->pts.size();

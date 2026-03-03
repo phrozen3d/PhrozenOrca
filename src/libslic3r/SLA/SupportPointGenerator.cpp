@@ -1,681 +1,1308 @@
-//#include "igl/random_points_on_mesh.h"
-//#include "igl/AABB.h"
-
-#include <tbb/parallel_for.h>
+// Step A2: Rewritten to align with PrusaSlicer 2024 free-function architecture.
+// Ports: NearPoints KD-tree, prepare_generator_data(), generate_support_points(),
+//        move_on_mesh_surface() from PrusaSlicer/SLA/SupportPointGenerator.cpp.
+//
+// Key PhrozenOrca adaptations:
+//   - SupportPointType::island -> true  (is_new_island bool, PhrozenOrca SupportPoint)
+//   - SupportPointType::slope  -> false
+//   - AABBMesh -> sla::IndexedMesh  (same API: query_ray_hit + squared_distance)
 
 #include "SupportPointGenerator.hpp"
-#include "Geometry/ConvexHull.hpp"
-#include "Concurrency.hpp"
-#include "Model.hpp"
-#include "ExPolygon.hpp"
-#include "SVG.hpp"
-#include "Point.hpp"
-#include "ClipperUtils.hpp"
-#include "Tesselate.hpp"
-#include "MinAreaBoundingBox.hpp"
-#include "libslic3r.h"
-// Step 3.5: Voronoi-based uniform island support point generation.
+#include "IndexedMesh.hpp"                               // move_on_mesh_surface
+
+#include "libslic3r/Execution/ExecutionTBB.hpp"
+#include "libslic3r/Execution/Execution.hpp"
+#include "libslic3r/KDTreeIndirect.hpp"
+#include "libslic3r/ClipperUtils.hpp"
+#include "libslic3r/AABBTreeLines.hpp"
+#include "libslic3r/Point.hpp"
+#include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/Line.hpp"
+// SupportIslands
 #include "libslic3r/SLA/SupportIslands/UniformSupportIsland.hpp"
 #include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
 
-#include <iostream>
-#include <random>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <functional>
+
+using namespace Slic3r;
+using namespace Slic3r::sla;
+
+namespace {
+
+#ifndef NDEBUG
+bool exist_point_in_distance(const Vec3f &p, float distance, const LayerSupportPoints &pts) {
+    float distance_sq = sqr(distance);
+    return std::any_of(pts.begin(), pts.end(), [&p, distance_sq](const LayerSupportPoint &sp) {
+        return (sp.pos - p).squaredNorm() < distance_sq;
+    });
+}
+#endif // NDEBUG
+
+// ---------------------------------------------------------------------------
+// NearPoints: KD-tree wrapper for fast nearest-support-point queries.
+// Ported from PrusaSlicer/SLA/SupportPointGenerator.cpp.
+// ---------------------------------------------------------------------------
+class NearPoints
+{
+    struct PointAccessor {
+        LayerSupportPoints *m_supports_ptr;
+        explicit PointAccessor(LayerSupportPoints *supports_ptr) : m_supports_ptr(supports_ptr) {}
+        const coord_t &operator()(size_t idx, size_t dimension) const {
+            return m_supports_ptr->at(idx).position_on_layer[dimension];
+        }
+    };
+
+    PointAccessor m_points;
+    using Tree = KDTreeIndirect<2, coord_t, PointAccessor>;
+    Tree m_tree;
+    // PhrozenOrca adaptation: KDTreeIndirect here lacks get_nodes() / get_copy().
+    // Track active indices explicitly instead.
+    std::vector<size_t> m_indices;
+
+public:
+    explicit NearPoints(LayerSupportPoints *supports_ptr)
+        : m_points(supports_ptr), m_tree(m_points) {}
+
+    NearPoints get_copy() const {
+        NearPoints copy(m_points.m_supports_ptr);
+        copy.m_indices = m_indices;
+        // PhrozenOrca fix: KDTreeIndirect::build() clears its argument vector.
+        // Pass a copy so that copy.m_indices is preserved after the build.
+        std::vector<size_t> tmp = copy.m_indices;
+        copy.m_tree.build(tmp);
+        return copy;
+    }
+
+    void remove_out_of(const ExPolygons &shapes, float current_z) {
+        std::vector<size_t> indices = m_indices;
+        auto it = std::remove_if(indices.begin(), indices.end(),
+            [&pts = *m_points.m_supports_ptr, &shapes, current_z](size_t point_index) {
+                const LayerSupportPoint &lsp = pts.at(point_index);
+                if (lsp.is_permanent && lsp.pos.z() >= current_z)
+                    return false;
+                return !std::any_of(shapes.begin(), shapes.end(),
+                    [&p = lsp.position_on_layer](const ExPolygon &shape) {
+                        return shape.contains(p);
+                    });
+            });
+        if (it == indices.end())
+            return;
+        indices.erase(it, indices.end());
+        m_indices = indices;
+        m_tree.clear();
+        // PhrozenOrca fix: build() clears its argument; pass a copy to preserve m_indices.
+        std::vector<size_t> tmp = m_indices;
+        m_tree.build(tmp);
+    }
+
+    void add(LayerSupportPoint &&point) {
+        LayerSupportPoints &pts = *m_points.m_supports_ptr;
+        assert(!exist_point_in_distance(point.pos, point.head_front_radius, pts));
+        size_t index = pts.size();
+        pts.emplace_back(std::move(point));
+        m_indices.push_back(index);
+        m_tree.clear();
+        // PhrozenOrca fix: build() clears its argument; pass a copy to preserve m_indices.
+        std::vector<size_t> tmp = m_indices;
+        m_tree.build(tmp);
+    }
+
+    using CheckFnc = std::function<bool(const LayerSupportPoint &, const Point &)>;
+
+    bool exist_true_in_radius(const Point &pos, coord_t radius, const CheckFnc &fnc) const {
+        std::vector<size_t> point_indices = find_nearby_points(m_tree, pos, radius);
+        return std::any_of(point_indices.begin(), point_indices.end(),
+            [&points = *m_points.m_supports_ptr, &pos, &fnc](size_t point_index) {
+                return fnc(points.at(point_index), pos);
+            });
+    }
+
+    void merge(NearPoints &&near_point) {
+        assert(m_points.m_supports_ptr == near_point.m_points.m_supports_ptr);
+        std::vector<size_t> indices = m_indices;
+        indices.insert(indices.end(),
+            near_point.m_indices.begin(),
+            near_point.m_indices.end());
+        std::sort(indices.begin(), indices.end());
+        auto it = std::unique(indices.begin(), indices.end());
+        indices.erase(it, indices.end());
+        m_indices = std::move(indices);
+        m_tree.clear();
+        // PhrozenOrca fix: build() clears its argument; pass a copy to preserve m_indices.
+        std::vector<size_t> tmp = m_indices;
+        m_tree.build(tmp);
+    }
+
+    std::vector<size_t> get_indices() const {
+        return m_indices;
+    }
+};
+using NearPointss = std::vector<NearPoints>;
+
+// ---------------------------------------------------------------------------
+// Math helpers
+// ---------------------------------------------------------------------------
+
+// Intersection of a line segment and a circle.
+// p1 must be inside, p2 outside (or on) the circle.
+Point intersection_line_circle(const Point &p1, const Point &p2, const Point &cnt, double r2) {
+    Vec2d dp_d((p2 - p1).cast<double>());
+    Vec2d f_d((p1 - cnt).cast<double>());
+    double a = dp_d.squaredNorm();
+    double b = 2 * (f_d.x() * dp_d.x() + f_d.y() * dp_d.y());
+    double c = f_d.squaredNorm() - r2;
+    double discriminant = b * b - 4 * a * c;
+    assert(discriminant >= 0);
+    if (discriminant < 0)
+        return {};
+    discriminant = sqrt(discriminant);
+    double t1 = (-b - discriminant) / (2 * a);
+    if (t1 >= 0 && t1 <= 1)
+        return {p1.x() + static_cast<coord_t>(t1 * dp_d.x()),
+                p1.y() + static_cast<coord_t>(t1 * dp_d.y())};
+    double t2 = (-b + discriminant) / (2 * a);
+    if (t2 >= 0 && t2 <= 1 && t1 != t2)
+        return {p1.x() + static_cast<coord_t>(t2 * dp_d.x()),
+                p1.y() + static_cast<coord_t>(t2 * dp_d.y())};
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// Layer linking helpers
+// ---------------------------------------------------------------------------
+
+ExPolygons get_shapes(const PartLinks &part_links) {
+    ExPolygons out;
+    out.reserve(part_links.size());
+    for (const PartLink &part_link : part_links)
+        out.push_back(*part_link->shape);
+    return out;
+}
+
+// Migrate NearPoints from previous layer into current part's grid.
+NearPoints create_near_points(
+    const LayerParts &prev_layer_parts,
+    const LayerPart  &part,
+    NearPointss      &prev_grids
+) {
+    const LayerParts::const_iterator &prev_part_it = part.prev_parts.front();
+    size_t index_of_prev_part = prev_part_it - prev_layer_parts.begin();
+    NearPoints near_points = (prev_part_it->next_parts.size() == 1) ?
+        std::move(prev_grids[index_of_prev_part]) :
+        prev_grids[index_of_prev_part].get_copy();
+
+    for (size_t i = 1; i < part.prev_parts.size(); ++i) {
+        const LayerParts::const_iterator &pp = part.prev_parts[i];
+        size_t idx = pp - prev_layer_parts.begin();
+        if (pp->next_parts.size() == 1) {
+            near_points.merge(std::move(prev_grids[idx]));
+        } else {
+            NearPoints grid_ = prev_grids[idx].get_copy();
+            near_points.merge(std::move(grid_));
+        }
+    }
+    return near_points;
+}
+
+// ---------------------------------------------------------------------------
+// Support generation: per-part processing
+// ---------------------------------------------------------------------------
+
+// Support overhang samples that are not covered by existing support points.
+void support_part_overhangs(
+    const LayerPart            &part,
+    const SupportPointGeneratorConfig &config,
+    NearPoints                 &near_points,
+    float                       part_z,
+    coord_t                     maximal_radius
+) {
+    NearPoints::CheckFnc is_supported = [](const LayerSupportPoint &sp, const Point &p) -> bool {
+        coord_t r  = sp.current_radius;
+        Point   dp = sp.position_on_layer - p;
+        if (std::abs(dp.x()) > r) return false;
+        if (std::abs(dp.y()) > r) return false;
+        double r2 = sqr(static_cast<double>(r));
+        return dp.cast<double>().squaredNorm() < r2;
+    };
+
+    for (const Point &p : part.samples) {
+        if (!near_points.exist_true_in_radius(p, maximal_radius, is_supported)) {
+            near_points.add(LayerSupportPoint{
+                SupportPoint{
+                    Vec3f{unscale<float>(p.x()), unscale<float>(p.y()), part_z},
+                    /* head_front_radius */ config.head_diameter / 2,
+                    /* is_new_island */ false   // slope/overhang, not new island
+                },
+                /* position_on_layer */ p,
+                /* radius_curve_index */ 0,
+                /* current_radius */ static_cast<coord_t>(scale_(config.support_curve.front().x()))
+            });
+        }
+    }
+}
+
+// Support a completely new island using Voronoi Medial Axis.
+void support_island(
+    const LayerPart            &part,
+    NearPoints                 &near_points,
+    float                       part_z,
+    const Points               &permanent,
+    const SupportPointGeneratorConfig &cfg
+) {
+    SupportIslandPoints samples = uniform_support_island(*part.shape, permanent, cfg.island_configuration);
+    for (const SupportIslandPointPtr &sample : samples)
+        near_points.add(LayerSupportPoint{
+            SupportPoint{
+                Vec3f{
+                    unscale<float>(sample->point.x()),
+                    unscale<float>(sample->point.y()),
+                    part_z
+                },
+                /* head_front_radius */ cfg.head_diameter / 2,
+                /* is_new_island */ true
+            },
+            /* position_on_layer */ sample->point,
+            /* radius_curve_index */ 0,
+            /* current_radius */ static_cast<coord_t>(scale_(cfg.support_curve.front().x()))
+        });
+}
+
+// Support peninsula (partial overhang) using edge-constrained sampling.
+void support_peninsulas(
+    const Peninsulas            &peninsulas,
+    NearPoints                  &near_points,
+    float                        part_z,
+    const Points                &permanent,
+    const SupportPointGeneratorConfig &cfg
+) {
+    for (const Peninsula &peninsula : peninsulas) {
+        SupportIslandPoints peninsula_supports =
+            uniform_support_peninsula(peninsula, permanent, cfg.island_configuration);
+        for (const SupportIslandPointPtr &support : peninsula_supports)
+            near_points.add(LayerSupportPoint{
+                SupportPoint{
+                    Vec3f{
+                        unscale<float>(support->point.x()),
+                        unscale<float>(support->point.y()),
+                        part_z
+                    },
+                    /* head_front_radius */ cfg.head_diameter / 2,
+                    /* is_new_island */ true   // peninsula treated as island
+                },
+                /* position_on_layer */ support->point,
+                /* radius_curve_index */ 0,
+                /* current_radius */ static_cast<coord_t>(scale_(cfg.support_curve.front().x()))
+            });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Overhang outline sampling (prepare_generator_data step)
+// ---------------------------------------------------------------------------
+
+// Uniformly sample a polyline [b, e) at squared distance dist2.
+Slic3r::Points sample(Points::const_iterator b, Points::const_iterator e, double dist2) {
+    assert(e - b >= 2);
+    if (e - b < 2)
+        return {};
+    Slic3r::Points r;
+    r.push_back(*b);
+    const Point *prev_pt = nullptr;
+    for (Points::const_iterator it = b; it + 1 < e; ++it) {
+        const Point &pt = *(it + 1);
+        double p_dist2 = (r.back() - pt).cast<double>().squaredNorm();
+        while (p_dist2 > dist2) {
+            if (prev_pt == nullptr)
+                prev_pt = &(*it);
+            r.push_back(intersection_line_circle(*prev_pt, pt, r.back(), dist2));
+            p_dist2 = (r.back() - pt).cast<double>().squaredNorm();
+            prev_pt = &r.back();
+        }
+        prev_pt = nullptr;
+    }
+    return r;
+}
+
+bool contain_point(const Point &p, const Points &sorted_points) {
+    auto it = std::lower_bound(sorted_points.begin(), sorted_points.end(), p);
+    if (it == sorted_points.end())
+        return false;
+    ++it;
+    if (it == sorted_points.end())
+        return false;
+    return it->x() == p.x() && it->y() == p.y();
+}
+
+#ifndef NDEBUG
+bool exist_same_points(const ExPolygon &shape, const Points &prev_points) {
+    auto shape_points = to_points(shape);
+    return shape_points.end() !=
+        std::find_if(shape_points.begin(), shape_points.end(), [&prev_points](const Point &p) {
+            return contain_point(p, prev_points);
+        });
+}
+#endif // NDEBUG
+
+// Sample the overhanging outline of a layer part.
+Points sample_overhangs(const LayerPart &part, double dist2) {
+    const ExPolygon &shape = *part.shape;
+    ExPolygons prev_shapes = get_shapes(part.prev_parts);
+    assert(!prev_shapes.empty());
+    ExPolygons overhangs = diff_ex(shape, prev_shapes, ApplySafetyOffset::Yes);
+    if (overhangs.empty())
+        return {};
+
+    Points prev_points = to_points(prev_shapes);
+    std::sort(prev_points.begin(), prev_points.end());
+    assert(!exist_same_points(shape, prev_points));
+
+    auto sample_overhang = [&prev_points, dist2](const Polygon &polygon, Points &samples) {
+        const Points &pts = polygon.points;
+        Points::const_iterator first_bad = pts.end();
+        Points::const_iterator start_it  = pts.end();
+        for (auto it = pts.begin(); it != pts.end(); ++it) {
+            const Point &p = *it;
+            if (contain_point(p, prev_points)) {
+                if (first_bad == pts.end())
+                    first_bad = it;
+                if (start_it != pts.end()) {
+                    append(samples, sample(start_it, it, dist2));
+                    start_it = pts.end();
+                }
+            } else if (start_it == pts.end()) {
+                start_it = it;
+            }
+        }
+        if (start_it == pts.end()) {
+            if (first_bad != pts.begin())
+                append(samples, sample(pts.begin(), first_bad, dist2));
+        } else {
+            if (first_bad == pts.begin()) {
+                append(samples, sample(start_it, pts.end(), dist2));
+            } else if (start_it == pts.begin()) {
+                assert(first_bad == pts.end());
+                Points pts2 = pts;
+                pts2.push_back(pts.front());
+                append(samples, sample(pts2.begin(), pts2.end(), dist2));
+            } else {
+                Points pts2;
+                pts2.reserve((pts.end() - start_it) + (first_bad - pts.begin()));
+                for (auto it = start_it; it < pts.end(); ++it)
+                    pts2.push_back(*it);
+                for (auto it = pts.begin(); it < first_bad; ++it)
+                    pts2.push_back(*it);
+                append(samples, sample(pts2.begin(), pts2.end(), dist2));
+            }
+        }
+    };
+
+    Points samples;
+    for (const ExPolygon &overhang : overhangs) {
+        sample_overhang(overhang.contour, samples);
+        for (const Polygon &hole : overhang.holes)
+            sample_overhang(hole, samples);
+    }
+    return samples;
+}
+
+// ---------------------------------------------------------------------------
+// Support radius calculation
+// ---------------------------------------------------------------------------
+
+coord_t calc_influence_radius(float z_distance, const SupportPointGeneratorConfig &config) {
+    float island_support_distance_sq = sqr(config.support_curve.front().x());
+    if (!is_approx(config.density_relative, 1.f, 1e-4f))
+        island_support_distance_sq /= config.density_relative;
+    float z_distance_sq = sqr(z_distance);
+    if (z_distance_sq >= island_support_distance_sq)
+        return 0;
+    return static_cast<coord_t>(scale_(std::sqrt(island_support_distance_sq - z_distance_sq)));
+}
+
+void prepare_supports_for_layer(LayerSupportPoints &supports, float layer_z,
+    const NearPointss &activ_points, const SupportPointGeneratorConfig &config)
+{
+    auto set_radius = [&config](LayerSupportPoint &support, float radius) {
+        if (!is_approx(config.density_relative, 1.f, 1e-4f))
+            radius = std::sqrt(sqr(radius) / config.density_relative);
+        support.current_radius = static_cast<coord_t>(scale_(radius));
+    };
+
+    std::vector<bool> is_active(supports.size(), false);
+    for (const NearPoints &pts : activ_points) {
+        for (size_t i : pts.get_indices())
+            is_active[i] = true;
+    }
+
+    const std::vector<Vec2f> &curve = config.support_curve;
+    for (LayerSupportPoint &support : supports) {
+        size_t &index = support.radius_curve_index;
+        if (index + 1 >= curve.size())
+            continue;
+        if (!is_active[&support - &supports.front()])
+            continue;
+
+        float diff_z = layer_z - support.pos.z();
+        if (diff_z < 0.) {
+            support.current_radius = calc_influence_radius(-diff_z, config);
+            continue;
+        }
+        while ((index + 1) < curve.size() && diff_z > curve[index + 1].y())
+            ++index;
+        if ((index + 1) >= curve.size()) {
+            set_radius(support, curve.back().x());
+            continue;
+        }
+        Vec2f a = curve[index];
+        Vec2f b = curve[index + 1];
+        assert(a.y() <= diff_z && diff_z <= b.y());
+        float t = (diff_z - a.y()) / (b.y() - a.y());
+        assert(0 <= t && t <= 1);
+        set_radius(support, a.x() + t * (b.x() - a.x()));
+    }
+}
+
+void remove_supports_out_of_part(NearPoints &near_points, const LayerPart &part, float current_z) {
+    near_points.remove_out_of(part.extend_shape, current_z);
+}
+
+// ---------------------------------------------------------------------------
+// Peninsula detection (prepare_generator_data step)
+// ---------------------------------------------------------------------------
+
+void create_peninsulas(LayerPart &part, const PrepareSupportConfig &config) {
+    assert(config.peninsula_min_width > config.peninsula_self_supported_width);
+    const ExPolygons below_shapes   = get_shapes(part.prev_parts);
+    const ExPolygons below_expanded = offset_ex(below_shapes, config.peninsula_min_width, ClipperLib::jtSquare);
+    const ExPolygon &part_shape     = *part.shape;
+    ExPolygons over_peninsula        = diff_ex(part_shape, below_expanded);
+    if (over_peninsula.empty())
+        return;
+
+    ExPolygons below_self_supported = offset_ex(below_shapes, config.peninsula_self_supported_width, ClipperLib::jtSquare);
+    // NOTE: weird edge case where expand returns empty - no assert here.
+
+    ExPolygons peninsulas_shape = diff_ex(part_shape, below_self_supported);
+    Lines below_lines = to_lines(below_self_supported);
+
+    auto get_angle = [](const Line &l) {
+        Point diff = l.b - l.a;
+        if (diff.x() < 0)
+            diff = -diff;
+        return atan2(diff.y(), diff.x());
+    };
+
+    std::vector<double> below_line_angle;
+    below_line_angle.reserve(below_lines.size());
+    for (const Line &l : below_lines)
+        below_line_angle.push_back(get_angle(l));
+
+    std::vector<size_t> idx(below_lines.size());
+    std::iota(idx.begin(), idx.end(), 0);
+    auto is_lower = [&below_line_angle](size_t i1, size_t i2) {
+        return below_line_angle[i1] < below_line_angle[i2];
+    };
+    std::sort(idx.begin(), idx.end(), is_lower);
+
+    auto exist_below = [&get_angle, &idx, &below_lines, &below_line_angle](const Line &l) {
+        if (below_lines.empty())
+            return false;
+        const double angle_epsilon   = 1e-3;
+        const double parallel_epsilon = scale_(1e-2);
+        double angle    = get_angle(l);
+        double low_angle = angle - angle_epsilon;
+        bool is_over = false;
+        if (low_angle <= -M_PI_2) {
+            low_angle += M_PI;
+            is_over = true;
+        }
+        double hi_angle = angle + angle_epsilon;
+        if (hi_angle >= M_PI_2) {
+            hi_angle -= M_PI;
+            is_over = true;
+        }
+        int majority_idx = 0;
+        if (Point d = l.a - l.b; std::abs(d.x()) < std::abs(d.y()))
+            majority_idx = 1;
+        coord_t low  = l.a[majority_idx];
+        coord_t high = l.b[majority_idx];
+        if (low > high)
+            std::swap(low, high);
+
+        auto is_lower_angle = [&below_line_angle](size_t index, double angle_) {
+            return below_line_angle[index] < angle_;
+        };
+        auto it_idx = std::lower_bound(idx.begin(), idx.end(), low_angle, is_lower_angle);
+        if (it_idx == idx.end()) {
+            if (is_over) {
+                it_idx   = idx.begin();
+                is_over  = false;
+            } else {
+                return false;
+            }
+        }
+        while (is_over || below_line_angle[*it_idx] < hi_angle) {
+            const Line &l2 = below_lines[*it_idx];
+            coord_t l2_low  = l2.a[majority_idx];
+            coord_t l2_high = l2.b[majority_idx];
+            if (l2_low > l2_high)
+                std::swap(l2_low, l2_high);
+            if ((l2_high >= low && l2_low <= high) &&
+                (((l2.a == l.a && l2.b == l.b) || (l2.a == l.b && l2.b == l.a)) ||
+                  l.perp_distance_to(l2.a) < parallel_epsilon))
+                return true;
+            ++it_idx;
+            if (it_idx == idx.end()) {
+                if (is_over) {
+                    it_idx  = idx.begin();
+                    is_over = false;
+                } else {
+                    break;
+                }
+            }
+        }
+        return false;
+    };
+
+    for (const ExPolygon &peninsula : peninsulas_shape) {
+        if (intersection_ex(ExPolygons{peninsula}, over_peninsula).empty())
+            continue;
+        Lines lines = to_lines(peninsula);
+        std::vector<bool> is_outline(lines.size());
+        for (size_t i = 0; i < lines.size(); i++)
+            is_outline[i] = !exist_below(lines[i]);
+        part.peninsulas.push_back(Peninsula{peninsula, is_outline});
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Small part detection and removal (prepare_generator_data step)
+// ---------------------------------------------------------------------------
+
+struct LayerPartIndex {
+    size_t layer_index;
+    size_t part_index;
+    bool operator<(const LayerPartIndex &o) const {
+        return layer_index < o.layer_index ||
+               (layer_index == o.layer_index && part_index < o.part_index);
+    }
+    bool operator==(const LayerPartIndex &o) const {
+        return layer_index == o.layer_index && part_index == o.part_index;
+    }
+};
+using SmallPart  = std::vector<LayerPartIndex>;
+using SmallParts = std::vector<SmallPart>;
+
+std::optional<SmallPart> create_small_part(
+    const Layers &layers, const LayerPartIndex &island, float radius_in_mm)
+{
+    const LayerPart &part  = layers[island.layer_index].parts[island.part_index];
+    coord_t radius         = static_cast<coord_t>(scale_(radius_in_mm));
+    assert(part.prev_parts.empty());
+    assert(part.shape_extent.size().x() <= 2 * radius &&
+           part.shape_extent.size().y() <= 2 * radius);
+
+    Point center    = part.shape_extent.center();
+    Point range{radius, radius};
+    BoundingBox range_bb{center - range, center + range};
+
+    std::function<bool(const LayerPartIndex &, size_t, const LayerPartIndex &)> check_parts;
+    check_parts = [&range_bb, &check_parts, &layers, &island, radius_in_mm]
+    (const LayerPartIndex &check, size_t allowed_depth, const LayerPartIndex &prev_check) -> bool {
+        const Layer    &check_layer = layers[check.layer_index];
+        const LayerPart &check_part = check_layer.parts[check.part_index];
+        for (const PartLink &link : check_part.next_parts)
+            if (!range_bb.contains(link->shape_extent.min) ||
+                !range_bb.contains(link->shape_extent.max))
+                return false;
+        if ((check_layer.print_z - layers[island.layer_index].print_z) > radius_in_mm)
+            return false;
+        if (--allowed_depth == 0)
+            return true;
+        size_t next_layer_i = check.layer_index + 1;
+        for (const PartLink &link : check_part.next_parts) {
+            size_t next_part_i = link - layers[next_layer_i].parts.cbegin();
+            if (next_layer_i == prev_check.layer_index &&
+                next_part_i  == prev_check.part_index)
+                continue;
+            if (!check_parts({next_layer_i, next_part_i}, allowed_depth, check))
+                return false;
+        }
+        if (check.layer_index == island.layer_index) {
+            if (!check_part.prev_parts.empty())
+                return false;
+            if (check.part_index < island.part_index)
+                return false;
+        }
+        for (const PartLink &link : check_part.prev_parts) {
+            if (!range_bb.contains(link->shape_extent.min) ||
+                !range_bb.contains(link->shape_extent.max))
+                return false;
+        }
+        for (const PartLink &link : check_part.prev_parts) {
+            size_t prev_layer_i = check.layer_index - 1;
+            size_t prev_part_i  = link - layers[prev_layer_i].parts.cbegin();
+            if (prev_layer_i == prev_check.layer_index &&
+                prev_part_i  == prev_check.part_index)
+                continue;
+            if (!check_parts({prev_layer_i, prev_part_i}, allowed_depth, check))
+                return false;
+        }
+        return true;
+    };
+
+    float layer_height = (island.layer_index == 0) ?
+        layers[1].print_z - layers[0].print_z :
+        layers[island.layer_index].print_z - layers[island.layer_index - 1].print_z;
+    assert(layer_height > 0.f);
+    float  safe_mult   = 1.4f;
+    size_t allowed_depth = static_cast<size_t>(
+        std::ceil((radius_in_mm / layer_height + 1) * safe_mult));
+
+    if (!check_parts(island, allowed_depth, island))
+        return {};
+
+    SmallPart collected;
+    std::vector<LayerPartIndex> queue_next;
+    LayerPartIndex curr = island;
+    do {
+        if (curr.layer_index >= layers.size()) {
+            if (queue_next.empty())
+                break;
+            curr = queue_next.back();
+            queue_next.pop_back();
+        }
+        auto collected_it = std::lower_bound(collected.begin(), collected.end(), curr);
+        if (collected_it != collected.end() && *collected_it == curr)
+            continue;
+        collected.insert(collected_it, curr);
+
+        const LayerPart &curr_part = layers[curr.layer_index].parts[curr.part_index];
+        LayerPartIndex next{layers.size(), 0};
+        for (const PartLink &link : curr_part.next_parts) {
+            size_t next_layer_i = curr.layer_index + 1;
+            size_t part_i       = link - layers[next_layer_i].parts.begin();
+            LayerPartIndex next_{next_layer_i, part_i};
+            auto it = std::lower_bound(collected.begin(), collected.end(), next_);
+            if (it != collected.end() && *it == next_)
+                continue;
+            if (next.layer_index >= layers.size())
+                next = next_;
+            else
+                queue_next.push_back(next_);
+        }
+        for (const PartLink &link : curr_part.prev_parts) {
+            size_t prev_layer_i = curr.layer_index - 1;
+            size_t part_i       = link - layers[prev_layer_i].parts.begin();
+            LayerPartIndex next_{prev_layer_i, part_i};
+            auto it = std::lower_bound(collected.begin(), collected.end(), next_);
+            if (it != collected.end() && *it == next_)
+                continue;
+            if (next.layer_index >= layers.size())
+                next = next_;
+            else
+                queue_next.push_back(next_);
+        }
+        curr = next;
+    } while (true);
+
+    float print_z = layers[island.layer_index].print_z;
+    for (const LayerPartIndex &part_id : collected) {
+        const Layer &layer = layers[part_id.layer_index];
+        double radius_sq = (sqr(radius_in_mm) - sqr(layer.print_z - print_z)) / sqr(SCALING_FACTOR);
+        const LayerPart &layer_part = layer.parts[part_id.part_index];
+        for (const Point &p : layer_part.shape->contour.points) {
+            Vec2d diff2d = (p - center).cast<double>();
+            if (sqr(diff2d.x()) + sqr(diff2d.y()) > radius_sq)
+                return {};
+        }
+    }
+    return collected;
+}
+
+SmallParts get_small_parts(const Layers &layers, float radius_in_mm) {
+    coord_t diameter = static_cast<coord_t>(2 * scale_(radius_in_mm));
+    std::vector<LayerPartIndex> islands;
+    for (size_t layer_i = 0; layer_i < layers.size(); ++layer_i) {
+        const Layer &layer = layers[layer_i];
+        for (size_t part_i = 0; part_i < layer.parts.size(); ++part_i) {
+            const LayerPart &part = layer.parts[part_i];
+            if (!part.prev_parts.empty())
+                continue;
+            if (const Point size = part.shape_extent.size();
+                size.x() > diameter || size.y() > diameter)
+                continue;
+            islands.push_back({layer_i, part_i});
+        }
+    }
+    std::mutex m;
+    SmallParts result;
+    execution::for_each(ex_tbb, size_t(0), islands.size(),
+    [&layers, radius_in_mm, &islands, &result, &m](size_t island_i) {
+        std::optional<SmallPart> sp = create_small_part(layers, islands[island_i], radius_in_mm);
+        if (!sp.has_value())
+            return;
+        std::lock_guard lock(m);
+        result.push_back(*sp);
+    }, 8);
+    return result;
+}
+
+void erase(const SmallParts &small_parts, Layers &layers) {
+    std::vector<LayerPartIndex> to_erase;
+    for (const SmallPart &sp : small_parts)
+        to_erase.insert(to_erase.end(), sp.begin(), sp.end());
+
+    auto cmp = [](const LayerPartIndex &a, const LayerPartIndex &b) {
+        return a.layer_index < b.layer_index ||
+               (a.layer_index == b.layer_index && a.part_index > b.part_index);
+    };
+    std::sort(to_erase.begin(), to_erase.end(), cmp);
+    assert(std::unique(to_erase.begin(), to_erase.end()) == to_erase.end());
+
+    size_t erase_to;
+    for (size_t erase_from = 0; erase_from < to_erase.size(); erase_from = erase_to) {
+        erase_to = erase_from + 1;
+        size_t layer_index = to_erase[erase_from].layer_index;
+        while (erase_to < to_erase.size() &&
+               to_erase[erase_to].layer_index == layer_index)
+            ++erase_to;
+
+        Layer &layer = layers[layer_index];
+        LayerParts layer_parts = layer.parts; // copy
+        std::swap(layer_parts, layer.parts);  // swap copy in
+
+        for (size_t i = erase_from; i < erase_to; ++i)
+            layer.parts.erase(layer.parts.begin() + to_erase[i].part_index);
+
+        if (layer_index > 0) {
+            Layer &prev_layer = layers[layer_index - 1];
+            for (LayerPart &prev_part : prev_layer.parts) {
+                for (PartLink &next_part : prev_part.next_parts) {
+                    size_t part_i = next_part - layer_parts.cbegin();
+                    for (size_t i = erase_from; i < erase_to; ++i)
+                        if (part_i >= to_erase[i].part_index)
+                            --part_i;
+                    assert(part_i < layer.parts.size());
+                    next_part = layer.parts.begin() + part_i;
+                }
+            }
+        }
+        if (layer_index < layers.size() - 1) {
+            Layer &next_layer = layers[layer_index + 1];
+            for (LayerPart &next_part : next_layer.parts) {
+                for (PartLink &prev_part : next_part.prev_parts) {
+                    size_t part_i = prev_part - layer_parts.cbegin();
+                    for (size_t i = erase_from; i < erase_to; ++i)
+                        if (part_i >= to_erase[i].part_index)
+                            --part_i;
+                    assert(part_i < layer.parts.size());
+                    prev_part = layer.parts.begin() + part_i;
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Permanent support point processing
+// ---------------------------------------------------------------------------
+
+size_t get_index_of_closest_part(
+    const Point &coor, const LayerParts &parts, double max_allowed_distance_sq)
+{
+    size_t count_lines = 0;
+    std::vector<size_t> part_lines_ends;
+    part_lines_ends.reserve(parts.size());
+    for (const LayerPart &part : parts) {
+        count_lines += count_points(*part.shape);
+        part_lines_ends.push_back(count_lines);
+    }
+    Linesf lines;
+    lines.reserve(count_lines);
+    for (const LayerPart &part : parts)
+        append(lines, to_linesf(ExPolygons{*part.shape}));
+    AABBTreeIndirect::Tree<2, double> tree =
+        AABBTreeLines::build_aabb_tree_over_indexed_lines(lines);
+
+    size_t line_idx = std::numeric_limits<size_t>::max();
+    Vec2d coor_d    = coor.cast<double>();
+    Vec2d hit_point;
+    [[maybe_unused]] double distance_sq =
+        AABBTreeLines::squared_distance_to_indexed_lines(lines, tree, coor_d, line_idx, hit_point);
+
+    if (distance_sq >= max_allowed_distance_sq)
+        return parts.size();
+
+    for (size_t part_index = 0; part_index < part_lines_ends.size(); ++part_index)
+        if (line_idx < part_lines_ends[part_index]) {
+            assert(union_ex(
+                get_shapes(parts[part_index].prev_parts),
+                get_shapes(parts[part_index].next_parts))[0].contains(coor));
+            return part_index;
+        }
+    assert(false);
+    return parts.size();
+}
+
+MinMax<float> get_layer_range(const Layers &layers, size_t layer_id) {
+    assert(layer_id < layers.size());
+    if (layer_id >= layers.size())
+        return MinMax<float>{0.f, 0.f};
+    float print_z = layers[layer_id].print_z;
+    float min = (layer_id == 0) ? 0.f : (layers[layer_id - 1].print_z + print_z) / 2.f;
+    float max = ((layer_id + 1) < layers.size()) ?
+        (layers[layer_id + 1].print_z + print_z) / 2.f :
+        print_z + (print_z - min);
+    return MinMax<float>{min, max};
+}
+
+size_t get_index_of_layer_part(
+    const Point &coor, const LayerParts &parts, double max_allowed_distance_sq)
+{
+    size_t part_index = parts.size();
+    for (const LayerPart &part : parts) {
+        if (part.shape_extent.contains(coor) && part.shape->contains(coor)) {
+            assert(part_index >= parts.size());
+            part_index = &part - &parts.front();
+        }
+    }
+    if (part_index >= parts.size())
+        part_index = get_index_of_closest_part(coor, parts, max_allowed_distance_sq);
+    return part_index;
+}
+
+LayerParts::const_iterator get_closest_part(const PartLinks &links, Vec2d &coor) {
+    if (links.size() == 1)
+        return links.front();
+    Point coor_p = coor.cast<coord_t>();
+    for (const PartLink &link : links) {
+        LayerParts::const_iterator part_it = link;
+        if (part_it->shape_extent.contains(coor_p) &&
+            part_it->shape->contains(coor_p))
+            return part_it;
+    }
+    size_t count_lines = 0;
+    std::vector<size_t> part_lines_ends;
+    part_lines_ends.reserve(links.size());
+    for (const PartLink &link : links) {
+        count_lines += count_points(*link->shape);
+        part_lines_ends.push_back(count_lines);
+    }
+    Linesf lines;
+    lines.reserve(count_lines);
+    for (const PartLink &link : links)
+        append(lines, to_linesf(ExPolygons{*link->shape}));
+    AABBTreeIndirect::Tree<2, double> tree =
+        AABBTreeLines::build_aabb_tree_over_indexed_lines(lines);
+    size_t line_idx = std::numeric_limits<size_t>::max();
+    Vec2d hit_point;
+    [[maybe_unused]] double distance_sq =
+        AABBTreeLines::squared_distance_to_indexed_lines(lines, tree, coor, line_idx, hit_point);
+    for (size_t part_index = 0; part_index < part_lines_ends.size(); ++part_index) {
+        if (line_idx >= part_lines_ends[part_index])
+            continue;
+        assert(union_ex(
+            get_shapes(links[part_index]->prev_parts),
+            get_shapes(links[part_index]->next_parts))[0].contains(coor.cast<coord_t>()));
+        coor = hit_point;
+        return links[part_index];
+    }
+    assert(false);
+    return links.front();
+}
+
+struct PartId { size_t layer_id; size_t part_id; };
+
+PartId get_index_of_first_influence(
+    const PartId &partid,
+    const SupportPoint &p,
+    const Point &coor,
+    const Layers &layers,
+    const SupportPointGeneratorConfig &config)
+{
+    float max_influence_distance = std::max(
+        2 * p.head_front_radius, config.support_curve.front().x());
+    const LayerParts &parts = layers[partid.layer_id].parts;
+    LayerParts::const_iterator current_part_it = parts.cbegin() + partid.part_id;
+    LayerParts::const_iterator prev_part_it    = current_part_it;
+    Vec2d coor_d = coor.cast<double>();
+
+    auto get_part_id = [&layers](size_t layer_index, const LayerParts::const_iterator &part_it) {
+        const LayerParts &parts = layers[layer_index].parts;
+        size_t part_index = part_it - parts.cbegin();
+        assert(part_index < parts.size());
+        return PartId{layer_index, part_index};
+    };
+
+    for (size_t i = 0; i <= partid.layer_id; ++i) {
+        size_t current_layer_id = partid.layer_id - i;
+        const Layer &layer      = layers[current_layer_id];
+        float z_distance        = p.pos.z() - layer.print_z;
+        if (z_distance >= max_influence_distance)
+            return get_part_id(current_layer_id, current_part_it);
+        const PartLinks &prev_parts = current_part_it->prev_parts;
+        if (prev_parts.empty()) {
+            return (z_distance < p.head_front_radius) ?
+                get_part_id(current_layer_id, current_part_it) :
+                get_part_id(current_layer_id + 1, prev_part_it);
+        }
+        prev_part_it    = current_part_it;
+        current_part_it = get_closest_part(prev_parts, coor_d);
+    }
+    assert(false);
+    return PartId{std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()};
+}
+
+struct PermanentSupport {
+    SupportPoints::const_iterator point_it;
+    PartId influence;
+    PartId part;
+    Point  layer_position;
+};
+using PermanentSupports = std::vector<PermanentSupport>;
+
+PermanentSupports prepare_permanent_supports(
+    const SupportPoints &permanent_supports,
+    const Layers &layers,
+    const SupportPointGeneratorConfig &config)
+{
+    if (permanent_supports.empty())
+        return {};
+    assert(std::is_sorted(permanent_supports.begin(), permanent_supports.end(),
+        [](const SupportPoint &a, const SupportPoint &b) { return a.pos.z() < b.pos.z(); }));
+
+    size_t permanent_index = 0;
+    PermanentSupports result;
+    for (size_t layer_id = 0; layer_id < layers.size(); ++layer_id) {
+        float layer_max_z = get_layer_range(layers, layer_id).max;
+        if (permanent_index >= permanent_supports.size())
+            break;
+        if (permanent_supports[permanent_index].pos.z() >= layer_max_z)
+            continue;
+        const Layer &layer = layers[layer_id];
+        for (; permanent_index < permanent_supports.size(); ++permanent_index) {
+            SupportPoints::const_iterator point_it = permanent_supports.begin() + permanent_index;
+            if (point_it->pos.z() > layer_max_z)
+                break;
+            Point coor(static_cast<coord_t>(scale_(point_it->pos.x())),
+                       static_cast<coord_t>(scale_(point_it->pos.y())));
+            double allowed_distance_sq = std::max(config.max_allowed_distance_sq,
+                sqr(scale_(point_it->head_front_radius)));
+            size_t part_index = get_index_of_layer_part(coor, layer.parts, allowed_distance_sq);
+            if (part_index >= layer.parts.size())
+                continue;
+            PartId part_id{layer_id, part_index};
+            PartId influence = get_index_of_first_influence(part_id, *point_it, coor, layers, config);
+            result.push_back(PermanentSupport{point_it, influence, part_id, coor});
+        }
+    }
+    std::sort(result.begin(), result.end(), [](const PermanentSupport &s1, const PermanentSupport &s2) {
+        return s1.influence.layer_id != s2.influence.layer_id ?
+            s1.influence.layer_id < s2.influence.layer_id :
+            s1.influence.part_id  < s2.influence.part_id;
+    });
+    return result;
+}
+
+bool exist_permanent_support(
+    const PermanentSupports &supports, size_t current_support_index,
+    size_t layer_index, size_t part_index)
+{
+    if (current_support_index >= supports.size())
+        return false;
+    const PartId &influence = supports[current_support_index].influence;
+    assert(influence.layer_id >= layer_index);
+    return influence.layer_id == layer_index && influence.part_id == part_index;
+}
+
+void copy_permanent_supports(
+    NearPoints &near_points, const PermanentSupports &supports,
+    size_t &support_index, float print_z,
+    size_t layer_index, size_t part_index,
+    const SupportPointGeneratorConfig &config)
+{
+    while (exist_permanent_support(supports, support_index, layer_index, part_index)) {
+        const PermanentSupport &support = supports[support_index];
+        near_points.add(LayerSupportPoint{
+            /* SupportPoint */       *support.point_it,
+            /* position_on_layer */  support.layer_position,
+            /* radius_curve_index */ 0,
+            /* current_radius */     calc_influence_radius(std::fabs(support.point_it->pos.z() - print_z), config),
+            /* active_in_part */     true,
+            /* is_permanent */       true
+        });
+        ++support_index;
+    }
+}
+
+Points get_permanents(
+    const PermanentSupports &supports, size_t support_index,
+    size_t layer_index, size_t part_index)
+{
+    Points result;
+    while (exist_permanent_support(supports, support_index, layer_index, part_index)) {
+        result.push_back(supports[support_index].layer_position);
+        ++support_index;
+    }
+    return result;
+}
+
+} // anonymous namespace
+
+// ---------------------------------------------------------------------------
+// Public free functions  (namespace Slic3r::sla)
+// ---------------------------------------------------------------------------
 
 namespace Slic3r {
 namespace sla {
 
-/*float SupportPointGenerator::approximate_geodesic_distance(const Vec3d& p1, const Vec3d& p2, Vec3d& n1, Vec3d& n2)
-{
-    n1.normalize();
-    n2.normalize();
+std::vector<Vec2f> create_default_support_curve() {
+    return std::vector<Vec2f>{
+        Vec2f{3.2f,  0.f},
+        Vec2f{4.f,   3.9f},
+        Vec2f{5.f,  15.f},
+        Vec2f{6.f,  40.f},
+    };
+}
 
-    Vec3d v = (p2-p1);
-    v.normalize();
+SampleConfig create_default_island_configuration(float head_diameter_in_mm) {
+    return SampleConfigFactory::create(head_diameter_in_mm);
+}
 
-    float c1 = n1.dot(v);
-    float c2 = n2.dot(v);
-    float result = pow(p1(0)-p2(0), 2) + pow(p1(1)-p2(1), 2) + pow(p1(2)-p2(2), 2);
-    // Check for division by zero:
-    if(fabs(c1 - c2) > 0.0001)
-        result *= (asin(c1) - asin(c2)) / (c1 - c2);
+SupportPointGeneratorData prepare_generator_data(
+    std::vector<ExPolygons> &&slices,
+    const std::vector<float> &heights,
+    const PrepareSupportConfig &config,
+    ThrowOnCancel throw_on_cancel,
+    StatusFunction statusfn
+) {
+    assert(!slices.empty());
+    assert(slices.size() == heights.size());
+    if (slices.empty() || slices.size() != heights.size())
+        return SupportPointGeneratorData{};
+
+    SupportPointGeneratorData result;
+    result.slices = std::move(slices);
+    result.layers = Layers(result.slices.size());
+
+    // Build LayerParts from slices (parallel).
+    execution::for_each(ex_tbb, size_t(0), result.slices.size(),
+    [&result, &heights, throw_on_cancel](size_t layer_id) {
+        if ((layer_id % 128) == 0)
+            throw_on_cancel();
+        Layer &layer = result.layers[layer_id];
+        layer.print_z = heights[layer_id];
+        const ExPolygons &islands = result.slices[layer_id];
+        layer.parts.reserve(islands.size());
+        for (const ExPolygon &island : islands)
+            layer.parts.push_back(LayerPart{
+                &island, {},
+                get_extents(island.contour)
+            });
+    }, 4);
+
+    // Link parts between adjacent layers (parallel).
+    execution::for_each(ex_tbb, size_t(1), result.slices.size(),
+    [&result, throw_on_cancel](size_t layer_id) {
+        if ((layer_id % 16) == 0)
+            throw_on_cancel();
+        LayerParts &parts_above = result.layers[layer_id].parts;
+        LayerParts &parts_below = result.layers[layer_id - 1].parts;
+        for (auto it_above = parts_above.begin(); it_above < parts_above.end(); ++it_above) {
+            for (auto it_below = parts_below.begin(); it_below < parts_below.end(); ++it_below) {
+                if (!it_above->shape_extent.overlap(it_below->shape_extent))
+                    continue;
+                Polygons polys = intersection(*it_above->shape, *it_below->shape);
+                if (polys.empty())
+                    continue;
+                it_above->prev_parts.push_back(it_below);
+                it_below->next_parts.push_back(it_above);
+            }
+        }
+    }, 8);
+
+    // Remove unsupportable tiny model parts.
+    SmallParts small_parts = get_small_parts(result.layers, config.minimal_bounding_sphere_radius);
+    if (!small_parts.empty())
+        erase(small_parts, result.layers);
+
+    // Sample overhang outlines (parallel).
+    double sample_dist_um2 = sqr(scale_(config.discretize_overhang_step));
+    execution::for_each(ex_tbb, size_t(1), result.layers.size(),
+    [&result, sample_dist_um2, throw_on_cancel](size_t layer_id) {
+        if ((layer_id % 32) == 0)
+            throw_on_cancel();
+        LayerParts &parts = result.layers[layer_id].parts;
+        for (auto it_part = parts.begin(); it_part < parts.end(); ++it_part) {
+            if (it_part->prev_parts.empty())
+                continue;
+            it_part->samples = sample_overhangs(*it_part, sample_dist_um2);
+        }
+    }, 8);
+
+    // Detect peninsula overhangs (parallel).
+    execution::for_each(ex_tbb, size_t(1), result.layers.size(),
+    [&layers = result.layers, &config, throw_on_cancel](size_t layer_id) {
+        if ((layer_id % 32) == 0)
+            throw_on_cancel();
+        LayerParts &parts = layers[layer_id].parts;
+        for (auto it_part = parts.begin(); it_part < parts.end(); ++it_part) {
+            if (it_part->prev_parts.empty())
+                continue;
+            create_peninsulas(*it_part, config);
+        }
+    }, 8);
+
+    // Compute extended shapes for support point invalidation (parallel).
+    execution::for_each(ex_tbb, size_t(1), result.layers.size(),
+    [&layers = result.layers, delta = config.removing_delta, throw_on_cancel](size_t layer_id) {
+        if ((layer_id % 16) == 0)
+            throw_on_cancel();
+        LayerParts &parts = layers[layer_id].parts;
+        for (auto it_part = parts.begin(); it_part < parts.end(); ++it_part)
+            it_part->extend_shape = offset_ex(*it_part->shape, delta, ClipperLib::jtSquare);
+    }, 8);
+
     return result;
 }
 
+LayerSupportPoints generate_support_points(
+    const SupportPointGeneratorData    &data,
+    const SupportPointGeneratorConfig  &config,
+    ThrowOnCancel throw_on_cancel,
+    StatusFunction statusfn
+) {
+    const Layers &layers = data.layers;
+    double increment  = 100.0 / static_cast<double>(layers.size());
+    double status     = 0.;
+    int    status_int = 0;
 
-float SupportPointGenerator::get_required_density(float angle) const
-{
-    // calculation would be density_0 * cos(angle). To provide one more degree of freedom, we will scale the angle
-    // to get the user-set density for 45 deg. So it ends up as density_0 * cos(K * angle).
-    float K = 4.f * float(acos(m_config.density_at_45/m_config.density_at_horizontal) / M_PI);
-    return std::max(0.f, float(m_config.density_at_horizontal * cos(K*angle)));
-}
+    double max_support_radius = config.support_curve.back().x();
+    coord_t maximal_radius    = static_cast<coord_t>(scale_(max_support_radius));
 
-float SupportPointGenerator::distance_limit(float angle) const
-{
-    return 1./(2.4*get_required_density(angle));
-}*/
+    LayerSupportPoints result;
 
-SupportPointGenerator::SupportPointGenerator(
-        const sla::IndexedMesh &emesh,
-        const std::vector<ExPolygons> &slices,
-        const std::vector<float> &     heights,
-        const Config &                 config,
-        std::function<void(void)> throw_on_cancel,
-        std::function<void(int)>  statusfn)
-    : SupportPointGenerator(emesh, config, throw_on_cancel, statusfn)
-{
-    std::random_device rd;
-    m_rng.seed(rd());
-    execute(slices, heights);
-}
+    size_t permanent_index = 0;
+    PermanentSupports permanent_supports =
+        prepare_permanent_supports(data.permanent_supports, layers, config);
 
-SupportPointGenerator::SupportPointGenerator(
-        const IndexedMesh &emesh,
-        const SupportPointGenerator::Config &config,
-        std::function<void ()> throw_on_cancel, 
-        std::function<void (int)> statusfn)
-    : m_config(config)
-    , m_emesh(emesh)
-    , m_throw_on_cancel(throw_on_cancel)
-    , m_statusfn(statusfn)
-{
-}
+    NearPointss prev_grids;
+    for (size_t layer_id = 0; layer_id < layers.size(); ++layer_id) {
+        const Layer &layer = layers[layer_id];
+        prepare_supports_for_layer(result, layer.print_z, prev_grids, config);
 
-void SupportPointGenerator::execute(const std::vector<ExPolygons> &slices,
-                                    const std::vector<float> &     heights)
-{
-    process(slices, heights);
-    project_onto_mesh(m_output);
-}
+        NearPointss grids;
+        grids.reserve(layer.parts.size());
 
-void SupportPointGenerator::project_onto_mesh(std::vector<sla::SupportPoint>& points) const
-{
-    // The function  makes sure that all the points are really exactly placed on the mesh.
-
-    // Use a reasonable granularity to account for the worker thread synchronization cost.
-    static constexpr size_t gransize = 64;
-
-    ccr_par::for_each(size_t(0), points.size(), [this, &points](size_t idx)
-    {
-        if ((idx % 16) == 0)
-            // Don't call the following function too often as it flushes CPU write caches due to synchronization primitves.
-            m_throw_on_cancel();
-
-        Vec3f& p = points[idx].pos;
-        // Project the point upward and downward and choose the closer intersection with the mesh.
-        sla::IndexedMesh::hit_result hit_up   = m_emesh.query_ray_hit(p.cast<double>(), Vec3d(0., 0., 1.));
-        sla::IndexedMesh::hit_result hit_down = m_emesh.query_ray_hit(p.cast<double>(), Vec3d(0., 0., -1.));
-
-        bool up   = hit_up.is_hit();
-        bool down = hit_down.is_hit();
-
-        if (!up && !down)
-            return;
-
-        sla::IndexedMesh::hit_result& hit = (!down || (hit_up.distance() < hit_down.distance())) ? hit_up : hit_down;
-        p = p + (hit.distance() * hit.direction()).cast<float>();
-    }, gransize);
-}
-
-static std::vector<SupportPointGenerator::MyLayer> make_layers(
-    const std::vector<ExPolygons>& slices, const std::vector<float>& heights,
-    std::function<void(void)> throw_on_cancel)
-{
-    assert(slices.size() == heights.size());
-
-    // Allocate empty layers.
-    std::vector<SupportPointGenerator::MyLayer> layers;
-    layers.reserve(slices.size());
-    for (size_t i = 0; i < slices.size(); ++ i)
-        layers.emplace_back(i, heights[i]);
-
-    // FIXME: calculate actual pixel area from printer config:
-    //const float pixel_area = pow(wxGetApp().preset_bundle->project_config.option<ConfigOptionFloat>("display_width") / wxGetApp().preset_bundle->project_config.option<ConfigOptionInt>("display_pixels_x"), 2.f); //
-    const float pixel_area = pow(0.047f, 2.f);
-
-    ccr_par::for_each(size_t(0), layers.size(),
-        [&layers, &slices, &heights, pixel_area, throw_on_cancel](size_t layer_id)
-    {
-        if ((layer_id % 8) == 0)
-            // Don't call the following function too often as it flushes
-            // CPU write caches due to synchronization primitves.
-            throw_on_cancel();
-
-        SupportPointGenerator::MyLayer &layer   = layers[layer_id];
-        const ExPolygons &              islands = slices[layer_id];
-        // FIXME WTF?
-        const float height = (layer_id > 2 ?
-                                  heights[layer_id - 3] :
-                                  heights[0] - (heights[1] - heights[0]));
-        layer.islands.reserve(islands.size());
-        for (const ExPolygon &island : islands) {
-            float area = float(island.area() * SCALING_FACTOR * SCALING_FACTOR);
-            if (area >= pixel_area)
-                // FIXME this is not a correct centroid of a polygon with holes.
-                layer.islands.emplace_back(layer, island, get_extents(island.contour),
-                                           unscaled<float>(island.contour.centroid()), area, height);
-        }
-    }, 32 /*gransize*/);
-
-    // Calculate overlap of successive layers. Link overlapping islands.
-    ccr_par::for_each(size_t(1), layers.size(),
-                      [&layers, &heights, throw_on_cancel] (size_t layer_id)
-    {
-      if ((layer_id % 2) == 0)
-          // Don't call the following function too often as it flushes CPU write caches due to synchronization primitves.
-          throw_on_cancel();
-      SupportPointGenerator::MyLayer &layer_above = layers[layer_id];
-      SupportPointGenerator::MyLayer &layer_below = layers[layer_id - 1];
-      //FIXME WTF?
-      const float layer_height = (layer_id!=0 ? heights[layer_id]-heights[layer_id-1] : heights[0]);
-      const float safe_angle = 35.f * (float(M_PI)/180.f); // smaller number - less supports
-      const float between_layers_offset = scaled<float>(layer_height * std::tan(safe_angle));
-      const float slope_angle = 75.f * (float(M_PI)/180.f); // smaller number - less supports
-      const float slope_offset = scaled<float>(layer_height * std::tan(slope_angle));
-      //FIXME This has a quadratic time complexity, it will be excessively slow for many tiny islands.
-      for (SupportPointGenerator::Structure &top : layer_above.islands) {
-          for (SupportPointGenerator::Structure &bottom : layer_below.islands) {
-              float overlap_area = top.overlap_area(bottom);
-              if (overlap_area > 0) {
-                  top.islands_below.emplace_back(&bottom, overlap_area);
-                  bottom.islands_above.emplace_back(&top, overlap_area);
-              }
-          }
-          if (! top.islands_below.empty()) {
-              Polygons bottom_polygons = top.polygons_below();
-              top.overhangs = diff_ex(*top.polygon, bottom_polygons);
-              if (! top.overhangs.empty()) {
-
-                  // Produce 2 bands around the island, a safe band for dangling overhangs
-                  // and an unsafe band for sloped overhangs.
-                  // These masks include the original island
-                  auto dangl_mask = expand(bottom_polygons, between_layers_offset, ClipperLib::jtSquare);
-                  auto overh_mask = expand(bottom_polygons, slope_offset, ClipperLib::jtSquare);
-
-                  // Absolutely hopeless overhangs are those outside the unsafe band
-                  top.overhangs = diff_ex(*top.polygon, overh_mask);
-
-                  // Now cut out the supported core from the safe band
-                  // and cut the safe band from the unsafe band to get distinct
-                  // zones.
-                  overh_mask = diff(overh_mask, dangl_mask);
-                  dangl_mask = diff(dangl_mask, bottom_polygons);
-
-                  top.dangling_areas = intersection_ex(*top.polygon, dangl_mask);
-                  top.overhangs_slopes = intersection_ex(*top.polygon, overh_mask);
-
-                  top.overhangs_area = 0.f;
-                  std::vector<std::pair<ExPolygon*, float>> expolys_with_areas;
-                  for (ExPolygon &ex : top.overhangs) {
-                      float area = float(ex.area());
-                      expolys_with_areas.emplace_back(&ex, area);
-                      top.overhangs_area += area;
-                  }
-                  std::sort(expolys_with_areas.begin(), expolys_with_areas.end(),
-                            [](const std::pair<ExPolygon*, float> &p1, const std::pair<ExPolygon*, float> &p2)
-                            { return p1.second > p2.second; });
-                  ExPolygons overhangs_sorted;
-                  for (auto &p : expolys_with_areas)
-                      overhangs_sorted.emplace_back(std::move(*p.first));
-                  top.overhangs = std::move(overhangs_sorted);
-                  top.overhangs_area *= float(SCALING_FACTOR * SCALING_FACTOR);
-              }
-          }
-      }
-    }, 8 /* gransize */);
-
-    return layers;
-}
-
-void SupportPointGenerator::process(const std::vector<ExPolygons>& slices, const std::vector<float>& heights)
-{
-#ifdef SLA_SUPPORTPOINTGEN_DEBUG
-    std::vector<std::pair<ExPolygon, coord_t>> islands;
-#endif /* SLA_SUPPORTPOINTGEN_DEBUG */
-
-    std::vector<SupportPointGenerator::MyLayer> layers = make_layers(slices, heights, m_throw_on_cancel);
-
-    PointGrid3D point_grid;
-    point_grid.cell_size = Vec3f(10.f, 10.f, 10.f);
-
-    double increment = 100.0 / layers.size();
-    double status    = 0;
-
-    for (unsigned int layer_id = 0; layer_id < layers.size(); ++ layer_id) {
-        SupportPointGenerator::MyLayer *layer_top     = &layers[layer_id];
-        SupportPointGenerator::MyLayer *layer_bottom  = (layer_id > 0) ? &layers[layer_id - 1] : nullptr;
-        std::vector<float>        support_force_bottom;
-        if (layer_bottom != nullptr) {
-            support_force_bottom.assign(layer_bottom->islands.size(), 0.f);
-            for (size_t i = 0; i < layer_bottom->islands.size(); ++ i)
-                support_force_bottom[i] = layer_bottom->islands[i].supports_force_total();
-        }
-        for (Structure &top : layer_top->islands)
-            for (Structure::Link &bottom_link : top.islands_below) {
-                Structure &bottom = *bottom_link.island;
-                //float centroids_dist = (bottom.centroid - top.centroid).norm();
-                // Penalization resulting from centroid offset:
-//                  bottom.supports_force *= std::min(1.f, 1.f - std::min(1.f, (1600.f * layer_height) * centroids_dist * centroids_dist / bottom.area));
-                float &support_force = support_force_bottom[&bottom - layer_bottom->islands.data()];
-//FIXME this condition does not reflect a bifurcation into a one large island and one tiny island well, it incorrectly resets the support force to zero.
-// One should rather work with the overlap area vs overhang area.
-//                support_force *= std::min(1.f, 1.f - std::min(1.f, 0.1f * centroids_dist * centroids_dist / bottom.area));
-                // Penalization resulting from increasing polygon area:
-                support_force *= std::min(1.f, 20.f * bottom.area / top.area);
-            }
-        // Let's assign proper support force to each of them:
-        if (layer_id > 0) {
-            for (Structure &below : layer_bottom->islands) {
-                float below_support_force = support_force_bottom[&below - layer_bottom->islands.data()];
-                float above_overlap_area = 0.f;
-                for (Structure::Link &above_link : below.islands_above)
-                    above_overlap_area += above_link.overlap_area;
-                for (Structure::Link &above_link : below.islands_above)
-                    above_link.island->supports_force_inherited += below_support_force * above_link.overlap_area / above_overlap_area;
-            }
-        }
-        // Now iterate over all polygons and append new points if needed.
-        for (Structure &s : layer_top->islands) {
-            // Penalization resulting from large diff from the last layer:
-            s.supports_force_inherited /= std::max(1.f, 0.17f * (s.overhangs_area) / s.area);
-
-            add_support_points(s, point_grid);
-        }
-
-        m_throw_on_cancel();
-
-        status += increment;
-        m_statusfn(int(std::round(status)));
-
-#ifdef SLA_SUPPORTPOINTGEN_DEBUG
-        /*std::string layer_num_str = std::string((i<10 ? "0" : "")) + std::string((i<100 ? "0" : "")) + std::to_string(i);
-        output_expolygons(expolys_top, "top" + layer_num_str + ".svg");
-        output_expolygons(diff, "diff" + layer_num_str + ".svg");
-        if (!islands.empty())
-            output_expolygons(islands, "islands" + layer_num_str + ".svg");*/
-#endif /* SLA_SUPPORTPOINTGEN_DEBUG */
-    }
-}
-
-void SupportPointGenerator::add_support_points(SupportPointGenerator::Structure &s, SupportPointGenerator::PointGrid3D &grid3d)
-{
-    // Select each type of surface (overrhang, dangling, slope), derive the support
-    // force deficit for it and call uniformly conver with the right params
-
-    float tp      = m_config.tear_pressure();
-    float current = s.supports_force_total();
-
-    if (s.islands_below.empty()) {
-        // Step 3.5: Completely new island — use Voronoi Medial Axis analysis for
-        // uniform support point distribution. Replaces random Poisson disk sampling
-        // (uniformly_cover) which produced spatially concentrated clusters.
-        // uniform_support_island() returns scaled integer coords (coord_t); convert
-        // with unscale<float>() before storing in m_output (mm float space).
-        const SampleConfig island_cfg = SampleConfigFactory::create(m_config.head_diameter);
-        SupportIslandPoints samples = uniform_support_island(*s.polygon, {}, island_cfg);
-        for (const SupportIslandPointPtr &sample : samples) {
-            Vec2f pt{unscale<float>(sample->point.x()), unscale<float>(sample->point.y())};
-            m_output.emplace_back(pt.x(), pt.y(), s.zlevel, m_config.head_diameter / 2.f, true);
-            s.supports_force_this_layer += m_config.support_force();
-            grid3d.insert(pt, &s);
-        }
-        return;
-    }
-
-    if (! s.overhangs.empty()) {
-        uniformly_cover(s.overhangs, s, s.overhangs_area * tp, grid3d);
-    }
-
-    auto areafn = [](double sum, auto &p) { return sum + p.area() * SCALING_FACTOR * SCALING_FACTOR; };
-
-    current = s.supports_force_total();
-    if (! s.dangling_areas.empty()) {
-        // Let's see if there's anything that overlaps enough to need supports:
-        // What we now have in polygons needs support, regardless of what the forces are, so we can add them.
-
-        double a = std::accumulate(s.dangling_areas.begin(), s.dangling_areas.end(), 0., areafn);
-        uniformly_cover(s.dangling_areas, s, a * tp - a * current * s.area, grid3d, icfWithBoundary);
-    }
-
-    current = s.supports_force_total();
-    if (! s.overhangs_slopes.empty()) {
-        double a = std::accumulate(s.overhangs_slopes.begin(), s.overhangs_slopes.end(), 0., areafn);
-        uniformly_cover(s.overhangs_slopes, s, a * tp - a * current / s.area, grid3d, icfWithBoundary);
-    }
-}
-
-std::vector<Vec2f> sample_expolygon(const ExPolygon &expoly, float samples_per_mm2, std::mt19937 &rng)
-{
-    // Triangulate the polygon with holes into triplets of 3D points.
-    std::vector<Vec2f> triangles = Slic3r::triangulate_expolygon_2f(expoly);
-
-    std::vector<Vec2f> out;
-    if (! triangles.empty())
-    {
-        // Calculate area of each triangle.
-        auto   areas = reserve_vector<float>(triangles.size() / 3);
-        double aback = 0.;
-        for (size_t i = 0; i < triangles.size(); ) {
-            const Vec2f &a  = triangles[i ++];
-            const Vec2f  v1 = triangles[i ++] - a;
-            const Vec2f  v2 = triangles[i ++] - a;
-
-            // Prefix sum of the areas.
-            areas.emplace_back(aback + 0.5f * std::abs(cross2(v1, v2)));
-            aback = areas.back();
-        }
-
-        size_t num_samples = size_t(ceil(areas.back() * samples_per_mm2));
-        std::uniform_real_distribution<> random_triangle(0., double(areas.back()));
-        std::uniform_real_distribution<> random_float(0., 1.);
-        for (size_t i = 0; i < num_samples; ++ i) {
-            double r = random_triangle(rng);
-            size_t idx_triangle = std::min<size_t>(std::upper_bound(areas.begin(), areas.end(), (float)r) - areas.begin(), areas.size() - 1) * 3;
-            // Select a random point on the triangle.
-            const Vec2f &a = triangles[idx_triangle ++];
-            const Vec2f &b = triangles[idx_triangle++];
-            const Vec2f &c = triangles[idx_triangle];
-#if 1
-            // https://www.cs.princeton.edu/~funk/tog02.pdf
-            // page 814, formula 1.
-            double u = float(std::sqrt(random_float(rng)));
-            double v = float(random_float(rng));
-            out.emplace_back(a * (1.f - u) + b * (u * (1.f - v)) + c * (v * u));
-#else
-            // Greg Turk, Graphics Gems
-            // https://devsplorer.wordpress.com/2019/08/07/find-a-random-point-on-a-plane-using-barycentric-coordinates-in-unity/
-            double u = float(random_float(rng));
-            double v = float(random_float(rng));
-            if (u + v >= 1.f) {
-              u = 1.f - u;
-              v = 1.f - v;
-            }
-            out.emplace_back(a + u * (b - a) + v * (c - a));
-#endif
-        }
-    }
-    return out;
-}
-
-
-std::vector<Vec2f> sample_expolygon(const ExPolygons &expolys, float samples_per_mm2, std::mt19937 &rng)
-{
-    std::vector<Vec2f> out;
-    for (const ExPolygon &expoly : expolys)
-        append(out, sample_expolygon(expoly, samples_per_mm2, rng));
-
-    return out;
-}
-
-void sample_expolygon_boundary(const ExPolygon &   expoly,
-                               float               samples_per_mm,
-                               std::vector<Vec2f> &out,
-                               std::mt19937 &      /*rng*/)
-{
-    double  point_stepping_scaled = scale_(1.f) / samples_per_mm;
-    for (size_t i_contour = 0; i_contour <= expoly.holes.size(); ++ i_contour) {
-        const Polygon &contour = (i_contour == 0) ? expoly.contour :
-                                                    expoly.holes[i_contour - 1];
-
-        const Points pts = contour.equally_spaced_points(point_stepping_scaled);
-        for (size_t i = 0; i < pts.size(); ++ i)
-            out.emplace_back(unscale<float>(pts[i].x()),
-                             unscale<float>(pts[i].y()));
-    }
-}
-
-std::vector<Vec2f> sample_expolygon_with_boundary(const ExPolygon &expoly, float samples_per_mm2, float samples_per_mm_boundary, std::mt19937 &rng)
-{
-    std::vector<Vec2f> out = sample_expolygon(expoly, samples_per_mm2, rng);
-    sample_expolygon_boundary(expoly, samples_per_mm_boundary, out, rng);
-    return out;
-}
-
-std::vector<Vec2f> sample_expolygon_with_boundary(const ExPolygons &expolys, float samples_per_mm2, float samples_per_mm_boundary, std::mt19937 &rng)
-{
-    std::vector<Vec2f> out;
-    for (const ExPolygon &expoly : expolys)
-        append(out, sample_expolygon_with_boundary(expoly, samples_per_mm2, samples_per_mm_boundary, rng));
-    return out;
-}
-
-template<typename REFUSE_FUNCTION>
-static inline std::vector<Vec2f> poisson_disk_from_samples(const std::vector<Vec2f> &raw_samples, float radius, REFUSE_FUNCTION refuse_function)
-{
-    Vec2f corner_min(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-    for (const Vec2f &pt : raw_samples) {
-        corner_min.x() = std::min(corner_min.x(), pt.x());
-        corner_min.y() = std::min(corner_min.y(), pt.y());
-    }
-
-    // Assign the raw samples to grid cells, sort the grid cells lexicographically.
-    struct RawSample
-    {
-        Vec2f coord;
-        Vec2i32 cell_id;
-        RawSample(const Vec2f &crd = {}, const Vec2i32 &id = {}): coord{crd}, cell_id{id} {}
-    };
-
-    auto raw_samples_sorted = reserve_vector<RawSample>(raw_samples.size());
-    for (const Vec2f &pt : raw_samples)
-        raw_samples_sorted.emplace_back(pt, ((pt - corner_min) / radius).cast<int>());
-
-    std::sort(raw_samples_sorted.begin(), raw_samples_sorted.end(), [](const RawSample &lhs, const RawSample &rhs)
-        { return lhs.cell_id.x() < rhs.cell_id.x() || (lhs.cell_id.x() == rhs.cell_id.x() && lhs.cell_id.y() < rhs.cell_id.y()); });
-
-    struct PoissonDiskGridEntry {
-        // Resulting output sample points for this cell:
-        enum {
-            max_positions = 4
-        };
-        Vec2f   poisson_samples[max_positions];
-        int     num_poisson_samples = 0;
-
-        // Index into raw_samples:
-        int     first_sample_idx;
-        int     sample_cnt;
-    };
-
-    struct CellIDHash {
-        std::size_t operator()(const Vec2i32 &cell_id) const {
-            return std::hash<int>()(cell_id.x()) ^ std::hash<int>()(cell_id.y() * 593);
-        }
-    };
-
-    // Map from cell IDs to hash_data.  Each hash_data points to the range in raw_samples corresponding to that cell.
-    // (We could just store the samples in hash_data.  This implementation is an artifact of the reference paper, which
-    // is optimizing for GPU acceleration that we haven't implemented currently.)
-    typedef std::unordered_map<Vec2i32, PoissonDiskGridEntry, CellIDHash> Cells;
-    Cells cells;
-    {
-        typename Cells::iterator last_cell_id_it;
-        Vec2i32           last_cell_id(-1, -1);
-        for (size_t i = 0; i < raw_samples_sorted.size(); ++ i) {
-            const RawSample &sample = raw_samples_sorted[i];
-            if (sample.cell_id == last_cell_id) {
-                // This sample is in the same cell as the previous, so just increase the count.  Cells are
-                // always contiguous, since we've sorted raw_samples_sorted by cell ID.
-                ++ last_cell_id_it->second.sample_cnt;
-            } else {
-                // This is a new cell.
-                PoissonDiskGridEntry data;
-                data.first_sample_idx = int(i);
-                data.sample_cnt       = 1;
-                auto result     = cells.insert({sample.cell_id, data});
-                last_cell_id    = sample.cell_id;
-                last_cell_id_it = result.first;
-            }
-        }
-    }
-
-    const int   max_trials = 5;
-    const float radius_squared = radius * radius;
-    for (int trial = 0; trial < max_trials; ++ trial) {
-        // Create sample points for each entry in cells.
-        for (auto &it : cells) {
-            const Vec2i32          &cell_id   = it.first;
-            PoissonDiskGridEntry &cell_data = it.second;
-            // This cell's raw sample points start at first_sample_idx.  On trial 0, try the first one. On trial 1, try first_sample_idx + 1.
-            int next_sample_idx = cell_data.first_sample_idx + trial;
-            if (trial >= cell_data.sample_cnt)
-                // There are no more points to try for this cell.
+        for (const LayerPart &part : layer.parts) {
+            size_t part_id = &part - &layer.parts.front();
+            if (part.prev_parts.empty()) {
+                // New island: sample using Voronoi Medial Axis.
+                grids.emplace_back(&result);
+                Points permanent = get_permanents(permanent_supports, permanent_index, layer_id, part_id);
+                support_island(part, grids.back(), layer.print_z, permanent, config);
+                copy_permanent_supports(
+                    grids.back(), permanent_supports, permanent_index,
+                    layer.print_z, layer_id, part_id, config);
                 continue;
-            const RawSample &candidate = raw_samples_sorted[next_sample_idx];
-            // See if this point conflicts with any other points in this cell, or with any points in
-            // neighboring cells.  Note that it's possible to have more than one point in the same cell.
-            bool conflict = refuse_function(candidate.coord);
-            for (int i = -1; i < 2 && ! conflict; ++ i) {
-                for (int j = -1; j < 2; ++ j) {
-                    const auto &it_neighbor = cells.find(cell_id + Vec2i32(i, j));
-                    if (it_neighbor != cells.end()) {
-                        const PoissonDiskGridEntry &neighbor = it_neighbor->second;
-                        for (int i_sample = 0; i_sample < neighbor.num_poisson_samples; ++ i_sample)
-                            if ((neighbor.poisson_samples[i_sample] - candidate.coord).squaredNorm() < radius_squared) {
-                                conflict = true;
-                                break;
-                            }
-                    }
-                }
             }
-            if (! conflict) {
-                // Store the new sample.
-                assert(cell_data.num_poisson_samples < cell_data.max_positions);
-                if (cell_data.num_poisson_samples < cell_data.max_positions)
-                    cell_data.poisson_samples[cell_data.num_poisson_samples ++] = candidate.coord;
+
+            assert(layer_id != 0);
+            const LayerParts &prev_layer_parts = layers[layer_id - 1].parts;
+            NearPoints near_points = create_near_points(prev_layer_parts, part, prev_grids);
+            remove_supports_out_of_part(near_points, part, layer.print_z);
+            assert(!near_points.get_indices().empty());
+
+            if (!part.peninsulas.empty()) {
+                Points permanent = get_permanents(permanent_supports, permanent_index, layer_id, part_id);
+                support_peninsulas(part.peninsulas, near_points, layer.print_z, permanent, config);
             }
+            copy_permanent_supports(
+                near_points, permanent_supports, permanent_index,
+                layer.print_z, layer_id, part_id, config);
+            support_part_overhangs(part, config, near_points, layer.print_z, maximal_radius);
+            grids.push_back(std::move(near_points));
         }
+        prev_grids = std::move(grids);
+
+        throw_on_cancel();
+
+        int old_status_int = status_int;
+        status    += increment;
+        status_int = static_cast<int>(std::round(status));
+        if (old_status_int < status_int)
+            statusfn(status_int);
     }
 
-    // Copy the results to the output.
-    std::vector<Vec2f> out;
-    for (const auto& it : cells)
-        for (int i = 0; i < it.second.num_poisson_samples; ++ i)
-            out.emplace_back(it.second.poisson_samples[i]);
-    return out;
+    // Remove permanent supports from result.
+    // Their 3D positions are preserved by appending after move_on_mesh_surface.
+    result.erase(
+        std::remove_if(result.begin(), result.end(),
+            [](const LayerSupportPoint &p) { return p.is_permanent; }),
+        result.end());
+    return result;
 }
 
+SupportPoints move_on_mesh_surface(
+    const LayerSupportPoints &points,
+    const IndexedMesh        &mesh,
+    double                    allowed_move,
+    ThrowOnCancel             throw_on_cancel
+) {
+    SupportPoints pts;
+    pts.reserve(points.size());
+    for (const LayerSupportPoint &p : points)
+        pts.push_back(static_cast<SupportPoint>(p));
 
-void SupportPointGenerator::uniformly_cover(const ExPolygons& islands, Structure& structure, float deficit, PointGrid3D &grid3d, IslandCoverageFlags flags)
-{
-    //int num_of_points = std::max(1, (int)((island.area()*pow(SCALING_FACTOR, 2) * m_config.tear_pressure)/m_config.support_force));
+    execution::for_each(
+        ex_tbb, size_t(0), pts.size(),
+        [&pts, &mesh, &throw_on_cancel, allowed_move](size_t idx) {
+            if ((idx % 16) == 0)
+                throw_on_cancel();
+            Vec3f &p = pts[idx].pos;
+            Vec3d p_double = p.cast<double>();
+            const Vec3d up_vec(0., 0., 1.);
+            const Vec3d down_vec(0., 0., -1.);
 
-    float support_force_deficit = deficit;
-//    auto bb = get_extents(islands);
+            IndexedMesh::hit_result hit_up   = mesh.query_ray_hit(p_double, up_vec);
+            IndexedMesh::hit_result hit_down = mesh.query_ray_hit(p_double, down_vec);
 
-    if (flags & icfIsNew) {
-        auto chull = Geometry::convex_hull(islands);
-        auto rotbox = MinAreaBoundigBox{chull, MinAreaBoundigBox::pcConvex};
-        Vec2d bbdim = {unscaled(rotbox.width()), unscaled(rotbox.height())};
+            bool up   = hit_up.is_hit();
+            bool down = hit_down.is_hit();
+            if (!up && !down)
+                return;
 
-        if (bbdim.x() > bbdim.y()) std::swap(bbdim.x(), bbdim.y());
-        double aspectr = bbdim.y() / bbdim.x();
+            IndexedMesh::hit_result &hit =
+                (!down || hit_up.distance() < hit_down.distance()) ? hit_up : hit_down;
+            if (hit.distance() <= allowed_move) {
+                p[2] += static_cast<float>(hit.distance() * hit.direction()[2]);
+                return;
+            }
 
-        support_force_deficit *= (1 + aspectr / 2.);
-    }
-
-    if (support_force_deficit < 0)
-        return;
-
-    // Number of newly added points.
-    const size_t poisson_samples_target = size_t(ceil(support_force_deficit / m_config.support_force()));
-
-    const float density_horizontal = m_config.tear_pressure() / m_config.support_force();
-    //FIXME why?
-    float poisson_radius		= std::max(m_config.minimal_distance, 1.f / (5.f * density_horizontal));
-//    const float poisson_radius     = 1.f / (15.f * density_horizontal);
-    const float samples_per_mm2 = 30.f / (float(M_PI) * poisson_radius * poisson_radius);
-    // Minimum distance between samples, in 3D space.
-//    float min_spacing			= poisson_radius / 3.f;
-    float min_spacing			= poisson_radius;
-
-    //FIXME share the random generator. The random generator may be not so cheap to initialize, also we don't want the random generator to be restarted for each polygon.
-
-    std::vector<Vec2f> raw_samples =
-        flags & icfWithBoundary ?
-            sample_expolygon_with_boundary(islands, samples_per_mm2,
-                                           5.f / poisson_radius, m_rng) :
-            sample_expolygon(islands, samples_per_mm2, m_rng);
-
-    std::vector<Vec2f>  poisson_samples;
-    for (size_t iter = 0; iter < 4; ++ iter) {
-        poisson_samples = poisson_disk_from_samples(raw_samples, poisson_radius,
-            [&structure, &grid3d, min_spacing](const Vec2f &pos) {
-                return grid3d.collides_with(pos, structure.layer->print_z, min_spacing);
-            });
-        if (poisson_samples.size() >= poisson_samples_target || m_config.minimal_distance > poisson_radius-EPSILON)
-            break;
-        float coeff = 0.5f;
-        if (poisson_samples.size() * 2 > poisson_samples_target)
-            coeff = float(poisson_samples.size()) / float(poisson_samples_target);
-        poisson_radius = std::max(m_config.minimal_distance, poisson_radius * coeff);
-        min_spacing    = std::max(m_config.minimal_distance, min_spacing * coeff);
-    }
-
-#ifdef SLA_SUPPORTPOINTGEN_DEBUG
-    {
-        static int irun = 0;
-        Slic3r::SVG svg(debug_out_path("SLA_supports-uniformly_cover-%d.svg", irun ++), get_extents(islands));
-        for (const ExPolygon &island : islands)
-            svg.draw(island);
-        for (const Vec2f &pt : raw_samples)
-            svg.draw(Point(scale_(pt.x()), scale_(pt.y())), "red");
-        for (const Vec2f &pt : poisson_samples)
-            svg.draw(Point(scale_(pt.x()), scale_(pt.y())), "blue");
-    }
-#endif /* NDEBUG */
-
-//    assert(! poisson_samples.empty());
-    if (poisson_samples_target < poisson_samples.size()) {
-        std::shuffle(poisson_samples.begin(), poisson_samples.end(), m_rng);
-        poisson_samples.erase(poisson_samples.begin() + poisson_samples_target, poisson_samples.end());
-    }
-    for (const Vec2f &pt : poisson_samples) {
-        m_output.emplace_back(float(pt(0)), float(pt(1)), structure.zlevel, m_config.head_diameter/2.f, flags & icfIsNew);
-        structure.supports_force_this_layer += m_config.support_force();
-        grid3d.insert(pt, &structure);
-    }
+            int   triangle_index;
+            Vec3d closest_point;
+            double distance = mesh.squared_distance(p_double, triangle_index, closest_point);
+            if (distance <= std::numeric_limits<float>::epsilon())
+                return;
+            p = closest_point.cast<float>();
+        },
+        64);
+    return pts;
 }
 
-
-void remove_bottom_points(std::vector<SupportPoint> &pts, float lvl)
-{
-    // get iterator to the reorganized vector end
-    auto endit = std::remove_if(pts.begin(), pts.end(), [lvl]
-                                (const sla::SupportPoint &sp) {
-        return sp.pos.z() <= lvl;
-    });
-
-    // erase all elements after the new end
+// Remove support points below a given Z level.
+void remove_bottom_points(std::vector<SupportPoint> &pts, float lvl) {
+    auto endit = std::remove_if(pts.begin(), pts.end(),
+        [lvl](const sla::SupportPoint &sp) { return sp.pos.z() <= lvl; });
     pts.erase(endit, pts.end());
 }
-
-#ifdef SLA_SUPPORTPOINTGEN_DEBUG
-void SupportPointGenerator::output_structures(const std::vector<Structure>& structures)
-{
-    for (unsigned int i=0 ; i<structures.size(); ++i) {
-        std::stringstream ss;
-        ss << structures[i].unique_id.count() << "_" << std::setw(10) << std::setfill('0') << 1000 + (int)structures[i].height/1000 << ".png";
-        output_expolygons(std::vector<ExPolygon>{*structures[i].polygon}, ss.str());
-    }
-}
-
-void SupportPointGenerator::output_expolygons(const ExPolygons& expolys, const std::string &filename)
-{
-    BoundingBox bb(Point(-30000000, -30000000), Point(30000000, 30000000));
-    Slic3r::SVG svg_cummulative(filename, bb);
-    for (size_t i = 0; i < expolys.size(); ++ i) {
-        /*Slic3r::SVG svg("single"+std::to_string(i)+".svg", bb);
-        svg.draw(expolys[i]);
-        svg.draw_outline(expolys[i].contour, "black", scale_(0.05));
-        svg.draw_outline(expolys[i].holes, "blue", scale_(0.05));
-        svg.Close();*/
-
-        svg_cummulative.draw(expolys[i]);
-        svg_cummulative.draw_outline(expolys[i].contour, "black", scale_(0.05));
-        svg_cummulative.draw_outline(expolys[i].holes, "blue", scale_(0.05));
-    }
-}
-#endif
 
 } // namespace sla
 } // namespace Slic3r
