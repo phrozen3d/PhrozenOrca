@@ -11,6 +11,7 @@
 #include <libslic3r/SLA/Concurrency.hpp>
 #include <libslic3r/SLA/Pad.hpp>
 #include <libslic3r/SLA/SupportPointGenerator.hpp>
+#include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
 
 #include <libslic3r/ElephantFootCompensation.hpp>
 #include <libslic3r/SLA/ZCorrection.hpp>
@@ -639,7 +640,9 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
         // Density config value is in percents.
         config.density_relative = float(cfg.support_points_density_relative / 100.f);
         config.head_diameter    = float(cfg.support_head_front_diameter);
-        config.island_configuration = sla::create_default_island_configuration(config.head_diameter);
+        config.island_configuration = sla::SampleConfigFactory::apply_density(
+            sla::SampleConfigFactory::create(config.head_diameter),
+            config.density_relative);
 
         // scaling for the sub operations
         double d = objectstep_scale * OBJ_STEP_LEVELS[slaposSupportPoints] / 100.0;
@@ -666,7 +669,10 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
 
         // Phase 2: Project generated points from layer plane onto actual mesh surface.
         throw_if_canceled();
-        const double allowed_move = double(cfg.support_head_front_diameter);
+        const double allowed_move = (po.m_model_height_levels.size() > 1)
+            ? double(po.m_model_height_levels[1] - po.m_model_height_levels[0])
+              + double(std::numeric_limits<float>::epsilon())
+            : double(cfg.support_head_front_diameter); // fallback for single-layer
         po.m_supportdata->pts = sla::move_on_mesh_surface(
             layer_pts, po.m_supportdata->emesh, allowed_move,
             [this]() { throw_if_canceled(); });
