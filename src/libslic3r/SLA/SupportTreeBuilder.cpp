@@ -116,7 +116,7 @@ void SupportTreeBuilder::add_pillar_base(long pid, double baseheight, double rad
     assert(pid >= 0 && size_t(pid) < m_pillars.size());
     Pillar& pll = m_pillars[size_t(pid)];
     m_pedestals.emplace_back(pll.endpt, std::min(baseheight, pll.height),
-                             std::max(radius, pll.r), pll.r);
+                             std::max(radius, pll.r_start), pll.r_start);
 
     m_pedestals.back().id = m_pedestals.size() - 1;
     m_meshcache_valid = false;

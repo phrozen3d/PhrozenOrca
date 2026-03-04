@@ -126,21 +126,32 @@ struct Junction: public SupportTreeNode {
 };
 
 struct Pillar: public SupportTreeNode {
-    double height, r;
+    double height, r_start, r_end;
     Vec3d endpt;
-    
+
     // If the pillar connects to a head, this is the id of that head
     bool starts_from_head = true; // Could start from a junction as well
     long start_junction_id = ID_UNSET;
-    
+
     // How many bridges are connected to this pillar
     unsigned bridges = 0;
-    
+
     // How many pillars are cascaded with this one
     unsigned links = 0;
 
-    Pillar(const Vec3d &endp, double h, double radius = 1.):
-        height{h}, r(radius), endpt(endp), starts_from_head(false) {}
+    Pillar(const Vec3d &endp, double h, double start_radius, double end_radius)
+        : height{h}
+        , r_start(start_radius)
+        , r_end(end_radius)
+        , endpt(endp)
+        , starts_from_head(false)
+    {}
+
+    // Convenience constructor for uniform cylinder (r_start == r_end).
+    // Preserves all existing Pillar(endp, h, r) call sites unchanged.
+    Pillar(const Vec3d &endp, double h, double start_radius = 1.)
+        : Pillar(endp, h, start_radius, start_radius)
+    {}
 
     Vec3d startpoint() const
     {

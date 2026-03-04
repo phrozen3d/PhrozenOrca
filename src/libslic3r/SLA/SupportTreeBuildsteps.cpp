@@ -356,9 +356,9 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
 
     // TODO: This is a workaround to not have a faulty last bridge
     while(ej(Z) >= eupper(Z) /*endz*/) {
-        if(bridge_mesh_distance(sj, dirv(sj, ej), pillar.r) >= bridge_distance)
+        if(bridge_mesh_distance(sj, dirv(sj, ej), pillar.r_start) >= bridge_distance)
         {
-            m_builder.add_crossbridge(sj, ej, pillar.r);
+            m_builder.add_crossbridge(sj, ej, pillar.r_start);
             was_connected = true;
         }
 
@@ -368,9 +368,9 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
             Vec3d ejback(sj(X), sj(Y), ej(Z));
             if (sjback(Z) <= slower(Z) && ejback(Z) >= eupper(Z) &&
                 bridge_mesh_distance(sjback, dirv(sjback, ejback),
-                                      pillar.r) >= bridge_distance) {
+                                      pillar.r_start) >= bridge_distance) {
                 // need to check collision for the cross stick
-                m_builder.add_crossbridge(sjback, ejback, pillar.r);
+                m_builder.add_crossbridge(sjback, ejback, pillar.r_start);
                 was_connected = true;
             }
         }
@@ -1020,7 +1020,7 @@ bool SupportTreeBuildsteps::search_pillar_and_connect(const Head &source)
         if(nearest_id >= 0) {
             if (size_t(nearest_id) < m_builder.pillarcount()) {
                 if(!connect_to_nearpillar(source, nearest_id) ||
-                    m_builder.pillar(nearest_id).r < source.r_back_mm) {
+                    m_builder.pillar(nearest_id).r_start < source.r_back_mm) {
                     nearest_id = SupportTreeNode::ID_UNSET;    // continue searching
                     spindex.remove(ne);       // without the current pillar
                 }
@@ -1097,7 +1097,7 @@ void SupportTreeBuildsteps::interconnect_pillars()
         // connections are already enough for the pillar
         if(pillar.links >= neighbors) return;
 
-        double max_d = d * pillar.r / m_cfg.head_back_radius_mm;
+        double max_d = d * pillar.r_start / m_cfg.head_back_radius_mm;
         // Query all remaining points within reach
         auto qres = m_pillar_index.query([qp, max_d](const PointIndexEl& e){
             return distance(e.first, qp) < max_d;
@@ -1125,7 +1125,7 @@ void SupportTreeBuildsteps::interconnect_pillars()
 
             // this neighbor is occupied, skip
             if (neighborpillar.links >= neighbors) continue;
-            if (neighborpillar.r < pillar.r) continue;
+            if (neighborpillar.r_start < pillar.r_start) continue;
 
             if(interconnect(pillar, neighborpillar)) {
                 pairs.insert(hashval);
@@ -1211,8 +1211,8 @@ void SupportTreeBuildsteps::interconnect_pillars()
                 spts[n] = s;
 
                 // Check the path vertically down
-                Vec3d check_from = s + Vec3d{0., 0., pillar().r};
-                auto hr = bridge_mesh_intersect(check_from, DOWN, pillar().r);
+                Vec3d check_from = s + Vec3d{0., 0., pillar().r_start};
+                auto hr = bridge_mesh_intersect(check_from, DOWN, pillar().r_start);
                 Vec3d gndsp{s(X), s(Y), gnd};
 
                 // If the path is clear, check for pillar base collisions
@@ -1234,7 +1234,7 @@ void SupportTreeBuildsteps::interconnect_pillars()
         if (found)
             for (unsigned n = 0; n < needpillars; n++) {
                 Vec3d s = spts[n];
-                Pillar p(Vec3d{s.x(), s.y(), gnd}, s.z() - gnd, pillar().r);
+                Pillar p(Vec3d{s.x(), s.y(), gnd}, s.z() - gnd, pillar().r_start);
 
                 if (interconnect(pillar(), p)) {
                     Pillar &pp = m_builder.pillar(m_builder.add_pillar(p));
@@ -1243,14 +1243,14 @@ void SupportTreeBuildsteps::interconnect_pillars()
 
                     m_pillar_index.insert(pp.endpoint(), unsigned(pp.id));
 
-                    m_builder.add_junction(s, pillar().r);
+                    m_builder.add_junction(s, pillar().r_start);
                     double t = bridge_mesh_distance(pillarsp, dirv(pillarsp, s),
-                                                    pillar().r);
+                                                    pillar().r_start);
                     if (distance(pillarsp, s) < t)
-                        m_builder.add_bridge(pillarsp, s, pillar().r);
+                        m_builder.add_bridge(pillarsp, s, pillar().r_start);
 
-                    if (pillar().endpoint()(Z) > m_builder.ground_level + pillar().r)
-                        m_builder.add_junction(pillar().endpoint(), pillar().r);
+                    if (pillar().endpoint()(Z) > m_builder.ground_level + pillar().r_start)
+                        m_builder.add_junction(pillar().endpoint(), pillar().r_start);
 
                     newpills.emplace_back(pp.id);
                     m_builder.increment_links(pillar());

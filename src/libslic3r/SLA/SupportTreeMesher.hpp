@@ -67,7 +67,7 @@ inline indexed_triangle_set get_mesh(const Pillar &p, size_t steps)
     if(p.height > EPSILON) { // Endpoint is below the starting point
         // We just create a bridge geometry with the pillar parameters and
         // move the data.
-        return cylinder(p.r, p.height, steps, p.endpoint());
+        return halfcone(p.height, p.r_end, p.r_start, p.endpt, steps);
     }
 
     return {};
