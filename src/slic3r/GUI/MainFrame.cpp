@@ -25,7 +25,6 @@
 #include "libslic3r/PresetBundle.hpp"
 
 #include "Tab.hpp"
-#include "PhrozenGUI/PhrozenLCDTab.hpp"
 #include "ProgressStatusBar.hpp"
 #include "3DScene.hpp"
 #include "ParamsDialog.hpp"
@@ -1092,12 +1091,7 @@ void MainFrame::init_tabpanel() {
 
     wxGetApp().plater_ = m_plater;
 
-    if ( wxGetApp().IsPhrozenLCDEditMode() ) {
-        create_phorzen_lcd_preset_tabs();
-    }
-    else {
-        create_preset_tabs();
-    }
+    create_preset_tabs();
 
         //BBS add pages
     m_monitor = new MonitorPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize);
@@ -1324,31 +1318,6 @@ void MainFrame::create_preset_tabs()
     // Restore SLA tabs (Phase 1 Step 1.3)
     add_created_tab(new TabSLAPrint(m_param_panel));
     add_created_tab(new TabSLAMaterial(m_param_panel));
-    add_created_tab(new TabPrinter(m_param_dialog->panel()), "printer");
-
-    m_param_panel->rebuild_panels();
-    m_param_dialog->panel()->rebuild_panels();
-    //m_tabpanel->AddPage(m_param_panel, "Parameters", "notebook_presets_active");
-    //m_tabpanel->InsertPage(tpSettings, m_param_panel, _L("Parameters"), std::string("cog"));
-}
-
-void MainFrame::create_phorzen_lcd_preset_tabs()
-{
-    wxGetApp().update_label_colours_from_appconfig();
-
-    //BBS: GUI refactor
-    //m_param_panel = new ParamsPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_LEFT | wxTAB_TRAVERSAL);
-    m_param_dialog = new ParamsDialog(m_plater);
-
-    add_created_tab(new PhrozenLCDTabPrint(m_param_panel), "cog");
-    add_created_tab(new PhrozenLCDTabPrintPlate(m_param_panel), "cog");
-    add_created_tab(new PhrozenLCDTabPrintObject(m_param_panel), "cog");
-    add_created_tab(new PhrozenLCDTabPrintPart(m_param_panel), "cog");
-    add_created_tab(new PhrozenLCDTabPrintLayer(m_param_panel), "cog");
-    add_created_tab(new PhrozenLCDTabFilament(m_param_dialog->panel()), "spool");
-    /* BBS work around to avoid appearance bug */
-    //add_created_tab(new TabSLAPrint(m_param_panel));
-    //add_created_tab(new TabSLAMaterial(m_param_panel));
     add_created_tab(new TabPrinter(m_param_dialog->panel()), "printer");
 
     m_param_panel->rebuild_panels();

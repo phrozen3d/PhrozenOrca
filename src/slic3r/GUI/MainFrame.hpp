@@ -266,7 +266,6 @@ public:
     void        show_option(bool show);
     void        init_tabpanel();
     void        create_preset_tabs();
-    void        create_phorzen_lcd_preset_tabs();
     //BBS: GUI refactor
     void        add_created_tab(Tab* panel, const std::string& bmp_name = "");
     bool        is_active_and_shown_tab(wxPanel* panel);

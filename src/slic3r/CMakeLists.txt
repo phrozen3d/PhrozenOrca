@@ -617,8 +617,6 @@ set(SLIC3R_GUI_SOURCES
     GUI/PhrozenGUI/PhrozenSelectMachinePopup.cpp
 	GUI/PhrozenGUI/PhrozenCalibrationDlg.hpp
     GUI/PhrozenGUI/PhrozenCalibrationDlg.cpp
-	GUI/PhrozenGUI/PhrozenLCDTab.hpp
-	GUI/PhrozenGUI/PhrozenLCDTab.cpp
     GUI/Widgets/PhrozenTempInput.hpp
     GUI/Widgets/PhrozenTempInput.cpp
 

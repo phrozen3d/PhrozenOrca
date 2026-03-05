@@ -12,7 +12,6 @@
 
 #include "OptionsGroup.hpp"
 #include "Tab.hpp"
-#include "PhrozenGUI/PhrozenLCDTab.hpp"
 #include "wxExtensions.hpp"
 #include "libslic3r/Model.hpp"
 #include "GLCanvas3D.hpp"
@@ -1318,22 +1317,14 @@ void ObjectList::list_manipulation(const wxPoint& mouse_pos, bool evt_context_me
             get_selected_item_indexes(obj_idx, vol_idx, item);
             //wxGetApp().plater()->PopupObjectTable(obj_idx, vol_idx, mouse_pos);
             if (m_objects_model->GetItemType(item) & itPlate) {
-                if ( wxGetApp().IsPhrozenLCDEditMode() ) 
-                    dynamic_cast<PhrozenLCDTabPrintPlate*>( wxGetApp().get_plate_tab() )->reset_model_config();
-                else 
-                    dynamic_cast<TabPrintPlate*>( wxGetApp().get_plate_tab() )->reset_model_config();
+                dynamic_cast<TabPrintPlate*>( wxGetApp().get_plate_tab() )->reset_model_config();
 
             } else if (m_objects_model->GetItemType(item) & itLayer) {
-                if ( wxGetApp().IsPhrozenLCDEditMode() ) 
-                    dynamic_cast<PhrozenLCDTabPrintLayer*>(wxGetApp().get_layer_tab())->reset_model_config();
-                else
-                    dynamic_cast<TabPrintLayer*>(wxGetApp().get_layer_tab())->reset_model_config();
+                dynamic_cast<TabPrintLayer*>(wxGetApp().get_layer_tab())->reset_model_config();
 
             } else if (item.IsOk()) {
-                if ( wxGetApp().IsPhrozenLCDEditMode() ) 
-                    dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
-                else
-                    dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+                dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+                    
             }
         }
         else if (col_num == colName)
@@ -3499,10 +3490,8 @@ wxDataViewItem ObjectList::add_settings_item(wxDataViewItem parent_item, const D
     SettingsFactory::Bundle cat_options = SettingsFactory::get_bundle(config, is_object_settings, is_layer_settings);
     if (is_layer_settings) {
         DynamicPrintConfig* object_cfg = nullptr;
-        if ( wxGetApp().IsPhrozenLCDEditMode() )
-            object_cfg = dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab())->get_config();
-        else
-            object_cfg = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab())->get_config();
+        object_cfg = dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab())->get_config();
+            
         
         if (config->opt_float("layer_height") == object_cfg->opt_float("layer_height")) {
             SettingsFactory::Bundle new_cat_options;
@@ -5658,10 +5647,8 @@ void ObjectList::OnEditingStarted(wxDataViewEvent &event)
 
         get_selected_item_indexes(obj_idx, vol_idx, item);
         //wxGetApp().plater()->PopupObjectTable(obj_idx, vol_idx, mouse_pos);
-        if ( wxGetApp().IsPhrozenLCDEditMode() )
-            dynamic_cast<PhrozenLCDTabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
-        else
-            dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+        dynamic_cast<TabPrintModel*>(wxGetApp().get_model_tab(vol_idx >= 0))->reset_model_config();
+            
         return;
     }
     if (col != colFilament && col != colName)

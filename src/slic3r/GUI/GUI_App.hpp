@@ -707,13 +707,6 @@ public:
 #pragma endregion
 
 
-#pragma region Phrozen LCD 
-    void SetPhrozenLCDEditMode( bool bEnable ) { m_bPhrozenLCDEdditMode = bEnable; }
-    bool IsPhrozenLCDEditMode() { return m_bPhrozenLCDEdditMode; }
-    bool m_bPhrozenLCDEdditMode{ false };
-#pragma endregion
-
-
 
 private:
     int             updating_bambu_networking();
