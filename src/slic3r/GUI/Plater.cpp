@@ -437,6 +437,8 @@ void Sidebar::priv::show_preset_comboboxes()
     if (m_panel_sla_material_title && m_panel_sla_material_content) {
         m_panel_sla_material_title->Show(showSLA);
         m_panel_sla_material_content->Show(showSLA);
+        if (showSLA && m_text_sla_material_settings)
+            m_text_sla_material_settings->SetLabel(_L("SLA Material"));
     }
 
     scrolled->GetParent()->Layout();

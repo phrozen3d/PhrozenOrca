@@ -18749,3 +18749,6 @@ msgstr "底筏設定"
 
 msgid "Automatic Generation"
 msgstr "自動長支撐"
+
+msgid "SLA Material"
+msgstr "樹脂"
