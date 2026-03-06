@@ -6690,17 +6690,25 @@ void TabSLAPrint::build()
     page     = add_options_page(L("Distance"), "custom-gcode_strength"); // ORCA: icon only visible on placeholders
     optgroup = page->new_optgroup(L("Lift & Retract Distance"), L"PhrozenImages_Resin/param_distance");
     optgroup->append_single_option_line("bottom_lift_distance", "123");
+    optgroup->append_single_option_line("bottom_lift_second_distance", "123");
     optgroup->append_single_option_line("lifting_distance", "123");
+    optgroup->append_single_option_line("lift_second_distance", "123");
     optgroup->append_single_option_line("bottom_retract_distance", "123");
+    optgroup->append_single_option_line("bottom_retract_second_distance", "123");
     optgroup->append_single_option_line("retract_distance", "123");
+    optgroup->append_single_option_line("retract_second_distance", "123");
 
     // Speed
     page     = add_options_page(L("Speed"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
     optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 15);
     optgroup->append_single_option_line("bottom_lift_speed", "123");
+    optgroup->append_single_option_line("bottom_lift_second_speed", "123");
     optgroup->append_single_option_line("lifting_speed", "123");
+    optgroup->append_single_option_line("lift_second_speed", "123");
     optgroup->append_single_option_line("bottom_retract_speed", "123");
+    optgroup->append_single_option_line("bottom_retract_second_speed", "123");
     optgroup->append_single_option_line("retract_speed", "123");
+    optgroup->append_single_option_line("retract_second_speed", "123");
 
     // Advanced
     page     = add_options_page(L("Advanced"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders

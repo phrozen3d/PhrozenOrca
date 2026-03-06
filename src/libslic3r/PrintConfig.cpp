@@ -6665,10 +6665,32 @@ void PrintConfigDef::init_sla_params()
     def->dual_float_width_second = 8;
     def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
+    def                          = this->add("bottom_lift_second_distance", coFloats);
+    def->label                   = L("Bottom Lift Second Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Second stage bottom lifting distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+
     def                          = this->add("lifting_distance", coFloats);
     def->label                   = L("Lifting Distance");
     def->category                = L("Distance");
     def->tooltip                 = L("Lifting Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+
+    def                          = this->add("lift_second_distance", coFloats);
+    def->label                   = L("Lift Second Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Second stage lifting distance.");
     def->sidetext                = "mm";
     def->min                     = 0;
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
@@ -6687,10 +6709,32 @@ void PrintConfigDef::init_sla_params()
     def->dual_float_width_second = 8;
     def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
+    def                          = this->add("bottom_retract_second_distance", coFloats);
+    def->label                   = L("Bottom Retract Second Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Second stage bottom retract distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+
     def                          = this->add("retract_distance", coFloats);
     def->label                   = L("Retract Distance");
     def->category                = L("Distance");
     def->tooltip                 = L("Retract Distance for distance.");
+    def->sidetext                = "mm";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 8;
+    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+
+    def                          = this->add("retract_second_distance", coFloats);
+    def->label                   = L("Retract Second Distance");
+    def->category                = L("Distance");
+    def->tooltip                 = L("Second stage retract distance.");
     def->sidetext                = "mm";
     def->min                     = 0;
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
@@ -6711,10 +6755,32 @@ void PrintConfigDef::init_sla_params()
     def->dual_float_width_second = 10;
     def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
 
+    def                          = this->add("bottom_lift_second_speed", coFloats);
+    def->label                   = L("Bottom Lift Second Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Second stage bottom lifting speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+
     def                          = this->add("lifting_speed", coFloats);
     def->label                   = L("Lifting Speed");
     def->category                = L("Speed");
     def->tooltip                 = L("Lifting Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+
+    def                          = this->add("lift_second_speed", coFloats);
+    def->label                   = L("Lift Second Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Second stage lifting speed.");
     def->sidetext                = "mm/min";
     def->min                     = 0;
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
@@ -6733,10 +6799,32 @@ void PrintConfigDef::init_sla_params()
     def->dual_float_width_second = 10;
     def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
 
+    def                          = this->add("bottom_retract_second_speed", coFloats);
+    def->label                   = L("Bottom Retract Second Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Second stage bottom retract speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+
     def                          = this->add("retract_speed", coFloats);
     def->label                   = L("Retract Speed");
     def->category                = L("Speed");
     def->tooltip                 = L("Retract Speed for speed.");
+    def->sidetext                = "mm/min";
+    def->min                     = 0;
+    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
+    def->dual_float_width        = 5;
+    def->dual_float_width_second = 10;
+    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+
+    def                          = this->add("retract_second_speed", coFloats);
+    def->label                   = L("Retract Second Speed");
+    def->category                = L("Speed");
+    def->tooltip                 = L("Second stage retract speed.");
     def->sidetext                = "mm/min";
     def->min                     = 0;
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
