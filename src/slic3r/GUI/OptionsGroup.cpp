@@ -991,8 +991,17 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 	case coFloat:{
 #pragma region Phrozen LCD Parameter
 		if (opt->type == coFloats && opt->gui_type == ConfigOptionDef::GUIType::dual_float) {
-			auto vals = config.option<ConfigOptionFloats>(opt_key)->values;
+			const ConfigOptionFloats* opt_vals = config.option<ConfigOptionFloats>(opt_key);
+			std::vector<double> vals;
+			if (opt_vals && !opt_vals->values.empty()) {
+				vals = opt_vals->values;
+			} else if (opt->default_value) {
+				const auto* def_vals = dynamic_cast<const ConfigOptionFloats*>(opt->default_value.get());
+				if (def_vals && !def_vals->values.empty())
+					vals = def_vals->values;
+			}
 			if (vals.size() == 1) vals = { vals[0], vals[0] };
+			if (vals.size() < 2) vals = { 0.0, 0.0 };
 			ret = vals;
 			break;
 		}
@@ -1136,8 +1145,17 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
     case coFloat:{
 #pragma region Phrozen LCD Parameter
         if (opt->type == coFloats && opt->gui_type == ConfigOptionDef::GUIType::dual_float) {
-            auto vals = config.option<ConfigOptionFloats>(opt_key)->values;
+            const ConfigOptionFloats* opt_vals = config.option<ConfigOptionFloats>(opt_key);
+            std::vector<double> vals;
+            if (opt_vals && !opt_vals->values.empty()) {
+                vals = opt_vals->values;
+            } else if (opt->default_value) {
+                const auto* def_vals = dynamic_cast<const ConfigOptionFloats*>(opt->default_value.get());
+                if (def_vals && !def_vals->values.empty())
+                    vals = def_vals->values;
+            }
             if (vals.size() == 1) vals = { vals[0], vals[0] };
+            if (vals.size() < 2) vals = { 0.0, 0.0 };
             ret = vals;
             break;
         }

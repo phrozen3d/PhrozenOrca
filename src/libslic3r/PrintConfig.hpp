@@ -409,6 +409,7 @@ enum CounterboreHoleBridgingOption {
 #pragma region Phrozen LCD Parameter
  enum TransitionType { spLinear };
  enum WaitingModeDuringPrinting { spRestingTime, spLightOffDelay };
+ enum ImageBlurPixel { sp2, sp3, sp4, sp5, sp6, sp7, sp8 };
  enum AntiAliasing { spNone, spGrayScaleLevel, spAntiAliasingLevel };
 #pragma endregion
 
@@ -1523,7 +1524,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionEnum<AntiAliasing>, anti_aliasing))
     ((ConfigOptionInts, gray_scale_level))
     ((ConfigOptionBool, image_blur_enable))
-    ((ConfigOptionInt, image_blur_pixel))
+    ((ConfigOptionEnum<ImageBlurPixel>, image_blur_pixel))
     ((ConfigOptionInt, anti_aliasing_level))
     ((ConfigOptionBool, shrinkage_compensation))
     ((ConfigOptionFloat, shrinkage_compensation_x))

@@ -519,6 +519,18 @@ static const t_config_enum_values s_keys_map_WaitingModeDuringPrinting = {
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WaitingModeDuringPrinting)
 
+
+static const t_config_enum_values s_keys_map_ImageBlurPixel = {
+    { "2", sp2 },
+    { "3", sp3 },
+    { "4", sp4 },
+    { "5", sp5 },
+    { "6", sp6 },
+    { "7", sp7 },
+    { "8", sp8 }
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(ImageBlurPixel)
+
 static const t_config_enum_values s_keys_map_AntiAliasing = {
     { "none", spNone },
     { "gray_scale_level", spGrayScaleLevel },
@@ -6546,7 +6558,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Bottom Layer Count for quality.");
     def->min      = 3;
     def->max      = 8;
-    def->set_default_value(new ConfigOptionInt(8));
+    def->set_default_value(new ConfigOptionInt(6));
 
     def           = this->add("exposure_time", coFloat);
     def->label    = L("Exposure time");
@@ -6555,16 +6567,16 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "s";
     def->min      = 1.5;
     // def->max      = 4.0;
-    def->set_default_value(new ConfigOptionFloat(2.7));
+    def->set_default_value(new ConfigOptionFloat(3.0));
 
     def           = this->add("bottom_exposure_time", coFloat);
     def->label    = L("Bottom exposure time");
     def->category = L("Quality");
     def->tooltip  = L("Bottom exposure time for quality.");
     def->sidetext = "s";
-    def->min      = 15.0;
+    def->min      = 0.0;
     def->max      = 45.0;
-    def->set_default_value(new ConfigOptionFloat(35.0));
+    def->set_default_value(new ConfigOptionFloat(20.0));
 
     // Transition
     def           = this->add("transition_layer_count", coInt);
@@ -6592,7 +6604,8 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Transition Layer Interval Time Difference for quality.");
     def->sidetext = "s";
     def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(4.614));
+    def->readonly = true;
+    def->set_default_value(new ConfigOptionFloat(2.429));
 
     // Wait& Rest
     def                = this->add("waiting_mode_during_printing", coEnum);
@@ -6632,7 +6645,7 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "s";
     def->min      = 0;
     def->max      = 5000.000;
-    def->set_default_value(new ConfigOptionFloat(4.000));
+    def->set_default_value(new ConfigOptionFloat(3.000));
 
     def           = this->add("light_off_day", coFloat);
     def->label    = L("Light-off Delay");
@@ -6685,7 +6698,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
     def                          = this->add("lift_second_distance", coFloats);
     def->label                   = L("Lift Second Distance");
@@ -6729,7 +6742,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
     def                          = this->add("retract_second_distance", coFloats);
     def->label                   = L("Retract Second Distance");
@@ -6753,7 +6766,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+    def->set_default_value(new ConfigOptionFloats({60.0, 0.0}));
 
     def                          = this->add("bottom_lift_second_speed", coFloats);
     def->label                   = L("Bottom Lift Second Speed");
@@ -6775,7 +6788,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+    def->set_default_value(new ConfigOptionFloats({60.0, 0.0}));
 
     def                          = this->add("lift_second_speed", coFloats);
     def->label                   = L("Lift Second Speed");
@@ -6840,7 +6853,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Bottom Light PWM for advanced");
     def->min      = 0;
     def->max      = 255;
-    def->set_default_value(new ConfigOptionInt(3));
+    def->set_default_value(new ConfigOptionInt(255));
 
     def           = this->add("light_pwm", coInt);
     def->label    = L("Light PWM");
@@ -6848,7 +6861,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Light PWM for advanced");
     def->min      = 0;
     def->max      = 255;
-    def->set_default_value(new ConfigOptionInt(3));
+    def->set_default_value(new ConfigOptionInt(255));
 
     def           = this->add("picture_grayscale", coInt);
     def->label    = L("Picture Grayscale");
@@ -6856,7 +6869,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Picture Grayscale for advanced");
     def->min      = 0;
     def->max      = 255;
-    def->set_default_value(new ConfigOptionInt(3));
+    def->set_default_value(new ConfigOptionInt(255));
 
     def                = this->add("anti_aliasing", coEnum);
     def->label         = L("Anti-Aliasing");
@@ -6888,19 +6901,26 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("Image Blur Enable for advanced");
     def->set_default_value(new ConfigOptionBool(true));
 
-    def           = this->add("image_blur_pixel", coInt);
+    def           = this->add("image_blur_pixel", coEnum);
     def->label    = L("Image Blur Pixel");
     def->category = L("Advanced");
     def->tooltip  = L("Image Blur Pixel for advanced");
-    def->min      = 1;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->enum_keys_map = &ConfigOptionEnum<ImageBlurPixel>::get_enum_values();
+    def->enum_values.push_back("2");
+    def->enum_values.push_back("3");
+    def->enum_values.push_back("4");
+    def->enum_values.push_back("5");
+    def->enum_values.push_back("6");
+    def->enum_values.push_back("7");
+    def->enum_values.push_back("8");
+    def->set_default_value(new ConfigOptionEnum<ImageBlurPixel>(sp2));
 
     def           = this->add("anti_aliasing_level", coInt);
     def->label    = L("Anti-aliasing Level");
     def->category = L("Advanced");
     def->tooltip  = L("Anti-aliasing Level");
     def->min      = 1;
-    def->set_default_value(new ConfigOptionInt(2));
+    def->set_default_value(new ConfigOptionInt(4));
 
     def           = this->add("shrinkage_compensation", coBool);
     def->label    = L("Shrinkage Compensation");
@@ -6944,7 +6964,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
     def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(100));
+    def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("tolerance_compensation_b", coFloat);
     def->label    = L("B");
@@ -6952,7 +6972,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
     def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(100));
+    def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("bottom_tolerance_compensation", coBool);
     def->label    = L("Bottom Tolerance Compensation");
@@ -6966,7 +6986,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
     def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(100));
+    def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("bottom_tolerance_compensation_b", coFloat);
     def->label    = L("B");
@@ -6974,7 +6994,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
     def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(100));
+    def->set_default_value(new ConfigOptionFloat(0));
 
     // Support
     def           = this->add("generate_support", coBool);
@@ -7214,7 +7234,7 @@ void PrintConfigDef::init_sla_params()
     //def->label = L("");
     //def->tooltip = L("");
     def->gui_type = ConfigOptionDef::GUIType::color;
-    def->set_default_value(new ConfigOptionString("#29B2B2"));
+    def->set_default_value(new ConfigOptionString("#D1D1D1"));
 
     def = this->add("material_type", coString);
     //def->label = L("");
@@ -7292,7 +7312,7 @@ void PrintConfigDef::init_sla_params()
     //def->tooltip = L("");
     //def->sidetext = "";
     def->min = 0;
-    def->set_default_value(new ConfigOptionFloat(10));
+    def->set_default_value(new ConfigOptionFloat(3.0));
 
     def = this->add("min_initial_exposure_time", coFloat);
     //def->label = L("");
