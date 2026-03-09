@@ -1521,7 +1521,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionInt, light_pwm))
     ((ConfigOptionInt, picture_grayscale))
     ((ConfigOptionEnum<AntiAliasing>, anti_aliasing))
-    ((ConfigOptionInt, gray_scale_level))
+    ((ConfigOptionInts, gray_scale_level))
     ((ConfigOptionBool, image_blur_enable))
     ((ConfigOptionInt, image_blur_pixel))
     ((ConfigOptionInt, anti_aliasing_level))

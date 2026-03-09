@@ -562,6 +562,31 @@ public:
 	wxWindow*		getWindow() override { return window; }
 };
 
+// Gray scale level: gradient bar (0–255) with 1–8 scale marks, two triangular thumbs, and min/max text inputs.
+class GrayScaleLevelRangeCtrl : public Field {
+	using Field::Field;
+public:
+	GrayScaleLevelRangeCtrl(const ConfigOptionDef& opt, const t_config_option_key& id) : Field(opt, id) {}
+	GrayScaleLevelRangeCtrl(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : Field(parent, opt, id) {}
+	~GrayScaleLevelRangeCtrl() {}
+
+	wxSizer*		sizer{ nullptr };
+	wxWindow*		window{ nullptr };
+	wxPanel*		m_container{ nullptr };
+	wxTextCtrl*		m_text_min{ nullptr };
+	wxTextCtrl*		m_text_max{ nullptr };
+	wxWindow*		m_gradient_panel{ nullptr };
+
+	void			BUILD() override;
+	void			set_value(const boost::any& value, bool change_event = false) override;
+	boost::any&		get_value() override;
+	void			msw_rescale() override;
+	void			enable() override;
+	void			disable() override;
+	wxSizer*		getSizer() override { return sizer; }
+	wxWindow*		getWindow() override { return window; }
+};
+
 class StaticText : public Field {
 	using Field::Field;
 public:

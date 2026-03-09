@@ -188,8 +188,13 @@ void change_opt_value(DynamicPrintConfig& config, const t_config_option_key& opt
 			config.set_key_value(opt_key, new ConfigOptionInt(boost::any_cast<int>(value)));
 			break;
 		case coInts:{
-			ConfigOptionInts* vec_new = new ConfigOptionInts{ boost::any_cast<int>(value) };
-			config.option<ConfigOptionInts>(opt_key)->set_at(vec_new, opt_index, 0);
+			const std::type_info& ti = value.type();
+			if (ti == typeid(std::vector<int>)) {
+				config.set_key_value(opt_key, new ConfigOptionInts(boost::any_cast<std::vector<int>>(value)));
+			} else {
+				ConfigOptionInts* vec_new = new ConfigOptionInts{ boost::any_cast<int>(value) };
+				config.option<ConfigOptionInts>(opt_key)->set_at(vec_new, opt_index, 0);
+			}
 			}
 			break;
 		case coEnum:{

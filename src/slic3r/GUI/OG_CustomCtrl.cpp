@@ -109,6 +109,9 @@ void OG_CustomCtrl::init_ctrl_lines()
             } else {
                 height = label_sz.y * (label_sz.GetWidth() > int(opt_group->label_width * m_em_unit) ? 2 : 1) + m_v_gap;
             }
+            // Grayscale range: parameter title above gradient bar (design: 參數標題在上、漸層條在下)
+            if (option_set.size() == 1 && option_set.front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range)
+                height += m_v_gap + 85; // label row + gap + gradient bar + inputs + extra margin to avoid overlap with next line
             ctrl_lines.emplace_back(CtrlLine(height, this, line, false, opt_group->staticbox));
         }
         else
@@ -537,7 +540,15 @@ void OG_CustomCtrl::correct_window_position(wxWindow* win, const Line& line, Fie
         if (line.get_options().size() > 1)
             line_height = (line_height - m_v_gap + m_v_gap2) / line.get_options().size();
     }
-    pos.y += std::max(0, int(0.5 * (line_height - win->GetSize().y)));
+    if (line.get_options().size() == 1 && line.get_options().front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range) {
+        pos.x = get_title_width() * m_em_unit + 4; // align gradient bar and inputs with parameter title (設計圖: 與參數標題水平起始一致)
+        wxClientDC dc(this);
+        dc.SetFont(m_font);
+        wxCoord label_h = dc.GetTextExtent(line.label).y;
+        pos.y += label_h + m_v_gap; // parameter title above, gradient bar below
+    } else {
+        pos.y += std::max(0, int(0.5 * (line_height - win->GetSize().y)));
+    }
     win->SetPosition(pos);
 };
 
@@ -802,8 +813,8 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
             }
         }
         is_url_string = !suppress_hyperlinks && !og_line.label_path.empty();
-        // BBS
-        h_pos = draw_text(dc, wxPoint(h_pos, v_pos), label /* + ":" */, text_clr, ctrl->opt_group->label_width * ctrl->m_em_unit, is_url_string, true);
+        bool label_above = (option_set.size() == 1 && option_set.front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range);
+        h_pos = draw_text(dc, wxPoint(h_pos, v_pos), label /* + ":" */, text_clr, ctrl->opt_group->label_width * ctrl->m_em_unit, is_url_string, true, label_above);
     }
 
     // If there's a widget, build it and set result to the correct position.
@@ -855,8 +866,14 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
         if (!ctrl->opt_group->option_label_at_right)
             draw_buttons(field);
         // update width for full_width fields
-        if (option_set.front().opt.full_width && field && field->getWindow())
-            field->getWindow()->SetSize(ctrl->GetSize().x - h_pos2 + h_pos3 - h_pos - ctrl->m_em_unit * 3, -1);
+        if (option_set.front().opt.full_width && field && field->getWindow()) {
+            if (option_set.front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range) {
+                wxCoord label_left = ctrl->get_title_width() * ctrl->m_em_unit + 4;
+                field->getWindow()->SetSize(ctrl->GetSize().x - label_left - ctrl->m_em_unit * 3, -1);
+            } else {
+                field->getWindow()->SetSize(ctrl->GetSize().x - h_pos2 + h_pos3 - h_pos - ctrl->m_em_unit * 3, -1);
+            }
+        }
         return;
     }
 
@@ -917,7 +934,7 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
     }
 }
 
-wxCoord OG_CustomCtrl::CtrlLine::draw_text(wxDC &dc, wxPoint pos, const wxString &text, const wxColour *color, int width, bool is_url/* = false*/, bool is_main/* = false*/)
+wxCoord OG_CustomCtrl::CtrlLine::draw_text(wxDC &dc, wxPoint pos, const wxString &text, const wxColour *color, int width, bool is_url/* = false*/, bool is_main/* = false*/, bool label_align_top/* = false*/)
 {
     wxString multiline_text;
     auto size = Label::split_lines(dc, width, text, multiline_text);
@@ -925,7 +942,9 @@ wxCoord OG_CustomCtrl::CtrlLine::draw_text(wxDC &dc, wxPoint pos, const wxString
     if (!text.IsEmpty()) {
         const wxString& out_text = multiline_text.IsEmpty() ? text : multiline_text;
 
-        if (ctrl->opt_group->split_multi_line && !is_main) { // BBS
+        if (label_align_top && is_main) {
+            // Keep label at top (e.g. grayscale: 參數標題在上、漸層條在下)
+        } else if (ctrl->opt_group->split_multi_line && !is_main) { // BBS
             const std::vector<Option> &option_set = og_line.get_options();
             pos.y = pos.y + lround(((height - ctrl->m_v_gap + ctrl->m_v_gap2) / option_set.size() - size.y) / 2);
         } else {

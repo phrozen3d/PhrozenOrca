@@ -60,6 +60,9 @@ const t_field& OptionsGroup::build_field(const t_config_option_key& id, const Co
     case ConfigOptionDef::GUIType::dual_float:
         m_fields.emplace(id, DualFloatField::Create<DualFloatField>(this->ctrl_parent(), opt, id));
         break;
+    case ConfigOptionDef::GUIType::grayscale_range:
+        m_fields.emplace(id, GrayScaleLevelRangeCtrl::Create<GrayScaleLevelRangeCtrl>(this->ctrl_parent(), opt, id));
+        break;
 #pragma endregion
     default:
         switch (opt.type) {
@@ -1031,7 +1034,10 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 		ret = config.opt_int(opt_key);
 		break;
 	case coInts:
-		ret = config.opt_int(opt_key, idx);
+		if (opt->gui_type == ConfigOptionDef::GUIType::grayscale_range)
+			ret = config.option<ConfigOptionInts>(opt_key)->values;
+		else
+			ret = config.opt_int(opt_key, idx);
 		break;
 	case coEnum:
         if (!config.has("first_layer_sequence_choice") && opt_key == "first_layer_sequence_choice") {

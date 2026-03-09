@@ -6872,12 +6872,15 @@ void PrintConfigDef::init_sla_params()
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionEnum<AntiAliasing>(spNone));
 
-    def           = this->add("gray_scale_level", coInt);
+    def           = this->add("gray_scale_level", coInts);
     def->label    = L("Gray Scale Level");
     def->category = L("Advanced");
     def->tooltip  = L("Gray Scale Level for advanced");
-    def->min      = 1;
-    def->set_default_value(new ConfigOptionInt(1));
+    def->gui_type = ConfigOptionDef::GUIType::grayscale_range;
+    def->full_width = true;
+    def->min      = 0;
+    def->max      = 255;
+    def->set_default_value(new ConfigOptionInts({ 0, 255 }));
 
     def           = this->add("image_blur_enable", coBool);
     def->label    = L("Image Blur Enable");

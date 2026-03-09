@@ -1783,6 +1783,8 @@ public:
 #pragma region Phrozen LCD Parameter
         // Two floats displayed as "value1 + value2" in one row (e.g. lift/retract distance).
         dual_float,
+        // Grayscale range: gradient bar + two thumbs + min/max inputs (0-255).
+        grayscale_range,
 #pragma endregion
     };
 

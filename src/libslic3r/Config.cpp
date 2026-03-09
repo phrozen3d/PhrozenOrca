@@ -926,6 +926,12 @@ int ConfigBase::load_from_json(const std::string &file, ConfigSubstitutionContex
                     if (valid)
                         this->set_deserialize(opt_key, value_str, substitution_context);
                 }
+                else if (it.value().is_number() && opt_key == "gray_scale_level") {
+                    this->set_deserialize(opt_key, "0, 255", substitution_context);
+                }
+                else if (it.value().is_number()) {
+                    this->set_deserialize(opt_key, std::to_string(static_cast<int>(it.value())), substitution_context);
+                }
                 else {
                     //should not happen
                     BOOST_LOG_TRIVIAL(error) << __FUNCTION__<< ": parse "<<file<<" error, invalid json type for " << it.key();
@@ -1015,7 +1021,13 @@ int ConfigBase::load_from_json(const std::string &file, ConfigSubstitutionContex
                 }
             }
         }
-        
+
+        if (this->has("gray_scale_level")) {
+            ConfigOptionInts* opt = this->option<ConfigOptionInts>("gray_scale_level", false);
+            if (opt && opt->values.size() == 1)
+                opt->values = { 0, 255 };
+        }
+
         // Do legacy conversion on a completely loaded dictionary.
         // Perform composite conversions, for example merging multiple keys into one key.
         this->handle_legacy_composite();

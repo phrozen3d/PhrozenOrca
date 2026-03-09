@@ -2300,6 +2300,279 @@ void DualFloatField::disable()
 	m_input1->Disable();
 	m_input2->Disable();
 }
+
+namespace {
+constexpr int GRAYSCALE_RANGE_MIN = 0;
+constexpr int GRAYSCALE_RANGE_MAX = 255;
+constexpr int TICK_COUNT = 8;
+constexpr int THUMB_HALF_W = 6;
+constexpr int THUMB_H = 10;
+constexpr int BAR_HEIGHT = 12;
+constexpr int TICKS_TOP_OFFSET = 2;
+constexpr int THUMB_GAP = 4; // gap between gradient bar and slider thumbs so they don't overlap
+
+static int grayscale_text_to_int(wxTextCtrl* t, int def) {
+	if (!t) return def;
+	long v = 0;
+	if (t->GetValue().ToLong(&v))
+		return std::clamp(static_cast<int>(v), GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	return def;
+}
+
+static void grayscale_int_to_text(wxTextCtrl* t, int v) {
+	if (t) t->SetValue(wxString::Format("%d", std::clamp(v, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX)));
+}
+
+class GrayscaleRangePanel : public wxPanel {
+public:
+	GrayscaleRangePanel(wxWindow* parent, wxTextCtrl* text_min, wxTextCtrl* text_max,
+		std::function<void()> on_change)
+		: wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE)
+		, m_text_min(text_min)
+		, m_text_max(text_max)
+		, m_on_change(std::move(on_change))
+		, m_dragging(-1)
+	{
+		SetBackgroundStyle(wxBG_STYLE_PAINT);
+		SetMinSize(wxSize(200 + 2 * THUMB_HALF_W, 64));
+		Bind(wxEVT_PAINT, &GrayscaleRangePanel::OnPaint, this);
+		Bind(wxEVT_LEFT_DOWN, &GrayscaleRangePanel::OnLeftDown, this);
+		Bind(wxEVT_LEFT_UP, &GrayscaleRangePanel::OnLeftUp, this);
+		Bind(wxEVT_MOTION, &GrayscaleRangePanel::OnMotion, this);
+		Bind(wxEVT_LEAVE_WINDOW, &GrayscaleRangePanel::OnLeave, this);
+	}
+
+	void OnPaint(wxPaintEvent&) {
+		wxAutoBufferedPaintDC dc(this);
+		dc.SetBackground(GetBackgroundColour());
+		dc.Clear();
+		wxSize sz = GetClientSize();
+		// Horizontal padding so left/right thumbs at 0/255 are not clipped
+		const int bar_x = 2 + THUMB_HALF_W;
+		const int bar_w = std::max(1, sz.x - 4 - 2 * THUMB_HALF_W);
+		const int bar_y = TICKS_TOP_OFFSET + dc.GetCharHeight() + 2;
+
+		wxFont font = dc.GetFont();
+		font.SetPointSize(std::max(7, font.GetPointSize() - 1));
+		dc.SetFont(font);
+		for (int i = 1; i <= TICK_COUNT; ++i) {
+			int x = bar_x + (i - 1) * bar_w / (TICK_COUNT - 1) - dc.GetTextExtent(wxString() << i).x / 2;
+			dc.DrawText(wxString() << i, wxPoint(std::max(0, x), 0));
+		}
+
+		wxRect barRect(bar_x, bar_y, bar_w, BAR_HEIGHT);
+		dc.GradientFillLinear(barRect, wxColour(0, 0, 0), wxColour(255, 255, 255), wxEAST);
+		dc.SetPen(wxColour(0x73, 0x73, 0x73));
+		dc.SetBrush(*wxTRANSPARENT_BRUSH);
+		dc.DrawRectangle(barRect);
+
+		int min_val = grayscale_text_to_int(m_text_min, GRAYSCALE_RANGE_MIN);
+		int max_val = grayscale_text_to_int(m_text_max, GRAYSCALE_RANGE_MAX);
+		min_val = std::clamp(min_val, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+		max_val = std::clamp(max_val, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+
+		auto pos_to_x = [bar_x, bar_w](int val) {
+			return bar_x + (val - GRAYSCALE_RANGE_MIN) * bar_w / std::max(1, GRAYSCALE_RANGE_MAX - GRAYSCALE_RANGE_MIN);
+		};
+
+		// Draw thumbs below the gradient bar, tip pointing upward
+		const int thumb_center_y = bar_y + BAR_HEIGHT + THUMB_GAP + THUMB_H / 2;
+		const int thumb_tip_y = thumb_center_y - THUMB_H / 2;   // tip at top
+		const int thumb_base_y = thumb_center_y + THUMB_H / 2;   // base at bottom
+		int x_min = pos_to_x(min_val);
+		int x_max = pos_to_x(max_val);
+		wxPoint tri_min[] = { {x_min, thumb_tip_y}, {x_min - THUMB_HALF_W, thumb_base_y}, {x_min + THUMB_HALF_W, thumb_base_y} };
+		wxPoint tri_max[] = { {x_max, thumb_tip_y}, {x_max - THUMB_HALF_W, thumb_base_y}, {x_max + THUMB_HALF_W, thumb_base_y} };
+		const wxColour thumb_stroke(0x73, 0x73, 0x73); // #737373 to match SVG
+		dc.SetPen(thumb_stroke);
+		dc.SetBrush(*wxBLACK_BRUSH);
+		dc.DrawPolygon(3, tri_min);
+		dc.SetBrush(*wxWHITE_BRUSH);
+		dc.DrawPolygon(3, tri_max);
+	}
+
+	void OnLeftDown(wxMouseEvent& e) {
+		int hit = hit_test(e.GetPosition());
+		if (hit >= 0)
+			m_dragging = hit;
+	}
+
+	void OnLeftUp(wxMouseEvent& e) { (void)e; m_dragging = -1; }
+	void OnLeave(wxMouseEvent& e) { (void)e; m_dragging = -1; }
+
+	void OnMotion(wxMouseEvent& e) {
+		if (m_dragging < 0) return;
+		wxSize sz = GetClientSize();
+		const int bar_x = 2 + THUMB_HALF_W;
+		const int bar_w = std::max(1, sz.x - 4 - 2 * THUMB_HALF_W);
+		int x = e.GetX() - bar_x;
+		int val = GRAYSCALE_RANGE_MIN + (GRAYSCALE_RANGE_MAX - GRAYSCALE_RANGE_MIN) * x / std::max(1, bar_w);
+		val = std::clamp(val, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+		bool value_changed = false;
+		if (m_dragging == 0 && m_text_min) {
+			int max_val = grayscale_text_to_int(m_text_max, GRAYSCALE_RANGE_MAX);
+			int new_min = std::min(val, max_val);
+			if (grayscale_text_to_int(m_text_min, GRAYSCALE_RANGE_MIN) != new_min) {
+				grayscale_int_to_text(m_text_min, new_min);
+				value_changed = true;
+			}
+		} else if (m_dragging == 1 && m_text_max) {
+			int min_val = grayscale_text_to_int(m_text_min, GRAYSCALE_RANGE_MIN);
+			int new_max = std::max(val, min_val);
+			if (grayscale_text_to_int(m_text_max, GRAYSCALE_RANGE_MAX) != new_max) {
+				grayscale_int_to_text(m_text_max, new_max);
+				value_changed = true;
+			}
+		}
+		if (value_changed && m_on_change)
+			m_on_change();
+		// Throttle repaints during drag to ~60fps for smoother feel
+		wxLongLong now = wxGetLocalTimeMillis();
+		if (value_changed || (now - m_last_drag_refresh).ToLong() >= 16) {
+			m_last_drag_refresh = now;
+			Refresh();
+		}
+	}
+
+private:
+	int hit_test(const wxPoint& pt) {
+		wxSize sz = GetClientSize();
+		const int bar_x = 2 + THUMB_HALF_W;
+		const int bar_w = std::max(1, sz.x - 4 - 2 * THUMB_HALF_W);
+		const int bar_y = TICKS_TOP_OFFSET + 2 + GetCharHeight() + 2;
+		const int thumb_center_y = bar_y + BAR_HEIGHT + THUMB_GAP + THUMB_H / 2;
+		const int thumb_top = thumb_center_y - THUMB_H / 2;
+		const int thumb_bottom = thumb_center_y + THUMB_H / 2;
+		int min_val = grayscale_text_to_int(m_text_min, 0);
+		int max_val = grayscale_text_to_int(m_text_max, 255);
+		auto pos_to_x = [bar_x, bar_w](int val) {
+			return bar_x + (val - GRAYSCALE_RANGE_MIN) * bar_w / std::max(1, GRAYSCALE_RANGE_MAX - GRAYSCALE_RANGE_MIN);
+		};
+		int x_min = pos_to_x(min_val);
+		int x_max = pos_to_x(max_val);
+		if (pt.y >= thumb_top && pt.y <= thumb_bottom) {
+			if (std::abs(pt.x - x_min) <= THUMB_HALF_W + 2) return 0;
+			if (std::abs(pt.x - x_max) <= THUMB_HALF_W + 2) return 1;
+		}
+		return -1;
+	}
+
+	wxTextCtrl* m_text_min;
+	wxTextCtrl* m_text_max;
+	std::function<void()> m_on_change;
+	int m_dragging{ -1 };
+	wxLongLong m_last_drag_refresh{ 0 };
+};
+}
+
+void GrayScaleLevelRangeCtrl::BUILD()
+{
+	const int em = m_em_unit;
+	const int text_w = 5 * em;
+
+	std::vector<int> default_vals = { 0, 255 };
+	if (const ConfigOptionInts* def = m_opt.get_default_value<ConfigOptionInts>()) {
+		if (def->values.size() >= 2)
+			default_vals = { def->values[0], def->values[1] };
+	}
+	default_vals[0] = std::clamp(default_vals[0], GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	default_vals[1] = std::clamp(default_vals[1], GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+
+	m_container = new wxPanel(m_parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+	m_container->SetBackgroundColour(m_parent->GetBackgroundColour());
+
+	m_text_min = new wxTextCtrl(m_container, wxID_ANY, wxString::Format("%d", default_vals[0]),
+		wxDefaultPosition, wxSize(text_w, wxDefaultCoord), wxTE_PROCESS_ENTER);
+	m_text_max = new wxTextCtrl(m_container, wxID_ANY, wxString::Format("%d", default_vals[1]),
+		wxDefaultPosition, wxSize(text_w, wxDefaultCoord), wxTE_PROCESS_ENTER);
+	m_text_min->SetFont(wxGetApp().normal_font());
+	m_text_max->SetFont(wxGetApp().normal_font());
+	wxGetApp().UpdateDarkUI(m_text_min);
+	wxGetApp().UpdateDarkUI(m_text_max);
+
+	m_gradient_panel = new GrayscaleRangePanel(m_container, m_text_min, m_text_max, [this]() {
+		if (!m_disable_change_event) { get_value(); on_change_field(); }
+	});
+	m_gradient_panel->SetBackgroundColour(m_container->GetBackgroundColour());
+
+	auto* main_sizer = new wxBoxSizer(wxVERTICAL);
+	main_sizer->Add(m_gradient_panel, 0, wxEXPAND | wxBOTTOM, 4);
+
+	auto* row_sizer = new wxBoxSizer(wxHORIZONTAL);
+	row_sizer->Add(m_text_min, 0, wxALIGN_CENTER_VERTICAL, 0);
+	row_sizer->AddStretchSpacer(1);
+	row_sizer->Add(m_text_max, 0, wxALIGN_CENTER_VERTICAL, 0);
+
+	main_sizer->Add(row_sizer, 0, wxEXPAND, 0);
+	m_container->SetSizer(main_sizer);
+	wxSize min_sz = main_sizer->GetMinSize();
+	m_container->SetMinSize(min_sz);
+	m_container->SetSize(min_sz);
+
+	sizer = nullptr;
+	window = m_container;
+
+	auto sync_from_text = [this]() {
+		if (m_disable_change_event) return;
+		get_value();
+		on_change_field();
+		if (m_gradient_panel) m_gradient_panel->Refresh();
+	};
+	m_text_min->Bind(wxEVT_TEXT_ENTER, [sync_from_text](wxCommandEvent&) { sync_from_text(); });
+	m_text_max->Bind(wxEVT_TEXT_ENTER, [sync_from_text](wxCommandEvent&) { sync_from_text(); });
+	m_text_min->Bind(wxEVT_KILL_FOCUS, [sync_from_text](wxFocusEvent& e) { e.Skip(); sync_from_text(); });
+	m_text_max->Bind(wxEVT_KILL_FOCUS, [sync_from_text](wxFocusEvent& e) { e.Skip(); sync_from_text(); });
+}
+
+void GrayScaleLevelRangeCtrl::set_value(const boost::any& value, bool change_event)
+{
+	m_disable_change_event = !change_event;
+	std::vector<int> vals;
+	try {
+		vals = boost::any_cast<std::vector<int>>(value);
+	} catch (...) {
+		vals = { 0, 255 };
+	}
+	if (vals.size() < 2) vals.resize(2, vals.empty() ? 0 : vals[0]);
+	int a = std::clamp(vals[0], GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	int b = std::clamp(vals[1], GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	if (a > b) std::swap(a, b);
+	grayscale_int_to_text(m_text_min, a);
+	grayscale_int_to_text(m_text_max, b);
+	if (m_gradient_panel) m_gradient_panel->Refresh();
+	m_disable_change_event = false;
+}
+
+boost::any& GrayScaleLevelRangeCtrl::get_value()
+{
+	int a = grayscale_text_to_int(m_text_min, GRAYSCALE_RANGE_MIN);
+	int b = grayscale_text_to_int(m_text_max, GRAYSCALE_RANGE_MAX);
+	a = std::clamp(a, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	b = std::clamp(b, GRAYSCALE_RANGE_MIN, GRAYSCALE_RANGE_MAX);
+	if (a > b) std::swap(a, b);
+	grayscale_int_to_text(m_text_min, a);
+	grayscale_int_to_text(m_text_max, b);
+	return m_value = boost::any(std::vector<int>{ a, b });
+}
+
+void GrayScaleLevelRangeCtrl::msw_rescale()
+{
+	Field::msw_rescale();
+}
+
+void GrayScaleLevelRangeCtrl::enable()
+{
+	if (m_text_min) m_text_min->Enable();
+	if (m_text_max) m_text_max->Enable();
+	if (m_gradient_panel) m_gradient_panel->Enable();
+}
+
+void GrayScaleLevelRangeCtrl::disable()
+{
+	if (m_text_min) m_text_min->Disable();
+	if (m_text_max) m_text_max->Disable();
+	if (m_gradient_panel) m_gradient_panel->Disable();
+}
 #pragma endregion
 
 void StaticText::BUILD()
