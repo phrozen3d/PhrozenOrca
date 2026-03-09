@@ -7234,7 +7234,7 @@ void PrintConfigDef::init_sla_params()
     //def->label = L("");
     //def->tooltip = L("");
     def->gui_type = ConfigOptionDef::GUIType::color;
-    def->set_default_value(new ConfigOptionString("#D1D1D1"));
+    def->set_default_value(new ConfigOptionString("#29B2B2"));
 
     def = this->add("material_type", coString);
     //def->label = L("");
