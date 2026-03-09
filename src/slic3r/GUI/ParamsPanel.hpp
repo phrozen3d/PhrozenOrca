@@ -154,6 +154,7 @@ class ParamsPanel : public wxPanel
         void set_active_tab(wxPanel*tab);
         bool is_active_and_shown_tab(wxPanel*tab);
         void update_mode();
+        void update_advanced_visibility();
         void msw_rescale();
         void switch_to_global();
         void switch_to_object(bool with_tips = false);

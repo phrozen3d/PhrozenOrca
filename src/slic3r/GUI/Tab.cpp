@@ -4885,6 +4885,17 @@ void Tab::reactive_preset_combo_box()
     m_presets_choice->Enable(true);
 }
 
+void Tab::set_default_setting_row_visible(bool visible)
+{
+    if (m_top_panel)
+        m_top_panel->Show(visible);
+    if (m_presets_choice)
+        m_presets_choice->Show(visible);
+    Layout();
+    if (wxWindow* parent = GetParent())
+        parent->Layout();
+}
+
 // Initialize the UI from the current preset
 void Tab::load_current_preset()
 {

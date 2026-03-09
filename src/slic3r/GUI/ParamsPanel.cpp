@@ -380,6 +380,7 @@ void ParamsPanel::create_layout()
         //m_mode_sizer->AddSpacer(16);
         m_mode_sizer->SetMinSize(-1, FromDIP(30));
         m_top_panel->SetSizer(m_mode_sizer);
+        update_advanced_visibility();
         //m_left_sizer->Add( m_top_panel, 0, wxEXPAND );
     }
 
@@ -640,6 +641,31 @@ void ParamsPanel::update_mode()
     {
         mode_view->SetValue(false);
     }
+}
+
+// Single entry point for all UI hidden in SLA mode: Process header row (Advanced label,
+// Simple/Advanced toggle, setting table btn, compare btn) and Print tab "Default Setting" row.
+void ParamsPanel::update_advanced_visibility()
+{
+    auto pt   = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+    bool show = (pt != ptSLA);
+    // Keep Process row visible; for SLA hide only the right-side controls: 進階 label, 進階 toggle, table btn, compare btn.
+    if (m_top_panel) {
+        if (m_title_view)  m_title_view->Show(show);
+        if (m_mode_view)  m_mode_view->Show(show);
+        if (m_setting_btn) m_setting_btn->Show(show);
+        if (m_compare_btn) m_compare_btn->Show(show);
+        if (m_top_panel->GetSizer())
+            m_top_panel->GetSizer()->Layout();
+        if (wxWindow* parent = m_top_panel->GetParent())
+            parent->Layout();
+    }
+    Tab* print_tab = dynamic_cast<Tab*>(m_tab_print);
+    if (print_tab) {
+        print_tab->set_default_setting_row_visible(show);
+    }
+    if (wxGetApp().plater())
+        wxGetApp().plater()->sidebar().set_bed_type_row_visible(show);
 }
 
 void ParamsPanel::msw_rescale()

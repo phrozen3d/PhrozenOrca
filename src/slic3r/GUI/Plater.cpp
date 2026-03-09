@@ -431,8 +431,8 @@ void Sidebar::priv::show_preset_comboboxes()
 
     // Show/Hide SLA panels (print and material settings)
     if (m_panel_sla_print_title && m_panel_sla_print_content) {
-        m_panel_sla_print_title->Show(showSLA);
-        m_panel_sla_print_content->Show(showSLA);
+        m_panel_sla_print_title->Show(false);
+        m_panel_sla_print_content->Show(false);
     }
     if (m_panel_sla_material_title && m_panel_sla_material_content) {
         m_panel_sla_material_title->Show(showSLA);
@@ -838,8 +838,7 @@ Sidebar::Sidebar(Plater *parent)
             bed_type_title->SetFont(font);
             SetCursor(wxCURSOR_ARROW);
         });
-        bed_type_title->Bind(wxEVT_LEFT_UP, [bed_type_title, this](wxMouseEvent &e) {
-            //wxLaunchDefaultBrowser("https://github.com/SoftFever/OrcaSlicer/wiki/bed-types");
+        bed_type_title->Bind(wxEVT_LEFT_UP, [](wxMouseEvent &e) {
             wxLaunchDefaultBrowser("https://github.com/phrozen3d/PhrozenOrca/wiki/Phrozen-Orca-Wiki-Page");
         });
 
@@ -857,6 +856,7 @@ Sidebar::Sidebar(Plater *parent)
         bed_type_sizer->Add(bed_type_title, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, FromDIP(SidebarProps::ContentMargin()));
         bed_type_sizer->Add(m_bed_type_list, 1, wxLEFT | wxEXPAND, FromDIP(SidebarProps::ElementSpacing()));
         bed_type_sizer->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
+        m_bed_type_sizer = bed_type_sizer;
         vsizer_printer->Add(bed_type_sizer, 0, wxEXPAND | wxTOP, FromDIP(5));
         vsizer_printer->AddSpacer(FromDIP(16));
 
@@ -1923,6 +1923,14 @@ void Sidebar::on_bed_type_change(BedType bed_type)
     int sel_idx = (int)bed_type - 1;
     if (m_bed_type_list != nullptr)
         m_bed_type_list->SetSelection(sel_idx);
+}
+
+void Sidebar::set_bed_type_row_visible(bool show)
+{
+    if (m_bed_type_sizer)
+        m_bed_type_sizer->ShowItems(show);
+    if (p && p->m_panel_printer_content && p->m_panel_printer_content->GetSizer())
+        p->m_panel_printer_content->GetSizer()->Layout();
 }
 
 std::map<int, DynamicPrintConfig> Sidebar::build_filament_ams_list(MachineObject* obj)

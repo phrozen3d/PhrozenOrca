@@ -325,6 +325,7 @@ public:
     void		load_current_preset();
     //BBS: reactive preset combo box
     void        reactive_preset_combo_box();
+	void        set_default_setting_row_visible(bool visible);
 	void        rebuild_page_tree();
     void		update_btns_enabling();
     void		update_preset_choice();

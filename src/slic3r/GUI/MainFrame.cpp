@@ -3942,6 +3942,8 @@ void MainFrame::update_ui_from_settings()
         m_plater->update_ui_from_settings();
     for (auto tab: wxGetApp().tabs_list)
         tab->update_ui_from_settings();
+    if (m_param_panel)
+        m_param_panel->update_advanced_visibility();
 }
 
 

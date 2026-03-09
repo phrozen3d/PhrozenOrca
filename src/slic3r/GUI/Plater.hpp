@@ -154,6 +154,7 @@ public:
     void add_custom_filament(wxColour new_col);
     // BBS
     void on_bed_type_change(BedType bed_type);
+    void set_bed_type_row_visible(bool show);
     void load_ams_list(std::string const & device, MachineObject* obj);
     std::map<int, DynamicPrintConfig> build_filament_ams_list(MachineObject* obj);
     void sync_ams_list();
@@ -201,6 +202,7 @@ private:
     std::unique_ptr<priv> p;
 
     wxBoxSizer* m_scrolled_sizer = nullptr;
+    wxBoxSizer* m_bed_type_sizer = nullptr;  // entire "Bed type" row, for set_bed_type_row_visible()
     ComboBox* m_bed_type_list = nullptr;
     ScalableButton* connection_btn = nullptr;
     ScalableButton* ams_btn = nullptr;
