@@ -290,21 +290,44 @@ void ObjectClipper::on_update()
     if (! mo)
         return;
 
-    // which mesh should be cut?
-    std::vector<const TriangleMesh*> meshes;
-    std::vector<Geometry::Transformation> trafos;
-    for (const ModelVolume* mv : mo->volumes) {
-        meshes.emplace_back(&mv->mesh());
-        trafos.emplace_back(mv->get_transformation());
+    // For SLA printers, prefer the backend-processed mesh (includes hollowing + drill holes).
+    // This ensures the cross-section fill correctly shows the hollow interior instead of a solid cap.
+    // Mirrors PrusaSlicer's ObjectClipper::on_update() SLA branch.
+    std::unique_ptr<MeshClipper> sla_mc;
+    Geometry::Transformation     sla_mc_tr;
+    if (wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA) {
+        const SLAPrintObject* po = get_pool()->selection_info()->print_object();
+        if (po && po->is_step_done(slaposDrillHoles)) {
+            const TriangleMesh& hollow_mesh = po->get_mesh_to_print();
+            if (!hollow_mesh.empty()) {
+                sla_mc = std::make_unique<MeshClipper>();
+                sla_mc->set_mesh(hollow_mesh.its);
+                // The mesh is already in world space (transformed_mesh), so cancel the instance trafo.
+                sla_mc_tr = Geometry::Transformation{po->trafo().inverse().cast<double>()};
+            }
+        }
     }
 
-    if (meshes != m_old_meshes) {
+    // which mesh should be cut? (fallback for FDM or SLA without hollowing)
+    std::vector<const TriangleMesh*> meshes;
+    std::vector<Geometry::Transformation> trafos;
+    if (!sla_mc) {
+        for (const ModelVolume* mv : mo->volumes) {
+            meshes.emplace_back(&mv->mesh());
+            trafos.emplace_back(mv->get_transformation());
+        }
+    }
+
+    if (sla_mc || meshes != m_old_meshes) {
         m_clippers.clear();
         for (size_t i = 0; i < meshes.size(); ++i) {
             m_clippers.emplace_back(new MeshClipper, trafos[i]);
             m_clippers.back().first->set_mesh(meshes[i]->its);
         }
         m_old_meshes = std::move(meshes);
+
+        if (sla_mc)
+            m_clippers.emplace_back(std::move(sla_mc), sla_mc_tr);
 
         m_active_inst_bb_radius =
             mo->instance_bounding_box(get_pool()->selection_info()->get_active_instance()).radius();
