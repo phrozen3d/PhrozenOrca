@@ -1,0 +1,35 @@
+{
+    "from": "User",
+    "instantiation": "true",
+    "type": "machine",
+    "printer_technology": "SLA",
+    "version": "1.0.3",
+    "name": "Phrozen Sonic Mega 8K S",
+    "printer_model": "Mega 8K S",
+    "printer_variant": "default",
+    "default_sla_material_profile": "Prusament Resin Tough Prusa Orange @0.05",
+    "default_sla_print_profile": "0.05 Normal",
+    "thumbnails": "400x400,800x480",
+    "bed_shape": [
+        "0x0",
+        "211x0",
+        "211x118",
+        "0x118"
+    ],
+    "display_height": "68.04",
+    "display_orientation": "portrait",
+    "display_pixels_x": "2560",
+    "display_pixels_y": "1440",
+    "display_width": "120.96",
+    "max_print_height": "150",
+    "min_exposure_time": "1",
+    "max_exposure_time": "120",
+    "min_initial_exposure_time": "1",
+    "max_initial_exposure_time": "300",
+    "printer_correction": [
+        "1",
+        "1",
+        "1"
+    ],
+    "printer_notes": "Don't remove the following keywords! These keywords are used in the \"compatible printer\" condition of the print and filament profiles to link the particular print and filament profiles to this printer profile.\\nPRINTER_VENDOR_PRUSA3D\\nPRINTER_MODEL_SL1\\n"
+}

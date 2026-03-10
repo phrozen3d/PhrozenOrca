@@ -1,0 +1,11 @@
+{
+    "type": "machine_model",
+    "machine_tech": "SLA",
+    "family": "SL1",
+    "name": "Phrozen Sonic Mega 8K S",
+    "model_id": "SL1",
+    "nozzle_diameter": "default",
+    "bed_model": "sl1_bed.stl",
+    "bed_texture": "sl1.svg",
+    "default_materials": "Prusament Resin Tough Prusa Orange @0.05"
+}

@@ -1,0 +1,11 @@
+{
+    "from": "User",
+    "instantiation": "true",
+    "type": "process",
+    "printer_technology": "SLA",
+    "version": "1.0.3",
+    "name": "0.025 UltraDetail",
+    "inherits": "sla_print_common",
+    "layer_height": "0.025",
+    "support_head_width": "2"
+}
