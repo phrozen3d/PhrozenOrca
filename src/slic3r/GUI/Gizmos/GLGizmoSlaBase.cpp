@@ -222,9 +222,7 @@ void GLGizmoSlaBase::update_volumes()
 
 void GLGizmoSlaBase::render_volumes()
 {
-    // PhrozenOrca: "gouraud_light_clip" does not exist in this build — use "gouraud_light".
-    // GLShadersManager only registers "gouraud_light" and "gouraud_light_instanced".
-    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
+    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light_clip");
     if (shader == nullptr)
         return;
 

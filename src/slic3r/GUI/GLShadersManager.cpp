@@ -46,6 +46,8 @@ std::pair<bool, std::string> GLShadersManager::init()
     valid &= append_shader("background", { prefix + "background.vs", prefix + "background.fs" });
     // used to render bed axes and model, selection hints, gcode sequential view marker model, preview shells, options in gcode preview
     valid &= append_shader("gouraud_light", { prefix + "gouraud_light.vs", prefix + "gouraud_light.fs" });
+    // extends "gouraud_light" by adding clipping plane support; used in SLA gizmos (support points, hollow & drill)
+    valid &= append_shader("gouraud_light_clip", { prefix + "gouraud_light_clip.vs", prefix + "gouraud_light_clip.fs" });
     //used to render thumbnail
     valid &= append_shader("thumbnail", { prefix + "thumbnail.vs", prefix + "thumbnail.fs"});
     // used to render printbed
