@@ -7564,18 +7564,23 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(5.0));
 
     def = this->add("support_points_density_relative", coInt);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label = L("Support points density");
+    def->category = L("Supports");
+    def->tooltip = L("This is a relative measure of support points density.");
+    def->sidetext = L("%");
     def->min = 0;
     def->set_default_value(new ConfigOptionInt(100));
 
+    // [TODO] Deprecated since PrusaSlicer 2.9.1 (change algorithm for the support generator).
+    // Kept for backward compatibility with saved projects. No longer read by the support generator.
     def = this->add("support_points_minimal_distance", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    def->sidetext = "mm";	// milimeters, don't need translation
+    def->label = L("Minimal points distance");
+    def->category = L("Supports");
+    def->tooltip = L("Minimum distance between auto-generated support points. "
+                     "Note: This parameter is no longer used by the support generator "
+                     "(deprecated since PrusaSlicer 2.9.1 when the Voronoi-based algorithm replaced Poisson disk sampling). "
+                     "Kept for backward compatibility only.");
+    def->sidetext = "mm";
     def->min = 0;
     def->set_default_value(new ConfigOptionFloat(1.));
 

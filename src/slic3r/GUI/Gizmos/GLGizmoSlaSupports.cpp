@@ -124,7 +124,6 @@ bool GLGizmoSlaSupports::on_init()
     m_desc["remove_all"]       = _L("Remove all points");
     m_desc["apply_changes"]    = _L("Apply changes");
     m_desc["discard_changes"]  = _L("Discard changes");
-    m_desc["minimal_distance"] = _L("Minimal points distance") + ": ";
     m_desc["points_density"]   = _L("Support points density") + ": ";
     m_desc["auto_generate"]    = _L("Auto-generate points");
     m_desc["manual_editing"]   = _L("Manual editing");
@@ -743,7 +742,7 @@ RENDER_AGAIN:
 
     // First calculate width of all the texts that are could possibly be shown. We will decide set the dialog width based on that:
 
-    const float settings_sliders_left = std::max(m_imgui->calc_text_size(m_desc.at("minimal_distance")).x, m_imgui->calc_text_size(m_desc.at("points_density")).x) + m_imgui->scaled(1.f);
+    const float settings_sliders_left = m_imgui->calc_text_size(m_desc.at("points_density")).x + m_imgui->scaled(1.f);
     const float clipping_slider_left = std::max(m_imgui->calc_text_size(m_desc.at("clipping_of_view")).x, m_imgui->calc_text_size(m_desc.at("reset_direction")).x) + m_imgui->scaled(1.5f);
     const float diameter_slider_left = m_imgui->calc_text_size(m_desc.at("head_diameter")).x + m_imgui->scaled(1.f);
     const float minimal_slider_width = m_imgui->scaled(4.f);
@@ -838,44 +837,34 @@ RENDER_AGAIN:
             }
         }
 
-        ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc.at("minimal_distance"));
-        ImGui::SameLine(settings_sliders_left);
-        ImGui::PushItemWidth(window_width - settings_sliders_left);
-
-        std::vector<const ConfigOption*> opts = get_config_options({"support_points_density_relative", "support_points_minimal_distance"});
-        float density = static_cast<const ConfigOptionInt*>(opts[0])->value;
-        float minimal_point_distance = static_cast<const ConfigOptionFloat*>(opts[1])->value;
-
-        m_imgui->slider_float("##minimal_point_distance", &minimal_point_distance, 0.f, 20.f, "%.f mm");
-        bool slider_clicked = m_imgui->get_last_slider_status().clicked; // someone clicked the slider
-        bool slider_edited = m_imgui->get_last_slider_status().edited; // someone is dragging the slider
-        bool slider_released = m_imgui->get_last_slider_status().deactivated_after_edit; // someone has just released the slider
+        const char *support_points_density = "support_points_density_relative";
+        float density = static_cast<const ConfigOptionInt*>(get_config_options({support_points_density})[0])->value;
+        float old_density = density;
+        wxString tooltip = _L("Change amount of generated support points.");
 
         ImGui::AlignTextToFramePadding();
         m_imgui->text(m_desc.at("points_density"));
         ImGui::SameLine(settings_sliders_left);
+        ImGui::PushItemWidth(window_width - settings_sliders_left);
 
-        m_imgui->slider_float("##points_density", &density, 0.f, 200.f, "%.f %%");
-        slider_clicked |= m_imgui->get_last_slider_status().clicked;
-        slider_edited |= m_imgui->get_last_slider_status().edited;
-        slider_released |= m_imgui->get_last_slider_status().deactivated_after_edit;
+        if (m_imgui->slider_float("##density", &density, 50.f, 200.f, "%.f %%", 1.f, false, tooltip)) {
+            if (density < 10.f) // lower value seems pointless; zero causes issues inside algorithms
+                density = 10.f;
+            mo->config.set(support_points_density, (int)density);
+        }
 
-        if (slider_clicked) { // stash the values of the settings so we know what to revert to after undo
-            m_minimal_point_distance_stash = minimal_point_distance;
-            m_density_stash = density;
-        }
-        if (slider_edited) {
-            mo->config.set("support_points_minimal_distance", minimal_point_distance);
-            mo->config.set("support_points_density_relative", (int)density);
-        }
-        if (slider_released) {
-            mo->config.set("support_points_minimal_distance", m_minimal_point_distance_stash);
-            mo->config.set("support_points_density_relative", (int)m_density_stash);
+        const ImGuiWrapper::LastSliderStatus &density_status = m_imgui->get_last_slider_status();
+        static std::optional<int> density_stash; // value for undo/redo stack is written on stop dragging
+        if (!density_stash.has_value() && !is_approx(density, old_density))
+            density_stash = (int)old_density;
+        if (density_status.deactivated_after_edit && density_stash.has_value()) { // slider released
+            // restore value before slide so the undo/redo snapshot captures the original
+            mo->config.set(support_points_density, *density_stash);
+            density_stash.reset();
             Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support parameter change");
-            mo->config.set("support_points_minimal_distance", minimal_point_distance);
-            mo->config.set("support_points_density_relative", (int)density);
+            mo->config.set(support_points_density, (int)density);
             wxGetApp().obj_list()->update_and_show_object_settings_item();
+            auto_generate();
         }
 
         // Step 4.5+: Support point statistics (adapted from PrusaSlicer; uses is_new_island
