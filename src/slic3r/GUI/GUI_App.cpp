@@ -3533,6 +3533,8 @@ void GUI_App::ShowUserGuide() {
         res = GuideDlg.run();
 if (res) {
             load_current_presets();
+            update_mode();
+            update_ui_from_settings();
             update_publish_status();
             mainframe->refresh_plugin_tips();
             // BBS: remove SLA related message

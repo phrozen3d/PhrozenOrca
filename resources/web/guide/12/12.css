@@ -1,49 +1,29 @@
-/* 模態對話框容器 - 使用標準頁面布局 */
+/* 與其他頁面一致：Title 為 body 直接子元素，由 common.css #Title 控制高度 */
 #ModalDialog {
-    width: 100%;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background-color: inherit;
 }
 
-/* 標題區域 - 使用標準 Title 樣式 */
-#ModalHeader {
-    height: 10%;
-    display: flex;
-    text-align: center;
-    flex-direction: column;
-    justify-content: center;
-    position: relative;
-    top: 16px;      /* 向下偏移 10px */
-}
-
-#ModalTitle {
-    font-size: 28px;
-    line-height: 28px;
-    color: #FF7C3F; /* 橙色 */
-    text-align: center;
-    font-weight: 600;
-    padding: 0px 10mm;
-}
-
-/* 內容區域 - 使用標準 Content 樣式 */
+/* 內容區域 */
 #ModalContent {
-    height: 76%;
-    padding: 113px 40px 20px 40px;
+    flex: 1;
+    padding: 40px;
     overflow-x: hidden;
     overflow-y: auto;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 60px;
     flex-wrap: nowrap;
 }
 
 /* 選項框 */
 .PrinterTypeOption {
-    width: 126px;
-    height: 126px;
+    width: 180px;
+    height: 174px;
     border: 2px solid #DBDBDB;
     border-radius: 8px;
     background-color: transparent;
@@ -57,8 +37,8 @@
 }
 
 .PrinterTypeOption:hover {
-    border-color: #FF7C3F;
-    background-color: transparent;
+    border-color: #DBDBDB;
+    background-color: #EEEEEE;
 }
 
 .PrinterTypeOption.selected {
@@ -66,45 +46,83 @@
     background-color: transparent;
 }
 
-/* 圖標區域（暫時為空，之後用戶會補上） */
+/* Icon area with image - 12px from top per design */
 .OptionIcon {
-    width: 120px;
-    height: 120px;
+    width: 115px;
+    height: 115px;
+    margin-top: 12px;
     margin-bottom: 16px;
-    /* 透明背景，等待用戶添加圖標 */
     background-color: transparent;
     border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
-/* 選項文字 */
-.OptionText {
+.OptionIcon img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Option text: unselected = same gray as border, selected = dark */
+.PrinterTypeOption .OptionText {
     font-family: "Noto Sans", sans-serif;
     font-size: 16px;
     font-weight: 700;
     font-style: normal;
     line-height: 100%;
     letter-spacing: 0%;
-    color: #333333;
+    color: #DBDBDB;
     text-align: center;
 }
 
+.PrinterTypeOption.selected .OptionText {
+    color: #333333;
+}
+
 @media (prefers-color-scheme: dark) {
-    .OptionText {
+    .PrinterTypeOption.selected .OptionText {
         color: #efeff0;
     }
 }
 
-/* 按鈕區域 - 使用標準 AcceptArea 樣式 */
+/* Footer - Next button aligned right, 48px from right, ~22px from bottom */
 #ModalFooter {
     height: 12%;
-    padding: 0mm 10mm;
-    text-align: left;
+    padding: 0 48px 22px 0;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
 }
 
 #ModalFooter .NormalBtn {
     min-width: 120px;
     margin: 0;
+}
+
+/* Next button: 120x45, radius 16px, orange - three states like common.css NormalBtn */
+#ModalFooter .NextBtn {
+    width: 120px;
+    height: 45px;
+    min-width: 120px;
+    border-radius: 16px;
+    background-color: #FF7C3F;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#ModalFooter .NextBtn:hover {
+    background-color: #F05E20;
+}
+
+#ModalFooter .NextBtn:active {
+    background-color: #E05518;
 }

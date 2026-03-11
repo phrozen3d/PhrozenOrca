@@ -37,37 +37,15 @@
         }
     ],
     "filament_list": [
-        {
-            "name": "sla_material_common",
-            "sub_path": "filament/sla_material_common.json"
+		{
+            "name": "Phrozen Speed Plus - Black",
+            "sub_path": "filament/Phrozen Speed Plus - Black.json",
+			"resin_only": true
         },
-        {
-            "name": "sla_material_0.025",
-            "sub_path": "filament/sla_material_0.025.json"
-        },
-        {
-            "name": "sla_material_0.05",
-            "sub_path": "filament/sla_material_0.05.json"
-        },
-        {
-            "name": "sla_material_0.1",
-            "sub_path": "filament/sla_material_0.1.json"
-        },
-        {
-            "name": "sla_material_sl1_fast",
-            "sub_path": "filament/sla_material_sl1_fast.json"
-        },
-        {
-            "name": "Prusament Resin Tough Prusa Orange @0.025",
-            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.025.json"
-        },
-        {
-            "name": "Prusament Resin Tough Prusa Orange @0.05",
-            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.05.json"
-        },
-        {
-            "name": "Prusament Resin Tough Prusa Orange @0.1",
-            "sub_path": "filament/Prusament Resin Tough Prusa Orange @0.1.json"
+		{
+            "name": "Phrozen Tough ABS-like+",
+            "sub_path": "filament/Phrozen Tough ABS-like+.json",
+			"resin_only": true
         }
     ],
     "machine_list": [

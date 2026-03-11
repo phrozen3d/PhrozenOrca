@@ -28,6 +28,7 @@
 
 #include "MainFrame.hpp"
 #include <boost/dll.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <slic3r/GUI/Widgets/WebView.hpp>
 #include <slic3r/Utils/Http.hpp>
 #include <libslic3r/miniz_extension.hpp>
@@ -403,10 +404,49 @@ void GuideFrame::OnScriptMessage(wxWebViewEvent &evt)
             }
         }
         else if (strCmd == "request_userguide_profile") {
+            // Ensure profile load is complete before responding (avoids empty resin list when user reaches LCD_resin before load thread finishes)
+            if (m_load_task && m_load_task->joinable()) {
+                m_load_task->join();
+                delete m_load_task;
+                m_load_task = nullptr;
+            }
+
             json m_Res = json::object();
             m_Res["command"] = "response_userguide_profile";
             m_Res["sequence_id"] = "10001";
             m_Res["response"]        = m_ProfileJson;
+
+            // Filter filament by printer_type: resin page only resin_only; FDM page exclude resin_only
+            if (m_ProfileJson.contains("filament") && m_ProfileJson.contains("printer_type")) {
+                bool want_resin_only = (m_ProfileJson["printer_type"] == "resin");
+                json filtered = json::object();
+                for (auto it = m_ProfileJson["filament"].begin(); it != m_ProfileJson["filament"].end(); ++it) {
+                    bool is_resin_only = it.value().contains("resin_only") && it.value()["resin_only"] == true;
+                    if (is_resin_only == want_resin_only)
+                        filtered[it.key()] = it.value();
+                }
+                m_Res["response"]["filament"] = std::move(filtered);
+            }
+
+            // Filter model by printer_type: resin (LCD_printer) -> PhrozenSLA vendor; filament (21) -> Phrozen Arco only
+            if (m_Res["response"].contains("model") && m_Res["response"]["model"].is_array()) {
+                std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
+                json filtered_models = json::array();
+                for (const auto& one : m_Res["response"]["model"]) {
+                    if (!one.contains("model")) continue;
+                    std::string model_name = one["model"].get<std::string>();
+                    std::string vendor_name = one.contains("vendor") ? one["vendor"].get<std::string>() : "";
+                    if (printer_type == "resin") {
+                        // Show all machines from PhrozenSLA vendor (avoids dependency on exact model names / load order)
+                        if (boost::algorithm::iequals(vendor_name, "PhrozenSLA"))
+                            filtered_models.push_back(one);
+                    } else {
+                        if (model_name == "Phrozen Arco")
+                            filtered_models.push_back(one);
+                    }
+                }
+                m_Res["response"]["model"] = std::move(filtered_models);
+            }
 
             //wxString strJS = wxString::Format("HandleStudio(%s)", m_Res.dump(-1, ' ', false, json::error_handler_t::ignore));
             wxString strJS = wxString::Format("HandleStudio(%s)", m_Res.dump(-1, ' ', true));
@@ -462,11 +502,29 @@ void GuideFrame::OnScriptMessage(wxWebViewEvent &evt)
                 m_ProfileJson["filament"][fName]["selected"] = 1;
             }
         }
+        else if (strCmd == "save_userguide_resins") {
+            // Store selected resin preset names for SaveProfile() to write SECTION_MATERIALS
+            m_ProfileJson["resin_selected"] = j["data"]["resin"];
+        }
         else if (strCmd == "save_printer_type") {
             std::string printer_type = j["data"]["type"];
             m_ProfileJson["printer_type"] = printer_type;
             wxGetApp().app_config->set("printer_type", printer_type);
+            // Set printer_technology on current printer preset: filament -> FFF, resin -> SLA
+            PrinterTechnology pt = (printer_type == "resin") ? ptSLA : ptFFF;
+            wxGetApp().preset_bundle->printers.get_edited_preset().config
+                .option<ConfigOptionEnum<PrinterTechnology>>("printer_technology", true)->value = pt;
+            if (wxGetApp().mainframe && wxGetApp().mainframe->plater())
+                wxGetApp().mainframe->plater()->set_printer_technology(pt);
             wxGetApp().app_config->save();
+
+            // Notify web that save is done so page 12 can navigate after printer_type is applied (fix LCD_printer empty list)
+            json m_Res = json::object();
+            m_Res["command"] = "response_save_printer_type";
+            m_Res["sequence_id"] = "10001";
+            m_Res["type"] = printer_type;
+            wxString strJS = wxString::Format("HandleStudio(%s)", m_Res.dump(-1, ' ', true));
+            wxGetApp().CallAfter([this, strJS] { RunScript(strJS); });
         }
         else if (strCmd == "request_printer_type") {
             // Always return default "filament" on wizard start, don't remember previous selection
@@ -665,9 +723,35 @@ int GuideFrame::SaveProfile()
     }
     m_appconfig_new.set_section(section_name, section_new);
 
+    // set resin (SLA materials) to app_config when user finished from LCD Resin page
+    if (m_ProfileJson.contains("resin_selected") && m_ProfileJson["resin_selected"].is_array()) {
+        std::map<std::string, std::string> section_resin;
+        for (auto& name : m_ProfileJson["resin_selected"]) {
+            std::string s = name.get<std::string>();
+            if (!s.empty())
+                section_resin[s] = "true";
+        }
+        m_MainPtr->app_config->set_section(AppConfig::SECTION_MATERIALS, section_resin);
+        m_MainPtr->app_config->save();
+    }
+
     //set vendors to app_config
     Slic3r::AppConfig::VendorMap empty_vendor_map;
     m_appconfig_new.set_vendors(empty_vendor_map);
+    std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
+    // On resin path, only run fallback for a vendor when no model in that vendor has nozzle_selected set (so we don't add unselected PhrozenSLA models and have get_preferred pick the wrong one)
+    std::set<std::string> resin_vendors_with_selection;
+    if (printer_type == "resin") {
+        for (auto it = m_ProfileJson["model"].begin(); it != m_ProfileJson["model"].end(); ++it) {
+            if (!it.value().is_object()) continue;
+            const json& j = it.value();
+            std::string v = j.contains("vendor") && j["vendor"].is_string() ? j["vendor"].get<std::string>() : "";
+            std::string sel = j.contains("nozzle_selected") && j["nozzle_selected"].is_string() ? j["nozzle_selected"].get<std::string>() : "";
+            boost::trim(sel);
+            if (!v.empty() && !sel.empty())
+                resin_vendors_with_selection.insert(v);
+        }
+    }
     for (auto it = m_ProfileJson["model"].begin(); it != m_ProfileJson["model"].end(); ++it)
     {
         if (it.value().is_object()) {
@@ -677,6 +761,21 @@ int GuideFrame::SaveProfile()
             std::string selected = temp_model["nozzle_selected"];
             boost::trim(selected);
             std::string nozzle;
+            // When nozzle_selected is empty (e.g. SLA path from LCD_printer), use model's single variant so selected machine is written. Only for single nozzle_diameter (no ';'). On resin path only allow PhrozenSLA and only when that vendor has no model with selection (avoid adding unselected SLA machines from other bundles or same bundle).
+            if (selected.empty() && temp_model.contains("nozzle_diameter") && temp_model["nozzle_diameter"].is_string()) {
+                nozzle = temp_model["nozzle_diameter"].get<std::string>();
+                boost::trim(nozzle);
+                bool allow_fallback = (!nozzle.empty() && nozzle.find(';') == std::string::npos);
+                if (printer_type == "resin") {
+                    allow_fallback = allow_fallback && boost::iequals(vendor_name, "PhrozenSLA")
+                        && resin_vendors_with_selection.find(vendor_name) == resin_vendors_with_selection.end();
+                }
+                if (allow_fallback) {
+                    m_appconfig_new.set_variant(vendor_name, model_name, nozzle, "true");
+                    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format("vendor_name %1%, model_name %2%, nozzle %3% selected (empty-selected fallback)")%vendor_name %model_name %nozzle;
+                }
+                continue;
+            }
             while (selected.size() > 0) {
                 auto pos = selected.find(';');
                 if (pos != std::string::npos) {
@@ -728,7 +827,7 @@ static std::string get_first_added_preset(const std::map<std::string, std::strin
     return *diff.begin();
 }
 
-bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdater *updater, bool& apply_keeped_changes)
+bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdater *updater, bool& apply_keeped_changes, bool skip_confirm_dialog)
 {
     const auto enabled_vendors = m_appconfig_new.vendors();
     const auto old_enabled_vendors = app_config->vendors();
@@ -766,7 +865,8 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
     wxString caption = _L("Configuration package changed");
     int act_btns = ActionButtons::KEEP|ActionButtons::SAVE;
 
-    if (check_unsaved_preset_changes &&
+    // When applying right after user clicked Finish, skip the dialog so we always apply and persist (avoid showing Default + reverting to FDM on restart)
+    if (!skip_confirm_dialog && check_unsaved_preset_changes &&
         !wxGetApp().check_and_keep_current_preset_changes(caption, header, act_btns, &apply_keeped_changes))
         return false;
 
@@ -827,14 +927,20 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
             variant.clear();
         return std::string();
     };
-    // Orca "custom" printers are considered first, then 3rd party.
-    if (preferred_model = get_preferred_printer_model(PresetBundle::ORCA_DEFAULT_BUNDLE, preferred_variant);
-        preferred_model.empty()) {
-        for (const auto& bundle : enabled_vendors) {
-            if (bundle.first == PresetBundle::ORCA_DEFAULT_BUNDLE) { continue; }
-            if (preferred_model = get_preferred_printer_model(bundle.first, preferred_variant);
-                !preferred_model.empty())
+    // When wizard finished on resin path, prefer PhrozenSLA so sidebar shows selected SLA and config persists it for restart
+    std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
+    if (printer_type == "resin")
+        preferred_model = get_preferred_printer_model("PhrozenSLA", preferred_variant);
+    // Orca "custom" printers are considered first, then 3rd party (only when no resin preferred).
+    if (preferred_model.empty()) {
+        if (preferred_model = get_preferred_printer_model(PresetBundle::ORCA_DEFAULT_BUNDLE, preferred_variant);
+            preferred_model.empty()) {
+            for (const auto& bundle : enabled_vendors) {
+                if (bundle.first == PresetBundle::ORCA_DEFAULT_BUNDLE) { continue; }
+                if (preferred_model = get_preferred_printer_model(bundle.first, preferred_variant);
+                    !preferred_model.empty())
                     break;
+            }
         }
     }
 
@@ -853,7 +959,8 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
     app_config->set_section(AppConfig::SECTION_FILAMENTS, enabled_filaments);
     app_config->set_vendors(m_appconfig_new);
 
-    if (check_unsaved_preset_changes)
+    // Always apply preferred printer when we have one (e.g. wizard selected SLA), so sidebar shows it even if check_unsaved_preset_changes is false
+    if (check_unsaved_preset_changes || !preferred_model.empty())
         preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::Enable,
                                     {preferred_model, preferred_variant, first_added_filament, std::string()});
 
@@ -889,13 +996,14 @@ bool GuideFrame::run()
     if (result == wxID_OK) {
         bool apply_keeped_changes = false;
         BOOST_LOG_TRIVIAL(info) << "GuideFrame returned ok";
-        if (! this->apply_config(app.app_config, app.preset_bundle, app.preset_updater, apply_keeped_changes))
+        if (! this->apply_config(app.app_config, app.preset_bundle, app.preset_updater, apply_keeped_changes, true))
             return false;
 
         if (apply_keeped_changes)
             app.apply_keeped_preset_modifications();
 
         app.app_config->set_legacy_datadir(false);
+        app.app_config->save(); // Persist printer/vendor selection so restart shows same printer (e.g. SLA)
         app.update_mode();
         // BBS
         //app.obj_manipul()->update_ui_from_settings();
@@ -955,6 +1063,22 @@ int GuideFrame::GetFilamentInfo( std::string VendorDirectory, json & pFilaList, 
             else {
                 BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << filepath << " - Not Contains filament_type";
             }
+        }
+
+        // SLA resin profiles often use material_vendor/material_type instead of filament_vendor/filament_type
+        if (sVendor == "" && jLocal.contains("material_vendor")) {
+            const json& mv = jLocal["material_vendor"];
+            if (mv.is_string())
+                sVendor = mv.get<std::string>();
+            else if (mv.is_array() && mv.size() > 0)
+                sVendor = mv[0].get<std::string>();
+        }
+        if (sType == "" && jLocal.contains("material_type")) {
+            const json& mt = jLocal["material_type"];
+            if (mt.is_string())
+                sType = mt.get<std::string>();
+            else if (mt.is_array() && mt.size() > 0)
+                sType = mt[0].get<std::string>();
         }
 
         if (sVendor == "" || sType == "")
@@ -1248,10 +1372,12 @@ int GuideFrame::LoadProfileFamily(std::string strVendor, std::string strFilePath
 
             OneModel["name"]      = pm["name"];
             OneModel["vendor"]    = strVendor;
-            std::string NozzleOpt = pm["nozzle_diameter"];
+            // SLA machine json may omit nozzle_diameter; use "default" to avoid aborting LoadProfileFamily
+            std::string NozzleOpt = (pm.contains("nozzle_diameter") && pm["nozzle_diameter"].is_string())
+                ? pm["nozzle_diameter"].get<std::string>() : "default";
             StringReplace(NozzleOpt, " ", "");
             OneModel["nozzle_diameter"] = NozzleOpt;
-            OneModel["materials"]       = pm["default_materials"];
+            OneModel["materials"]       = pm.contains("default_materials") ? pm["default_materials"] : json::array();
 
             // wxString strCoverPath = wxString::Format("%s\\%s\\%s_cover.png", strFolder, strVendor, std::string(s1.mb_str()));
             std::string             cover_file = s1 + "_cover.png";
@@ -1348,24 +1474,27 @@ int GuideFrame::LoadProfileFamily(std::string strVendor, std::string strFilePath
 
                     OneFF["models"]   = "";
 
-                    json pPrinters = pm["compatible_printers"];
-                    int nPrinter   = pPrinters.size();
                     std::string ModelList = "";
-                    for (int i = 0; i < nPrinter; i++)
-                    {
-                        std::string sP = pPrinters.at(i);
-                        if (m_ProfileJson["machine"].contains(sP))
+                    if (pm.contains("compatible_printers") && pm["compatible_printers"].is_array()) {
+                        json pPrinters = pm["compatible_printers"];
+                        int nPrinter   = pPrinters.size();
+                        for (int i = 0; i < nPrinter; i++)
                         {
-                            std::string mModel = m_ProfileJson["machine"][sP]["model"];
-                            std::string mNozzle = m_ProfileJson["machine"][sP]["nozzle"];
-                            std::string NewModel = mModel + "++" + mNozzle;
+                            std::string sP = pPrinters.at(i);
+                            if (m_ProfileJson["machine"].contains(sP))
+                            {
+                                std::string mModel = m_ProfileJson["machine"][sP]["model"];
+                                std::string mNozzle = m_ProfileJson["machine"][sP]["nozzle"];
+                                std::string NewModel = mModel + "++" + mNozzle;
 
-                            ModelList = (boost::format("%1%[%2%]") % ModelList % NewModel).str();
+                                ModelList = (boost::format("%1%[%2%]") % ModelList % NewModel).str();
+                            }
                         }
                     }
 
                     OneFF["models"]    = ModelList;
                     OneFF["selected"] = 0;
+                    // resin_only from filament_list entry is already in OneFF (from pFilament.at(n))
 
                     m_ProfileJson["filament"][s1] = OneFF;
                 } else

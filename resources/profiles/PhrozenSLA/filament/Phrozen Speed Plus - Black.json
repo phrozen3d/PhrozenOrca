@@ -36,7 +36,7 @@
     "tilt_up_cycles": "1,1",
     "tilt_up_delay": "0,0",
     "material_print_speed": "fast",
-    "material_type": "Tough",
-    "material_vendor": "PhrozenSLA",
+    "material_type": "Standard",
+    "material_vendor": "Phrozen",
     "material_colour": "#FF8040"
 }
