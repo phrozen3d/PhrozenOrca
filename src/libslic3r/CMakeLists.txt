@@ -151,6 +151,8 @@ set(lisbslic3r_sources
     Format/SLAArchiveReader.cpp
     Format/SLAArchiveFormatRegistry.hpp
     Format/SLAArchiveFormatRegistry.cpp
+    Format/PhrozenPRZ.hpp
+    Format/PhrozenPRZ.cpp
 	Format/svg.hpp
     Format/svg.cpp
     Format/ZipperArchiveImport.hpp
@@ -405,6 +407,8 @@ set(lisbslic3r_sources
     SLA/AGGRaster.hpp
     SLA/RasterToPolygons.hpp
     SLA/RasterToPolygons.cpp
+    SLA/RasterToCvMat.hpp
+    SLA/RasterToCvMat.cpp
     SLA/ConcaveHull.hpp
     SLA/ConcaveHull.cpp
     SLA/Hollowing.hpp

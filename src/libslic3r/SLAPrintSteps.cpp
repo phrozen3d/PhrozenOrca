@@ -17,6 +17,12 @@
 #include <libslic3r/SLA/ZCorrection.hpp>
 #include <libslic3r/Format/SLAArchiveWriter.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
+#include <libslic3r/SLA/RasterToCvMat.hpp>
+#define PHROZEN_PRZ_TEST_EXPORT 0
+#ifdef PHROZEN_PRZ_TEST_EXPORT
+#include <libslic3r/Format/PhrozenPRZ.hpp>
+#include <fstream>
+#endif
 
 #include <libslic3r/ClipperUtils.hpp>
 
@@ -1152,6 +1158,69 @@ void SLAPrint::Steps::rasterize()
     // Print all the layers in parallel
     m_print->m_printer->draw_layers(m_print->m_printer_input.size(), lvlfn,
                                     [this]() { return canceled(); }, ex_tbb);
+
+    // Build cv::Mat images for each layer (for downstream processing)
+    if (!canceled()) {
+        const SLAPrinterConfig &cfg = m_print->printer_config();
+
+        double w  = cfg.display_width.getFloat();
+        double h  = cfg.display_height.getFloat();
+        size_t pw = size_t(cfg.display_pixels_x.getInt());
+        size_t ph = size_t(cfg.display_pixels_y.getInt());
+
+        auto orient = cfg.display_orientation.value == sladoPortrait
+            ? sla::RasterBase::roPortrait
+            : sla::RasterBase::roLandscape;
+        if (orient == sla::RasterBase::roPortrait) { std::swap(w, h); std::swap(pw, ph); }
+
+        sla::Resolution res{pw, ph};
+        sla::PixelDim   pxdim{w / pw, h / ph};
+        sla::RasterBase::Trafo trafo{orient,
+            {cfg.display_mirror_x.getBool(), cfg.display_mirror_y.getBool()}};
+        double gamma = cfg.gamma_correction.getFloat();
+
+        // Compute the translation needed to map bed coordinates → display coordinates.
+        // Instance shifts are in bed world coordinates (bed_shape space).
+        // After portrait swap: w = original display_height, h = original display_width.
+        // flipXY (portrait) swaps polygon x↔y when mapping to pixels, so:
+        //   polygon X axis aligns with original display_width  → center = cfg.display_width/2
+        //   polygon Y axis aligns with original display_height → center = cfg.display_height/2
+        // For landscape: display_cx = w, display_cy = h (no swap).
+        Points bed_pts;
+        bed_pts.reserve(cfg.printable_area.values.size());
+        for (const Vec2d &v : cfg.printable_area.values)
+            bed_pts.emplace_back(scaled(v.x()), scaled(v.y()));
+        BoundingBox bed_bb(bed_pts);
+        const Point bed_center = bed_bb.center();
+
+        // cfg.display_width/height are pre-swap physical dimensions.
+        const double display_cx = cfg.display_width.getFloat()  / 2.0;
+        const double display_cy = cfg.display_height.getFloat() / 2.0;
+        const Point  display_center{scaled(display_cx), scaled(display_cy)};
+        const Point  shift = display_center - bed_center;
+
+        std::vector<ExPolygons> all_layers;
+        all_layers.reserve(m_print->m_printer_input.size());
+        for (const PrintLayer &layer : m_print->m_printer_input) {
+            ExPolygons polys = layer.transformed_slices();
+            for (ExPolygon &ep : polys)
+                ep.translate(shift);
+            all_layers.push_back(std::move(polys));
+        }
+
+        m_print->m_layer_images =
+            sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
+
+#ifdef PHROZEN_PRZ_TEST_EXPORT
+        // [TEST] 輸出 PRZ 檔案至桌面，驗證 generate_prz 正確性
+        {
+            std::string prz_data = Slic3r::generate_prz(*m_print);
+            std::string out_path = std::string(getenv("USERPROFILE") ? getenv("USERPROFILE") : ".") + "/Desktop/test_output.prz";
+            std::ofstream ofs(out_path, std::ios::binary);
+            ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
+        }
+#endif
+    }
 }
 
 std::string SLAPrint::Steps::label(SLAPrintObjectStep step)

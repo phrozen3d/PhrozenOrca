@@ -1,0 +1,524 @@
+#include "PhrozenPRZ.hpp"
+
+#include <ctime>
+#include <sstream>
+#include <iomanip>
+
+#include <opencv2/core.hpp>
+
+#include <libslic3r/SLAPrint.hpp>
+#include <libslic3r/PrintConfig.hpp>
+#include <libslic3r/Config.hpp>
+#include <libslic3r/libslic3r.h>
+
+namespace Slic3r {
+
+// ---------------------------------------------------------------------------
+// Helpers: read values from DynamicPrintConfig by key
+// ---------------------------------------------------------------------------
+static float cfg_f(const DynamicPrintConfig &cfg, const std::string &key, float def = 0.f)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key))
+            return static_cast<float>(opt->getFloat());
+    return def;
+}
+
+static int cfg_i(const DynamicPrintConfig &cfg, const std::string &key, int def = 0)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key))
+            return opt->getInt();
+    return def;
+}
+
+// coFloats stores a vector; index 0 is the primary value
+static float cfg_floats0(const DynamicPrintConfig &cfg, const std::string &key, float def = 0.f)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key)) {
+            const auto *fo = dynamic_cast<const ConfigOptionFloats *>(opt);
+            if (fo && !fo->values.empty())
+                return static_cast<float>(fo->values[0]);
+        }
+    return def;
+}
+
+// ---------------------------------------------------------------------------
+// Helper: write a big-endian value of sizeof(T) bytes into fh
+// ---------------------------------------------------------------------------
+template<typename T>
+static void write_be(std::string &fh, T val)
+{
+    const int N = sizeof(T);
+    const char *c = reinterpret_cast<const char *>(&val);
+    for (int i = N - 1; i >= 0; --i)
+        fh += c[i];
+}
+
+// ---------------------------------------------------------------------------
+// PRZ Header  (mirrors Slicer::PrzHeader)
+// ---------------------------------------------------------------------------
+static void prz_header(std::string             &fh,
+                       const SLAPrint          &print,
+                       const DynamicPrintConfig &cfg)
+{
+    const SLAPrinterConfig &pcfg = print.printer_config();
+
+    int layerContent_position_offset = 0;
+
+    // Version "V3.0"
+    {
+        const int sz = 4;
+        std::string ver = "V3.0";
+        ver.resize(sz, '\0');
+        fh += ver;
+        layerContent_position_offset += sz;
+    }
+    // Tag
+    {
+        const char tag[8] = { 0x07, 0x00, 0x00, 0x00, 0x44, 0x4C, 0x50, 0x00 };
+        for (int i = 0; i < 8; ++i) fh += tag[i];
+        layerContent_position_offset += 8;
+    }
+    // Software (blank, 32 bytes)
+    {
+        fh.append(32, '\0');
+        layerContent_position_offset += 32;
+    }
+    // Software version (blank, 24 bytes)
+    {
+        fh.append(24, '\0');
+        layerContent_position_offset += 24;
+    }
+    // File time (24 bytes)
+    {
+        const int sz = 24;
+        time_t now = time(nullptr);
+        tm *ltm = localtime(&now);
+        std::ostringstream ss;
+        ss << (1900 + ltm->tm_year) << '-'
+           << std::setfill('0') << std::setw(2) << (1 + ltm->tm_mon) << '-'
+           << std::setfill('0') << std::setw(2) << ltm->tm_mday << ' '
+           << std::setfill('0') << std::setw(2) << ltm->tm_hour << ':'
+           << std::setfill('0') << std::setw(2) << ltm->tm_min  << ':'
+           << std::setfill('0') << std::setw(2) << ltm->tm_sec;
+        std::string t = ss.str();
+        t.resize(sz, '\0');
+        fh += t;
+        layerContent_position_offset += sz;
+    }
+    // Printer name (blank, 32 bytes)
+    {
+        fh.append(32, '\0');
+        layerContent_position_offset += 32;
+    }
+    // Printer type (blank, 32 bytes)
+    {
+        fh.append(32, '\0');
+        layerContent_position_offset += 32;
+    }
+    // Profile name (blank, 32 bytes)
+    {
+        fh.append(32, '\0');
+        layerContent_position_offset += 32;
+    }
+    // Anti-aliasing level (2 bytes big-endian short)
+    {
+        short v = static_cast<short>(cfg_i(cfg, "anti_aliasing_level"));
+        write_be(fh, v);
+        layerContent_position_offset += 2;
+    }
+    // Grey level / picture_grayscale (2 bytes)
+    {
+        short v = static_cast<short>(cfg_i(cfg, "picture_grayscale"));
+        write_be(fh, v);
+        layerContent_position_offset += 2;
+    }
+    // Blur level / image_blur_pixel enum (2 bytes)
+    {
+        short v = static_cast<short>(cfg_i(cfg, "image_blur_pixel"));
+        write_be(fh, v);
+        layerContent_position_offset += 2;
+    }
+    // Preview 116×116 (all zeros, 116*116*2 bytes)
+    {
+        const int sz = 116 * 116 * 2;
+        fh.append(sz, '\0');
+        layerContent_position_offset += sz;
+    }
+    // CR LF
+    {
+        fh += '\r'; fh += '\n';
+        layerContent_position_offset += 2;
+    }
+    // Preview 290×290 (all zeros)
+    {
+        const int sz = 290 * 290 * 2;
+        fh.append(sz, '\0');
+        layerContent_position_offset += sz;
+    }
+    // CR LF
+    {
+        fh += '\r'; fh += '\n';
+        layerContent_position_offset += 2;
+    }
+    // Total layers
+    {
+        int total = static_cast<int>(print.layer_images().size());
+        write_be(fh, total);
+        layerContent_position_offset += 4;
+    }
+    // XResolution / YResolution
+    {
+        short xr = static_cast<short>(pcfg.display_pixels_y.getInt());
+        short yr = static_cast<short>(pcfg.display_pixels_x.getInt());
+        write_be(fh, xr);
+        write_be(fh, yr);
+        layerContent_position_offset += 4;
+    }
+    // Xmirror (1 byte): mirror_x=false → 1; true → 0
+    { fh += static_cast<char>(pcfg.display_mirror_x.getBool() ? 0 : 1); layerContent_position_offset += 1; }
+    // Ymirror (1 byte): mirror_y=false → 0; true → 1
+    { fh += static_cast<char>(pcfg.display_mirror_y.getBool() ? 1 : 0); layerContent_position_offset += 1; }
+    // PlatformXLength (4 bytes, float, mm)
+    { float v = static_cast<float>(pcfg.display_height.getFloat());  write_be(fh, v); layerContent_position_offset += 4; }
+    // PlatformYLength (4 bytes, float, mm)
+    { float v = static_cast<float>(pcfg.display_width.getFloat()); write_be(fh, v); layerContent_position_offset += 4; }
+    // PlatformZLength (4 bytes, float, mm)
+    { float v = static_cast<float>(pcfg.printable_height.getFloat()); write_be(fh, v); layerContent_position_offset += 4; }
+    // LayerThickness (4 bytes, float, mm)
+    { float v = cfg_f(cfg, "layer_height"); write_be(fh, v); layerContent_position_offset += 4; }
+    // ExposureTime (normal, 4 bytes)
+    { float v = cfg_f(cfg, "exposure_time"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Exposure_delay_mode (1 byte): 1 = use static_time
+    { fh += '\x01'; layerContent_position_offset += 1; }
+    // TurnOffTime (light_off_day, 4 bytes)
+    { float v = cfg_f(cfg, "light_off_day"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Bottom_Before_lift_static_time (4 bytes, 0)
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // Bottom_After_lift_static_time (4 bytes, 0)
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // Bottom_After_retract_static_time (rest_time_after_retract)
+    { float v = cfg_f(cfg, "rest_time_after_retract"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Before_lift_static_time (0)
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // After_lift_static_time (0)
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // After_retract_static_time (rest_time_after_retract)
+    { float v = cfg_f(cfg, "rest_time_after_retract"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomExposureTime
+    { float v = cfg_f(cfg, "bottom_exposure_time"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLayers
+    { int v = cfg_i(cfg, "bottom_layer_count"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLiftDist
+    { float v = cfg_floats0(cfg, "bottom_lift_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLiftSpeed
+    { float v = cfg_floats0(cfg, "bottom_lift_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // LiftDist (normal)
+    { float v = cfg_floats0(cfg, "lifting_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // LiftSpeed (normal)
+    { float v = cfg_floats0(cfg, "lifting_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomRetractDist = bottom_lift_distance + bottom_lift_second_distance - bottom_retract_second_distance
+    {
+        float lh  = cfg_floats0(cfg, "bottom_lift_distance");
+        float lh2 = cfg_floats0(cfg, "bottom_lift_second_distance");
+        float dh2 = cfg_floats0(cfg, "bottom_retract_second_distance");
+        float v   = lh + lh2 - dh2;
+        if (v <= 0.f) v = lh + lh2;
+        write_be(fh, v); layerContent_position_offset += 4;
+    }
+    // BottomRetractSpeed
+    { float v = cfg_floats0(cfg, "bottom_retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // RetractDist = lifting_distance + lift_second_distance - retract_second_distance
+    {
+        float lh  = cfg_floats0(cfg, "lifting_distance");
+        float lh2 = cfg_floats0(cfg, "lift_second_distance");
+        float dh2 = cfg_floats0(cfg, "retract_second_distance");
+        float v   = lh + lh2 - dh2;
+        if (v <= 0.f) v = lh + lh2;
+        write_be(fh, v); layerContent_position_offset += 4;
+    }
+    // RetractSpeed
+    { float v = cfg_floats0(cfg, "retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLift_second_Dist
+    { float v = cfg_floats0(cfg, "bottom_lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLift_second_Speed
+    { float v = cfg_floats0(cfg, "bottom_lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Lift_second_Dist
+    { float v = cfg_floats0(cfg, "lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Lift_second_Speed
+    { float v = cfg_floats0(cfg, "lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomRetract_second_Dist
+    { float v = cfg_floats0(cfg, "bottom_retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomRetract_second_Speed
+    { float v = cfg_floats0(cfg, "bottom_retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Retract_second_Dist
+    { float v = cfg_floats0(cfg, "retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Retract_second_Speed
+    { float v = cfg_floats0(cfg, "retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLightPwm (2 bytes)
+    { short v = static_cast<short>(cfg_i(cfg, "bottom_light_pwm")); write_be(fh, v); layerContent_position_offset += 2; }
+    // LightPwm (2 bytes)
+    { short v = static_cast<short>(cfg_i(cfg, "light_pwm")); write_be(fh, v); layerContent_position_offset += 2; }
+    // Advance_Mode (0 = normal, 1 byte)
+    { fh += '\0'; layerContent_position_offset += 1; }
+    // PrintTimes (estimated, 0)
+    { int v = 0; write_be(fh, v); layerContent_position_offset += 4; }
+    // TotalVolume / TotalWeight / TotalPrice (all 0)
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // PriceUnit (8 bytes, zeros)
+    { fh.append(8, '\0'); layerContent_position_offset += 8; }
+    // LayerContent_position_offset (4 bytes, self-referential)
+    {
+        layerContent_position_offset += 4 + 3;
+        write_be(fh, layerContent_position_offset);
+    }
+    // Grayscale_level: 1 = 8-bit
+    { fh += '\x01'; }
+    // Transition layers (2 bytes big-endian short)
+    { short v = static_cast<short>(cfg_i(cfg, "transition_layer_count")); write_be(fh, v); }
+}
+
+// ---------------------------------------------------------------------------
+// PRZ Layer Content  (mirrors Slicer::PrzLayerContent)
+// ---------------------------------------------------------------------------
+static void prz_layer_content(std::string              &fh,
+                               const SLAPrint           &print,
+                               const DynamicPrintConfig &cfg,
+                               size_t                    layerId)
+{
+    const int bottom     = cfg_i(cfg, "bottom_layer_count");
+    const int transition = cfg_i(cfg, "transition_layer_count") + bottom;
+    const bool is_bottom = static_cast<int>(layerId) < bottom;
+
+    // PauseFlag (short, 0)
+    { short v = 0; write_be(fh, v); }
+
+    // Layer print Z (mm), stored as big-endian float
+    {
+        coord_t lvl = print.print_layers()[layerId].level();
+        float z = static_cast<float>(unscale<double>(lvl));
+        write_be(fh, z); // PausePositionZ
+        write_be(fh, z); // LayerPositionZ
+    }
+
+    // LayerExposureTime (with transition interpolation)
+    {
+        float bt = cfg_f(cfg, "bottom_exposure_time");
+        float nt = cfg_f(cfg, "exposure_time");
+        float expTime = nt;
+        if (is_bottom) {
+            expTime = bt;
+        } else if (static_cast<int>(layerId) >= bottom &&
+                   static_cast<int>(layerId) < transition) {
+            int tcount = cfg_i(cfg, "transition_layer_count");
+            expTime = bt + (nt - bt) / (1.f + tcount)
+                          * static_cast<float>(layerId - bottom + 1);
+        }
+        write_be(fh, expTime);
+    }
+
+    // LayerOffTime (light_off_day)
+    { float v = cfg_f(cfg, "light_off_day"); write_be(fh, v); }
+
+    // Before_lift_static_time (0)
+    { float v = 0.f; write_be(fh, v); }
+    // After_lift_static_time (0)
+    { float v = 0.f; write_be(fh, v); }
+    // After_retract_static_time (rest_time_after_retract)
+    { float v = cfg_f(cfg, "rest_time_after_retract"); write_be(fh, v); }
+
+    // LiftDist
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_distance")
+                            : cfg_floats0(cfg, "lifting_distance");
+        write_be(fh, v);
+    }
+    // LiftSpeed
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_speed")
+                            : cfg_floats0(cfg, "lifting_speed");
+        write_be(fh, v);
+    }
+    // Lift_Second_Dist
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_second_distance")
+                            : cfg_floats0(cfg, "lift_second_distance");
+        write_be(fh, v);
+    }
+    // Lift_Second_Speed
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_second_speed")
+                            : cfg_floats0(cfg, "lift_second_speed");
+        write_be(fh, v);
+    }
+    // Retract_Dist = lift + lift2 - drop2
+    {
+        float lh, lh2, dh2;
+        if (is_bottom) {
+            lh  = cfg_floats0(cfg, "bottom_lift_distance");
+            lh2 = cfg_floats0(cfg, "bottom_lift_second_distance");
+            dh2 = cfg_floats0(cfg, "bottom_retract_second_distance");
+        } else {
+            lh  = cfg_floats0(cfg, "lifting_distance");
+            lh2 = cfg_floats0(cfg, "lift_second_distance");
+            dh2 = cfg_floats0(cfg, "retract_second_distance");
+        }
+        float v = lh + lh2 - dh2;
+        if (v <= 0.f) v = lh + lh2;
+        write_be(fh, v);
+    }
+    // Retract_Speed
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_retract_speed")
+                            : cfg_floats0(cfg, "retract_speed");
+        write_be(fh, v);
+    }
+    // Retract_Second_Dist
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_retract_second_distance")
+                            : cfg_floats0(cfg, "retract_second_distance");
+        write_be(fh, v);
+    }
+    // Retract_Second_Speed
+    {
+        float v = is_bottom ? cfg_floats0(cfg, "bottom_retract_second_speed")
+                            : cfg_floats0(cfg, "retract_second_speed");
+        write_be(fh, v);
+    }
+    // LightPwm (short)
+    {
+        short v = is_bottom ? static_cast<short>(cfg_i(cfg, "bottom_light_pwm"))
+                            : static_cast<short>(cfg_i(cfg, "light_pwm"));
+        write_be(fh, v);
+    }
+
+    // CR LF
+    fh += '\r'; fh += '\n';
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point  (mirrors Slicer::getPRZString2)
+// encode_pixels replaced by direct cv::Mat pixel scan — no intermediate vector
+// ---------------------------------------------------------------------------
+std::string generate_prz(const SLAPrint &print)
+{
+    const auto &layer_images = print.layer_images();
+    if (layer_images.empty())
+        return {};
+
+    const DynamicPrintConfig &cfg = print.full_print_config();
+
+    static constexpr uchar BLACK = 0x00;
+    static constexpr uchar WHITE = 0xc0;
+    static constexpr uchar GRAY  = 0x40;
+    static constexpr uchar BYTE_NUMBER[4]      = { 0x00, 0x10, 0x20, 0x30 };
+    static constexpr int   CONTINUOUS_BOUND[4] = { 1 << 4, 1 << 12, 1 << 20, 1 << 28 };
+    static constexpr int   BOUND_0             = 0x0f;
+
+    std::string out;
+    out.reserve(64 * 1024 * 1024);
+
+    prz_header(out, print, cfg);
+
+    const size_t layerSize = layer_images.size();
+
+    for (size_t lid = 0; lid < layerSize; ++lid) {
+        prz_layer_content(out, print, cfg, lid);
+
+        const cv::Mat &img = layer_images[lid]; // CV_8UC1, row-major
+        const int total    = img.rows * img.cols;
+        const uchar *data  = img.data;
+
+        int sum = 0;
+        std::string przByte;
+        przByte.reserve(static_cast<size_t>(total) / 2 + 8);
+
+        przByte += static_cast<char>(0x55); // layer head
+
+        // Write one RLE run (color, count) directly into przByte
+        auto flush_run = [&](uchar color, int count) {
+            const char *c_count = reinterpret_cast<const char *>(&count);
+
+            if (color == 0x00 || color == 0xff) {
+                uchar base = (color == 0x00) ? BLACK : WHITE;
+                for (int bid = 0; bid < 4; ++bid) {
+                    if (count < CONTINUOUS_BOUND[bid]) {
+                        uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
+                        count >>= 4;
+                        sum += static_cast<int>(byte0);
+                        przByte += static_cast<char>(byte0);
+                        for (int i = bid; i >= 1; --i) {
+                            przByte += c_count[i - 1];
+                            sum += static_cast<int>(static_cast<uchar>(c_count[i - 1]));
+                        }
+                        break;
+                    }
+                }
+            } else {
+                for (int bid = 0; bid < 4; ++bid) {
+                    if (count < CONTINUOUS_BOUND[bid]) {
+                        uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
+                        count >>= 4;
+                        sum += static_cast<int>(byte0);
+                        przByte += static_cast<char>(byte0);
+                        sum += static_cast<int>(color);
+                        przByte += static_cast<char>(color);
+                        for (int i = bid; i >= 1; --i) {
+                            przByte += c_count[i - 1];
+                            sum += static_cast<int>(static_cast<uchar>(c_count[i - 1]));
+                        }
+                        break;
+                    }
+                }
+            }
+        };
+
+        // Scan pixels directly — no intermediate encode_pixels vector
+        if (total > 0) {
+            uchar cur   = data[0];
+            int   count = 1;
+            for (int i = 1; i < total; ++i) {
+                uchar px = data[i];
+                if (px == cur) {
+                    ++count;
+                } else {
+                    flush_run(cur, count);
+                    cur   = px;
+                    count = 1;
+                }
+            }
+            flush_run(cur, count);
+        }
+
+        // Checksum byte
+        uchar checksum = static_cast<uchar>((~sum) & 0xff);
+        przByte += static_cast<char>(checksum);
+
+        // Layer data size prefix (4 bytes big-endian int)
+        {
+            int sz = static_cast<int>(przByte.size());
+            write_be(out, sz);
+        }
+        out += przByte;
+
+        // CR LF after layer pixel data
+        out += '\r'; out += '\n';
+
+        // DLP end tag on last layer
+        if (lid == layerSize - 1) {
+            const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
+                                   0x00, 0x00, 0x00,
+                                   0x44, 0x4C, 0x50, 0x00 };
+            for (int i = 0; i < 11; ++i)
+                out += tag[i];
+        }
+    }
+
+    return out;
+}
+
+} // namespace Slic3r

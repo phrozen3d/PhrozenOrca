@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <opencv2/core.hpp>
 #include "PrintBase.hpp"
 #include "SLA/RasterBase.hpp"
 #include "SLA/SupportTree.hpp"
@@ -511,6 +512,10 @@ public:
     // TODO: use this structure for the preview in the future.
     const std::vector<PrintLayer>& print_layers() const { return m_printer_input; }
 
+    // cv::Mat images (CV_8UC1) generated per layer at the end of slapsRasterize.
+    // White (255) = exposed area, Black (0) = background.
+    const std::vector<cv::Mat>& layer_images() const { return m_layer_images; }
+
     void set_printer(SLAArchive *archiver);
 
 private:
@@ -531,6 +536,10 @@ private:
 
     // Ready-made data for rasterization.
     std::vector<PrintLayer>         m_printer_input;
+
+    // cv::Mat images generated per layer after slicing (CV_8UC1, grayscale).
+    // Populated at the end of slapsRasterize step.
+    std::vector<cv::Mat>            m_layer_images;
 
     // The archive object which collects the raster images after slicing
     SLAArchive                     *m_printer = nullptr;
