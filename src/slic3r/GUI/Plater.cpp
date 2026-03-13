@@ -1447,7 +1447,14 @@ void Sidebar::update_all_preset_comboboxes()
         ams_btn->Show();
         //update print button default value for bbl or third-party printer
         p_mainframe->set_print_button_to_default(MainFrame::PrintSelectType::ePrintPlate);
-    } else {
+    } 
+    else if ( preset_bundle.is_phrozen_vendor() ) {
+        //PhrozenOrca has its own connection mechanism and AMS control, so only the default values ​​need to be connected to the print function.
+        connection_btn->Hide();
+        ams_btn->Hide();
+        p_mainframe->set_print_button_to_default(MainFrame::PrintSelectType::ePrintPlate);
+    }
+    else {
         connection_btn->Show();
         ams_btn->Hide();
         auto print_btn_type = MainFrame::PrintSelectType::eExportGcode;
