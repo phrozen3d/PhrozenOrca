@@ -32,6 +32,9 @@ enum class SLAGizmoEventType : unsigned char {
 #include "slic3r/GUI/Gizmos/GLGizmoFlatten.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoFdmSupports.hpp"
+#pragma region Phrozen LCD Parameter
+#include "slic3r/GUI/Gizmos/GLGizmoLcdOverhangDetection.hpp"
+#pragma endregion
 #include "slic3r/GUI/Gizmos/GLGizmoFuzzySkin.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoMmuSegmentation.hpp"
 // BBS

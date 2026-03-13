@@ -81,6 +81,9 @@ public:
         Cut,
         MeshBoolean,
         FdmSupports,
+#pragma region Phrozen LCD Parameter
+        LcdOverhangDetection,
+#pragma endregion
         Seam,
         FuzzySkin,
         MmSegmentation,

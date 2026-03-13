@@ -15,6 +15,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmoFlatten.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoFdmSupports.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoLcdOverhangDetection.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoFuzzySkin.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoBrimEars.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoCut.hpp"
@@ -152,6 +153,11 @@ void GLGizmosManager::switch_gizmos_icon_filename()
         case(EType::FdmSupports):
             gizmo->set_icon_filename(m_is_dark ? "toolbar_support_dark.svg" : "toolbar_support.svg");
             break;
+#pragma region PhrozenLCD Parameter
+        case(EType::LcdOverhangDetection):
+            gizmo->set_icon_filename(m_is_dark ? "toolbar_overhang_dark.svg" : "toolbar_overhang.svg");
+            break;
+#pragma endregion
         case(EType::Seam):
             gizmo->set_icon_filename(m_is_dark ? "toolbar_seam_dark.svg" : "toolbar_seam.svg");
             break;
@@ -215,6 +221,9 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoCut3D(m_parent, m_is_dark ? "toolbar_cut_dark.svg" : "toolbar_cut.svg", EType::Cut));
     m_gizmos.emplace_back(new GLGizmoMeshBoolean(m_parent, m_is_dark ? "toolbar_meshboolean_dark.svg" : "toolbar_meshboolean.svg", EType::MeshBoolean));
     m_gizmos.emplace_back(new GLGizmoFdmSupports(m_parent, m_is_dark ? "toolbar_support_dark.svg" : "toolbar_support.svg", EType::FdmSupports));
+#pragma region PhrozenLCD Parameter
+    m_gizmos.emplace_back(new GLGizmoLcdOverhangDetection(m_parent, m_is_dark ? "toolbar_overhang_dark.svg" : "toolbar_overhang.svg", EType::LcdOverhangDetection));
+#pragma endregion
     m_gizmos.emplace_back(new GLGizmoSeam(m_parent, m_is_dark ? "toolbar_seam_dark.svg" : "toolbar_seam.svg", EType::Seam));
     m_gizmos.emplace_back(new GLGizmoFuzzySkin(m_parent, m_is_dark ? "toolbar_fuzzy_skin_paint_dark.svg" : "toolbar_fuzzy_skin_paint.svg", EType::FuzzySkin));
     m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, m_is_dark ? "mmu_segmentation_dark.svg" : "mmu_segmentation.svg", EType::MmSegmentation));
@@ -474,6 +483,8 @@ bool GLGizmosManager::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_p
         return dynamic_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == FdmSupports)
         return dynamic_cast<GLGizmoFdmSupports*>(m_gizmos[FdmSupports].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
+    else if (m_current == LcdOverhangDetection)
+        return dynamic_cast<GLGizmoLcdOverhangDetection*>(m_gizmos[LcdOverhangDetection].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == Seam)
         return dynamic_cast<GLGizmoSeam*>(m_gizmos[Seam].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == MmSegmentation)
@@ -497,6 +508,7 @@ bool GLGizmosManager::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_p
 bool GLGizmosManager::is_paint_gizmo()
 {
     return m_current == EType::FdmSupports ||
+           m_current == EType::LcdOverhangDetection ||
            m_current == EType::MmSegmentation ||
            m_current == EType::FuzzySkin ||
            m_current == EType::Seam;
@@ -596,7 +608,7 @@ bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
     bool processed = false;
 
-    if (m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin || m_current == BrimEars) {
+    if (m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == LcdOverhangDetection || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin || m_current == BrimEars) {
         float rot = (float)evt.GetWheelRotation() / (float)evt.GetWheelDelta();
         if (gizmo_event((rot > 0.f ? SLAGizmoEventType::MouseWheelUp : SLAGizmoEventType::MouseWheelDown), Vec2d::Zero(), evt.ShiftDown(), evt.AltDown()
             // BBS
@@ -975,6 +987,16 @@ bool GLGizmosManager::on_key(wxKeyEvent& evt)
             GLGizmoFdmSupports* fdm_support = dynamic_cast<GLGizmoFdmSupports*>(get_current());
             if (fdm_support != nullptr && (keyCode == 'F' || keyCode == 'S' || keyCode == 'C' || keyCode == 'G')) {
                 processed = fdm_support->on_key_down_select_tool_type(keyCode);
+            }
+            if (processed) {
+                // force extra frame to automatically update window size
+                wxGetApp().imgui()->set_requires_extra_frame();
+            }
+        }
+        else if (m_current == LcdOverhangDetection) {
+            GLGizmoLcdOverhangDetection* lcd_overhang = dynamic_cast<GLGizmoLcdOverhangDetection*>(get_current());
+            if (lcd_overhang != nullptr && (keyCode == 'F' || keyCode == 'S' || keyCode == 'C' || keyCode == 'G')) {
+                processed = lcd_overhang->on_key_down_select_tool_type(keyCode);
             }
             if (processed) {
                 // force extra frame to automatically update window size

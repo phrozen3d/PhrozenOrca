@@ -137,6 +137,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Gizmos/GLGizmoSlaSupports.hpp
     GUI/Gizmos/GLGizmoFdmSupports.cpp
     GUI/Gizmos/GLGizmoFdmSupports.hpp
+    GUI/Gizmos/GLGizmoLcdOverhangDetection.cpp
+    GUI/Gizmos/GLGizmoLcdOverhangDetection.hpp
     GUI/Gizmos/GLGizmoFuzzySkin.cpp
     GUI/Gizmos/GLGizmoFuzzySkin.hpp
     GUI/Gizmos/GLGizmoFlatten.cpp
