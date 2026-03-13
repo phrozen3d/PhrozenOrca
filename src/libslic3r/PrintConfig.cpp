@@ -6567,7 +6567,7 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "s";
     def->min      = 1.5;
     // def->max      = 4.0;
-    def->set_default_value(new ConfigOptionFloat(3.0));
+    def->set_default_value(new ConfigOptionFloat(1.2));
 
     def           = this->add("bottom_exposure_time", coFloat);
     def->label    = L("Bottom exposure time");
@@ -6576,7 +6576,7 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "s";
     def->min      = 0.0;
     def->max      = 45.0;
-    def->set_default_value(new ConfigOptionFloat(20.0));
+    def->set_default_value(new ConfigOptionFloat(8.0));
 
     // Transition
     def           = this->add("transition_layer_count", coInt);
@@ -6593,8 +6593,8 @@ void PrintConfigDef::init_sla_params()
     def->category      = L("Quality");
     def->tooltip       = L("Transition Type for quality.");
     def->enum_keys_map = &ConfigOptionEnum<TransitionType>::get_enum_values();
-    def->enum_values.push_back("line");
-    def->enum_labels.push_back(L("Line"));
+    def->enum_values.push_back("linear");
+    def->enum_labels.push_back(L("Linear"));
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionEnum<TransitionType>(spLinear));
 
@@ -6605,7 +6605,7 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "s";
     def->min      = 0;
     def->readonly = true;
-    def->set_default_value(new ConfigOptionFloat(2.429));
+    def->set_default_value(new ConfigOptionFloat(0.971));
 
     // Wait& Rest
     def                = this->add("waiting_mode_during_printing", coEnum);
@@ -6720,6 +6720,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 8;
+    def->readonly                = true;
     def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
     def                          = this->add("bottom_retract_second_distance", coFloats);
@@ -6742,6 +6743,7 @@ void PrintConfigDef::init_sla_params()
     def->gui_type                = ConfigOptionDef::GUIType::dual_float;
     def->dual_float_width        = 5;
     def->dual_float_width_second = 8;
+    def->readonly                = true;
     def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
 
     def                          = this->add("retract_second_distance", coFloats);
@@ -6959,7 +6961,7 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionBool(true));
 
     def           = this->add("tolerance_compensation_a", coFloat);
-    def->label    = L("A");
+    def->label    = L("a");
     def->category = L("Advanced");
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
@@ -6967,7 +6969,7 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("tolerance_compensation_b", coFloat);
-    def->label    = L("B");
+    def->label    = L("b");
     def->category = L("Advanced");
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
@@ -6981,7 +6983,7 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionBool(true));
 
     def           = this->add("bottom_tolerance_compensation_a", coFloat);
-    def->label    = L("A");
+    def->label    = L("a");
     def->category = L("Advanced");
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
@@ -6989,7 +6991,7 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("bottom_tolerance_compensation_b", coFloat);
-    def->label    = L("B");
+    def->label    = L("b");
     def->category = L("Advanced");
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
@@ -7059,13 +7061,13 @@ void PrintConfigDef::init_sla_params()
     def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(1.0));
 
-    def           = this->add("object_elevation", coFloat);
-    def->label    = L("Object Elevation");
-    def->category = L("Support");
-    def->tooltip  = L("Object Elevation for support.");
-    def->sidetext = "mm";
-    def->min      = 0;
-    def->set_default_value(new ConfigOptionFloat(5.0));
+    //def           = this->add("object_elevation", coFloat);
+    //def->label    = L("Object Elevation");
+    //def->category = L("Support");
+    //def->tooltip  = L("Object Elevation for support.");
+    //def->sidetext = "mm";
+    //def->min      = 0;
+    //def->set_default_value(new ConfigOptionFloat(5.0));
 
     def           = this->add("support_points_density", coInt);
     def->label    = L("Support Points Density");
@@ -7075,13 +7077,13 @@ void PrintConfigDef::init_sla_params()
     def->min      = 0;
     def->set_default_value(new ConfigOptionInt(100));
 
-    //def           = this->add("max_bridge_length", coFloat);
-    //def->label    = L("Max BridgeLength");
-    //def->category = L("Support");
-    //def->tooltip  = L("Max BridgeLength for support.");
-    //def->sidetext = "mm";
-    //def->min      = 0;
-    //def->set_default_value(new ConfigOptionFloat(10));
+    def           = this->add("max_bridge_length_sla", coFloat);
+    def->label    = L("Max Bridge Length");
+    def->category = L("Support");
+    def->tooltip  = L("Max BridgeLength for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(10));
 
     def           = this->add("max_pillar_linking_distance", coFloat);
     def->label    = L("Max Pillar Linking Distance");

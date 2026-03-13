@@ -18752,3 +18752,6 @@ msgstr "自動長支撐"
 
 msgid "SLA Material"
 msgstr "樹脂"
+
+msgid "Linear"
+msgstr "線性"

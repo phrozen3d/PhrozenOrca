@@ -966,9 +966,9 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "angle_between_top_and_middle",
     "support_bottom_diameter",
     "support_boss_height",
-    "object_elevation",
+    //"object_elevation",
     "support_points_density",
-    /*"max_bridge_length",*/ "max_pillar_linking_distance",
+    "max_bridge_length_sla", "max_pillar_linking_distance",
 #pragma endregion
 #pragma region PrusaSlicer SLA Parameters
     // Step 2.6: PrusaSlicer-named SLA parameters required so load_preset() does not strip them.

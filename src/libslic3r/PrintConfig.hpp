@@ -1549,10 +1549,10 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, support_bottom_diameter))
     ((ConfigOptionFloat, support_boss_height))
 
-    ((ConfigOptionFloat, object_elevation))
+    //((ConfigOptionFloat, object_elevation))
 
     ((ConfigOptionInt, support_points_density))
-    //((ConfigOptionFloat, max_bridge_length))
+    ((ConfigOptionFloat, max_bridge_length_sla))
     ((ConfigOptionFloat, max_pillar_linking_distance))
 )
 
