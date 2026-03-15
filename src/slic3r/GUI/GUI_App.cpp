@@ -102,6 +102,8 @@
 #include "Notebook.hpp"
 #include "Widgets/Label.hpp"
 #include "Widgets/ProgressDialog.hpp"
+#include "Widgets/SideButton.hpp"
+#include "Widgets/SideMenuPopup.hpp"
 
 //BBS: DailyTip and UserGuide Dialog
 #include "WebDownPluginDlg.hpp"

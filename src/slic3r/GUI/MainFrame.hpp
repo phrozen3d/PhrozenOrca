@@ -25,8 +25,8 @@
 #include "Project.hpp"
 #include "CalibrationPanel.hpp"
 #include "UnsavedChangesDialog.hpp"
-#include "Widgets/SideButton.hpp"
-#include "Widgets/SideMenuPopup.hpp"
+//#include "Widgets/SideButton.hpp"
+//#include "Widgets/SideMenuPopup.hpp"
 
 #include <boost/property_tree/ptree_fwd.hpp>
 
@@ -41,6 +41,8 @@
 class Notebook;
 class wxBookCtrlBase;
 class wxProgressDialog;
+class SideButton;
+class SidePopup;
 
 namespace Slic3r {
 
@@ -394,8 +396,10 @@ public:
     // Button* m_publish_btn{ nullptr };
     SideButton* m_slice_btn{ nullptr };
     SideButton* m_slice_option_btn{ nullptr };
+    SidePopup*  m_slice_option_popup_btn{ nullptr };
     SideButton* m_print_btn{ nullptr };
     SideButton* m_print_option_btn{ nullptr };
+    SidePopup*  m_print_option_popup_btn{ nullptr };
     mutable bool          m_slice_enable{ true };
     mutable bool          m_print_enable{ true };
     bool get_enable_slice_status();

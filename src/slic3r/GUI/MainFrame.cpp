@@ -62,6 +62,8 @@
 #include "ConfigWizard.hpp"
 #include "Widgets/WebView.hpp"
 #include "DailyTips.hpp"
+#include "Widgets/SideButton.hpp"
+#include "Widgets/SideMenuPopup.hpp"
 
 #ifdef _WIN32
 #include <dbt.h>
@@ -1573,10 +1575,10 @@ wxBoxSizer* MainFrame::create_side_tools()
     m_print_select = ePrintPlate;
 
     // m_publish_btn = new Button(this, _L("Upload"), "bar_publish", 0, FromDIP(16));
-    m_slice_btn = new SideButton(this, _L("Slice plate"), "");
-    m_slice_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
-    m_print_btn = new SideButton(this, _L("Print plate"), "");
-    m_print_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
+    if ( !m_slice_btn )         m_slice_btn = new SideButton(this, _L("Slice plate"), "");
+    if ( !m_slice_option_btn )  m_slice_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
+    if ( !m_print_btn )         m_print_btn = new SideButton(this, _L("Print plate"), "");
+    if ( !m_print_option_btn )  m_print_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
 
     update_side_button_style();
     // m_publish_btn->Hide();
@@ -1657,7 +1659,13 @@ wxBoxSizer* MainFrame::create_side_tools()
 
     m_slice_option_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& event)
         {
-            SidePopup* p = new SidePopup(this);
+            if ( m_slice_option_popup_btn ) {
+                m_slice_option_popup_btn->Destroy();
+                m_slice_option_popup_btn = nullptr;
+            }
+            m_slice_option_popup_btn = new SidePopup(this);
+            auto p = m_slice_option_popup_btn;
+
             SideButton* slice_all_btn = new SideButton(p, _L("Slice all"), "");
             slice_all_btn->SetCornerRadius(0);
             SideButton* slice_plate_btn = new SideButton(p, _L("Slice plate"), "");
@@ -1688,7 +1696,12 @@ wxBoxSizer* MainFrame::create_side_tools()
 
     m_print_option_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& event)
         {
-            SidePopup* p = new SidePopup(this);
+            if ( m_print_option_popup_btn ) {
+                m_print_option_popup_btn->Destroy();
+                m_print_option_popup_btn = nullptr;
+            }
+            m_print_option_popup_btn = new SidePopup(this);
+            auto p = m_print_option_popup_btn;
 
             if (wxGetApp().preset_bundle
                 && !( wxGetApp().preset_bundle->is_bbl_vendor() || wxGetApp().preset_bundle->is_phrozen_vendor() ) ) {
