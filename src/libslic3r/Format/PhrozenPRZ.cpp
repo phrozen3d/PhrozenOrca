@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
 
 #include <libslic3r/SLAPrint.hpp>
 #include <libslic3r/PrintConfig.hpp>
@@ -30,6 +31,14 @@ static int cfg_i(const DynamicPrintConfig &cfg, const std::string &key, int def 
         if (auto *opt = cfg.option(key))
             return opt->getInt();
     return def;
+}
+
+static std::string cfg_s(const DynamicPrintConfig &cfg, const std::string &key)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key))
+            return opt->serialize();
+    return {};
 }
 
 // coFloats stores a vector; index 0 is the primary value
@@ -108,20 +117,29 @@ static void prz_header(std::string             &fh,
         fh += t;
         layerContent_position_offset += sz;
     }
-    // Printer name (blank, 32 bytes)
+    // Printer name (printer_settings_id, 32 bytes)
     {
-        fh.append(32, '\0');
-        layerContent_position_offset += 32;
+        const int sz = 32;
+        std::string s = cfg_s(cfg, "printer_settings_id");
+        s.resize(sz, '\0');
+        fh += s;
+        layerContent_position_offset += sz;
     }
-    // Printer type (blank, 32 bytes)
+    // Printer type (printer_model, 32 bytes)
     {
-        fh.append(32, '\0');
-        layerContent_position_offset += 32;
+        const int sz = 32;
+        std::string s = cfg_s(cfg, "printer_model");
+        s.resize(sz, '\0');
+        fh += s;
+        layerContent_position_offset += sz;
     }
-    // Profile name (blank, 32 bytes)
+    // Profile name (sla_print_settings_id, 32 bytes)
     {
-        fh.append(32, '\0');
-        layerContent_position_offset += 32;
+        const int sz = 32;
+        std::string s = cfg_s(cfg, "sla_print_settings_id");
+        s.resize(sz, '\0');
+        fh += s;
+        layerContent_position_offset += sz;
     }
     // Anti-aliasing level (2 bytes big-endian short)
     {
@@ -141,10 +159,30 @@ static void prz_header(std::string             &fh,
         write_be(fh, v);
         layerContent_position_offset += 2;
     }
-    // Preview 116×116 (all zeros, 116*116*2 bytes)
+    // Preview 116×116 (RGB565 big-endian, from PreviewImage_116_116.png or zeros)
     {
-        const int sz = 116 * 116 * 2;
-        fh.append(sz, '\0');
+        const int W = 116, H = 116;
+        const int sz = W * H * 2;
+        std::string preview_path = cfg_s(cfg, "preview_image_path");
+        cv::Mat image;
+        if (!preview_path.empty())
+            image = cv::imread(preview_path + "/PreviewImage_116_116.png");
+        if (!image.empty() && image.rows >= H && image.cols >= W) {
+            std::vector<cv::Mat> bgr;
+            cv::split(image, bgr);
+            for (int i = 0; i < W * H; ++i) {
+                int x = i % W, y = i / W;
+                uchar b = bgr[0].at<uchar>(cv::Point(x, y));
+                uchar g = bgr[1].at<uchar>(cv::Point(x, y));
+                uchar r = bgr[2].at<uchar>(cv::Point(x, y));
+                r >>= (8 - 5); g >>= (8 - 6); b >>= (8 - 5);
+                int color = (r << (5 + 6)) + (g << 5) + b;
+                fh += static_cast<char>((color >> 8) & 0xff);
+                fh += static_cast<char>(color & 0xff);
+            }
+        } else {
+            fh.append(sz, '\0');
+        }
         layerContent_position_offset += sz;
     }
     // CR LF
@@ -152,10 +190,30 @@ static void prz_header(std::string             &fh,
         fh += '\r'; fh += '\n';
         layerContent_position_offset += 2;
     }
-    // Preview 290×290 (all zeros)
+    // Preview 290×290 (RGB565 big-endian, from PreviewImage_290_290.png or zeros)
     {
-        const int sz = 290 * 290 * 2;
-        fh.append(sz, '\0');
+        const int W = 290, H = 290;
+        const int sz = W * H * 2;
+        std::string preview_path = cfg_s(cfg, "preview_image_path");
+        cv::Mat image;
+        if (!preview_path.empty())
+            image = cv::imread(preview_path + "/PreviewImage_290_290.png");
+        if (!image.empty() && image.rows >= H && image.cols >= W) {
+            std::vector<cv::Mat> bgr;
+            cv::split(image, bgr);
+            for (int i = 0; i < W * H; ++i) {
+                int x = i % W, y = i / W;
+                uchar b = bgr[0].at<uchar>(cv::Point(x, y));
+                uchar g = bgr[1].at<uchar>(cv::Point(x, y));
+                uchar r = bgr[2].at<uchar>(cv::Point(x, y));
+                r >>= (8 - 5); g >>= (8 - 6); b >>= (8 - 5);
+                int color = (r << (5 + 6)) + (g << 5) + b;
+                fh += static_cast<char>((color >> 8) & 0xff);
+                fh += static_cast<char>(color & 0xff);
+            }
+        } else {
+            fh.append(sz, '\0');
+        }
         layerContent_position_offset += sz;
     }
     // CR LF
@@ -265,10 +323,16 @@ static void prz_header(std::string             &fh,
     { fh += '\0'; layerContent_position_offset += 1; }
     // PrintTimes (estimated, 0)
     { int v = 0; write_be(fh, v); layerContent_position_offset += 4; }
-    // TotalVolume / TotalWeight / TotalPrice (all 0)
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // TotalVolume / TotalWeight / TotalPrice (from print statistics)
+    {
+        const SLAPrintStatistics &stats = print.print_statistics();
+        float volume = static_cast<float>(stats.objects_used_material + stats.support_used_material);
+        float weight = static_cast<float>(stats.total_weight);
+        float price  = static_cast<float>(stats.total_cost);
+        write_be(fh, volume); layerContent_position_offset += 4;
+        write_be(fh, weight); layerContent_position_offset += 4;
+        write_be(fh, price);  layerContent_position_offset += 4;
+    }
     // PriceUnit (8 bytes, zeros)
     { fh.append(8, '\0'); layerContent_position_offset += 8; }
     // LayerContent_position_offset (4 bytes, self-referential)

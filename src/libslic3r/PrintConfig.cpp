@@ -6924,6 +6924,12 @@ void PrintConfigDef::init_sla_params()
     def->min      = 1;
     def->set_default_value(new ConfigOptionInt(4));
 
+    def           = this->add("preview_image_path", coString);
+    def->label    = L("Preview Image Path");
+    def->category = L("Advanced");
+    def->tooltip  = L("Directory containing preview images for PRZ export (PreviewImage_116_116.png and PreviewImage_290_290.png).");
+    def->set_default_value(new ConfigOptionString(""));
+
     def           = this->add("shrinkage_compensation", coBool);
     def->label    = L("Shrinkage Compensation");
     def->category = L("Advanced");

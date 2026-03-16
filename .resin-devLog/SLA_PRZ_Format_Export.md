@@ -1,6 +1,7 @@
 # SLA PRZ 格式匯出實作記錄
 
 **建立日期**: 2026-03-12
+**最後更新**: 2026-03-16
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [src/libslic3r/Format/PhrozenPRZ.hpp](../src/libslic3r/Format/PhrozenPRZ.hpp)（新增）
@@ -10,6 +11,7 @@
 - [src/libslic3r/CMakeLists.txt](../src/libslic3r/CMakeLists.txt)（修改）
 - [src/libslic3r/SLAPrint.hpp](../src/libslic3r/SLAPrint.hpp)（修改）
 - [src/libslic3r/SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp)（修改）
+- [src/libslic3r/PrintConfig.cpp](../src/libslic3r/PrintConfig.cpp)（修改）
 
 ---
 
@@ -36,15 +38,15 @@ PRZ File
 │   ├─ Software (32 bytes, 空白)
 │   ├─ Software Version (24 bytes, 空白)
 │   ├─ File Time (24 bytes, "YYYY-MM-DD HH:MM:SS")
-│   ├─ Printer Name (32 bytes, 空白)
-│   ├─ Printer Type (32 bytes, 空白)
-│   ├─ Profile Name (32 bytes, 空白)
+│   ├─ Printer Name (32 bytes) ← printer_settings_id
+│   ├─ Printer Type (32 bytes) ← printer_model
+│   ├─ Profile Name (32 bytes) ← sla_print_settings_id
 │   ├─ Anti-aliasing level (2 bytes, big-endian short)
 │   ├─ Grey level (2 bytes)
 │   ├─ Blur level (2 bytes)
-│   ├─ Preview 116×116 (116*116*2 bytes, RGB565, 目前全 0)
+│   ├─ Preview 116×116 (116*116*2 bytes, RGB565) ← preview_image_path/PreviewImage_116_116.png（或全 0）
 │   ├─ CR LF (2 bytes)
-│   ├─ Preview 290×290 (290*290*2 bytes, RGB565, 目前全 0)
+│   ├─ Preview 290×290 (290*290*2 bytes, RGB565) ← preview_image_path/PreviewImage_290_290.png（或全 0）
 │   ├─ CR LF (2 bytes)
 │   ├─ Total Layers (4 bytes, int)
 │   ├─ XResolution (2 bytes, short) ← display_pixels_y（Portrait swap 後）
@@ -86,9 +88,9 @@ PRZ File
 │   ├─ LightPwm (2 bytes, short) ← light_pwm
 │   ├─ Advance_Mode (1 byte, 固定 0x00)
 │   ├─ PrintTimes (4 bytes, int, 0)
-│   ├─ TotalVolume (4 bytes, float, 0)
-│   ├─ TotalWeight (4 bytes, float, 0)
-│   ├─ TotalPrice (4 bytes, float, 0)
+│   ├─ TotalVolume (4 bytes, float) ← objects_used_material + support_used_material（mm³）
+│   ├─ TotalWeight (4 bytes, float) ← total_weight（g）
+│   ├─ TotalPrice (4 bytes, float) ← total_cost
 │   ├─ PriceUnit (8 bytes, 0)
 │   ├─ LayerContent_position_offset (4 bytes, 自參考偏移量)
 │   ├─ Grayscale_level (1 byte, 固定 0x01 = 8-bit)
@@ -169,6 +171,7 @@ std::string generate_prz(const SLAPrint &print);
 |---|---|
 | `cfg_f(cfg, key, def)` | 從 `DynamicPrintConfig` 以字串 key 取 float；key 不存在回傳 def |
 | `cfg_i(cfg, key, def)` | 同上，取 int |
+| `cfg_s(cfg, key)` | 同上，取 string（用於 Printer Name / Printer Type / Profile Name） |
 | `cfg_floats0(cfg, key, def)` | 取 `ConfigOptionFloats::values[0]`，用於 lift/retract 等 `coFloats` 參數 |
 | `write_be<T>(fh, val)` | 將 T（1/2/4 bytes）以 big-endian 寫入 `std::string` |
 | `prz_header(fh, print, cfg)` | 輸出完整 header，對應 `Slicer::PrzHeader()` |
@@ -213,6 +216,18 @@ std::string generate_prz(const SLAPrint &print);
 | `normal_layer_drop_second_height` | `retract_second_distance` | `coFloats[0]` | `cfg_floats0()` |
 | `normal_drop_speed` | `retract_speed` | `coFloats[0]` | `cfg_floats0()` |
 | `normal_drop_second_speed` | `retract_second_speed` | `coFloats[0]` | `cfg_floats0()` |
+
+**新增 config 對應**（2026-03-16）：
+
+| PRZ 欄位 | PhrozenOrca key | 型別 | 來源 |
+|---|---|---|---|
+| Printer Name | `printer_settings_id` | `coString` | `PrintConfig` |
+| Printer Type | `printer_model` | `coString` | `PrintConfig` |
+| Profile Name | `sla_print_settings_id` | `coString` | `SLAPrintConfig` |
+| Preview image dir | `preview_image_path` | `coString` | `PrintConfig`（新增） |
+| TotalVolume | — | — | `SLAPrintStatistics::objects_used_material + support_used_material` |
+| TotalWeight | — | — | `SLAPrintStatistics::total_weight` |
+| TotalPrice | — | — | `SLAPrintStatistics::total_cost` |
 
 **機器尺寸**（來自 `print.printer_config()`，型別 `SLAPrinterConfig`）：
 
@@ -466,5 +481,9 @@ SLA/RasterToCvMat.cpp
 
 - [ ] 移除測試用 `#define PHROZEN_PRZ_TEST_EXPORT` 及相關程式碼
 - [ ] 整合進正式匯出流程（`BackgroundSlicingProcess::process_sla()` 或新增匯出選項）
-- [ ] Preview 116×116 / 290×290 填入實際縮圖（目前輸出全 0）
-- [ ] 確認 Printer Name / Profile Name 欄位從何處取值並填入
+- [x] Preview 116×116 / 290×290 填入實際縮圖（由 `preview_image_path` 指定目錄讀取 PNG，fallback 全 0）
+- [x] Printer Name / Profile Name 欄位從 `printer_settings_id` / `sla_print_settings_id` 取值
+- [x] Printer Type 欄位從 `printer_model` 取值
+- [x] TotalVolume / TotalWeight / TotalPrice 從 `SLAPrintStatistics` 取值（不再輸出全 0）
+- [ ] `preview_image_path` 加入 printer profile JSON 範本（Phrozen 機器）
+- [ ] 驗證 `printer_settings_id` 在匯出時是否已正確填入 profile 名稱
