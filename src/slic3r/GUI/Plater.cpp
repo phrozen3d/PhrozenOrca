@@ -60,6 +60,7 @@
 #include "libslic3r/Print.hpp"
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/SLAPrint.hpp"
+#include "libslic3r/Format/PhrozenPRZ.hpp"
 #include "libslic3r/Utils.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/ClipperUtils.hpp"
@@ -12128,6 +12129,7 @@ void Plater::export_prz(bool prefer_removable)
         show_error(this, ex.what(), false);
         return;
     }
+    default_output_file.replace_extension(".prz");
     default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.string()));
     AppConfig 				&appconfig 				 = *wxGetApp().app_config;
     RemovableDriveManager 	&removable_drive_manager = *wxGetApp().removable_drive_manager();
@@ -12143,11 +12145,10 @@ void Plater::export_prz(bool prefer_removable)
 
     fs::path output_path;
     {
-        std::string ext = default_output_file.extension().string();
         wxFileDialog dlg(this, _L("Save Phrozen SLA file as:"),
             start_dir,
             from_path(default_output_file.filename()),
-            GUI::file_wildcards(FT_PRZ, ".prz"),   // ← FT_PRZ filter
+            GUI::file_wildcards(FT_PRZ, ".prz"),
             wxFD_SAVE | wxFD_OVERWRITE_PROMPT
         );
         if (dlg.ShowModal() == wxID_OK) {
@@ -12169,35 +12170,29 @@ void Plater::export_prz(bool prefer_removable)
     if (! output_path.empty()) {
         bool path_on_removable_media = removable_drive_manager.set_and_verify_last_save_path(output_path.string());
 
-//先抄export gcode(sl1) 的輸出流程 這裡要再看看怎麼串接
-#if 0 
-        //bool path_on_removable_media = false;
-        p->notification_manager->new_export_began(path_on_removable_media);
-        p->exporting_status = path_on_removable_media ? ExportingStatus::EXPORTING_TO_REMOVABLE : ExportingStatus::EXPORTING_TO_LOCAL;
-        p->last_output_path = output_path.string();
-        p->last_output_dir_path = output_path.parent_path().string();
-        p->export_gcode(output_path, path_on_removable_media);
-        // Storing a path to AppConfig either as path to removable media or a path to internal media.
-        // is_path_on_removable_drive() is called with the "true" parameter to update its internal database as the user may have shuffled the external drives
-        // while the dialog was open.
-        appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
+        if (sla_print().layer_images().empty()) {
+            show_error(this, _L("No sliced layer images found. Please slice the model before exporting."));
+            return;
+        }
 
         try {
-            json j;
-            auto printer_config = Slic3r::GUI::wxGetApp().preset_bundle->printers.get_edited_preset_with_vendor_profile().preset;
-            if (printer_config.is_system) {
-                j["printer_preset"] = printer_config.name;
-            } else {
-                j["printer_preset"] = printer_config.config.opt_string("inherits");
+            std::string prz_data = Slic3r::generate_prz(sla_print());
+            std::ofstream ofs(output_path.string(), std::ios::binary);
+            if (!ofs) {
+                show_error(this, _L("Cannot open file for writing:") + "\n" + output_path.string());
+                return;
             }
+            ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
+            if (!ofs) {
+                show_error(this, _L("Failed to write PRZ file:") + "\n" + output_path.string());
+                return;
+            }
+        } catch (const std::exception &ex) {
+            show_error(this, ex.what(), false);
+            return;
+        }
 
-            PresetBundle *preset_bundle = wxGetApp().preset_bundle;
-            if (preset_bundle) {
-                j["gcode_printer_model"] = preset_bundle->printers.get_edited_preset().get_printer_type(preset_bundle);
-            }
-            NetworkAgent *agent = wxGetApp().getAgent();
-        } catch (...) {}
-#endif
+        appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
     }
 }
 

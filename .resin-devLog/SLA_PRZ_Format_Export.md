@@ -1,7 +1,7 @@
 # SLA PRZ 格式匯出實作記錄
 
 **建立日期**: 2026-03-12
-**最後更新**: 2026-03-16
+**最後更新**: 2026-03-17
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [src/libslic3r/Format/PhrozenPRZ.hpp](../src/libslic3r/Format/PhrozenPRZ.hpp)（新增）
@@ -12,6 +12,7 @@
 - [src/libslic3r/SLAPrint.hpp](../src/libslic3r/SLAPrint.hpp)（修改）
 - [src/libslic3r/SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp)（修改）
 - [src/libslic3r/PrintConfig.cpp](../src/libslic3r/PrintConfig.cpp)（修改）
+- [src/slic3r/GUI/Plater.cpp](../src/slic3r/GUI/Plater.cpp)（修改）
 
 ---
 
@@ -429,42 +430,23 @@ SLA/RasterToCvMat.cpp
 
 ---
 
-## 四、測試程式（暫時性）
+## 四、測試程式（已移除）
 
-在 `SLAPrintSteps.cpp::rasterize()` 結尾加入條件編譯的測試輸出，以驗證 `generate_prz()` 輸出正確性：
+> **2026-03-17 已完成移除。** 以下為歷史記錄。
 
-```cpp
-// 頂端（#include 區域）
-#define PHROZEN_PRZ_TEST_EXPORT 0
-#ifdef PHROZEN_PRZ_TEST_EXPORT
-#include <libslic3r/Format/PhrozenPRZ.hpp>
-#include <fstream>
-#endif
-```
+原本在 `SLAPrintSteps.cpp` 加入條件編譯的測試輸出，驗證 `generate_prz()` 輸出正確性後已刪除：
 
-```cpp
-// rasterize() 末尾
-#ifdef PHROZEN_PRZ_TEST_EXPORT
-// [TEST] 輸出 PRZ 檔案至桌面，驗證 generate_prz 正確性
-{
-    std::string prz_data = Slic3r::generate_prz(*m_print);
-    std::string out_path = std::string(getenv("USERPROFILE") ? getenv("USERPROFILE") : ".")
-                         + "/Desktop/test_output.prz";
-    std::ofstream ofs(out_path, std::ios::binary);
-    ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
-}
-#endif
-```
+- include 區段的 `#define PHROZEN_PRZ_TEST_EXPORT 0` 與 `#ifdef ... #endif` 區塊
+- `rasterize()` 末尾的 `#ifdef PHROZEN_PRZ_TEST_EXPORT` 測試寫檔區塊
 
-- 將 `#define PHROZEN_PRZ_TEST_EXPORT 0` 改為 `1` 可啟用，不影響正式編譯
-- 測試成功後此段程式碼將被移除
+正式匯出改由 `Plater::export_prz` 直接呼叫 `generate_prz`（見第七節 7-1）。
 
 ---
 
 ## 五、驗證方式
 
 1. Build：`build_release_vs2022.bat slicer`
-2. 將 `PHROZEN_PRZ_TEST_EXPORT` 改為 `1`，以 SLA 模式切片任一模型，桌面應產生 `test_output.prz`
+2. 以 SLA 模式切片任一模型，透過「匯出 PRZ」選單觸發 `Plater::export_prz`，選擇儲存路徑後應產生 `.prz` 檔案
 3. 以 Hex editor 確認：
    - offset 0: `56 33 2E 30`（"V3.0"）
    - offset 4: `07 00 00 00 44 4C 50 00`（DLP Tag）
@@ -479,11 +461,93 @@ SLA/RasterToCvMat.cpp
 
 ## 六、後續待辦
 
-- [ ] 移除測試用 `#define PHROZEN_PRZ_TEST_EXPORT` 及相關程式碼
-- [ ] 整合進正式匯出流程（`BackgroundSlicingProcess::process_sla()` 或新增匯出選項）
+- [x] 移除測試用 `#define PHROZEN_PRZ_TEST_EXPORT` 及相關程式碼
+- [x] 整合進正式匯出流程（`Plater::export_prz` 直接呼叫 `generate_prz`）
 - [x] Preview 116×116 / 290×290 填入實際縮圖（由 `preview_image_path` 指定目錄讀取 PNG，fallback 全 0）
 - [x] Printer Name / Profile Name 欄位從 `printer_settings_id` / `sla_print_settings_id` 取值
 - [x] Printer Type 欄位從 `printer_model` 取值
 - [x] TotalVolume / TotalWeight / TotalPrice 從 `SLAPrintStatistics` 取值（不再輸出全 0）
 - [ ] `preview_image_path` 加入 printer profile JSON 範本（Phrozen 機器）
 - [ ] 驗證 `printer_settings_id` 在匯出時是否已正確填入 profile 名稱
+
+---
+
+## 七、2026-03-17 修改記錄
+
+### 7-1 Plater::export_prz — 串接 generate_prz（Plater.cpp）
+
+原本 `export_prz` 的實際匯出邏輯整段用 `#if 0` 包住（佔位用的 gcode 輸出流程複製，未適配 PRZ）。本次將其替換為直接呼叫 `generate_prz`。
+
+**新增 include**（緊接 `SLAPrint.hpp` 之後）：
+
+```cpp
+#include "libslic3r/Format/PhrozenPRZ.hpp"
+```
+
+**替換 `#if 0` 區塊為**：
+
+```cpp
+if (sla_print().layer_images().empty()) {
+    show_error(this, _L("No sliced layer images found. Please slice the model before exporting."));
+    return;
+}
+
+try {
+    std::string prz_data = Slic3r::generate_prz(sla_print());
+    std::ofstream ofs(output_path.string(), std::ios::binary);
+    if (!ofs) {
+        show_error(this, _L("Cannot open file for writing:") + "\n" + output_path.string());
+        return;
+    }
+    ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
+    if (!ofs) {
+        show_error(this, _L("Failed to write PRZ file:") + "\n" + output_path.string());
+        return;
+    }
+} catch (const std::exception &ex) {
+    show_error(this, ex.what(), false);
+    return;
+}
+
+appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
+```
+
+設計要點：
+- 未切片時提前顯示錯誤，而非讓 `generate_prz` 靜默回傳空字串
+- 以同步寫檔方式輸出，不走 background process 排程
+- `appconfig.update_last_output_dir` 僅在成功時執行
+
+---
+
+### 7-2 export_prz 預設檔名副檔名修正（Plater.cpp）
+
+**問題**：`output_filepath_for_project("")` 依 SLA 列印流程產生的預設路徑副檔名為 `.sl1`，導致檔案對話框預設顯示 `***.sl1.prz`（`.prz` filter 附加在 `.sl1` 後）。
+
+**修正**：在 `fold_utf8_to_ascii` 之前呼叫 `replace_extension`：
+
+```cpp
+default_output_file.replace_extension(".prz");
+default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.string()));
+```
+
+同時移除後續已無用途的 `std::string ext = default_output_file.extension().string();`。
+
+---
+
+### 7-3 第一層切片高度改用 layer_height（SLAPrintSteps.cpp）
+
+**問題**：`SLAPrint::Steps` 建構子中 `ilhd/ilh/ilhs`（初始層高）固定讀取 `m_material_config.initial_layer_height`，但 Phrozen 機器的 resin 切片流程不使用 `initial_layer_height`，導致第一層高度與其他層不一致。
+
+**修正**（`Steps` 建構子初始化列表）：
+
+```cpp
+// 修改前
+, ilhd{m_print->m_material_config.initial_layer_height.getFloat()}
+
+// 修改後
+, ilhd{m_print->m_objects.empty()
+           ? m_print->m_material_config.initial_layer_height.getFloat()
+           : m_print->m_objects.front()->m_config.layer_height.getFloat()}
+```
+
+與 `slice_model()` 中讀取 `lhd` 的來源（`m_objects.front()->m_config.layer_height`）保持一致，使所有層高度統一。物件列表為空時 fallback 至 `initial_layer_height`（此情況在正常切片流程中不會發生）。

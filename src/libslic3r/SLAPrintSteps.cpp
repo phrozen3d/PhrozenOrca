@@ -18,11 +18,6 @@
 #include <libslic3r/Format/SLAArchiveWriter.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
-#define PHROZEN_PRZ_TEST_EXPORT 0
-#ifdef PHROZEN_PRZ_TEST_EXPORT
-#include <libslic3r/Format/PhrozenPRZ.hpp>
-#include <fstream>
-#endif
 
 #include <libslic3r/ClipperUtils.hpp>
 
@@ -85,7 +80,8 @@ SLAPrint::Steps::Steps(SLAPrint *print)
     : m_print{print}
     , m_rng{std::random_device{}()}
     , objcount{m_print->m_objects.size()}
-    , ilhd{m_print->m_material_config.initial_layer_height.getFloat()}
+    , ilhd{m_print->m_objects.empty() ? m_print->m_material_config.initial_layer_height.getFloat()
+                                      : m_print->m_objects.front()->m_config.layer_height.getFloat()}
     , ilh{float(ilhd)}
     , ilhs{scaled(ilhd)}
     , objectstep_scale{(max_objstatus - min_objstatus) / (objcount * 100.0)}
@@ -1210,16 +1206,6 @@ void SLAPrint::Steps::rasterize()
 
         m_print->m_layer_images =
             sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
-
-#ifdef PHROZEN_PRZ_TEST_EXPORT
-        // [TEST] 輸出 PRZ 檔案至桌面，驗證 generate_prz 正確性
-        {
-            std::string prz_data = Slic3r::generate_prz(*m_print);
-            std::string out_path = std::string(getenv("USERPROFILE") ? getenv("USERPROFILE") : ".") + "/Desktop/test_output.prz";
-            std::ofstream ofs(out_path, std::ios::binary);
-            ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
-        }
-#endif
     }
 }
 
