@@ -108,6 +108,7 @@ enum FileType
     FT_TEX,
 
     FT_SL1,
+    FT_PRZ,
 
     FT_SIZE,
 };

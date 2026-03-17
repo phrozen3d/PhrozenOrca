@@ -1653,6 +1653,8 @@ wxBoxSizer* MainFrame::create_side_tools()
                 wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SEND_TO_PRINTER));
             else if (m_print_select == eSendToPrinterAll)
                 wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SEND_TO_PRINTER_ALL));
+            else if (m_print_select == eExportPrz)
+                wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_PRZ));
             /* else if (m_print_select == ePrintMultiMachine)
                  wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_PRINT_MULTI_MACHINE));*/
         });
@@ -1703,8 +1705,13 @@ wxBoxSizer* MainFrame::create_side_tools()
             m_print_option_popup_btn = new SidePopup(this);
             auto p = m_print_option_popup_btn;
 
+            bool bIsPhrozenVender = wxGetApp().preset_bundle->is_phrozen_vendor();
+            bIsPhrozenVender = true;
+
+            bool bIsFDMMode = plater()->printer_technology() == ptFFF;
+
             if (wxGetApp().preset_bundle
-                && !( wxGetApp().preset_bundle->is_bbl_vendor() || wxGetApp().preset_bundle->is_phrozen_vendor() ) ) {
+                && !( wxGetApp().preset_bundle->is_bbl_vendor() || bIsPhrozenVender ) ) {
                 // ThirdParty Buttons
                 SideButton* export_gcode_btn = new SideButton(p, _L("Export G-code file"), "");
                 export_gcode_btn->SetCornerRadius(0);
@@ -1734,7 +1741,7 @@ wxBoxSizer* MainFrame::create_side_tools()
             }
             else {
                 //Phrozen Orca Buttons
-                if ( wxGetApp().preset_bundle->is_phrozen_vendor() &&  wxGetApp().IsPhrozenDeveloperMode() )
+                if ( bIsPhrozenVender &&  wxGetApp().IsPhrozenDeveloperMode() )
                 {
                     // upload and print
                     SideButton* send_gcode_btn = new SideButton(p, _L("Print"), "");
@@ -1829,7 +1836,12 @@ wxBoxSizer* MainFrame::create_side_tools()
                 if (preset_bundle) {
                     if (preset_bundle->use_bbl_network()) {
                         // BBL network support everything
-                    } else {
+                    }
+                    else if ( bIsPhrozenVender ) {
+                        support_print_all = false;
+                        support_send = false;
+                    }
+                    else {
                         support_send = false; // All 3rd print hosts do not have the send options
 
                         auto cfg = preset_bundle->printers.get_edited_preset().config;
@@ -1863,17 +1875,35 @@ wxBoxSizer* MainFrame::create_side_tools()
                 }
                 p->append_button(export_sliced_file_btn);
                 p->append_button(export_all_sliced_file_btn);
-                SideButton* export_gcode_btn = new SideButton(p, _L("Export G-code file"), "");
-                export_gcode_btn->SetCornerRadius(0);
-                export_gcode_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                    m_print_btn->SetLabel(_L("Export G-code file"));
-                    m_print_select = eExportGcode;
-                    m_print_enable = get_enable_print_status();
-                    m_print_btn->Enable(m_print_enable);
-                    this->Layout();
-                    p->Dismiss();
-                });
-                p->append_button(export_gcode_btn);
+
+                if ( bIsFDMMode ) {
+                    SideButton* export_gcode_btn = new SideButton(p, _L("Export G-code file"), "");
+                    export_gcode_btn->SetCornerRadius(0);
+                    export_gcode_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Export G-code file"));
+                        m_print_select = eExportGcode;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                    });
+                    p->append_button(export_gcode_btn);
+                }
+                else {
+                    SideButton* export_prz_btn = new SideButton(p, _L("Export .prz file"), "");
+                    export_prz_btn->SetCornerRadius(0);
+                    export_prz_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Export .prz file"));
+                        m_print_select = eExportPrz;   // 新增的 enum 值
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                    });
+                    p->append_button(export_prz_btn);
+
+                }
+
             }
 
             p->Popup(m_print_btn);
@@ -1961,7 +1991,7 @@ bool MainFrame::get_enable_print_status()
         }
         enable = enable && !is_all_plates;
     }
-    else if (m_print_select == eExportGcode)
+    else if (m_print_select == eExportGcode || m_print_select == eExportPrz)
     {
         if (!current_plate->is_slice_result_valid())
         {

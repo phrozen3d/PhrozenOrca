@@ -331,6 +331,7 @@ VendorType PresetBundle::get_current_vendor_type()
 {
     auto        t      = VendorType::Unknown;
     auto        config = &printers.get_edited_preset().config;
+    std::string mystring = config->opt_string("printer_model");
     std::string vendor_name;
     for (auto vendor_profile : vendors) {
         for (auto vendor_model : vendor_profile.second.models)
@@ -343,7 +344,7 @@ VendorType PresetBundle::get_current_vendor_type()
     {
         if(vendor_name.compare("BBL") == 0)
             t = VendorType::Marlin_BBL;
-        else if ( vendor_name.compare("Phrozen") == 0 )
+        else if ( vendor_name.find("Phrozen") != std::string::npos )
             t = VendorType::Phrozen;
     }
     return t;
