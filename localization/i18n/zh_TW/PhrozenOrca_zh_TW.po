@@ -18726,9 +18726,6 @@ msgstr "支撐底座直徑"
 msgid "Support Boss Height"
 msgstr "支撐底座高度"
 
-msgid "Object Elevation"
-msgstr "模型標高"
-
 msgid "Support Points Density"
 msgstr "支撐點密度"
 
@@ -18746,6 +18743,9 @@ msgstr "支撐"
 
 msgid "Raft Setting"
 msgstr "底筏設定"
+
+msgid "Support Angle"
+msgstr "底筏坡度"
 
 msgid "Automatic Generation"
 msgstr "自動長支撐"

@@ -7067,13 +7067,13 @@ void PrintConfigDef::init_sla_params()
     def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(1.0));
 
-    //def           = this->add("object_elevation", coFloat);
-    //def->label    = L("Object Elevation");
-    //def->category = L("Support");
-    //def->tooltip  = L("Object Elevation for support.");
-    //def->sidetext = "mm";
-    //def->min      = 0;
-    //def->set_default_value(new ConfigOptionFloat(5.0));
+    def           = this->add("pad_wall_slope_sla", coInt);
+    def->label    = L("Support Angle");
+    def->category = L("Support");
+    def->tooltip  = L("Pad Wall Slope for support.");
+    def->sidetext = "。";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(45));
 
     def           = this->add("support_points_density", coInt);
     def->label    = L("Support Points Density");
