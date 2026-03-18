@@ -18732,7 +18732,7 @@ msgstr "模型標高"
 msgid "Support Points Density"
 msgstr "支撐點密度"
 
-msgid "Max BridgeLength"
+msgid "Max Bridge Length"
 msgstr "最大橋接"
 
 msgid "Max Pillar Linking Distance"
@@ -18755,3 +18755,6 @@ msgstr "樹脂"
 
 msgid "Linear"
 msgstr "線性"
+
+msgid "Support Angle"
+msgstr "底筏坡度"

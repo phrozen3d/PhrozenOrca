@@ -6765,6 +6765,9 @@ void TabSLAPrint::build()
     //optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_bottom", 15);
     //optgroup->append_single_option_line("object_elevation", "123");
 
+    optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_bottom", 15);
+    optgroup->append_single_option_line("pad_wall_slope_sla", "123");
+
     optgroup = page->new_optgroup(L("Automatic Generation"), L"param_speed_first", 15);
     optgroup->append_single_option_line("support_points_density", "123");
     optgroup->append_single_option_line("max_bridge_length_sla", "123");

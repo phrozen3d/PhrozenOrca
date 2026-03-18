@@ -968,6 +968,7 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
     toggle_field("support_bottom_diameter", is_support);
     toggle_field("support_boss_height", is_support);
     //toggle_field("object_elevation", is_support);
+    toggle_field("pad_wall_slope_sla", is_support);
     toggle_field("support_points_density", is_support);
     toggle_field("max_bridge_length_sla", is_support);
     toggle_field("max_pillar_linking_distance", is_support);

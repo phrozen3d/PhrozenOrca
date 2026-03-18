@@ -967,6 +967,7 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "support_bottom_diameter",
     "support_boss_height",
     //"object_elevation",
+    "pad_wall_slope_sla",
     "support_points_density",
     "max_bridge_length_sla", "max_pillar_linking_distance",
 #pragma endregion

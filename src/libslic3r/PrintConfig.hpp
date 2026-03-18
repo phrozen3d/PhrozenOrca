@@ -1550,6 +1550,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, support_boss_height))
 
     //((ConfigOptionFloat, object_elevation))
+    ((ConfigOptionFloat, pad_wall_slope_sla))
 
     ((ConfigOptionInt, support_points_density))
     ((ConfigOptionFloat, max_bridge_length_sla))
