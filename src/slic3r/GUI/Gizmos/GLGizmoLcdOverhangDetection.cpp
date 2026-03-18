@@ -31,8 +31,25 @@ GLGizmoLcdOverhangDetection::GLGizmoLcdOverhangDetection(GLCanvas3D& parent, con
 
 bool GLGizmoLcdOverhangDetection::on_is_selectable() const
 {
-    // Only show when IsPhrozenLCDEditMode is true
-    //return wxGetApp().IsPhrozenLCDEditMode();
+    // Align behavior with "SLA Support Points": show only for SLA printers.
+    return (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA);
+}
+
+bool GLGizmoLcdOverhangDetection::on_is_activable() const
+{
+    const Selection& selection = m_parent.get_selection();
+
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA
+        || !selection.is_from_single_instance())
+        return false;
+
+    // Keep consistent with GLGizmoSlaSupports: disallow activating when a real model volume is outside the build area.
+    // Only SLA auxiliaries (supports) are allowed outside.
+    const Selection::IndicesList& list = selection.get_volume_idxs();
+    for (const auto& idx : list)
+        if (selection.get_volume(idx)->is_outside && selection.get_volume(idx)->composite_id.volume_id >= 0)
+            return false;
+
     return true;
 }
 
@@ -223,7 +240,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     GizmoImguiBegin(get_name(), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
 
     // Phrozen LCD: New UI layout
-    const float accuracy_button_width = 118.67; // m_imgui->scaled(8.f);
+    const float accuracy_button_width = m_imgui->scaled(6.f); //118.67
     const float bracket_button_width  = 24.f;
     const float button_width = 24.f;
     const float button_height = 24.f;
@@ -341,8 +358,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::SameLine();
     
     // Right arrow button
-    float right_button_x = ImGui::GetCursorPosX();
-    ImGui::SetCursorPosX(354.f);
+    ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
     if (ImGui::Button(">", ImVec2(bracket_button_width, 0))) {
         if (m_current_model_index < static_cast<int>(m_model_names.size()) - 1) {
             m_current_model_index++;
@@ -375,7 +391,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::SameLine();
     
     // Right arrow button
-    ImGui::SetCursorPosX(354.f);
+    ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
     if (ImGui::Button(">##overhang", ImVec2(bracket_button_width, 0))) {
         if (m_current_overhang_area_index < m_total_overhang_areas - 1) {
             m_current_overhang_area_index++;
@@ -385,34 +401,38 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     // Row 7: Separator
     ImGui::Separator();
     
-    // Row 8: Tooltip icon and buttons
+    // Row 8: Tooltip icon + buttons（勿用螢幕座標 y/x 呼叫 SetCursorPos，否則視窗會被撐滿整個畫布高度並造成位置每幀跳動）
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f));
-    
-    // Tooltip icon
-    float get_cur_y = ImGui::GetContentRegionMax().y + ImGui::GetFrameHeight() + y;
-    float caption_max = 0.f;
-    show_tooltip_information(caption_max, x, get_cur_y + 25);
-    
-    ImGui::SetCursorPos(ImVec2(x + 30, get_cur_y));
-    
-    // Detect all button
+
+    const float tooltip_anchor_y = ImGui::GetContentRegionMax().y + ImGui::GetFrameHeight() + y;
+    float       caption_max      = 0.f;
+    show_tooltip_information(caption_max, x, tooltip_anchor_y + 25.f);
+
+    ImGui::SameLine();
+
     if (m_imgui->button(m_desc.at("detect_all"))) {
         // TODO: Implement detect all functionality
     }
-    
+    const float detect_all_w = ImGui::GetItemRectSize().x;
+
     ImGui::SameLine();
-    
-    // Detect selected button
+
     if (m_imgui->button(m_desc.at("detect_selected"))) {
         // TODO: Implement detect selected functionality
     }
-    
-    ImGui::SetCursorPosX(x + 30);
-    // Add overhang supports button
-    if (m_imgui->button(m_desc.at("add_overhang_supports"))) {
+    const float detect_selected_w = ImGui::GetItemRectSize().x;
+
+    // Next row: align under the buttons (after the tooltip icon) and make width == (Detect all + spacing + Detect selected).
+    const float scale            = m_parent.get_scale();
+    const float tooltip_icon_w   = 25.f * scale;
+    const float two_buttons_w    = detect_all_w + ImGui::GetStyle().ItemSpacing.x + detect_selected_w;
+
+    ImGui::Dummy(ImVec2(tooltip_icon_w, 0.f));
+    ImGui::SameLine();
+    if (m_imgui->button(m_desc.at("add_overhang_supports"), ImVec2(two_buttons_w, 0.f), true)) {
         // TODO: Implement add overhang supports functionality
     }
-    
+
     ImGui::PopStyleVar(1);
 
     GizmoImguiEnd();
@@ -438,7 +458,31 @@ void GLGizmoLcdOverhangDetection::show_tooltip_information(float caption_max, fl
     ImTextureID normal_id = m_parent.get_gizmos_manager().get_icon_texture_id(GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP);
     ImTextureID hover_id  = m_parent.get_gizmos_manager().get_icon_texture_id(GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP_HOVER);
 
-    caption_max += m_imgui->calc_text_size(std::string_view{": "}).x + 15.f;
+    // The second column uses SameLine(caption_max). If caption_max is too small, the "text" column overlaps the "caption".
+    // Unlike some other gizmos, our caller may pass caption_max as 0, so compute it here based on current tooltip items.
+    std::vector<std::string> tip_items;
+    switch (m_tool_type) {
+        case ToolType::BRUSH:
+            tip_items = {"enforce", "block", "remove", "cursor_size", "clipping_of_view"};
+            break;
+        case ToolType::BUCKET_FILL:
+            break;
+        case ToolType::SMART_FILL:
+            tip_items = {"enforce", "block", "remove", "smart_fill_angle", "clipping_of_view"};
+            break;
+        case ToolType::GAP_FILL:
+            tip_items = {"gap_area"};
+            break;
+        default:
+            break;
+    }
+
+    caption_max = 0.f;
+    for (const auto &t : tip_items) {
+        const wxString caption = m_desc.at(t + "_caption") + ": ";
+        caption_max = std::max(caption_max, m_imgui->calc_text_size(caption).x);
+    }
+    caption_max += ImGui::GetStyle().WindowPadding.x + m_imgui->calc_text_size(std::string_view{": "}).x + 15.f;
 
     float  scale       = m_parent.get_scale();
     ImVec2 button_size = ImVec2(25 * scale, 25 * scale); // ORCA: Use exact resolution will prevent blur on icon
@@ -454,23 +498,6 @@ void GLGizmoLcdOverhangDetection::show_tooltip_information(float caption_max, fl
             ImGui::SameLine(caption_max);
             m_imgui->text_colored(ImGuiWrapper::COL_WINDOW_BG, text);
         };
-
-        std::vector<std::string> tip_items;
-        switch (m_tool_type) {
-            case ToolType::BRUSH:
-                tip_items = {"enforce", "block", "remove", "cursor_size", "clipping_of_view"};
-                break;
-            case ToolType::BUCKET_FILL:
-                break;
-            case ToolType::SMART_FILL:
-                tip_items = {"enforce", "block", "remove", "smart_fill_angle", "clipping_of_view"};
-                break;
-            case ToolType::GAP_FILL:
-                tip_items = {"gap_area"};
-                break;
-            default:
-                break;
-        }
         for (const auto &t : tip_items) draw_text_with_caption(m_desc.at(t + "_caption") + ": ", m_desc.at(t));
 
         ImGui::EndTooltip();

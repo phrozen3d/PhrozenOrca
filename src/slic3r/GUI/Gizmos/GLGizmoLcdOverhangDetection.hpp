@@ -30,6 +30,7 @@ public:
     bool on_key_down_select_tool_type(int keyCode);
     
     bool on_is_selectable() const override;
+    bool on_is_activable() const override;
 
 protected:
     void on_render_input_window(float x, float y, float bottom_limit) override;
