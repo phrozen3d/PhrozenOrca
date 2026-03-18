@@ -432,6 +432,8 @@ void Sidebar::priv::show_preset_comboboxes()
 
     // Show/Hide SLA panels (print and material settings)
     if (m_panel_sla_print_title && m_panel_sla_print_content) {
+        // Note. because in phrozenOrca resin machine, not too much print setting to use
+        //       so direct set it to process tab
         m_panel_sla_print_title->Show(false);
         m_panel_sla_print_content->Show(false);
     }
