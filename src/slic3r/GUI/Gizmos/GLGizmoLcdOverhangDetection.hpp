@@ -5,6 +5,7 @@
 #include "GLGizmoPainterBase.hpp"
 //BBS
 #include "libslic3r/Print.hpp"
+#include "libslic3r/IslandDetection/Island_Detector.hpp"
 #include "libslic3r/ObjectID.hpp"
 #include "slic3r/GUI/3DScene.hpp"
 
@@ -77,6 +78,10 @@ private:
     int get_selection_support_threshold_angle();
 
     int m_support_threshold_angle = -1;
+
+    // Phrozen Island Detection
+    void Island_Detection();
+    std::vector<Slic3r::island::Island> m_detected_islands;
 
     //BBS: add support preview logic
     void init_print_instance();

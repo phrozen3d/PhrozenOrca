@@ -507,6 +507,8 @@ set(lisbslic3r_sources
     calib.cpp
     GCode/Thumbnails.cpp
     GCode/Thumbnails.hpp
+    IslandDetection/Island_Detector.hpp
+    IslandDetection/Island_Detector.cpp
 )
 
 if (APPLE)
@@ -624,6 +626,7 @@ target_link_libraries(libslic3r
         boost_libs
         cereal::cereal
         clipper
+        Clipper2
         eigen
         glu-libtess
         JPEG::JPEG

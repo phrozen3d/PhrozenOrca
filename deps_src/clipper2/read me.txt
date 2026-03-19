@@ -1,0 +1,4 @@
+download from Clipper2_1.4.0.zip
+https://github.com/AngusJohnson/Clipper2/releases/tag/Clipper2_1.4.0
+
+data copy from CPP/Clipper2Lib/
