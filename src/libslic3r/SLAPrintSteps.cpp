@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <unordered_set>
 
 #include <libslic3r/Exception.hpp>
@@ -1180,6 +1181,25 @@ void SLAPrint::Steps::rasterize()
         if (cfg.anti_aliasing.value == spNone)
             gamma = 0.0;
 
+        // Gray scale level post-processing parameters.
+        // Only applied when anti_aliasing == spGrayScaleLevel.
+        int     aa_steps = 0;
+        uint8_t gray_lo  = 0;
+        uint8_t gray_hi  = 255;
+
+        if (cfg.anti_aliasing.value == spGrayScaleLevel) {
+            const DynamicPrintConfig &full_cfg = m_print->full_print_config();
+            if (auto *aa_lvl = full_cfg.option<ConfigOptionInt>("anti_aliasing_level"))
+                aa_steps = std::max(1, aa_lvl->getInt());
+            else
+                aa_steps = 4; // default
+            if (auto *gsl = full_cfg.option<ConfigOptionInts>("gray_scale_level");
+                    gsl && gsl->values.size() >= 2) {
+                gray_lo = (uint8_t)std::clamp(gsl->values[0], 0, 255);
+                gray_hi = (uint8_t)std::clamp(gsl->values[1], 0, 255);
+            }
+        }
+
         // Compute the translation needed to map bed coordinates → display coordinates.
         // Instance shifts are in bed world coordinates (bed_shape space).
         // After portrait swap: w = original display_height, h = original display_width.
@@ -1210,7 +1230,8 @@ void SLAPrint::Steps::rasterize()
         }
 
         m_print->m_layer_images =
-            sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
+            sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
+                                            aa_steps, gray_lo, gray_hi);
     }
 }
 

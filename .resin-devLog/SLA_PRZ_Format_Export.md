@@ -276,17 +276,25 @@ cv::Mat expolygons_to_cvmat(
     const ExPolygons        &polys,
     const Resolution        &res,
     const PixelDim          &pxdim,
-    const RasterBase::Trafo &trafo = {},
-    double                   gamma = 1.0);
+    const RasterBase::Trafo &trafo    = {},
+    double                   gamma    = 1.0,
+    int                      aa_steps = 0,    // 0 = 不套用灰階後處理
+    uint8_t                  gray_lo  = 0,
+    uint8_t                  gray_hi  = 255);
 
 // 多層：TBB 並行對 vector<ExPolygons> 各層呼叫上函式
 std::vector<cv::Mat> expolygons_layers_to_cvmat(
     const std::vector<ExPolygons> &layer_polys,
     const Resolution              &res,
     const PixelDim                &pxdim,
-    const RasterBase::Trafo       &trafo = {},
-    double                         gamma = 1.0);
+    const RasterBase::Trafo       &trafo    = {},
+    double                         gamma    = 1.0,
+    int                            aa_steps = 0,
+    uint8_t                        gray_lo  = 0,
+    uint8_t                        gray_hi  = 255);
 ```
+
+`aa_steps`、`gray_lo`、`gray_hi` 均有預設值，不傳時行為與舊版完全相同（向後相容）。詳細後處理邏輯見 [SLA_AntiAliasing_Rasterization.md](SLA_AntiAliasing_Rasterization.md)。
 
 #### expolygons_to_cvmat() 實作流程
 
@@ -343,8 +351,27 @@ std::vector<cv::Mat> m_layer_images;
 #### rasterize() 結尾填入 m_layer_images
 
 ```cpp
+// Gray scale level 後處理參數（只在 anti_aliasing == spGrayScaleLevel 時填入）
+int     aa_steps = 0;
+uint8_t gray_lo  = 0;
+uint8_t gray_hi  = 255;
+
+if (cfg.anti_aliasing.value == spGrayScaleLevel) {
+    const DynamicPrintConfig &full_cfg = m_print->full_print_config();
+    if (auto *aa_lvl = full_cfg.option<ConfigOptionInt>("anti_aliasing_level"))
+        aa_steps = std::max(1, aa_lvl->getInt());
+    else
+        aa_steps = 4;
+    if (auto *gsl = full_cfg.option<ConfigOptionInts>("gray_scale_level");
+            gsl && gsl->values.size() >= 2) {
+        gray_lo = (uint8_t)std::clamp(gsl->values[0], 0, 255);
+        gray_hi = (uint8_t)std::clamp(gsl->values[1], 0, 255);
+    }
+}
+
 m_print->m_layer_images =
-    sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
+    sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
+                                    aa_steps, gray_lo, gray_hi);
 ```
 
 `all_layers` 是 `vector<ExPolygons>`，由 rasterize() 內的 for-loop 從 `m_printer_input` 各層的 `transformed_slices()` 合併而來。

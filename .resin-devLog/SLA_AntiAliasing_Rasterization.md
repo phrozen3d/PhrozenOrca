@@ -107,7 +107,7 @@ m_print->m_layer_images =
     sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
 ```
 
-### 修改後（加入 anti_aliasing 判斷）
+### 修改後（加入 anti_aliasing 判斷 + gray_scale_level 接入）
 
 ```cpp
 const SLAPrinterConfig &cfg = m_print->printer_config();
@@ -118,29 +118,87 @@ double gamma = cfg.gamma_correction.getFloat();
 if (cfg.anti_aliasing.value == spNone)
     gamma = 0.0;
 
+// Gray scale level 後處理參數（只在 spGrayScaleLevel 時填入）
+int     aa_steps = 0;
+uint8_t gray_lo  = 0;
+uint8_t gray_hi  = 255;
+
+if (cfg.anti_aliasing.value == spGrayScaleLevel) {
+    const DynamicPrintConfig &full_cfg = m_print->full_print_config();
+    if (auto *aa_lvl = full_cfg.option<ConfigOptionInt>("anti_aliasing_level"))
+        aa_steps = std::max(1, aa_lvl->getInt());
+    else
+        aa_steps = 4; // default
+    if (auto *gsl = full_cfg.option<ConfigOptionInts>("gray_scale_level");
+            gsl && gsl->values.size() >= 2) {
+        gray_lo = (uint8_t)std::clamp(gsl->values[0], 0, 255);
+        gray_hi = (uint8_t)std::clamp(gsl->values[1], 0, 255);
+    }
+}
+
 m_print->m_layer_images =
-    sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma);
+    sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
+                                    aa_steps, gray_lo, gray_hi);
 ```
 
-**邏輯鏈**：`anti_aliasing == spNone` → `gamma = 0.0` → `create_raster_grayscale_aa()` 走 threshold 分支 → 輸出純二值 cv::Mat（0/255）
+**邏輯鏈**：
+- `anti_aliasing == spNone` → `gamma = 0.0` → `create_raster_grayscale_aa()` 走 threshold 分支 → 純二值 cv::Mat（0/255）
+- `anti_aliasing == spGrayScaleLevel` → `aa_steps > 0` → `expolygons_to_cvmat()` 套用兩階段後處理
 
 ---
 
-## 四、修改檔案總覽
+## 四、gray_scale_level 像素後處理（spGrayScaleLevel 模式）
+
+移植自 `web_slicer_core/third_party/prusaslicer_fork/src/libslic3r/Format/SL1.cpp` 的 `get_encoder()` 邏輯。
+
+### 演算法
+
+對每個非純黑（0）、非純白（255）的 AA 中間像素執行兩階段處理：
+
+**Stage 1 — AA 量化**：將 AGG 產生的連續灰階壓縮到 `aa_steps` 個離散層，消除不必要的中間值。
+
+```cpp
+double gray_interval = 255.0 / double(aa_steps);
+c = (uint8_t)std::round(
+    std::round(double(c) / gray_interval) / double(aa_steps) * 255.0);
+```
+
+**Stage 2 — 範圍映射**：線性映射到 `[gray_lo, gray_hi]`（`{0,255}` 時為 identity，不改變）。
+
+```cpp
+c = (uint8_t)std::round(double(gray_lo) + range * (double(c) / 255.0));
+```
+
+### 語義對照（web_slicer_core vs PhrozenOrca）
+
+| web_slicer_core | PhrozenOrca | 說明 |
+|---|---|---|
+| `gray_level`（int 0-8）| `gray_scale_level = {lo, hi}` | 暗部抬升 → 輸出值域下限/上限 |
+| `init_val = 32 * gray_level` | `gray_lo`（uint8_t） | 最暗 AA 像素的輸出值 |
+| Stage 2 線性平移 | 線性映射 `[0,255]→[lo,hi]` | 等效語義，`{0,255}` = 關閉 |
+
+`gray_scale_level` 在 `PrintConfig`（FFF 大 class），必須透過 `m_print->full_print_config()` 存取（非 `SLAPrinterConfig`）。
+
+---
+
+## 五、修改檔案總覽
 
 | 檔案 | 修改內容 |
 |---|---|
 | [PrintConfig.hpp](../src/libslic3r/PrintConfig.hpp) | `SLAPrinterConfig` 新增 `((ConfigOptionEnum<AntiAliasing>, anti_aliasing))` |
-| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `cfg.anti_aliasing`，`spNone` 時強制 `gamma = 0.0` |
+| [SLA/RasterToCvMat.hpp](../src/libslic3r/SLA/RasterToCvMat.hpp) | 新增 `aa_steps`、`gray_lo`、`gray_hi` 參數（預設值，向後相容） |
+| [SLA/RasterToCvMat.cpp](../src/libslic3r/SLA/RasterToCvMat.cpp) | 實作兩階段後處理（Stage 1 量化 + Stage 2 範圍映射） |
+| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `anti_aliasing`；`spNone` 強制 `gamma=0`；`spGrayScaleLevel` 讀取 `gray_scale_level`/`anti_aliasing_level` 並傳入 |
 
 **未修改**（不需要改動）：
 
 - [SLA/RasterBase.cpp](../src/libslic3r/SLA/RasterBase.cpp) — `gamma=0` 的 threshold 邏輯已存在
-- [SLA/RasterToCvMat.hpp/.cpp](../src/libslic3r/SLA/RasterToCvMat.cpp) — 函式簽名不變
+- `PrintConfig.hpp/.cpp` — `gray_scale_level` 已存在
+- `ConfigManipulation.cpp` — UI 可見性已正確控制
 
 ---
 
-## 五、Config 存取機制補充
+## 六、Config 存取機制補充
 
 `SLAPrint` 持有四個獨立的 static config 實例：
 
@@ -155,9 +213,11 @@ SLAPrintObjectConfig    m_default_object_config;
 `SLAPrint::apply(DynamicPrintConfig config)` 呼叫各 config 的 `diff()` / `apply_only()` 自動分發。
 `SLAPrinterConfig` 新增 `anti_aliasing` 欄位後，`m_printer_config.diff(config)` 會自動偵測並 apply 此 key。
 
+`gray_scale_level`、`anti_aliasing_level` 屬於 `PrintConfig`（FFF 大 class），不在 `SLAPrinterConfig`，需透過 `m_print->full_print_config()` 存取。
+
 ---
 
-## 六、UI 連動（已存在，不需修改）
+## 七、UI 連動（已存在，不需修改）
 
 `ConfigManipulation::toggle_print_sla_options()` 已有對 `anti_aliasing` 的 UI 可見性控制：
 
