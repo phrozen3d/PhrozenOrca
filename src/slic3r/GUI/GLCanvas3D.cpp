@@ -6551,7 +6551,9 @@ bool GLCanvas3D::_init_main_toolbar()
     item.left.toggable = true; // ORCA Closes popup if other toolbar icon clicked and it allows closing popup when clicked its button
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_LAYERSEDITING)); };
     item.visibility_callback = [this]()->bool {
-        bool res = current_printer_technology() == ptFFF;
+        // Use preset_bundle directly (same pattern as GLGizmoPainterBase::on_is_selectable)
+        // to avoid m_printer_tech being stale due to PartPlate resetting it to ptFFF.
+        const bool res = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF;
         // turns off if changing printer technology
         if (!res && m_main_toolbar.is_item_visible("layersediting") && m_main_toolbar.is_item_pressed("layersediting"))
             force_main_toolbar_left_action(get_main_toolbar_item_id("layersediting"));
