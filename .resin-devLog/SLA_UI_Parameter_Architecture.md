@@ -123,6 +123,8 @@ StaticPrintConfig (基類)
 | `display_pixels_x` / `display_pixels_y` | `ConfigOptionInt` | LCD 解析度（pixels） |
 | `display_orientation` | `ConfigOptionEnum<SLADisplayOrientation>` | 螢幕方向 |
 | `relative_correction_x/y/z` | `ConfigOptionFloat` | 相對尺寸補正 |
+| `gamma_correction` | `ConfigOptionFloat` | Gamma 值，影響光柵化 AA 效果 |
+| `anti_aliasing` | `ConfigOptionEnum<AntiAliasing>` | AA 模式（`spNone`/`spGrayScaleLevel`/`spAntiAliasingLevel`）；2026-03-19 加入，供 `SLAPrint::rasterize()` 讀取 |
 | `sla_archive_format` | `ConfigOptionString` | 輸出格式（sl1/phz 等） |
 
 ### 參數定義 Macro 格式

@@ -1175,6 +1175,11 @@ void SLAPrint::Steps::rasterize()
             {cfg.display_mirror_x.getBool(), cfg.display_mirror_y.getBool()}};
         double gamma = cfg.gamma_correction.getFloat();
 
+        // When anti-aliasing is disabled, force gamma=0 so the rasterizer
+        // uses threshold rendering (agg::gamma_threshold) instead of AA.
+        if (cfg.anti_aliasing.value == spNone)
+            gamma = 0.0;
+
         // Compute the translation needed to map bed coordinates → display coordinates.
         // Instance shifts are in bed world coordinates (bed_shape space).
         // After portrait swap: w = original display_height, h = original display_width.

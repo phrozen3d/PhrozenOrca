@@ -1816,6 +1816,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                      elefant_foot_compensation))
     ((ConfigOptionFloat,                      elefant_foot_min_width))
     ((ConfigOptionFloat,                      gamma_correction))
+    ((ConfigOptionEnum<AntiAliasing>,         anti_aliasing))
     ((ConfigOptionFloat,                      fast_tilt_time))
     ((ConfigOptionFloat,                      slow_tilt_time))
     ((ConfigOptionFloat,                      high_viscosity_tilt_time))
