@@ -21,6 +21,7 @@
 #include "slic3r/GUI/Gizmos/GLGizmoCut.hpp"
 //#include "slic3r/GUI/Gizmos/GLGizmoFaceDetector.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoHollow.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoDrill.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSeam.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoMmuSegmentation.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoSimplify.hpp"
@@ -188,6 +189,9 @@ void GLGizmosManager::switch_gizmos_icon_filename()
         case (EType::Hollow):
             gizmo->set_icon_filename(m_is_dark ? "PhrozenImages_Resin/toolbar_hollow_hover_dark.svg" : "PhrozenImages_Resin/toolbar_hollow_hover.svg");
             break;
+        case (EType::Drill):
+            gizmo->set_icon_filename(m_is_dark ? "PhrozenImages_Resin/toolbar_drill_hover_dark.svg" : "PhrozenImages_Resin/toolbar_drill_hover.svg");
+            break;
         }
 
     }
@@ -240,6 +244,9 @@ bool GLGizmosManager::init()
 
     m_gizmos.emplace_back(new GLGizmoHollow(
             m_parent, m_is_dark ? "PhrozenImages_Resin/toolbar_hollow_hover_dark.svg" : "PhrozenImages_Resin/toolbar_hollow_hover.svg", EType::Hollow));
+
+    m_gizmos.emplace_back(new GLGizmoDrill(
+            m_parent, m_is_dark ? "PhrozenImages_Resin/toolbar_drill_hover_dark.svg" : "PhrozenImages_Resin/toolbar_drill_hover.svg", EType::Drill));
 #pragma endregion
 
 
@@ -492,6 +499,8 @@ bool GLGizmosManager::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_p
         return dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == Hollow)
         return dynamic_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
+    else if (m_current == Drill)
+        return dynamic_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == FdmSupports)
         return dynamic_cast<GLGizmoFdmSupports*>(m_gizmos[FdmSupports].get())->gizmo_event(action, mouse_position, shift_down, alt_down, control_down);
     else if (m_current == LcdOverhangDetection)
@@ -619,7 +628,7 @@ bool GLGizmosManager::on_mouse_wheel(const wxMouseEvent &evt)
 {
     bool processed = false;
 
-    if (m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == LcdOverhangDetection || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin || m_current == BrimEars) {
+    if (m_current == SlaSupports || m_current == Hollow || m_current == Drill || m_current == FdmSupports || m_current == LcdOverhangDetection || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin || m_current == BrimEars) {
         float rot = (float)evt.GetWheelRotation() / (float)evt.GetWheelDelta();
         if (gizmo_event((rot > 0.f ? SLAGizmoEventType::MouseWheelUp : SLAGizmoEventType::MouseWheelDown), Vec2d::Zero(), evt.ShiftDown(), evt.AltDown()
             // BBS
@@ -773,7 +782,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
 #endif /* __APPLE__ */
         {
             // Sla gizmo selects all support points
-            if ((m_current == SlaSupports || m_current == Hollow) && gizmo_event(SLAGizmoEventType::SelectAll))
+            if ((m_current == SlaSupports || m_current == Hollow || m_current == Drill) && gizmo_event(SLAGizmoEventType::SelectAll))
                 processed = true;
 
             break;
@@ -819,7 +828,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
         case 'r' :
         case 'R' :
         {
-            if ((m_current == SlaSupports || m_current == Hollow || m_current == FdmSupports || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin) && gizmo_event(SLAGizmoEventType::ResetClippingPlane))
+            if ((m_current == SlaSupports || m_current == Hollow || m_current == Drill || m_current == FdmSupports || m_current == Seam || m_current == MmSegmentation || m_current == FuzzySkin) && gizmo_event(SLAGizmoEventType::ResetClippingPlane))
                 processed = true;
 
             break;
@@ -827,7 +836,7 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
 
         case WXK_BACK:
         case WXK_DELETE: {
-            if ((m_current == Cut || m_current == Measure || m_current == Assembly || m_current == SlaSupports || m_current == Hollow) && gizmo_event(SLAGizmoEventType::Delete))
+            if ((m_current == Cut || m_current == Measure || m_current == Assembly || m_current == SlaSupports || m_current == Hollow || m_current == Drill) && gizmo_event(SLAGizmoEventType::Delete))
                 processed = true;
             break;
         }

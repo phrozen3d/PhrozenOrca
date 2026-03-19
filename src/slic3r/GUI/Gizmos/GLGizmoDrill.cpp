@@ -1,0 +1,810 @@
+///|/ Copyright (c) Prusa Research 2019 - 2023 Enrico Turri @enricoturri1966, Lukáš Matěna @lukasmatena, Vojtěch Bubník @bubnikv, Tomáš Mészáros @tamasmeszaros, Filip Sykala @Jony01, Lukáš Hejl @hejllukas, Oleksandra Iushchenko @YuSanka, Vojtěch Král @vojtechkral
+///|/
+///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
+///|/
+// GLGizmoDrill: Drill-holes-only gizmo extracted from GLGizmoHollow.
+// Inherits GLGizmoSlaBase; provides drain hole placement/editing without hollowing parameters.
+
+#include "GLGizmoDrill.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmosCommon.hpp"
+
+#include <GL/glew.h>
+
+#include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/GUI_ObjectSettings.hpp"
+#include "slic3r/GUI/GUI_ObjectList.hpp"
+#include "slic3r/GUI/Plater.hpp"
+#include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/SLAPrint.hpp"
+
+#include "libslic3r/Model.hpp"
+
+
+namespace Slic3r {
+namespace GUI {
+
+GLGizmoDrill::GLGizmoDrill(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id)
+    : GLGizmoSlaBase(parent, icon_filename, sprite_id)  // no minimum step — always enable input when mesh exists
+{
+}
+
+
+bool GLGizmoDrill::on_init()
+{
+    m_shortcut_key = WXK_CONTROL_D;
+    m_desc["preview"]          = _(L("Preview hollowed and drilled model"));
+    m_desc["hole_diameter"]    = _(L("Hole diameter")) + ": ";
+    m_desc["hole_depth"]       = _(L("Hole depth")) + ": ";
+    m_desc["remove_selected"]  = _(L("Remove selected holes"));
+    m_desc["remove_all"]       = _(L("Remove all holes"));
+    m_desc["clipping_of_view"] = _(L("Clipping of view"))+ ": ";
+    m_desc["reset_direction"]  = _(L("Reset direction"));
+    m_desc["show_supports"]    = _(L("Show supports"));
+
+    return true;
+}
+
+void GLGizmoDrill::data_changed(bool is_serializing)
+{
+    if (!m_c->selection_info())
+        return;
+
+    const ModelObject* mo = m_c->selection_info()->model_object();
+    if (m_state == On && mo) {
+        if (m_old_mo_id != mo->id()) {
+            reload_cache();
+            m_old_mo_id = mo->id();
+        }
+
+        const int required_step = get_min_sla_print_object_step();
+        const SLAPrintObject* po = m_c->selection_info()->print_object();
+        if (required_step >= 0 && po != nullptr && po->get_mesh_to_print().empty())
+            reslice_until_step((SLAPrintObjectStep)required_step);
+
+        update_volumes();
+
+        if (m_hole_raycasters.empty())
+            register_hole_raycasters_for_picking();
+        else
+            update_hole_raycasters_for_picking_transform();
+
+        m_c->instances_hider()->set_hide_full_scene(true);
+    }
+}
+
+
+void GLGizmoDrill::on_render()
+{
+    // Safety check: if selected print object doesn't exist on active bed, close gizmo.
+    if (!selected_print_object_exists(m_parent, wxEmptyString)) {
+        wxGetApp().CallAfter([this]() {
+            m_parent.get_gizmos_manager().open_gizmo(m_parent.get_gizmos_manager().get_current_type());
+        });
+    }
+    const Selection& selection = m_parent.get_selection();
+    const CommonGizmosDataObjects::SelectionInfo* sel_info = m_c->selection_info();
+
+    if (m_state == On
+     && (sel_info->model_object() != selection.get_model()->objects[selection.get_object_idx()]
+      || sel_info->get_active_instance() != selection.get_instance_idx())) {
+        m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
+        return;
+    }
+
+    glsafe(::glEnable(GL_BLEND));
+    glsafe(::glEnable(GL_DEPTH_TEST));
+
+    render_volumes();
+    render_points(selection);
+
+    m_selection_rectangle.render(m_parent);
+    m_c->object_clipper()->render_cut();
+
+    if (are_sla_supports_shown())
+        m_c->supports_clipper()->render_cut();
+
+    glsafe(::glDisable(GL_BLEND));
+}
+
+void GLGizmoDrill::on_register_raycasters_for_picking()
+{
+    register_hole_raycasters_for_picking();
+    register_volume_raycasters_for_picking();
+}
+
+void GLGizmoDrill::on_unregister_raycasters_for_picking()
+{
+    unregister_hole_raycasters_for_picking();
+    unregister_volume_raycasters_for_picking();
+}
+
+void GLGizmoDrill::render_points(const Selection& selection)
+{
+    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
+    if (shader == nullptr)
+        return;
+
+    shader->start_using();
+    ScopeGuard guard([shader]() { shader->stop_using(); });
+
+    auto *mo_render = m_c->selection_info()->model_object();
+    int inst_idx_render = m_c->selection_info()->get_active_instance();
+    if (!mo_render || inst_idx_render < 0 || inst_idx_render >= (int)mo_render->instances.size())
+        return;
+
+    double shift_z = m_c->selection_info()->print_object() ? m_c->selection_info()->print_object()->get_current_elevation() : 0.;
+    Transform3d trafo(mo_render->instances[inst_idx_render]->get_transformation().get_matrix());
+    trafo.translation()(2) += shift_z;
+    const Geometry::Transformation transformation{trafo};
+
+    const Transform3d instance_scaling_matrix_inverse = transformation.get_scaling_factor_matrix().inverse();
+    const Camera& camera = wxGetApp().plater()->get_camera();
+    const Transform3d& view_matrix = camera.get_view_matrix();
+    shader->set_uniform("projection_matrix", camera.get_projection_matrix());
+
+    ColorRGBA render_color;
+    const sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    const size_t cache_size = drain_holes.size();
+
+    for (size_t i = 0; i < cache_size; ++i) {
+        const sla::DrainHole& drain_hole = drain_holes[i];
+        const bool point_selected = m_selected[i];
+
+        const bool clipped = is_mesh_point_clipped(drain_hole.pos.cast<double>());
+        m_hole_raycasters[i]->set_active(!clipped);
+        if (clipped)
+            continue;
+
+        if (size_t(m_hover_id) == i)
+            render_color = ColorRGBA::CYAN();
+        else
+            render_color = point_selected ? ColorRGBA(1.0f, 0.3f, 0.3f, 0.5f) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f);
+
+        m_cylinder.model.set_color(render_color);
+        const Transform3d hole_matrix = Geometry::translation_transform(drain_hole.pos.cast<double>()) * instance_scaling_matrix_inverse;
+
+        if (transformation.is_left_handed())
+            glsafe(::glFrontFace(GL_CW));
+
+        Eigen::Quaterniond q;
+        q.setFromTwoVectors(Vec3d::UnitZ(), instance_scaling_matrix_inverse * (-drain_hole.normal).cast<double>());
+        const Eigen::AngleAxisd aa(q);
+        const Transform3d model_matrix = trafo * hole_matrix * Transform3d(aa.toRotationMatrix()) *
+            Geometry::translation_transform(-drain_hole.height * Vec3d::UnitZ()) * Geometry::scale_transform(Vec3d(drain_hole.radius, drain_hole.radius, drain_hole.height + sla::HoleStickOutLength));
+        shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
+        const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+        shader->set_uniform("view_normal_matrix", view_normal_matrix);
+        m_cylinder.model.render();
+
+        if (transformation.is_left_handed())
+            glsafe(::glFrontFace(GL_CCW));
+    }
+}
+
+bool GLGizmoDrill::is_mesh_point_clipped(const Vec3d& point) const
+{
+    if (m_c->object_clipper()->get_position() == 0.)
+        return false;
+
+    auto sel_info = m_c->selection_info();
+    int active_inst = m_c->selection_info()->get_active_instance();
+    const ModelInstance* mi = sel_info->model_object()->instances[active_inst];
+    const Transform3d& trafo = mi->get_transformation().get_matrix() * sel_info->model_object()->volumes.front()->get_matrix();
+
+    Vec3d transformed_point = trafo * point;
+    transformed_point(2) += sel_info->get_sla_shift();
+    return m_c->object_clipper()->get_clipping_plane()->is_point_clipped(transformed_point);
+}
+
+
+bool GLGizmoDrill::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_position, bool shift_down, bool alt_down, bool control_down)
+{
+    ModelObject* mo = m_c->selection_info()->model_object();
+    int active_inst = m_c->selection_info()->get_active_instance();
+
+    if (action == SLAGizmoEventType::LeftDown && (shift_down || alt_down || control_down)) {
+        if (m_hover_id == -1) {
+            if (shift_down || alt_down) {
+                m_selection_rectangle.start_dragging(mouse_position, shift_down ? GLSelectionRectangle::Select : GLSelectionRectangle::Deselect);
+            }
+        }
+        else {
+            if (m_selected[m_hover_id])
+                unselect_point(m_hover_id);
+            else {
+                if (!alt_down)
+                    select_point(m_hover_id);
+            }
+        }
+
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::LeftDown && !m_selection_rectangle.is_dragging() && !shift_down) {
+        if (m_hover_id != -1)
+            return false;
+
+        if (m_selection_empty) {
+            std::pair<Vec3f, Vec3f> pos_and_normal;
+            if (unproject_on_mesh(mouse_position, pos_and_normal)) {
+                Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add drainage hole");
+
+                mo->sla_drain_holes.emplace_back(pos_and_normal.first,
+                                                -pos_and_normal.second, m_new_hole_radius, m_new_hole_height);
+                m_selected.push_back(false);
+                assert(m_selected.size() == mo->sla_drain_holes.size());
+                m_parent.set_as_dirty();
+                m_wait_for_up_event = true;
+                unregister_hole_raycasters_for_picking();
+                register_hole_raycasters_for_picking();
+            }
+            else
+                return false;
+        }
+        else
+            select_point(NoPoints);
+
+        return true;
+    }
+
+    if ((action == SLAGizmoEventType::LeftUp || action == SLAGizmoEventType::ShiftUp || action == SLAGizmoEventType::AltUp) && m_selection_rectangle.is_dragging()) {
+        GLSelectionRectangle::EState rectangle_status = m_selection_rectangle.get_state();
+
+        Geometry::Transformation trafo = mo->instances[active_inst]->get_transformation();
+        trafo.set_offset(trafo.get_offset() + Vec3d(0., 0., m_c->selection_info()->get_sla_shift()));
+        std::vector<Vec3d> points;
+        for (unsigned int i=0; i<mo->sla_drain_holes.size(); ++i)
+            points.push_back(trafo.get_matrix() * mo->sla_drain_holes[i].pos.cast<double>());
+
+        std::vector<Vec3f> points_inside;
+        std::vector<unsigned int> points_idxs = m_selection_rectangle.contains(points);
+        m_selection_rectangle.stop_dragging();
+        for (size_t idx : points_idxs)
+            points_inside.push_back(points[idx].cast<float>());
+
+        for (size_t idx : m_c->raycaster()->raycaster()->get_unobscured_idxs(
+                 trafo, wxGetApp().plater()->get_camera(), points_inside,
+                 m_c->object_clipper()->get_clipping_plane()))
+        {
+            if (rectangle_status == GLSelectionRectangle::Deselect)
+                unselect_point(points_idxs[idx]);
+            else
+                select_point(points_idxs[idx]);
+        }
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::LeftUp) {
+        if (m_wait_for_up_event) {
+            m_wait_for_up_event = false;
+            return true;
+        }
+    }
+
+    if (action == SLAGizmoEventType::Dragging) {
+        if (m_wait_for_up_event)
+            return true;
+
+        if (m_selection_rectangle.is_dragging()) {
+            m_selection_rectangle.dragging(mouse_position);
+            return true;
+        }
+
+        return false;
+    }
+
+    if (action == SLAGizmoEventType::Delete) {
+        delete_selected_points();
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::RightDown) {
+        if (m_hover_id != -1) {
+            select_point(NoPoints);
+            select_point(m_hover_id);
+            delete_selected_points();
+            return true;
+        }
+        return false;
+    }
+
+    if (action == SLAGizmoEventType::SelectAll) {
+        select_point(AllPoints);
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::MouseWheelUp && control_down) {
+        double pos = m_c->object_clipper()->get_position();
+        pos = std::min(1., pos + 0.01);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::MouseWheelDown && control_down) {
+        double pos = m_c->object_clipper()->get_position();
+        pos = std::max(0., pos - 0.01);
+        m_c->object_clipper()->set_position_by_ratio(pos, true);
+        return true;
+    }
+
+    if (action == SLAGizmoEventType::ResetClippingPlane) {
+        m_c->object_clipper()->set_position_by_ratio(-1., false);
+        return true;
+    }
+
+    return false;
+}
+
+void GLGizmoDrill::delete_selected_points()
+{
+    Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Delete drainage hole");
+    sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+
+    for (unsigned int idx=0; idx<drain_holes.size(); ++idx) {
+        if (m_selected[idx]) {
+            m_selected.erase(m_selected.begin()+idx);
+            drain_holes.erase(drain_holes.begin() + (idx--));
+        }
+    }
+
+    unregister_hole_raycasters_for_picking();
+    register_hole_raycasters_for_picking();
+    select_point(NoPoints);
+}
+
+bool GLGizmoDrill::on_mouse(const wxMouseEvent &mouse_event)
+{
+    if (!is_input_enabled()) return true;
+    if (mouse_event.Moving()) return false;
+    if (use_grabbers(mouse_event)) return true;
+
+    Vec2i32 mouse_coord(mouse_event.GetX(), mouse_event.GetY());
+    Vec2d mouse_pos = mouse_coord.cast<double>();
+
+    static bool pending_right_up = false;
+    if (mouse_event.LeftDown()) {
+        bool control_down = mouse_event.CmdDown();
+        bool grabber_contains_mouse = (get_hover_id() != -1);
+        if ((!control_down || grabber_contains_mouse) &&
+            gizmo_event(SLAGizmoEventType::LeftDown, mouse_pos, mouse_event.ShiftDown(), mouse_event.AltDown(), false))
+            return true;
+    } else if (mouse_event.Dragging()) {
+        if (m_parent.get_move_volume_id() != -1)
+            return true;
+
+        bool control_down = mouse_event.CmdDown();
+        if (control_down) {
+            if (mouse_event.LeftIsDown())
+                gizmo_event(SLAGizmoEventType::LeftUp, mouse_pos, mouse_event.ShiftDown(), mouse_event.AltDown(), true);
+            else if (mouse_event.RightIsDown()) {
+                pending_right_up = false;
+            }
+        } else if(gizmo_event(SLAGizmoEventType::Dragging, mouse_pos, mouse_event.ShiftDown(), mouse_event.AltDown(), false)) {
+            m_parent.set_as_dirty();
+            return true;
+        }
+    } else if (mouse_event.LeftUp()) {
+        if (!m_parent.is_mouse_dragging()) {
+            bool control_down = mouse_event.CmdDown();
+            gizmo_event(SLAGizmoEventType::LeftUp, mouse_pos, mouse_event.ShiftDown(), mouse_event.AltDown(), control_down);
+            return true;
+        }
+    } else if (mouse_event.RightDown()) {
+        if (m_parent.get_selection().get_object_idx() != -1 &&
+            gizmo_event(SLAGizmoEventType::RightDown, mouse_pos, false, false, false)) {
+            pending_right_up = true;
+            return true;
+        }
+    } else if (mouse_event.RightUp()) {
+        if (pending_right_up) {
+            pending_right_up = false;
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void GLGizmoDrill::register_hole_raycasters_for_picking()
+{
+    assert(m_hole_raycasters.empty());
+
+    init_cylinder_model();
+
+    const CommonGizmosDataObjects::SelectionInfo* info = m_c->selection_info();
+    if (info != nullptr && !info->model_object()->sla_drain_holes.empty()) {
+        const sla::DrainHoles& drain_holes = info->model_object()->sla_drain_holes;
+        for (int i = 0; i < (int)drain_holes.size(); ++i) {
+            m_hole_raycasters.emplace_back(m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cylinder.mesh_raycaster, Transform3d::Identity()));
+        }
+        update_hole_raycasters_for_picking_transform();
+    }
+}
+
+void GLGizmoDrill::unregister_hole_raycasters_for_picking()
+{
+    for (size_t i = 0; i < m_hole_raycasters.size(); ++i) {
+        m_parent.remove_raycasters_for_picking(SceneRaycaster::EType::Gizmo, i);
+    }
+    m_hole_raycasters.clear();
+}
+
+void GLGizmoDrill::update_hole_raycasters_for_picking_transform()
+{
+    const CommonGizmosDataObjects::SelectionInfo* info = m_c->selection_info();
+    if (info != nullptr) {
+        const sla::DrainHoles& drain_holes = info->model_object()->sla_drain_holes;
+        if (!drain_holes.empty()) {
+            assert(!m_hole_raycasters.empty());
+
+            const GLVolume* vol = m_parent.get_selection().get_first_volume();
+            Geometry::Transformation transformation(vol->get_instance_transformation());
+
+            auto *mo_upd = m_c->selection_info()->model_object();
+            int inst_idx_upd = m_c->selection_info()->get_active_instance();
+            if (mo_upd && inst_idx_upd >= 0 && inst_idx_upd < (int)mo_upd->instances.size()
+                && m_c->selection_info()->print_object()) {
+                double shift_z = m_c->selection_info()->print_object()->get_current_elevation();
+                auto trafo = mo_upd->instances[inst_idx_upd]->get_transformation().get_matrix();
+                trafo.translation()(2) += shift_z;
+                transformation.set_matrix(trafo);
+            }
+            const Transform3d instance_scaling_matrix_inverse = transformation.get_scaling_factor_matrix().inverse();
+
+            for (size_t i = 0; i < drain_holes.size(); ++i) {
+                const sla::DrainHole& drain_hole = drain_holes[i];
+                const Transform3d hole_matrix = Geometry::translation_transform(drain_hole.pos.cast<double>()) * instance_scaling_matrix_inverse;
+                Eigen::Quaterniond q;
+                q.setFromTwoVectors(Vec3d::UnitZ(), instance_scaling_matrix_inverse * (-drain_hole.normal).cast<double>());
+                const Eigen::AngleAxisd aa(q);
+                const Transform3d matrix = transformation.get_matrix() * hole_matrix * Transform3d(aa.toRotationMatrix()) *
+                    Geometry::translation_transform(-drain_hole.height * Vec3d::UnitZ()) * Geometry::scale_transform(Vec3d(drain_hole.radius, drain_hole.radius, drain_hole.height + sla::HoleStickOutLength));
+                m_hole_raycasters[i]->set_transform(matrix);
+            }
+        }
+    }
+}
+
+
+void GLGizmoDrill::on_render_input_window(float x, float y, float bottom_limit)
+{
+    ModelObject* mo = m_c->selection_info()->model_object();
+    if (!mo)
+        return;
+
+    bool first_run = true;
+
+RENDER_AGAIN:
+    const float approx_height = m_imgui->scaled(14.0f);
+    y = std::min(y, bottom_limit - approx_height);
+    m_imgui->set_next_window_pos(x, y, ImGuiCond_Always);
+
+    m_imgui->begin(get_name(), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+    const float clipping_slider_left = std::max(m_imgui->calc_text_size(m_desc.at("clipping_of_view")).x,
+                                                m_imgui->calc_text_size(m_desc.at("reset_direction")).x) + m_imgui->scaled(0.5f);
+
+    const float diameter_slider_left =
+        std::max(std::max(m_imgui->calc_text_size(m_desc.at("hole_diameter")).x,
+                          m_imgui->calc_text_size(m_desc.at("hole_depth")).x) + m_imgui->scaled(0.5f), clipping_slider_left);
+
+    const float minimal_slider_width = m_imgui->scaled(4.f);
+    const float button_preview_width = m_imgui->calc_button_size(m_desc.at("preview")).x;
+    float window_width = minimal_slider_width + std::max(diameter_slider_left, clipping_slider_left);
+    window_width = std::max(window_width, button_preview_width);
+
+    // Preview button — triggers reslice up to slaposDrillHoles so the drilled mesh is visible.
+    m_imgui->disabled_begin(!is_input_enabled());
+    if (m_imgui->button(m_desc["preview"]))
+        reslice_until_step(slaposDrillHoles);
+    m_imgui->disabled_end();
+
+    ImGui::Separator();
+
+    bool force_refresh = false;
+    bool remove_selected = false;
+    bool remove_all = false;
+
+    float diameter_upper_cap = 60.;
+    if (m_new_hole_radius * 2.f > diameter_upper_cap)
+        m_new_hole_radius = diameter_upper_cap / 2.f;
+    ImGui::AlignTextToFramePadding();
+
+    m_imgui->disabled_begin(!is_input_enabled());
+
+    m_imgui->text(m_desc.at("hole_diameter"));
+    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
+    ImGui::PushItemWidth(window_width - diameter_slider_left);
+    float diam = 2.f * m_new_hole_radius;
+    m_imgui->slider_float("##hole_diameter", &diam, 1.f, 25.f, "%.1f mm", 1.f, false);
+
+    diam = std::clamp(diam, 0.1f, diameter_upper_cap);
+    m_new_hole_radius = diam / 2.f;
+    bool clicked = m_imgui->get_last_slider_status().clicked;
+    bool edited = m_imgui->get_last_slider_status().edited;
+    bool deactivated = m_imgui->get_last_slider_status().deactivated_after_edit;
+
+    ImGui::AlignTextToFramePadding();
+
+    m_imgui->text(m_desc["hole_depth"]);
+    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
+    m_imgui->slider_float("##hole_depth", &m_new_hole_height, 0.f, 10.f, "%.1f mm", 1.f, false);
+
+    m_imgui->disabled_end();
+
+    m_new_hole_height = std::clamp(m_new_hole_height, 0.f, 100.f);
+
+    clicked |= m_imgui->get_last_slider_status().clicked;
+    edited |= m_imgui->get_last_slider_status().edited;
+    deactivated |= m_imgui->get_last_slider_status().deactivated_after_edit;;
+
+    if (!m_selection_empty) {
+        if (clicked) {
+            m_holes_stash = mo->sla_drain_holes;
+        }
+        if (edited) {
+            for (size_t idx=0; idx<m_selected.size(); ++idx)
+                if (m_selected[idx]) {
+                    mo->sla_drain_holes[idx].radius = m_new_hole_radius;
+                    mo->sla_drain_holes[idx].height = m_new_hole_height;
+                }
+        }
+        if (deactivated) {
+            sla::DrainHoles new_holes = mo->sla_drain_holes;
+            mo->sla_drain_holes = m_holes_stash;
+            float backup_rad = m_new_hole_radius;
+            float backup_hei = m_new_hole_height;
+            for (size_t i=0; i<m_holes_stash.size(); ++i) {
+                if (m_selected[i]) {
+                    m_new_hole_radius = m_holes_stash[i].radius;
+                    m_new_hole_height = m_holes_stash[i].height;
+                    break;
+                }
+            }
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Change drainage hole diameter");
+            m_new_hole_radius = backup_rad;
+            m_new_hole_height = backup_hei;
+            mo->sla_drain_holes = new_holes;
+        }
+    }
+
+    m_imgui->disabled_begin(!is_input_enabled() || m_selection_empty);
+    remove_selected = m_imgui->button(m_desc.at("remove_selected"));
+    m_imgui->disabled_end();
+
+    m_imgui->disabled_begin(!is_input_enabled() || mo->sla_drain_holes.empty());
+    remove_all = m_imgui->button(m_desc.at("remove_all"));
+    m_imgui->disabled_end();
+
+    ImGui::Separator();
+    m_imgui->disabled_begin(!is_input_enabled());
+    if (m_c->object_clipper()->get_position() == 0.f) {
+        ImGui::AlignTextToFramePadding();
+        m_imgui->text(m_desc.at("clipping_of_view"));
+    }
+    else {
+        if (m_imgui->button(m_desc.at("reset_direction"))) {
+            wxGetApp().CallAfter([this](){
+                    m_c->object_clipper()->set_position_by_ratio(-1., false);
+                });
+        }
+    }
+
+    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
+    ImGui::PushItemWidth(window_width - diameter_slider_left);
+    float clp_dist = m_c->object_clipper()->get_position();
+    if (m_imgui->slider_float("##clp_dist", &clp_dist, 0.f, 1.f, "%.2f"))
+        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
+
+    ImGui::Separator();
+    bool show_sups = are_sla_supports_shown();
+    if (m_imgui->checkbox(m_desc["show_supports"], show_sups)) {
+        show_sla_supports(show_sups);
+        force_refresh = true;
+    }
+
+    m_imgui->disabled_end();
+    m_imgui->end();
+
+
+    if (remove_selected || remove_all) {
+        force_refresh = false;
+        m_parent.set_as_dirty();
+
+        if (remove_all) {
+            select_point(AllPoints);
+            delete_selected_points();
+        }
+        if (remove_selected)
+            delete_selected_points();
+
+        if (first_run) {
+            first_run = false;
+            goto RENDER_AGAIN;
+        }
+    }
+
+    if (force_refresh)
+        m_parent.set_as_dirty();
+}
+
+bool GLGizmoDrill::on_is_activable() const
+{
+    const Selection& selection = m_parent.get_selection();
+
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA
+        || !selection.is_single_full_instance())
+        return false;
+
+    const Selection::IndicesList& list = selection.get_volume_idxs();
+    for (const auto& idx : list)
+        if (selection.get_volume(idx)->is_outside && selection.get_volume(idx)->composite_id.volume_id >= 0)
+            return false;
+
+    for (const auto& idx : list) {
+        if (!selection.get_volume(idx)->printable)
+            return false;
+    }
+
+    return true;
+}
+
+bool GLGizmoDrill::on_is_selectable() const
+{
+    return (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA);
+}
+
+std::string GLGizmoDrill::on_get_name() const
+{
+    return _u8L("Drill");
+}
+
+void GLGizmoDrill::on_set_state()
+{
+    if (m_state == m_old_state)
+        return;
+
+    if (m_state == On) {
+        if (!selected_print_object_exists(m_parent, _L("Selected object has to be on the active bed."))) {
+            m_state = Off;
+            return;
+        }
+    }
+
+    if (m_state == Off && m_old_state != Off) {
+        m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
+        m_c->instances_hider()->set_hide_full_scene(false);
+    }
+
+    m_old_state = m_state;
+}
+
+
+void GLGizmoDrill::on_start_dragging()
+{
+    if (m_hover_id != -1) {
+        select_point(NoPoints);
+        select_point(m_hover_id);
+        m_hole_before_drag = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].pos;
+    }
+    else
+        m_hole_before_drag = Vec3f::Zero();
+}
+
+
+void GLGizmoDrill::on_stop_dragging()
+{
+    sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    if (m_hover_id != -1) {
+        Vec3f backup = drain_holes[m_hover_id].pos;
+
+        if (m_hole_before_drag != Vec3f::Zero()
+         && backup != m_hole_before_drag)
+        {
+            drain_holes[m_hover_id].pos = m_hole_before_drag;
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Move drainage hole");
+            drain_holes[m_hover_id].pos = backup;
+        }
+    }
+    m_hole_before_drag = Vec3f::Zero();
+}
+
+
+void GLGizmoDrill::on_dragging(const UpdateData &data)
+{
+    assert(m_hover_id != -1);
+    std::pair<Vec3f, Vec3f> pos_and_normal;
+    if (!unproject_on_mesh(data.mouse_pos.cast<double>(), pos_and_normal))
+        return;
+    sla::DrainHoles &drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    drain_holes[m_hover_id].pos    = pos_and_normal.first;
+    drain_holes[m_hover_id].normal = -pos_and_normal.second;
+}
+
+
+void GLGizmoDrill::on_load(cereal::BinaryInputArchive& ar)
+{
+    ar(m_new_hole_radius,
+       m_new_hole_height,
+       m_selected,
+       m_selection_empty
+    );
+}
+
+
+void GLGizmoDrill::on_save(cereal::BinaryOutputArchive& ar) const
+{
+    ar(m_new_hole_radius,
+       m_new_hole_height,
+       m_selected,
+       m_selection_empty
+    );
+}
+
+
+void GLGizmoDrill::select_point(int i)
+{
+    const sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+
+    if (i == AllPoints || i == NoPoints) {
+        m_selected.assign(m_selected.size(), i == AllPoints);
+        m_selection_empty = (i == NoPoints);
+
+        if (i == AllPoints && !drain_holes.empty()) {
+            m_new_hole_radius = drain_holes[0].radius;
+            m_new_hole_height = drain_holes[0].height;
+        }
+    }
+    else {
+        while (size_t(i) >= m_selected.size())
+            m_selected.push_back(false);
+        m_selected[i] = true;
+        m_selection_empty = false;
+        m_new_hole_radius = drain_holes[i].radius;
+        m_new_hole_height = drain_holes[i].height;
+    }
+}
+
+
+void GLGizmoDrill::unselect_point(int i)
+{
+    m_selected[i] = false;
+    m_selection_empty = true;
+    for (const bool sel : m_selected) {
+        if (sel) {
+            m_selection_empty = false;
+            break;
+        }
+    }
+}
+
+void GLGizmoDrill::reload_cache()
+{
+    m_selected.clear();
+    m_selected.assign(m_c->selection_info()->model_object()->sla_drain_holes.size(), false);
+}
+
+
+void GLGizmoDrill::on_set_hover_id()
+{
+    if (m_c->selection_info()->model_object() == nullptr)
+        return;
+
+    if (int(m_c->selection_info()->model_object()->sla_drain_holes.size()) <= m_hover_id)
+        m_hover_id = -1;
+}
+
+void GLGizmoDrill::init_cylinder_model()
+{
+    if (!m_cylinder.model.is_initialized()) {
+        indexed_triangle_set its = its_make_cylinder(1.0, 1.0);
+        m_cylinder.model.init_from(its);
+        m_cylinder.mesh_raycaster = std::make_unique<MeshRaycaster>(std::make_shared<const TriangleMesh>(std::move(its)));
+    }
+}
+
+
+
+} // namespace GUI
+} // namespace Slic3r

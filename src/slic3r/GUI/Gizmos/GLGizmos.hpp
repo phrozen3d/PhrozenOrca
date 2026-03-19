@@ -40,5 +40,6 @@ enum class SLAGizmoEventType : unsigned char {
 // BBS
 #include "slic3r/GUI/Gizmos/GLGizmoAdvancedCut.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoHollow.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoDrill.hpp"
 
 #endif //slic3r_GLGizmos_hpp_

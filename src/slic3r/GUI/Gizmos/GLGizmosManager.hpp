@@ -96,6 +96,7 @@ public:
         LcdOverhangDetection,
         SlaSupports,
         Hollow,
+        Drill,
 #pragma endregion
         Undefined,
     };
