@@ -1,0 +1,9 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M5 11.3906L19.8313 2.99997L34.6626 11.3906L19.8313 19.7812L5 11.3906Z" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10.1685 19L24.9998 10.6094M14.6684 28.8905L22.0841 24.6953L25.7919 22.5976L27.6458 21.5488" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 2"/>
+<path d="M19.8313 19.781L5 11.3904V28.3812L12.4157 32.5765L19.8313 36.7718V19.781Z" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M19.8301 19.781L34.6614 11.3904V28.3812L27.2457 32.5765L19.8301 36.7718V19.781Z" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M27.246 24.1861L34.6616 28.3813V11.3905L19.8303 2.99997V11.4954" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 2"/>
+<path d="M10.5113 18.7106C11.4532 18.4118 12.5236 18.6654 13.513 19.4139C14.5011 20.1614 15.3691 21.3793 15.8517 22.9001C16.3343 24.421 16.3275 25.9172 15.9511 27.0978C15.5743 28.2797 14.8459 29.1041 13.904 29.4031C12.9621 29.7019 11.8916 29.4482 10.9023 28.6998C9.9141 27.9522 9.04591 26.7337 8.5633 25.2127C8.08079 23.6919 8.0878 22.1964 8.46415 21.0159C8.841 19.8339 9.56929 19.0095 10.5113 18.7106Z" stroke="#2B3436"/>
+<ellipse cx="25.9775" cy="16.1597" rx="4.32301" ry="5.66506" transform="rotate(-17.6046 25.9775 16.1597)" stroke="#2B3436" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 2"/>
+</svg>

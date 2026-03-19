@@ -155,7 +155,7 @@ void GLGizmosManager::switch_gizmos_icon_filename()
             break;
 #pragma region PhrozenLCD Parameter
         case(EType::LcdOverhangDetection):
-            gizmo->set_icon_filename(m_is_dark ? "toolbar_overhang_dark.svg" : "toolbar_overhang.svg");
+            gizmo->set_icon_filename(m_is_dark ? "PhrozenImages_Resin/toolbar_overhang_hover_dark.svg" : "PhrozenImages_Resin/toolbar_overhang_hover.svg");
             break;
 #pragma endregion
         case(EType::Seam):
@@ -183,10 +183,10 @@ void GLGizmosManager::switch_gizmos_icon_filename()
             gizmo->set_icon_filename(m_is_dark ? "toolbar_brimears_dark.svg" : "toolbar_brimears.svg");
             break;
         case (EType::SlaSupports):
-            gizmo->set_icon_filename("sla_supports.svg");
+            gizmo->set_icon_filename(m_is_dark ? "PhrozenImages_Resin/toolbar_support_hover_dark.svg" : "PhrozenImages_Resin/toolbar_support_hover.svg");
             break;
         case (EType::Hollow):
-            gizmo->set_icon_filename("hollow.svg");
+            gizmo->set_icon_filename(m_is_dark ? "PhrozenImages_Resin/toolbar_hollow_hover_dark.svg" : "PhrozenImages_Resin/toolbar_hollow_hover.svg");
             break;
         }
 
@@ -221,9 +221,6 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoCut3D(m_parent, m_is_dark ? "toolbar_cut_dark.svg" : "toolbar_cut.svg", EType::Cut));
     m_gizmos.emplace_back(new GLGizmoMeshBoolean(m_parent, m_is_dark ? "toolbar_meshboolean_dark.svg" : "toolbar_meshboolean.svg", EType::MeshBoolean));
     m_gizmos.emplace_back(new GLGizmoFdmSupports(m_parent, m_is_dark ? "toolbar_support_dark.svg" : "toolbar_support.svg", EType::FdmSupports));
-#pragma region PhrozenLCD Parameter
-    m_gizmos.emplace_back(new GLGizmoLcdOverhangDetection(m_parent, m_is_dark ? "toolbar_overhang_dark.svg" : "toolbar_overhang.svg", EType::LcdOverhangDetection));
-#pragma endregion
     m_gizmos.emplace_back(new GLGizmoSeam(m_parent, m_is_dark ? "toolbar_seam_dark.svg" : "toolbar_seam.svg", EType::Seam));
     m_gizmos.emplace_back(new GLGizmoFuzzySkin(m_parent, m_is_dark ? "toolbar_fuzzy_skin_paint_dark.svg" : "toolbar_fuzzy_skin_paint.svg", EType::FuzzySkin));
     m_gizmos.emplace_back(new GLGizmoMmuSegmentation(m_parent, m_is_dark ? "mmu_segmentation_dark.svg" : "mmu_segmentation.svg", EType::MmSegmentation));
@@ -233,9 +230,23 @@ bool GLGizmosManager::init()
     m_gizmos.emplace_back(new GLGizmoAssembly(m_parent, m_is_dark ? "toolbar_assembly_dark.svg" : "toolbar_assembly.svg", EType::Assembly));
     m_gizmos.emplace_back(new GLGizmoSimplify(m_parent, "reduce_triangles.svg", EType::Simplify));
     m_gizmos.emplace_back(new GLGizmoBrimEars(m_parent, m_is_dark ? "toolbar_brimears_dark.svg" : "toolbar_brimears.svg", EType::BrimEars));
-    m_gizmos.emplace_back(new GLGizmoSlaSupports(m_parent, "sla_supports.svg", EType::SlaSupports));
+
+#pragma region Phrozen resin
+    m_gizmos.emplace_back(new GLGizmoLcdOverhangDetection(
+            m_parent, m_is_dark ? "PhrozenImages_Resin/toolbar_overhang_hover_dark.svg" : "PhrozenImages_Resin/toolbar_overhang_hover.svg", EType::LcdOverhangDetection));
+
+    m_gizmos.emplace_back(new GLGizmoSlaSupports(
+            m_parent, m_is_dark ? "PhrozenImages_Resin/toolbar_support_hover_dark.svg" : "PhrozenImages_Resin/toolbar_support_hover.svg", EType::SlaSupports));
+
+    m_gizmos.emplace_back(new GLGizmoHollow(
+            m_parent, m_is_dark ? "PhrozenImages_Resin/toolbar_hollow_hover_dark.svg" : "PhrozenImages_Resin/toolbar_hollow_hover.svg", EType::Hollow));
+#pragma endregion
+
+
+
+    
     //m_gizmos.emplace_back(new GLGizmoFaceDetector(m_parent, "face recognition.svg", sprite_id++));
-    m_gizmos.emplace_back(new GLGizmoHollow(m_parent, "hollow.svg", EType::Hollow));
+    
 
     m_common_gizmos_data.reset(new CommonGizmosDataPool(&m_parent));
     if(!m_assemble_view_data)

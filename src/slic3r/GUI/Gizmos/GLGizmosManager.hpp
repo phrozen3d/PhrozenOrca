@@ -81,9 +81,6 @@ public:
         Cut,
         MeshBoolean,
         FdmSupports,
-#pragma region Phrozen LCD Parameter
-        LcdOverhangDetection,
-#pragma endregion
         Seam,
         FuzzySkin,
         MmSegmentation,
@@ -93,10 +90,13 @@ public:
         Assembly,
         Simplify,
         BrimEars,
-        SlaSupports,
         // BBS
         //FaceRecognition,
+#pragma region Phrozen LCD Parameter
+        LcdOverhangDetection,
+        SlaSupports,
         Hollow,
+#pragma endregion
         Undefined,
     };
 
