@@ -6756,7 +6756,7 @@ void TabSLAPrint::build()
 
     optgroup = page->new_optgroup(L("Main"), L"PhrozenImages_Resin/param_bottom", 15);
     optgroup->append_single_option_line("pillar_diameter", "123");
-    optgroup->append_single_option_line("angle_between_top_and_middle", "123");
+    optgroup->append_single_option_line("support_bracing_angle", "123");
 
     optgroup = page->new_optgroup(L("Bottom"), L"PhrozenImages_Resin/param_bottom", 15);
     optgroup->append_single_option_line("support_bottom_diameter", "123");

@@ -18717,8 +18717,8 @@ msgstr "頂部連接長度"
 msgid "Pillar Diameter"
 msgstr "支撐柱直徑"
 
-msgid "Angle Between Top And Middle"
-msgstr "臨界角度"
+msgid "Support Bracing Angle"
+msgstr "支撐橫桿角度"
 
 msgid "Support Bottom Diameter"
 msgstr "支撐底座直徑"

@@ -963,7 +963,7 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "top_contact_depth",
     "pinhead_width",
     "pillar_diameter",
-    "angle_between_top_and_middle",
+    "support_bracing_angle",
     "support_bottom_diameter",
     "support_boss_height",
     //"object_elevation",

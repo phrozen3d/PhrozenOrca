@@ -7043,10 +7043,10 @@ void PrintConfigDef::init_sla_params()
     def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(1));
 
-    def           = this->add("angle_between_top_and_middle", coFloat);
-    def->label    = L("Angle Between Top And Middle");
+    def           = this->add("support_bracing_angle", coFloat);
+    def->label    = L("Support Bracing Angle");
     def->category = L("Support");
-    def->tooltip  = L("Angle Between Top And Middle for support.");
+    def->tooltip  = L("Support Bracing Angle for support.");
     def->sidetext = "°";
     def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(45));

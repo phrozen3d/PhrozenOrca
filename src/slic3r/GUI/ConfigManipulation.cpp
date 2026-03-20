@@ -964,7 +964,7 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
     toggle_field("top_contact_depth", is_support);
     toggle_field("pinhead_width", is_support);
     toggle_field("pillar_diameter", is_support);
-    toggle_field("angle_between_top_and_middle", is_support);
+    toggle_field("support_bracing_angle", is_support);
     toggle_field("support_bottom_diameter", is_support);
     toggle_field("support_boss_height", is_support);
     //toggle_field("object_elevation", is_support);

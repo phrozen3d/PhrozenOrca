@@ -1544,7 +1544,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, pinhead_width))
 
     ((ConfigOptionFloat, pillar_diameter))
-    ((ConfigOptionFloat, angle_between_top_and_middle))
+    ((ConfigOptionFloat, support_bracing_angle))
 
     ((ConfigOptionFloat, support_bottom_diameter))
     ((ConfigOptionFloat, support_boss_height))
