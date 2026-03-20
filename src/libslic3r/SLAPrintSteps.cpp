@@ -1126,16 +1126,30 @@ void SLAPrint::Steps::rasterize()
     sla::ccr::SpinningMutex slck;
     using Lock = std::lock_guard<sla::ccr::SpinningMutex>;
 
+    // Compute bed→display shift so the rasterized PNGs are centered on the
+    // display, matching the cv::Mat pipeline (Pipeline 2) below.
+    Points bed_pts;
+    bed_pts.reserve(m_print->printer_config().printable_area.values.size());
+    for (const Vec2d &v : m_print->printer_config().printable_area.values)
+        bed_pts.emplace_back(scaled(v.x()), scaled(v.y()));
+    BoundingBox bed_bb(bed_pts);
+    const double display_cx = m_print->printer_config().display_width.getFloat()  / 2.0;
+    const double display_cy = m_print->printer_config().display_height.getFloat() / 2.0;
+    const Point  display_center{scaled(display_cx), scaled(display_cy)};
+    const Point  raster_shift = display_center - bed_bb.center();
+
     // procedure to process one height level. This will run in parallel
     auto lvlfn =
-        [this, &slck, increment, &dstatus, &pst]
+        [this, &slck, increment, &dstatus, &pst, raster_shift]
         (sla::RasterBase& raster, size_t idx)
     {
         PrintLayer& printlayer = m_print->m_printer_input[idx];
         if(canceled()) return;
 
-        for (const ExPolygon& poly : printlayer.transformed_slices())
+        for (ExPolygon poly : printlayer.transformed_slices()) {
+            poly.translate(raster_shift);
             raster.draw(poly);
+        }
 
         // Status indication guarded with the spinlock
         {

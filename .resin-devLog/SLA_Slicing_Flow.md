@@ -192,19 +192,31 @@ SLAPrint::process()
 - **輸出**：`m_printer_input`（`vector<PrintLayer>`）、`m_print_statistics`
 
 ### Step 9：rasterize（光柵化 → 產生 2D 影像）
-**檔案**：[SLAPrintSteps.cpp:1106](../src/libslic3r/SLAPrintSteps.cpp#L1106)
+**檔案**：[SLAPrintSteps.cpp:1109](../src/libslic3r/SLAPrintSteps.cpp#L1109)
 
-- **並行處理**每一層（TBB）：
-  ```
-  for each PrintLayer:
-      raster->draw(poly)      ← 將 ExPolygon 繪製到 RasterBase
-      raster->encode()        ← 編碼為 EncodedRaster（PNG 或其他格式）
-  ```
-- **輸出**：`m_sla_archive.m_layers`（`vector<sla::EncodedRaster>`）— 記憶體中的 2D 影像資料
-- **光柵化由 SLAArchiveWriter 負責**：
-  - `SLAArchiveWriter::draw_layers()` 呼叫 `create_raster()` 建立每層的 `RasterBase`
-  - `SL1Archive` 是具體實作，產生 PNG 格式的影像
-- **關鍵參數**：`display_width`, `display_height`（決定解析度）、`pixel_size`
+此步驟內部有**兩條平行 pipeline**：
+
+**Pipeline 1 — SL1 PNG 匯出**（TBB 並行）：
+```
+for each PrintLayer:
+    poly.translate(raster_shift)    ← 床座標 → 顯示器座標（2026-03-20 新增）
+    raster->draw(poly)              ← AGGRaster 繪製
+    raster->encode()                ← 編碼為 EncodedRaster（PNG）
+```
+- **輸出**：`m_sla_archive.m_layers`（`vector<sla::EncodedRaster>`）— SL1 ZIP 內的 PNG 資料
+- **由 `SLAArchiveWriter::draw_layers()`** 負責，`SL1Archive::create_raster()` 建立每層的 `RasterBase`
+
+**Pipeline 2 — cv::Mat 影像**（PRZ 與預覽用）：
+```
+polys = layer.transformed_slices()
+for each poly: poly.translate(display_center - bed_center)
+m_layer_images = expolygons_layers_to_cvmat(all_layers, ...)
+```
+- **輸出**：`SLAPrint::m_layer_images`（`vector<cv::Mat>`）— PRZ 格式及後處理使用
+
+> **置中邏輯**：`raster_shift = display_center − bed_center`，確保模型在床上的位置正確對應到顯示器中心。兩條 pipeline 自 2026-03-20 起使用相同的 shift 計算，PRZ 因為只讀 Pipeline 2 的結果，不受 Pipeline 1 的修改影響。
+
+- **關鍵參數**：`display_width`, `display_height`（決定解析度）、`printable_area`（決定 bed_center）
 
 ---
 

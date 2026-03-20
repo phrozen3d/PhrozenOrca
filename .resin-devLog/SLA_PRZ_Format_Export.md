@@ -578,3 +578,48 @@ default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.st
 ```
 
 與 `slice_model()` 中讀取 `lhd` 的來源（`m_objects.front()->m_config.layer_height`）保持一致，使所有層高度統一。物件列表為空時 fallback 至 `initial_layer_height`（此情況在正常切片流程中不會發生）。
+
+---
+
+## 八、2026-03-20 修改記錄
+
+### 8-1 SL1 PNG 模型位置偏移修正（SLAPrintSteps.cpp）
+
+**問題**：匯出 `.sl1` 檔時，壓縮檔內各層 PNG 中的模型位置相對於顯示器有偏移。
+
+**根因**：`rasterize()` 內部存在兩條 pipeline，置中邏輯不一致：
+
+| | Pipeline 1（SL1 PNG） | Pipeline 2（cv::Mat／PRZ） |
+|---|---|---|
+| 資料來源 | `draw_layers()` → AGGRaster | `expolygons_layers_to_cvmat()` → `m_layer_images` |
+| 置中邏輯 | **無**（`Trafo.center_x/center_y = 0`） | **有**（`display_center − bed_center`） |
+
+`transformed_slices()` 的多邊形使用**床世界座標**。AGGRaster 將座標換算為像素時 center 偏移預設 0，若 `printable_area` 的中心不在 (0, 0)，SL1 PNG 內的模型位置就會偏移。
+
+PRZ 不受影響：PRZ 完全不走 Pipeline 1，直接讀取已套用正確 shift 的 `m_layer_images`。
+
+**修正**：在 `SLAPrintSteps::rasterize()` 的 `lvlfn` lambda 定義前，計算 `raster_shift`（與 Pipeline 2 相同邏輯），並於 `raster.draw()` 前先平移多邊形：
+
+```cpp
+// SLAPrintSteps.cpp line ~1129
+Points bed_pts;
+for (const Vec2d &v : m_print->printer_config().printable_area.values)
+    bed_pts.emplace_back(scaled(v.x()), scaled(v.y()));
+BoundingBox bed_bb(bed_pts);
+const double display_cx = m_print->printer_config().display_width.getFloat()  / 2.0;
+const double display_cy = m_print->printer_config().display_height.getFloat() / 2.0;
+const Point  display_center{scaled(display_cx), scaled(display_cy)};
+const Point  raster_shift = display_center - bed_bb.center();
+
+auto lvlfn = [this, &slck, increment, &dstatus, &pst, raster_shift]
+    (sla::RasterBase& raster, size_t idx)
+{
+    // ...
+    for (ExPolygon poly : printlayer.transformed_slices()) {
+        poly.translate(raster_shift);
+        raster.draw(poly);
+    }
+};
+```
+
+`shift` 計算邏輯與 Pipeline 2（cv::Mat）完全相同，確保 SL1 PNG 與 PRZ 輸出的模型位置一致。
