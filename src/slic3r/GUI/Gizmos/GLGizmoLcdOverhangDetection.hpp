@@ -8,6 +8,7 @@
 #include "libslic3r/IslandDetection/Island_Detector.hpp"
 #include "libslic3r/ObjectID.hpp"
 #include "slic3r/GUI/3DScene.hpp"
+#include "slic3r/GUI/GLModel.hpp"
 
 #include <boost/thread.hpp>
 
@@ -81,7 +82,10 @@ private:
 
     // Phrozen Island Detection
     void Island_Detection();
+    void rebuild_island_models();
+    void render_island_contours();
     std::vector<Slic3r::island::Island> m_detected_islands;
+    std::vector<GLModel> m_island_models;
 
     //BBS: add support preview logic
     void init_print_instance();
