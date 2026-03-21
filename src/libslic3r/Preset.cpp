@@ -978,7 +978,7 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "faded_layers",
     "slice_closing_radius",
     "slicing_mode",
-    "supports_enable",
+    "generate_support",
     // Support structure (standard)
     "support_tree_type",
     "support_head_front_diameter",           // GLGizmoSlaSupports line 995 — CRASH if missing

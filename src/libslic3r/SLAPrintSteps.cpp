@@ -578,14 +578,14 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
     // We apply the printer correction offset here.
     apply_printer_corrections(po, soModel);
 
-    if(po.m_config.supports_enable.getBool() || po.m_config.pad_enable.getBool())
+    if(po.m_config.generate_support.getBool() || po.m_config.pad_enable.getBool())
     {
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
     }
 
     // Step A5.2: Pre-compute support generator data for interactive re-generation.
     // Called here so density changes can call generate_support_points() without re-slicing.
-    if (po.m_config.supports_enable.getBool())
+    if (po.m_config.generate_support.getBool())
         prepare_for_generate_supports(po);
 }
 
@@ -613,7 +613,7 @@ void SLAPrint::Steps::prepare_for_generate_supports(SLAPrintObject &po)
 void SLAPrint::Steps::support_points(SLAPrintObject &po)
 {
     // If supports are disabled, we can skip the model scan.
-    if(!po.m_config.supports_enable.getBool()) return;
+    if(!po.m_config.generate_support.getBool()) return;
 
     if (!po.m_supportdata)
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
@@ -729,7 +729,7 @@ void SLAPrint::Steps::support_tree(SLAPrintObject &po)
 
     po.m_supportdata->create_support_tree(ctl);
 
-    if (!po.m_config.supports_enable.getBool()) return;
+    if (!po.m_config.generate_support.getBool()) return;
 
     throw_if_canceled();
 
@@ -762,7 +762,7 @@ void SLAPrint::Steps::generate_pad(SLAPrintObject &po) {
         double   pad_h             = pcfg.full_height();
         const TriangleMesh &trmesh = po.transformed_mesh();
 
-        if (!po.m_config.supports_enable.getBool() || pcfg.embed_object) {
+        if (!po.m_config.generate_support.getBool() || pcfg.embed_object) {
             // No support (thus no elevation) or zero elevation mode
             // we sometimes call it "builtin pad" is enabled so we will
             // get a sample from the bottom of the mesh and use it for pad
@@ -796,7 +796,7 @@ void SLAPrint::Steps::slice_supports(SLAPrintObject &po) {
     if(sd) sd->support_slices.clear();
 
     // Don't bother if no supports and no pad is present.
-    if (!po.m_config.supports_enable.getBool() && !po.m_config.pad_enable.getBool())
+    if (!po.m_config.generate_support.getBool() && !po.m_config.pad_enable.getBool())
         return;
 
     if(sd && sd->support_tree_ptr) {

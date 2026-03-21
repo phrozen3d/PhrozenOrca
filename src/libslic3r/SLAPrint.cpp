@@ -52,7 +52,7 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
 {
     sla::SupportTreeConfig scfg;
 
-    scfg.enabled = c.supports_enable.getBool();
+    scfg.enabled = c.generate_support.getBool();
 
     // Step 3.1: Map config enum (SLASupportTreeType) to internal enum (sla::SupportTreeType).
     // Config layer keeps SLASupportTreeType for serialization; internal SLA code uses sla::SupportTreeType.
@@ -674,7 +674,7 @@ StringObjectException SLAPrint::validate(StringObjectException *exception, Polyg
     for(SLAPrintObject * po : m_objects) {
 
         const ModelObject *mo = po->model_object();
-        bool supports_en = po->config().supports_enable.getBool();
+        bool supports_en = po->config().generate_support.getBool();
 
         if(supports_en &&
            mo->sla_points_status == sla::PointsStatus::UserModified &&
@@ -983,7 +983,7 @@ bool SLAPrintObject::invalidate_state_by_config_options(const std::vector<t_conf
             || opt_key == "faded_layers"
             || opt_key == "pad_enable"
             || opt_key == "pad_wall_thickness"
-            || opt_key == "supports_enable"
+            || opt_key == "generate_support"
             || opt_key == "support_object_elevation"
             || opt_key == "pad_around_object"
             || opt_key == "pad_around_object_everywhere"
@@ -1069,7 +1069,7 @@ bool SLAPrintObject::invalidate_all_steps()
 double SLAPrintObject::get_elevation() const {
     if (is_zero_elevation(m_config)) return 0.;
 
-    bool en = m_config.supports_enable.getBool();
+    bool en = m_config.generate_support.getBool();
 
     double ret = en ? m_config.support_object_elevation.getFloat() : 0.;
 
@@ -1186,7 +1186,7 @@ TriangleMesh SLAPrintObject::get_mesh(SLAPrintObjectStep step) const
 
 const TriangleMesh& SLAPrintObject::support_mesh() const
 {
-    if(m_config.supports_enable.getBool() && m_supportdata)
+    if(m_config.generate_support.getBool() && m_supportdata)
         return m_supportdata->tree_mesh;
 
     return EMPTY_MESH;

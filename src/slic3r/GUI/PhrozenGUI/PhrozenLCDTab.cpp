@@ -76,7 +76,7 @@ void add_correct_opts_to_options_list(const std::string &opt_key, std::map<std::
 
 static wxString support_combo_value_for_config(const DynamicPrintConfig &config, bool is_fff)
 {
-    const std::string support         = is_fff ? "enable_support"                 : "supports_enable";
+    const std::string support         = is_fff ? "enable_support"                 : "generate_support";
     const std::string buildplate_only = is_fff ? "support_on_build_plate_only" : "support_buildplate_only";
 
     // BBS
@@ -1417,7 +1417,7 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
 
         if (is_fff ?
             (opt_key == "enable_support" || opt_key == "support_type" || opt_key == "support_on_build_plate_only") :
-            (opt_key == "supports_enable" || opt_key == "support_buildplate_only"))
+            (opt_key == "generate_support" || opt_key == "support_buildplate_only"))
             og_freq_chng_params->set_value("support", support_combo_value_for_config(*m_config, is_fff));
 
         if (!is_fff && (opt_key == "pad_enable" || opt_key == "pad_around_object"))

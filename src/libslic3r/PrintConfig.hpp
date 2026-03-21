@@ -1537,8 +1537,6 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, bottom_tolerance_compensation_a))
     ((ConfigOptionFloat, bottom_tolerance_compensation_b))
 
-    ((ConfigOptionBool, generate_support))
-
     ((ConfigOptionFloat, top_upper_diameter))
     ((ConfigOptionFloat, top_contact_depth))
     ((ConfigOptionFloat, pinhead_width))
@@ -1583,7 +1581,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<SlicingMode>, slicing_mode))
 
     // Enabling or disabling support creation
-    ((ConfigOptionBool,  supports_enable))
+    ((ConfigOptionBool,  generate_support))
 
     ((ConfigOptionEnum<SLASupportTreeType>, support_tree_type))
 

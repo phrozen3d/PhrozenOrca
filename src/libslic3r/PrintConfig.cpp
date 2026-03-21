@@ -7411,13 +7411,6 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionString());
     def->cli = ConfigOptionDef::nocli;
 
-    def = this->add("supports_enable", coBool);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    def->mode = comSimple;
-    def->set_default_value(new ConfigOptionBool(true));
-
     def = this->add("support_head_front_diameter", coFloat);
     //def->label = L("");
     //def->category = L("");
