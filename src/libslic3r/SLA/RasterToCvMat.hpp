@@ -23,11 +23,12 @@ cv::Mat expolygons_to_cvmat(
     const ExPolygons        &polys,
     const Resolution        &res,
     const PixelDim          &pxdim,
-    const RasterBase::Trafo &trafo    = {},
-    double                   gamma    = 1.0,
-    int                      aa_steps = 0,
-    uint8_t                  gray_lo  = 0,
-    uint8_t                  gray_hi  = 255);
+    const RasterBase::Trafo &trafo      = {},
+    double                   gamma      = 1.0,
+    int                      aa_steps   = 0,
+    uint8_t                  gray_lo    = 0,
+    uint8_t                  gray_hi    = 255,
+    int                      blur_pixel = 0);
 
 // Convert all layers to cv::Mat images in parallel.
 // layer_polys[i] is the merged ExPolygons for layer i.
@@ -36,11 +37,12 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
     const std::vector<ExPolygons> &layer_polys,
     const Resolution              &res,
     const PixelDim                &pxdim,
-    const RasterBase::Trafo       &trafo    = {},
-    double                         gamma    = 1.0,
-    int                            aa_steps = 0,
-    uint8_t                        gray_lo  = 0,
-    uint8_t                        gray_hi  = 255);
+    const RasterBase::Trafo       &trafo      = {},
+    double                         gamma      = 1.0,
+    int                            aa_steps   = 0,
+    uint8_t                        gray_lo    = 0,
+    uint8_t                        gray_hi    = 255,
+    int                            blur_pixel = 0);
 
 } // namespace sla
 } // namespace Slic3r

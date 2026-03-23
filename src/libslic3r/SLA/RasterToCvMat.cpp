@@ -1,6 +1,8 @@
 #include "RasterToCvMat.hpp"
 #include "libslic3r/SLA/RasterBase.hpp"
 
+#include <opencv2/imgproc.hpp>
+
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 
@@ -18,7 +20,8 @@ cv::Mat expolygons_to_cvmat(
     double                   gamma,
     int                      aa_steps,
     uint8_t                  gray_lo,
-    uint8_t                  gray_hi)
+    uint8_t                  gray_hi,
+    int                      blur_pixel)
 {
     auto raster = create_raster_grayscale_aa(res, pxdim, gamma, trafo);
 
@@ -68,6 +71,13 @@ cv::Mat expolygons_to_cvmat(
         }
     }
 
+    // Gaussian blur: applied after AA/gray-scale post-processing.
+    // blur_pixel is the actual pixel count (2–8); kernel size = (blur_pixel*2+1).
+    if (blur_pixel >= 2) {
+        const int k = blur_pixel * 2 + 1;
+        cv::GaussianBlur(mat, mat, cv::Size(k, k), 0);
+    }
+
     return mat;
 }
 
@@ -79,7 +89,8 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
     double                         gamma,
     int                            aa_steps,
     uint8_t                        gray_lo,
-    uint8_t                        gray_hi)
+    uint8_t                        gray_hi,
+    int                            blur_pixel)
 {
     std::vector<cv::Mat> result(layer_polys.size());
 
@@ -87,7 +98,8 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
         [&](const tbb::blocked_range<size_t> &r) {
             for (size_t i = r.begin(); i < r.end(); ++i)
                 result[i] = expolygons_to_cvmat(layer_polys[i], res, pxdim, trafo,
-                                                gamma, aa_steps, gray_lo, gray_hi);
+                                                gamma, aa_steps, gray_lo, gray_hi,
+                                                blur_pixel);
         });
 
     return result;

@@ -1243,9 +1243,20 @@ void SLAPrint::Steps::rasterize()
             all_layers.push_back(std::move(polys));
         }
 
+        // Gaussian blur post-processing (applied after all AA stages)
+        int blur_pixel = 0;
+        {
+            const DynamicPrintConfig &full_cfg = m_print->full_print_config();
+            if (auto *blur_en = full_cfg.option<ConfigOptionBool>("image_blur_enable");
+                    blur_en && blur_en->getBool()) {
+                if (auto *blur_px = full_cfg.option<ConfigOptionEnum<ImageBlurPixel>>("image_blur_pixel"))
+                    blur_pixel = blur_px->getInt() + 2;  // enum 0–6 → pixel 2–8
+            }
+        }
+
         m_print->m_layer_images =
             sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
-                                            aa_steps, gray_lo, gray_hi);
+                                            aa_steps, gray_lo, gray_hi, blur_pixel);
     }
 }
 

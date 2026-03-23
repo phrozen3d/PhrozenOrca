@@ -186,14 +186,14 @@ c = (uint8_t)std::round(double(gray_lo) + range * (double(c) / 255.0));
 | 檔案 | 修改內容 |
 |---|---|
 | [PrintConfig.hpp](../src/libslic3r/PrintConfig.hpp) | `SLAPrinterConfig` 新增 `((ConfigOptionEnum<AntiAliasing>, anti_aliasing))` |
-| [SLA/RasterToCvMat.hpp](../src/libslic3r/SLA/RasterToCvMat.hpp) | 新增 `aa_steps`、`gray_lo`、`gray_hi` 參數（預設值，向後相容） |
-| [SLA/RasterToCvMat.cpp](../src/libslic3r/SLA/RasterToCvMat.cpp) | 實作兩階段後處理（Stage 1 量化 + Stage 2 範圍映射） |
-| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `anti_aliasing`；`spNone` 強制 `gamma=0`；`spGrayScaleLevel` 讀取 `gray_scale_level`/`anti_aliasing_level` 並傳入 |
+| [SLA/RasterToCvMat.hpp](../src/libslic3r/SLA/RasterToCvMat.hpp) | 新增 `aa_steps`、`gray_lo`、`gray_hi`、`blur_pixel` 參數（預設值，向後相容） |
+| [SLA/RasterToCvMat.cpp](../src/libslic3r/SLA/RasterToCvMat.cpp) | 實作兩階段後處理（Stage 1 量化 + Stage 2 範圍映射）；AA 後處理完成後執行 Gaussian Blur |
+| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `anti_aliasing`；`spNone` 強制 `gamma=0`；`spGrayScaleLevel` 讀取 `gray_scale_level`/`anti_aliasing_level` 並傳入；讀取 `image_blur_enable`/`image_blur_pixel` 並傳入 `blur_pixel` |
 
 **未修改**（不需要改動）：
 
 - [SLA/RasterBase.cpp](../src/libslic3r/SLA/RasterBase.cpp) — `gamma=0` 的 threshold 邏輯已存在
-- `PrintConfig.hpp/.cpp` — `gray_scale_level` 已存在
+- `PrintConfig.hpp/.cpp` — `gray_scale_level`、`image_blur_enable`、`image_blur_pixel` 已存在
 - `ConfigManipulation.cpp` — UI 可見性已正確控制
 
 ---
@@ -225,3 +225,88 @@ SLAPrintObjectConfig    m_default_object_config;
 - `image_blur_enable == false` → 隱藏 `image_blur_pixel`
 
 **檔案**：[ConfigManipulation.cpp](../src/slic3r/GUI/ConfigManipulation.cpp) line ~922
+
+---
+
+## 八、Gaussian Blur 後處理（2026-03-23 新增）
+
+### 設計概念
+
+模糊化在所有 AA 後處理（Stage 1 量化、Stage 2 範圍映射）**完成後**執行，作為獨立的第三階段。參考邏輯：
+
+```cpp
+// 參考來源（web_slicer_core）
+const int blur = g_config->Options_i["blur"] ? g_config->Options_i["blur"] + 1 : 0;
+cv::GaussianBlur(_image, _image, cv::Size((blur << 1) + 1, (blur << 1) + 1), 0);
+```
+
+### Config 對應
+
+| 參數 | Config Class | 說明 |
+|---|---|---|
+| `image_blur_enable` | `PrintConfig`（FFF） | 啟用模糊化（Bool） |
+| `image_blur_pixel` | `PrintConfig`（FFF） | 模糊半徑（`ConfigOptionEnum<ImageBlurPixel>`） |
+
+`ImageBlurPixel` enum（PrintConfig.hpp line 412）：
+
+```cpp
+enum ImageBlurPixel { sp2, sp3, sp4, sp5, sp6, sp7, sp8 };
+// 字串 key: "2"~"8"，enum int 值 0~6 → 實際 pixel = enum_int + 2
+```
+
+兩者都在 `PrintConfig`（FFF 大 class），需透過 `m_print->full_print_config()` 存取。
+
+### Kernel Size 計算
+
+| enum 值 | 實際 pixel | kernel size |
+|---|---|---|
+| `sp2`（0） | 2 | 5×5 |
+| `sp3`（1） | 3 | 7×7 |
+| `sp4`（2） | 4 | 9×9 |
+| `sp5`（3） | 5 | 11×11 |
+| `sp6`（4） | 6 | 13×13 |
+| `sp7`（5） | 7 | 15×15 |
+| `sp8`（6） | 8 | 17×17 |
+
+公式：`kernel = blur_pixel * 2 + 1`，其中 `blur_pixel = enum_int + 2`。
+
+### 實作位置
+
+**`SLAPrintSteps.cpp` — `rasterize()` 讀取 blur 設定**
+
+```cpp
+// Gaussian blur post-processing (applied after all AA stages)
+int blur_pixel = 0;
+{
+    const DynamicPrintConfig &full_cfg = m_print->full_print_config();
+    if (auto *blur_en = full_cfg.option<ConfigOptionBool>("image_blur_enable");
+            blur_en && blur_en->getBool()) {
+        if (auto *blur_px = full_cfg.option<ConfigOptionEnum<ImageBlurPixel>>("image_blur_pixel"))
+            blur_pixel = blur_px->getInt() + 2;  // enum 0–6 → pixel 2–8
+    }
+}
+```
+
+**`RasterToCvMat.cpp` — `expolygons_to_cvmat()` 執行 blur**
+
+```cpp
+// Gaussian blur: applied after AA/gray-scale post-processing.
+if (blur_pixel >= 2) {
+    const int k = blur_pixel * 2 + 1;
+    cv::GaussianBlur(mat, mat, cv::Size(k, k), 0);
+}
+```
+
+`cv::GaussianBlur` 需要 `opencv2/imgproc.hpp`（已在 `RasterToCvMat.cpp` 新增 include）。
+
+### 執行順序總覽
+
+```
+expolygons_to_cvmat()
+    1. create_raster_grayscale_aa()  — AGG 光柵化（gamma 控制）
+    2. aa_steps > 0 時
+       ├── Stage 1：量化到 aa_steps 離散層
+       └── Stage 2：線性映射到 [gray_lo, gray_hi]
+    3. blur_pixel >= 2 時
+       └── cv::GaussianBlur(kernel = blur_pixel*2+1)
+```
