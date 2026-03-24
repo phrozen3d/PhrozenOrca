@@ -159,7 +159,7 @@ struct PrepareGeneratorDataConfig {
 
 /// <summary>
 /// Prepare data for support point generation.
-/// Must be called at the end of the slice_model step (when supports_enable is true).
+/// Must be called at the end of the slice_model step (when generate_support is true).
 /// Re-run only when the mesh changes or slicing heights change.
 /// </summary>
 /// <param name="slices">Contour cuts from the mesh (consumed by move).</param>
