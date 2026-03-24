@@ -14,7 +14,7 @@
 
 wxDEFINE_EVENT(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, wxCommandEvent);
 
-ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools) :
+ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* center_tools, wxBoxSizer* side_tools) :
     wxControl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL)
 {
 #ifdef __WINDOWS__
@@ -42,15 +42,26 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools) :
     m_buttons_sizer = new wxFlexGridSizer(1, m_btn_margin, m_btn_margin);
     m_sizer->Add(m_buttons_sizer, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxBOTTOM, m_btn_margin);
 
-    if (side_tools != NULL) {
-        m_sizer->AddStretchSpacer(1);
-        for (size_t idx = 0; idx < side_tools->GetItemCount(); idx++) {
-            wxSizerItem* item = side_tools->GetItem(idx);
+    auto reparent_sizer = [this](wxBoxSizer* box) {
+        if (!box) return;
+        for (size_t idx = 0; idx < box->GetItemCount(); idx++) {
+            wxSizerItem* item = box->GetItem(idx);
             wxWindow* item_win = item->GetWindow();
-            if (item_win) {
+            if (item_win)
                 item_win->Reparent(this);
-            }
         }
+    };
+
+    if (center_tools != NULL || side_tools != NULL)
+        m_sizer->AddStretchSpacer(1);
+    if (center_tools != NULL) {
+        reparent_sizer(center_tools);
+        m_sizer->Add(center_tools, 0, wxALIGN_CENTER_VERTICAL | wxBOTTOM, m_btn_margin);
+        if (side_tools != NULL)
+            m_sizer->AddStretchSpacer(1);
+    }
+    if (side_tools != NULL) {
+        reparent_sizer(side_tools);
         m_sizer->Add(side_tools, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxBOTTOM, m_btn_margin);
     }
 

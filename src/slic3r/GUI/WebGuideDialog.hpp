@@ -81,7 +81,7 @@ public:
     int GetFilamentInfo( std::string VendorDirectory,json & pFilaList, std::string filepath, std::string &sVendor, std::string &sType);
 
 
-    bool apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdater *updater, bool& apply_keeped_changes);
+    bool apply_config(AppConfig *app_config, PresetBundle *preset_bundle, const PresetUpdater *updater, bool& apply_keeped_changes, bool skip_confirm_dialog = false);
     bool run();
 
     void        StrReplace(std::string &strBase, std::string strSrc, std::string strDes);

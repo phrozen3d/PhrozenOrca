@@ -1597,22 +1597,22 @@ void PresetBundle::load_installed_filaments(AppConfig &config)
 
 void PresetBundle::load_installed_sla_materials(AppConfig &config)
 {
-    if (! config.has_section(AppConfig::SECTION_MATERIALS)) {
-        std::unordered_set<const Preset*> comp_sla_materials;
-		// Compatibility with the PrusaSlicer 2.1.1 and older, where the SLA material profiles were not installable yet.
-		// Find all SLA material profiles, which are compatible with installed printers, and act as if these SLA material profiles
-		// were installed.
-        for (const Preset &printer : printers)
-            if (printer.is_visible && printer.printer_technology() == ptSLA) {
-				const PresetWithVendorProfile printer_with_vendor_profile = printers.get_preset_with_vendor_profile(printer);
-				for (const Preset &material : sla_materials)
-					if (material.is_system && is_compatible_with_printer(sla_materials.get_preset_with_vendor_profile(material), printer_with_vendor_profile))
-						comp_sla_materials.insert(&material);
-			}
-		// and mark these SLA materials as installed, therefore this code will not be executed at the next start of the application.
-		for (const auto &material: comp_sla_materials)
+    // Find all SLA material profiles that are compatible with any visible SLA printer.
+    std::unordered_set<const Preset*> comp_sla_materials;
+    for (const Preset &printer : printers)
+        if (printer.is_visible && printer.printer_technology() == ptSLA) {
+            const PresetWithVendorProfile printer_with_vendor_profile = printers.get_preset_with_vendor_profile(printer);
+            for (const Preset &material : sla_materials)
+                if (material.is_system && is_compatible_with_printer(sla_materials.get_preset_with_vendor_profile(material), printer_with_vendor_profile))
+                    comp_sla_materials.insert(&material);
+        }
+    // When section is missing (e.g. first run), mark all compatible as installed. When section exists, still add any
+    // compatible system material that is not yet in the section, so e.g. Phrozen materials appear after selecting
+    // a Phrozen SLA printer even if [sla_materials] was already present.
+    const std::map<std::string, std::string> &existing = config.has_section(AppConfig::SECTION_MATERIALS) ? config.get_section(AppConfig::SECTION_MATERIALS) : std::map<std::string, std::string>();
+    for (const auto &material : comp_sla_materials)
+        if (existing.find(material->name) == existing.end())
             config.set(AppConfig::SECTION_MATERIALS, material->name, "true");
-    }
 
     for (auto &preset : sla_materials)
         preset.set_visible_from_appconfig(config);

@@ -10,6 +10,11 @@ var LangText = {
     t8: "Back",
     t9: "Next",
     t10: "Printer Selection",
+    t_printer_type: "Printer Type",
+    t_filament: "Filament",
+    t_resin: "Resin",
+    t_standard: "Standard",
+    t_engineering: "Engineering",
     t11: "All",
     t12: "Clear all",
     t13: "mm nozzle",
@@ -20,6 +25,10 @@ var LangText = {
     t18: "error",
     t19: "At least one filament must be selected.",
     t20: "Do you want to use default filament ?",
+    t14_resin: "Resin Selection",
+    t16_resin: "Resin Type",
+    t19_resin: "At least one resin must be selected.",
+    t20_resin: "Do you want to use default resin ?",
     t21: "yes",
     t22: "no",
     t23: "Release note",
@@ -37,6 +46,7 @@ var LangText = {
     t35: "Recently opened",
     t36: "ok",
     t37: "At least one printer must be selected.",
+    t_keyword: "Keyword",
     t38: "Cancel",
     t39: "Confirm",
     t40: "Network disconnect, please check and try again later.",
@@ -785,12 +795,19 @@ var LangText = {
     t8: "上一步",
     t9: "下一步",
     t10: "选择打印机",
+    t_printer_type: "3D打印机类型",
+    t_filament: "FDM",
+    t_resin: "光固化",
+    t_standard: "模型",
+    t_engineering: "工程",
     t11: "全部",
     t12: "清空",
     t13: "mm 喷嘴",
     t14: "选择材料",
+    t14_resin: "选择树脂",
     t15: "打印机",
     t16: "材料类型",
+    t16_resin: "树脂类型",
     t17: "供应商",
     t18: "错误",
     t19: "至少要选择一款材料。",
@@ -812,6 +829,7 @@ var LangText = {
     t35: "近期打开文件",
     t36: "确定",
     t37: "至少需要选择一款打印机。",
+    t_keyword: "关键字",
     t38: "取消",
     t39: "确定",
     t40: "网络不通，请检查并稍后重试。",
@@ -911,12 +929,19 @@ var LangText = {
     t8: "上一步",
     t9: "下一步",
     t10: "選擇３Ｄ列印機",
+    t_printer_type: "3D列印機類型",
+    t_filament: "FDM",
+    t_resin: "光固化",
+    t_standard: "模型",
+    t_engineering: "工程",
     t11: "全部",
     t12: "清空",
     t13: "mm 噴嘴",
     t14: "選擇線材",
+    t14_resin: "選擇樹脂",
     t15: "３Ｄ列印機",
     t16: "線材類型",
+    t16_resin: "樹脂類型",
     t17: "供應商",
     t18: "錯誤",
     t19: "至少要選擇一款線材。",
@@ -938,6 +963,7 @@ var LangText = {
     t35: "最近打開文件",
     t36: "確定",
     t37: "至少需要選擇一款３Ｄ列印機。",
+    t_keyword: "關鍵字",
     t38: "取消",
     t39: "確定",
     t40: "網路不通，請檢查並稍後重試。",
@@ -1687,4 +1713,12 @@ function TranslatePage() {
       $(OneNode).html(LangText[strLang][tid]);
     }
   }
+
+  // Translate placeholder on inputs with placeholder-tid
+  $("[placeholder-tid]").each(function () {
+    let tid = $(this).attr("placeholder-tid");
+    if (tid && LangText[strLang].hasOwnProperty(tid)) {
+      $(this).attr("placeholder", LangText[strLang][tid]);
+    }
+  });
 }

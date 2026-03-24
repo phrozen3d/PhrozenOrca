@@ -7,6 +7,10 @@
 <link rel="stylesheet" type="text/css" href="../css/common.css" />	
 <link rel="stylesheet" type="text/css" href="../css/dark.css" />		
 <link rel="stylesheet" type="text/css" href="12.css" />
+<link rel="preload" href="../../image/FDM_default.png" as="image" />
+<link rel="preload" href="../../image/FDM_unselected.png" as="image" />
+<link rel="preload" href="../../image/LCD_default.png" as="image" />
+<link rel="preload" href="../../image/LCD_unselected.png" as="image" />
 <script type="text/javascript" src="../js/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../../data/text.js"></script>	
 <script type="text/javascript" src="../js/globalapi.js"></script>	
@@ -14,28 +18,24 @@
 <script type="text/javascript" src="12.js"></script>
 </head>
 <body onLoad="OnInit()">
-    <!-- 模態對話框 -->
+    <div id="Title">
+        <div class="trans" tid="t_printer_type">Printer Type</div>
+    </div>
     <div id="ModalDialog">
-        <!-- 標題區域 -->   
-        <div id="ModalHeader">
-            <div id="ModalTitle">Printer Type</div>
-        </div>
-        
-        <!-- 內容區域 -->
         <div id="ModalContent">
             <div class="PrinterTypeOption" id="OptionFilament" onclick="SelectPrinterType('filament')">
-                <div class="OptionIcon"></div>
-                <div class="OptionText">Filament</div>
+                <div class="OptionIcon"><img src="../../image/FDM_default.png" alt="Filament" /></div>
+                <div class="OptionText trans" tid="t_filament">Filament</div>
             </div>
             <div class="PrinterTypeOption" id="OptionResin" onclick="SelectPrinterType('resin')">
-                <div class="OptionIcon"></div>
-                <div class="OptionText">Resin</div>
+                <div class="OptionIcon"><img src="../../image/LCD_unselected.png" alt="Resin" /></div>
+                <div class="OptionText trans" tid="t_resin">Resin</div>
             </div>
         </div>
         
         <!-- 按鈕區域 -->
         <div id="ModalFooter">
-            <div class="NormalBtn" onclick="ConfirmSelection()">Confirm</div>
+            <div class="NormalBtn NextBtn" onclick="ConfirmSelection()">Next</div>
         </div>
     </div>
 </body>

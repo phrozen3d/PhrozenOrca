@@ -154,6 +154,8 @@ class ParamsPanel : public wxPanel
         void set_active_tab(wxPanel*tab);
         bool is_active_and_shown_tab(wxPanel*tab);
         void update_mode();
+        /// When printer_technology changes (FFF/SLA), refresh tab assignment and switch to TabPrint or TabSLAPrint if Process tab is active.
+        void switch_process_tab_for_printer_technology();
         void update_advanced_visibility();
         void msw_rescale();
         void switch_to_global();

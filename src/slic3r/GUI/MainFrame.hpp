@@ -142,6 +142,8 @@ class MainFrame : public DPIFrame
     void bind_diff_dialog();
 
     // BBS
+    wxBoxSizer* create_phrozen_mode_toolbar();
+    void        update_phrozen_mode_button_label();
     wxBoxSizer* create_side_tools();
 
     // MenuBar items changeable in respect to printer technology
@@ -207,6 +209,9 @@ protected:
 public:
     MainFrame();
     ~MainFrame() = default;
+
+    /** Phrozen Filament/Resin toolbar (popup / UI entry; must stay public). */
+    void phrozen_apply_work_mode(bool resin);
 
     //BBS GUI refactor
     enum TabPosition
@@ -395,6 +400,7 @@ public:
     mutable int m_print_select{ ePrintAll };
     mutable int m_slice_select{ eSliceAll };
     // Button* m_publish_btn{ nullptr };
+    SideButton* m_phrozen_mode_btn{ nullptr };
     SideButton* m_slice_btn{ nullptr };
     SideButton* m_slice_option_btn{ nullptr };
     SidePopup*  m_slice_option_popup_btn{ nullptr };

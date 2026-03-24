@@ -16,8 +16,8 @@ wxDECLARE_EVENT(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, wxCommandEvent);
 class ButtonsListCtrl : public wxControl
 {
 public:
-    // BBS
-    ButtonsListCtrl(wxWindow* parent, wxBoxSizer* side_tools = NULL);
+    // BBS — center_tools appears between tab buttons and side_tools (e.g. Phrozen Filament/Resin)
+    ButtonsListCtrl(wxWindow* parent, wxBoxSizer* center_tools = NULL, wxBoxSizer* side_tools = NULL);
     ~ButtonsListCtrl() {}
 
     void OnPaint(wxPaintEvent&);
@@ -49,11 +49,12 @@ public:
                  const wxPoint & pos = wxDefaultPosition,
                  const wxSize & size = wxDefaultSize,
                 // BBS
+                 wxBoxSizer* center_tools = NULL,
                  wxBoxSizer* side_tools = NULL,
                  long style = 0)
     {
         Init();
-        Create(parent, winid, pos, size, side_tools, style);
+        Create(parent, winid, pos, size, center_tools, side_tools, style);
     }
 
     bool Create(wxWindow * parent,
@@ -61,13 +62,14 @@ public:
                 const wxPoint & pos = wxDefaultPosition,
                 const wxSize & size = wxDefaultSize,
                 // BBS
+                wxBoxSizer* center_tools = NULL,
                 wxBoxSizer* side_tools = NULL,
                 long style = 0)
     {
         if (!wxBookCtrlBase::Create(parent, winid, pos, size, style | wxBK_TOP))
             return false;
 
-        m_bookctrl = new ButtonsListCtrl(this, side_tools);
+        m_bookctrl = new ButtonsListCtrl(this, center_tools, side_tools);
 
         wxSizer* mainSizer = new wxBoxSizer(IsVertical() ? wxVERTICAL : wxHORIZONTAL);
 

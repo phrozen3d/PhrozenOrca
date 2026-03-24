@@ -331,6 +331,13 @@ void PresetComboBox::update(std::string select_preset_name)
         if (!m_show_all && (!preset.is_visible || !preset.is_compatible))
             continue;
 
+        // Do not list SLA printers when in FDM mode (and vice versa); avoids e.g. Original Prusa SL1 next to Phrozen Arco
+        if (m_type == Preset::TYPE_PRINTER) {
+            const PrinterTechnology cur_pt = m_preset_bundle->printers.get_edited_preset().printer_technology();
+            if (cur_pt != ptAny && preset.printer_technology() != cur_pt)
+                continue;
+        }
+
         // marker used for disable incompatible printer models for the selected physical printer
         bool is_enabled = m_type == Preset::TYPE_PRINTER && printer_technology != ptAny ? preset.printer_technology() == printer_technology : true;
         if (select_preset_name.empty() && is_enabled)
@@ -1003,6 +1010,16 @@ void PlaterPresetComboBox::update()
                             // The case, when some physical printer is selected
                             m_type == Preset::TYPE_PRINTER && m_preset_bundle->physical_printers.has_selection() ? false :
                             i == m_collection->get_selected_idx();
+
+        if (m_type == Preset::TYPE_PRINTER) {
+            const PrinterTechnology cur_pt = m_preset_bundle->printers.get_edited_preset().printer_technology();
+            const bool row_is_current =
+                i == m_collection->get_selected_idx() ||
+                (m_preset_bundle->physical_printers.has_selection() &&
+                 preset.name == m_preset_bundle->physical_printers.get_selected_printer_preset_name());
+            if (cur_pt != ptAny && preset.printer_technology() != cur_pt && !row_is_current)
+                continue;
+        }
 
         if (!preset.is_visible || (!preset.is_compatible && !is_selected))
             continue;

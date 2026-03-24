@@ -4,7 +4,6 @@ build_*/
 build/
 localization/
 sandboxes/
-resources/*
 !resources/web/
 !resources/dailytip
 !resources/shaders

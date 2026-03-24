@@ -55,6 +55,11 @@ public:
 
     void SetIconOffset(const int offset);
 
+#pragma region Phrozen LCD Parameter
+    void SetPhrozenOutlineToolbarStyle();
+    void SetIconBitmapName(const std::string& bmp_key, int icon_px);
+#pragma endregion
+
 private:
     wxSize textSize;
     wxSize minSize;
@@ -72,6 +77,7 @@ private:
 
     bool pressedDown = false;
     int  layout_style = 0;
+    bool m_phrozen_outline_toolbar = false;
 
     EHorizontalOrientation text_orientation;
     int text_margin;

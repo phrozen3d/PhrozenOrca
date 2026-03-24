@@ -4,10 +4,9 @@
     "type": "resin",
     "printer_technology": "SLA",
     "version": "1.0.3",
-    "name": "Tough: ABS-like+",
-    "inherits": "sla_material_0.1",
-    "compatible_printers_condition": "printer_model==\"SL1\"",
-    "compatible_prints_condition": "layer_height == 0.1",
+    "name": "Phrozen Tough ABS-like+",
+    "inherits": "sla_material_common",
+    "compatible_printers_condition": "printer_model=~\"^(Mighty Revo 16K|Mega 8K S|Mega 8K V2)$\"",
     "exposure_time": "13",
     "initial_exposure_time": "45",
     "initial_layer_height": "0.1",
@@ -36,7 +35,7 @@
     "tilt_up_cycles": "1,1",
     "tilt_up_delay": "0,0",
     "material_print_speed": "fast",
-    "material_type": "Tough",
-    "material_vendor": "PhrozenSLA",
+    "material_type": "Engineering",
+    "material_vendor": "Phrozen",
     "material_colour": "#FF8040"
 }

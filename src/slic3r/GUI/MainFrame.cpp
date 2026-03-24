@@ -15,6 +15,7 @@
 #include <wx/utils.h> 
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/case_conv.hpp> // to_lower_copy
 #include <boost/log/trivial.hpp>
 #include <boost/property_tree/ptree.hpp>
 
@@ -54,6 +55,7 @@
 #include "UnsavedChangesDialog.hpp"
 #include "MsgDialog.hpp"
 #include "Notebook.hpp"
+#include "Widgets/SideMenuPopup.hpp"
 #include "GUI_Factories.hpp"
 #include "GUI_ObjectList.hpp"
 #include "NotificationManager.hpp"
@@ -71,10 +73,205 @@
 #include <shellapi.h>
 #endif // _WIN32
 #include <slic3r/GUI/CreatePresetsDialog.hpp>
+#include "Widgets/PopupWindow.hpp"
+#include "wxExtensions.hpp"
 
+#include <algorithm>
+#include <functional>
+#include <wx/bitmap.h>
+#include <wx/dcmemory.h>
+#include <wx/region.h>
 
 namespace Slic3r {
 namespace GUI {
+
+namespace {
+
+static const wxColour g_phrozen_bar_bg(45, 45, 48);
+static const wxColour g_phrozen_orange(255, 124, 63);
+
+class PhrozenModeMenuRow : public wxPanel
+{
+    ScalableBitmap    m_icon;
+    ScalableBitmap    m_check;
+    wxString          m_label;
+    bool              m_selected;
+    std::function<void()> m_on_click;
+
+public:
+    PhrozenModeMenuRow(wxWindow* parent, bool selected, const wxString& label, const std::string& icon_key, int icon_px,
+                       std::function<void()> on_click)
+        : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE)
+        , m_icon(this, icon_key, icon_px)
+        , m_check(this, "checked_orange", icon_px)
+        , m_label(label)
+        , m_selected(selected)
+        , m_on_click(std::move(on_click))
+    {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        SetBackgroundColour(g_phrozen_bar_bg);
+        wxFont f = GetFont();
+        f.SetWeight(wxFONTWEIGHT_BOLD);
+        SetFont(f);
+        Bind(wxEVT_PAINT, &PhrozenModeMenuRow::on_paint, this);
+        Bind(wxEVT_LEFT_DOWN, [this](wxMouseEvent&) {
+            if (m_on_click)
+                m_on_click();
+        });
+        SetCursor(wxCursor(wxCURSOR_HAND));
+    }
+
+private:
+    void on_paint(wxPaintEvent&)
+    {
+        wxPaintDC dc(this);
+        const wxSize sz = GetClientSize();
+        dc.SetBrush(wxBrush(g_phrozen_bar_bg));
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.DrawRectangle(0, 0, sz.x, sz.y);
+
+        int x = FromDIP(10);
+        if (m_icon.bmp().IsOk()) {
+            const int iy = (sz.y - m_icon.GetBmpHeight()) / 2;
+            dc.DrawBitmap(m_icon.bmp(), x, iy);
+            x += m_icon.GetBmpWidth() + FromDIP(8);
+        }
+        dc.SetFont(GetFont());
+        dc.SetTextForeground(g_phrozen_orange);
+        const wxSize te = dc.GetTextExtent(m_label);
+        dc.DrawText(m_label, x, (sz.y - te.y) / 2);
+
+        if (m_selected) {
+            if (m_check.bmp().IsOk()) {
+                const int cx = sz.x - FromDIP(10) - m_check.GetBmpWidth();
+                const int cy = (sz.y - m_check.GetBmpHeight()) / 2;
+                dc.DrawBitmap(m_check.bmp(), cx, cy);
+            }
+        }
+    }
+
+    int icon_px() const { return m_icon.px_cnt(); }
+};
+
+class PhrozenWorkModePopup : public PopupWindow
+{
+    MainFrame* m_mf;
+    wxWindow*  m_anchor;
+    int        m_ipx;
+
+public:
+    PhrozenWorkModePopup(MainFrame* mf, wxWindow* anchor, int ipx)
+        : PopupWindow(mf, wxBORDER_NONE | wxPU_CONTAINS_CONTROLS)
+        , m_mf(mf)
+        , m_anchor(anchor)
+        , m_ipx(ipx)
+    {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        SetBackgroundColour(g_phrozen_bar_bg);
+        Bind(wxEVT_PAINT, &PhrozenWorkModePopup::on_paint, this);
+    }
+
+    void show_centered_below_anchor()
+    {
+        PresetBundle* pb = wxGetApp().preset_bundle;
+        if (!pb || !m_anchor || !m_mf)
+            return;
+        const bool resin = pb->printers.get_edited_preset().printer_technology() == Slic3r::ptSLA;
+        const int  w     = m_anchor->GetClientSize().GetWidth() + m_mf->FromDIP(16);
+        const int  rh    = m_mf->FromDIP(36);
+        const int  pad   = m_mf->FromDIP(2);
+
+        DestroyChildren();
+        wxSizer* outer = new wxBoxSizer(wxVERTICAL);
+        wxSizer* sz    = new wxBoxSizer(wxVERTICAL);
+        auto*    rf = new PhrozenModeMenuRow(this, !resin, _L("Phrozen Orca Filament"), "PhrozenImages_Resin/Printer_FDM", m_ipx,
+                                             [this] {
+                                                 m_mf->phrozen_apply_work_mode(false);
+                                                 Dismiss();
+                                             });
+        auto* rr = new PhrozenModeMenuRow(this, resin, _L("Phrozen Orca Resin"), "PhrozenImages_Resin/Printer_Resin", m_ipx,
+                                          [this] {
+                                              m_mf->phrozen_apply_work_mode(true);
+                                              Dismiss();
+                                          });
+        rf->SetMinSize(wxSize(std::max(0, w - 2 * pad), rh));
+        rr->SetMinSize(wxSize(std::max(0, w - 2 * pad), rh));
+        sz->Add(rf, 0, wxEXPAND);
+        sz->Add(rr, 0, wxEXPAND);
+        outer->Add(sz, 0, wxEXPAND | wxALL, pad);
+        SetSizer(outer);
+        Layout();
+        SetClientSize(wxSize(w, rh * 2 + 2 * pad));
+
+        // Make everything outside the rounded rectangle truly transparent by shaping the window.
+        // This avoids "background corners" on platforms without per-pixel alpha for popup windows.
+        {
+            const int radius = FromDIP(4);
+            const wxSize psz = GetClientSize();
+            wxBitmap bmp(psz.x, psz.y);
+            {
+                wxMemoryDC mdc(bmp);
+                mdc.SetBackground(*wxBLACK_BRUSH);
+                mdc.Clear();
+                mdc.SetPen(*wxWHITE_PEN);
+                mdc.SetBrush(*wxWHITE_BRUSH);
+                mdc.DrawRoundedRectangle(0, 0, psz.x, psz.y, radius);
+                mdc.SelectObject(wxNullBitmap);
+            }
+            bmp.SetMask(new wxMask(bmp, *wxBLACK));
+            wxRegion region(bmp);
+            SetShape(region);
+        }
+
+        const wxPoint scr  = m_anchor->ClientToScreen(wxPoint(0, m_anchor->GetClientSize().GetHeight()));
+        const int     ax   = m_anchor->GetClientSize().GetWidth();
+        int           x    = scr.x + ax / 2 - w / 2;
+        const int     y    = scr.y + m_mf->FromDIP(6);
+        const int di = wxDisplay::GetFromWindow(m_anchor);
+        const wxRect wa =
+            (di == wxNOT_FOUND) ? wxDisplay(0u).GetClientArea() : wxDisplay(di).GetClientArea();
+        if (x + w > wa.GetRight())
+            x = wa.GetRight() - w;
+        if (x < wa.GetLeft())
+            x = wa.GetLeft();
+        Move(x, y);
+        wxGetApp().set_side_menu_popup_status(true);
+        Popup();
+    }
+
+    void OnDismiss() override
+    {
+        wxGetApp().set_side_menu_popup_status(false);
+        wxPopupTransientWindow::OnDismiss();
+    }
+
+private:
+    void on_paint(wxPaintEvent&)
+    {
+        wxPaintDC dc(this);
+#ifdef __WXMSW__
+        wxGCDC gdc(dc);
+        wxDC&  pdc = gdc;
+#else
+        wxDC&  pdc = dc;
+#endif
+        const wxSize sz = GetClientSize();
+        const int      radius = FromDIP(4);
+        const int      pw     = std::max(1, FromDIP(1));
+        const wxColour border(76, 76, 85);
+
+        // The window is shaped to a rounded rect, still only paint inside it.
+        pdc.SetPen(*wxTRANSPARENT_PEN);
+        pdc.SetBrush(wxBrush(g_phrozen_bar_bg));
+        pdc.DrawRoundedRectangle(0, 0, sz.x, sz.y, radius);
+
+        pdc.SetBrush(*wxTRANSPARENT_BRUSH);
+        pdc.SetPen(wxPen(border, pw));
+        pdc.DrawRoundedRectangle(pw / 2, pw / 2, sz.x - pw, sz.y - pw, radius);
+    }
+};
+
+} // namespace
 
 wxDEFINE_EVENT(EVT_SELECT_TAB, wxCommandEvent);
 wxDEFINE_EVENT(EVT_HTTP_ERROR, wxCommandEvent);
@@ -1009,8 +1206,9 @@ void MainFrame::init_tabpanel() {
     // wxNB_NOPAGETHEME: Disable Windows Vista theme for the Notebook background. The theme performance is terrible on
     // Windows 10 with multiple high resolution displays connected.
     // BBS
+    wxBoxSizer* phrozen_mode_bar = create_phrozen_mode_toolbar();
     wxBoxSizer *side_tools = create_side_tools();
-    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, side_tools,
+    m_tabpanel = new Notebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, phrozen_mode_bar, side_tools,
                               wxNB_TOP | wxTAB_TRAVERSAL | wxNB_NOPAGETHEME);
     m_tabpanel->SetBackgroundColour(*wxWHITE);
 
@@ -1563,6 +1761,121 @@ bool MainFrame::can_delete_all() const
 bool MainFrame::can_reslice() const
 {
     return (m_plater != nullptr) && !m_plater->model().objects.empty();
+}
+
+void MainFrame::update_phrozen_mode_button_label()
+{
+    if (!m_phrozen_mode_btn || !wxGetApp().preset_bundle)
+        return;
+    const bool resin = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == Slic3r::ptSLA;
+    const int  ipx   = FromDIP(10);
+    m_phrozen_mode_btn->SetIconBitmapName(
+        resin ? "PhrozenImages_Resin/Printer_Resin" : "PhrozenImages_Resin/Printer_FDM", ipx);
+    m_phrozen_mode_btn->SetLabel(resin ? _L("Phrozen Orca Resin") : _L("Phrozen Orca Filament"));
+}
+
+void MainFrame::phrozen_apply_work_mode(bool resin)
+{
+    using namespace Slic3r;
+    PresetBundle* pb = wxGetApp().preset_bundle;
+    AppConfig*    cfg = wxGetApp().app_config;
+    if (!pb || !cfg || !m_plater)
+        return;
+
+    const Preset* target = nullptr;
+    if (!resin) {
+        target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.4");
+        if (!target)
+            target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.2");
+        if (!target)
+            target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.6");
+    } else {
+        // Try multiple naming variants because different JSON generations may store different printer_model strings.
+        // phrozen_apply_work_mode searches by system preset printer_model + printer_variant ("default").
+        static const char* sla_models[] = {
+            // "Sonic ..." form
+            "Sonic Mighty Revo 16K", "Sonic Mega 8K S", "Sonic Mega 8K V2",
+            // "Phrozen Sonic ..." form
+            "Phrozen Sonic Mighty Revo 16K", "Phrozen Sonic Mega 8K S", "Phrozen Sonic Mega 8K V2",
+            // Short form used by some machine_model JSONs
+            "Mighty Revo 16K", "Mega 8K S", "Mega 8K V2",
+            nullptr
+        };
+        for (const char** m = sla_models; *m && !target; ++m)
+            target = pb->printers.find_system_preset_by_model_and_variant(*m, "default");
+        if (!target) {
+            for (const Preset& pr : pb->printers.get_presets()) {
+                // Pick any visible SLA system preset (even if it's marked default) to avoid blocking resin mode.
+                if (!pr.is_system || pr.printer_technology() != ptSLA || !pr.is_visible)
+                    continue;
+                const std::string l = boost::algorithm::to_lower_copy(pr.name);
+                if (l.find("phrozen") != std::string::npos) {
+                    target = &pr;
+                    break;
+                }
+            }
+        }
+        if (!target) {
+            for (const Preset& pr : pb->printers.get_presets()) {
+                if (pr.is_system && pr.printer_technology() == ptSLA && pr.is_visible) {
+                    target = &pr;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!target) {
+        MessageDialog d(this,
+            resin ? _L("No Phrozen SLA printer preset found. Enable Phrozen SLA machines in Setup Wizard.")
+                  : _L("Phrozen Arco preset not found. Enable the Phrozen FDM bundle in Setup Wizard."),
+            _L("Phrozen Orca"), wxOK);
+        d.ShowModal();
+        return;
+    }
+
+    const std::string               mid = target->config.opt_string("printer_model");
+    const std::string               var = target->config.opt_string("printer_variant");
+    PresetBundle::PresetPreferences pref{ mid, var, std::string(), std::string() };
+    pb->load_selections(*cfg, pref);
+    pb->export_selections(*cfg);
+    cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
+    cfg->save();
+    wxGetApp().load_current_presets(false, true);
+    m_plater->set_printer_technology(resin ? ptSLA : ptFFF);
+    update_phrozen_mode_button_label();
+    m_plater->sidebar().on_filaments_change(pb->filament_presets.size());
+    if (m_param_panel)
+        m_param_panel->switch_process_tab_for_printer_technology();
+    Layout();
+}
+
+wxBoxSizer* MainFrame::create_phrozen_mode_toolbar()
+{
+    wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
+    const int   ipx   = FromDIP(10);
+    m_phrozen_mode_btn = new SideButton(this, _L("Phrozen Orca Filament"), wxString("PhrozenImages_Resin/Printer_FDM"), 0, ipx);
+
+    m_phrozen_mode_btn->SetCornerRadius(FromDIP(4));
+    m_phrozen_mode_btn->SetExtraSize(wxSize(FromDIP(16), FromDIP(10)));
+    // Slightly narrower button; shift text right a bit.
+    m_phrozen_mode_btn->SetMinSize(wxSize(FromDIP(210), FromDIP(28)));
+    m_phrozen_mode_btn->SetTextLayout(SideButton::EHorizontalOrientation::HO_Left, FromDIP(8));
+    m_phrozen_mode_btn->SetPhrozenOutlineToolbarStyle();
+    {
+        wxFont bf = m_phrozen_mode_btn->GetFont();
+        bf.SetWeight(wxFONTWEIGHT_BOLD);
+        m_phrozen_mode_btn->SetFont(bf);
+    }
+
+    sizer->Add(m_phrozen_mode_btn, 0, wxALIGN_CENTER_VERTICAL, 0);
+
+    m_phrozen_mode_btn->Bind(wxEVT_BUTTON, [this, ipx](wxCommandEvent&) {
+        (new PhrozenWorkModePopup(this, m_phrozen_mode_btn, ipx))->show_centered_below_anchor();
+    });
+
+    CallAfter([this] { update_phrozen_mode_button_label(); });
+    return sizer;
 }
 
 wxBoxSizer* MainFrame::create_side_tools()
@@ -2166,6 +2479,8 @@ void MainFrame::on_dpi_changed(const wxRect& suggested_rect)
     m_print_btn->Rescale();
     m_slice_option_btn->Rescale();
     m_print_option_btn->Rescale();
+    if (m_phrozen_mode_btn)
+        m_phrozen_mode_btn->Rescale();
 
     // update Plater
     wxGetApp().plater()->msw_rescale();
@@ -3713,6 +4028,11 @@ void MainFrame::on_presets_changed(SimpleEvent &event)
         m_plater->on_config_change(*tab->get_config());
 
         m_plater->sidebar().update_presets(preset_type);
+        if (preset_type == Slic3r::Preset::TYPE_PRINTER) {
+            update_phrozen_mode_button_label();
+            if (m_param_panel)
+                m_param_panel->switch_process_tab_for_printer_technology();
+        }
     }
 }
 
@@ -4019,6 +4339,8 @@ void MainFrame::update_side_preset_ui()
         m_plater->sidebar().update_presets(Preset::TYPE_SLA_MATERIAL);
     }
 
+    if (m_param_panel)
+        m_param_panel->switch_process_tab_for_printer_technology();
 
     //take off multi machine
     if(m_multi_machine){m_multi_machine->clear_page();}
