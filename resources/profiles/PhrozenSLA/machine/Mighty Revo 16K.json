@@ -1,11 +1,11 @@
 {
     "type": "machine_model",
     "machine_tech": "SLA",
-    "family": "SL1",
+    "family": "Phrozen",
     "name": "Phrozen Sonic Mighty Revo 16K",
-    "model_id": "SL1",
+    "model_id": "Mighty Revo 16K",
     "nozzle_diameter": "default",
     "bed_model": "Phrozen Sonic Mighty Revo 16K_buildplate_model.stl",
     "bed_texture": "sl1.svg",
-    "default_materials": "Prusament Resin Tough Prusa Orange @0.05"
+    "default_materials": "Phrozen Tough ABS-like+;Phrozen Speed Plus - Black"
 }

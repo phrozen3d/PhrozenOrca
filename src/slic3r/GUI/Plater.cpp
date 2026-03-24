@@ -380,6 +380,8 @@ struct Sidebar::priv
     ScalableButton* m_sla_material_setting = nullptr;
     Label* m_text_sla_material_settings = nullptr;
     wxPanel* m_panel_sla_material_content = nullptr;
+    wxBoxSizer* m_hsizer_sla_print_in_resin = nullptr;   // Process row inside 樹脂 block (shown when SLA)
+    wxBoxSizer* m_hsizer_sla_material_row = nullptr;     // Resin dropdown row (hidden when SLA)
 
     ObjectList          *m_object_list{ nullptr };
     ObjectSettings      *object_settings{ nullptr };
@@ -429,7 +431,7 @@ void Sidebar::priv::show_preset_comboboxes()
         m_panel_filament_content->Show(!showSLA);
     }
 
-    // Show/Hide SLA panels (print and material settings)
+    // Show/Hide SLA panels: Process block always hidden when SLA (Process dropdown lives in 樹脂 block)
     if (m_panel_sla_print_title && m_panel_sla_print_content) {
         m_panel_sla_print_title->Show(false);
         m_panel_sla_print_content->Show(false);
@@ -439,6 +441,11 @@ void Sidebar::priv::show_preset_comboboxes()
         m_panel_sla_material_content->Show(showSLA);
         if (showSLA && m_text_sla_material_settings)
             m_text_sla_material_settings->SetLabel(_L("SLA Material"));
+        // When SLA: show Process dropdown row, hide Resin dropdown row inside 樹脂 block
+        if (m_hsizer_sla_print_in_resin)
+            m_hsizer_sla_print_in_resin->Show(showSLA);
+        if (m_hsizer_sla_material_row)
+            m_hsizer_sla_material_row->Show(!showSLA);
     }
 
     scrolled->GetParent()->Layout();
@@ -919,28 +926,10 @@ Sidebar::Sidebar(Plater *parent)
         scrolled_sizer->Add(spliter_sla_print_2, 0, wxEXPAND);
 
         /*************************** SLA Print Content ************************/
+        // Process (SLA print) dropdown is shown inside the 樹脂 block when SLA; this panel stays empty and hidden.
         p->m_panel_sla_print_content = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
         p->m_panel_sla_print_content->SetBackgroundColour(wxColour(255, 255, 255));
-
-        PlaterPresetComboBox* combo_sla_print = new PlaterPresetComboBox(p->m_panel_sla_print_content, Preset::TYPE_SLA_PRINT);
-        ScalableButton* edit_btn_sla_print = new ScalableButton(p->m_panel_sla_print_content, wxID_ANY, "edit");
-        edit_btn_sla_print->SetToolTip(_L("Click to edit preset"));
-        edit_btn_sla_print->Bind(wxEVT_BUTTON, [this, combo_sla_print](wxCommandEvent) {
-            combo_sla_print->switch_to_tab();
-        });
-        combo_sla_print->edit_btn = edit_btn_sla_print;
-        p->combo_sla_print = combo_sla_print;
-
         wxBoxSizer* vsizer_sla_print = new wxBoxSizer(wxVERTICAL);
-        wxBoxSizer* hsizer_sla_print = new wxBoxSizer(wxHORIZONTAL);
-
-        vsizer_sla_print->AddSpacer(FromDIP(16));
-        hsizer_sla_print->Add(combo_sla_print, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
-        hsizer_sla_print->Add(edit_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
-        hsizer_sla_print->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
-        vsizer_sla_print->Add(hsizer_sla_print, 0, wxEXPAND, 0);
-        vsizer_sla_print->AddSpacer(FromDIP(16));
-
         p->m_panel_sla_print_content->SetSizer(vsizer_sla_print);
         p->m_panel_sla_print_content->Layout();
         scrolled_sizer->Add(p->m_panel_sla_print_content, 0, wxEXPAND, 0);
@@ -999,6 +988,28 @@ Sidebar::Sidebar(Plater *parent)
         p->m_panel_sla_material_content = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
         p->m_panel_sla_material_content->SetBackgroundColour(wxColour(255, 255, 255));
 
+        wxBoxSizer* vsizer_sla_material = new wxBoxSizer(wxVERTICAL);
+        vsizer_sla_material->AddSpacer(FromDIP(16));
+
+        // First row: Process (SLA print) dropdown — shown when printer_technology == SLA
+        PlaterPresetComboBox* combo_sla_print = new PlaterPresetComboBox(p->m_panel_sla_material_content, Preset::TYPE_SLA_PRINT);
+        ScalableButton* edit_btn_sla_print = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "edit");
+        edit_btn_sla_print->SetToolTip(_L("Click to edit preset"));
+        edit_btn_sla_print->Bind(wxEVT_BUTTON, [this, combo_sla_print](wxCommandEvent) {
+            combo_sla_print->switch_to_tab();
+        });
+        combo_sla_print->edit_btn = edit_btn_sla_print;
+        p->combo_sla_print = combo_sla_print;
+        wxBoxSizer* hsizer_sla_print_row = new wxBoxSizer(wxHORIZONTAL);
+        hsizer_sla_print_row->Add(combo_sla_print, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
+        hsizer_sla_print_row->Add(edit_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
+        hsizer_sla_print_row->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
+        vsizer_sla_material->Add(hsizer_sla_print_row, 0, wxEXPAND, 0);
+        p->m_hsizer_sla_print_in_resin = hsizer_sla_print_row;
+
+        vsizer_sla_material->AddSpacer(FromDIP(8));
+
+        // Second row: Resin (SLA material) dropdown — hidden when printer_technology == SLA
         PlaterPresetComboBox* combo_sla_material = new PlaterPresetComboBox(p->m_panel_sla_material_content, Preset::TYPE_SLA_MATERIAL);
         ScalableButton* edit_btn_sla_material = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "edit");
         edit_btn_sla_material->SetToolTip(_L("Click to edit preset"));
@@ -1007,15 +1018,13 @@ Sidebar::Sidebar(Plater *parent)
         });
         combo_sla_material->edit_btn = edit_btn_sla_material;
         p->combo_sla_material = combo_sla_material;
-
-        wxBoxSizer* vsizer_sla_material = new wxBoxSizer(wxVERTICAL);
         wxBoxSizer* hsizer_sla_material = new wxBoxSizer(wxHORIZONTAL);
-
-        vsizer_sla_material->AddSpacer(FromDIP(16));
         hsizer_sla_material->Add(combo_sla_material, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
         hsizer_sla_material->Add(edit_btn_sla_material, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
         hsizer_sla_material->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
         vsizer_sla_material->Add(hsizer_sla_material, 0, wxEXPAND, 0);
+        p->m_hsizer_sla_material_row = hsizer_sla_material;
+
         vsizer_sla_material->AddSpacer(FromDIP(16));
 
         p->m_panel_sla_material_content->SetSizer(vsizer_sla_material);

@@ -1,6 +1,6 @@
 {
     "name": "PhrozenSLA",
-    "version": "01.00.03",
+    "version": "01.00.05",
     "force_update": "0",
     "description": "Original Prusa SL1 SLA printer profiles",
     "url": "https://files.prusa3d.com/wp-content/uploads/repository/PrusaSlicer-settings-master/live/PrusaResearchSLA/",
@@ -32,11 +32,15 @@
             "sub_path": "process/0.05 Normal.json"
         },
         {
-            "name": "0.1 Fast",
-            "sub_path": "process/0.1 Fast.json"
+            "name": "Tough ABS-like+@Phrozen Sonic Mighty Revo 16K",
+            "sub_path": "process/Tough ABS-like+@Phrozen Sonic Mighty Revo 16K.json"
         }
     ],
     "filament_list": [
+        {
+            "name": "sla_material_common",
+            "sub_path": "filament/sla_material_common.json"
+        },
 		{
             "name": "Phrozen Speed Plus - Black",
             "sub_path": "filament/Phrozen Speed Plus - Black.json",

@@ -1005,14 +1005,32 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 			ret = vals;
 			break;
 		}
-		double val = opt->type == coFloats ?
-					config.opt_float(opt_key, idx) :
-					opt->type == coFloat ? config.opt_float(opt_key) :
-					config.option<ConfigOptionPercents>(opt_key)->get_at(idx);
+        double val = 0.0;
+
+        if (!opt) {
+            ret = "0";
+        } else {
+            try {
+                if (opt->type == coFloats) {
+                    auto floats = config.option<ConfigOptionFloats>(opt_key);
+                    if (floats && idx < floats->values.size())
+                        val = floats->get_at(idx);
+                } else if (opt->type == coFloat) {
+                    val = config.opt_float(opt_key);
+                } else if (opt->type == coPercents) {
+                    auto percents = config.option<ConfigOptionPercents>(opt_key);
+                    if (percents && idx < percents->values.size())
+                        val = percents->get_at(idx);
+                }
+            } catch (...) {
+                val = 0.0;
+            }
+            ret = double_to_string(val);
+        }
+
 #pragma endregion
-		ret = double_to_string(val);
-		}
 		break;
+		}
 	case coString:
 		ret = from_u8(config.opt_string(opt_key));
 		break;

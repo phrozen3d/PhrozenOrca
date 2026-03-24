@@ -7,7 +7,10 @@
     "name": "Phrozen Sonic Mega 8K S",
     "printer_model": "Mega 8K S",
     "printer_variant": "default",
-    "default_sla_material_profile": "Prusament Resin Tough Prusa Orange @0.05",
+    "nozzle_diameter": [
+        "default"
+    ],
+    "default_sla_material_profile": "Phrozen Tough ABS-like+",
     "default_sla_print_profile": "0.05 Normal",
     "thumbnails": "400x400,800x480",
     "bed_shape": [

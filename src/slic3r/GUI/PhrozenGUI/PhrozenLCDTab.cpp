@@ -3826,13 +3826,36 @@ void PhrozenLCDTabPrint::build()
     optgroup->append_single_option_line("bottom_retract_distance", "123");
     optgroup->append_single_option_line("retract_distance", "123");
 
-    // Speed
+    // Speed — two JSON keys per row; UI: primary + " + " + second (unit on the right).
     page     = add_options_page(L("Speed"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
     optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 15);
-    optgroup->append_single_option_line("bottom_lift_speed", "123");
-    optgroup->append_single_option_line("lifting_speed", "123");
-    optgroup->append_single_option_line("bottom_retract_speed", "123");
-    optgroup->append_single_option_line("retract_speed", "123");
+    {
+        auto append_speed_pair = [optgroup](const wxString& row_label, const char* k_primary, const char* k_second) {
+            Line line(row_label, wxString());
+            Option o1 = optgroup->get_option(k_primary);
+            Option o2 = optgroup->get_option(k_second);
+            o1.opt.label = "";
+            o2.opt.label = "";
+            o1.opt.sidetext = "";
+            o2.opt.sidetext = "mm/min";
+            o1.side_widget = [](wxWindow* parent) {
+                wxSizer* s = new wxBoxSizer(wxHORIZONTAL);
+                wxStaticText* t = new wxStaticText(parent, wxID_ANY, " + ");
+                t->SetFont(wxGetApp().normal_font());
+                t->SetBackgroundStyle(wxBG_STYLE_PAINT);
+                wxGetApp().UpdateDarkUI(t);
+                s->Add(t, 0, wxALIGN_CENTER_VERTICAL);
+                return s;
+            };
+            line.append_option(o1);
+            line.append_option(o2);
+            optgroup->append_line(line);
+        };
+        append_speed_pair(L("Bottom Lift Speed"), "bottom_lift_speed", "bottom_lift_second_speed");
+        append_speed_pair(L("Lifting Speed"), "lifting_speed", "lift_second_speed");
+        append_speed_pair(L("Bottom Retract Speed"), "bottom_retract_speed", "bottom_retract_second_speed");
+        append_speed_pair(L("Retract Speed"), "retract_speed", "retract_second_speed");
+    }
 
     // Advanced
     page     = add_options_page(L("Advanced"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders

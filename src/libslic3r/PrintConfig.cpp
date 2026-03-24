@@ -6757,93 +6757,69 @@ void PrintConfigDef::init_sla_params()
 
     // Speed
     //  Lift & Retract Speed
-    def                          = this->add("bottom_lift_speed", coFloats);
-    def->label                   = L("Bottom Lift Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Bottom Lift Speed for speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({60.0, 0.0}));
+    def           = this->add("bottom_lift_speed", coFloat);
+    def->label    = L("Bottom Lift Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Primary bottom lift speed (shown before \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(60.0));
 
-    def                          = this->add("bottom_lift_second_speed", coFloats);
-    def->label                   = L("Bottom Lift Second Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Second stage bottom lifting speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+    def           = this->add("bottom_lift_second_speed", coFloat);
+    def->label    = L("Bottom Lift Second Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Second-stage bottom lift speed (shown after \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(45.0));
 
-    def                          = this->add("lifting_speed", coFloats);
-    def->label                   = L("Lifting Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Lifting Speed for speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({60.0, 0.0}));
+    def           = this->add("lifting_speed", coFloat);
+    def->label    = L("Lifting Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Primary lifting speed (shown before \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(60.0));
 
-    def                          = this->add("lift_second_speed", coFloats);
-    def->label                   = L("Lift Second Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Second stage lifting speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({45.0, 0.0}));
+    def           = this->add("lift_second_speed", coFloat);
+    def->label    = L("Lift Second Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Second-stage lifting speed (shown after \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(45.0));
 
-    def                          = this->add("bottom_retract_speed", coFloats);
-    def->label                   = L("Bottom Retract Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Bottom Retract Speed for speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+    def           = this->add("bottom_retract_speed", coFloat);
+    def->label    = L("Bottom Retract Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Primary bottom retract speed (shown before \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(150.0));
 
-    def                          = this->add("bottom_retract_second_speed", coFloats);
-    def->label                   = L("Bottom Retract Second Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Second stage bottom retract speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+    def           = this->add("bottom_retract_second_speed", coFloat);
+    def->label    = L("Bottom Retract Second Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Second-stage bottom retract speed (shown after \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(150.0));
 
-    def                          = this->add("retract_speed", coFloats);
-    def->label                   = L("Retract Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Retract Speed for speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+    def           = this->add("retract_speed", coFloat);
+    def->label    = L("Retract Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Primary retract speed (shown before \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(150.0));
 
-    def                          = this->add("retract_second_speed", coFloats);
-    def->label                   = L("Retract Second Speed");
-    def->category                = L("Speed");
-    def->tooltip                 = L("Second stage retract speed.");
-    def->sidetext                = "mm/min";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 10;
-    def->set_default_value(new ConfigOptionFloats({150.0, 0.0}));
+    def           = this->add("retract_second_speed", coFloat);
+    def->label    = L("Retract Second Speed");
+    def->category = L("Speed");
+    def->tooltip  = L("Second-stage retract speed (shown after \"+\" in the UI).");
+    def->sidetext = "mm/min";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(150.0));
 
     // Advanced
     // Advance
@@ -8323,6 +8299,23 @@ void  handle_legacy_sla(DynamicPrintConfig &config)
             }
         }
     }
+
+    // Phrozen LCD: older presets stored primary+second in one ConfigOptionFloats (dual_float / "60, 45").
+    // Split into two ConfigOptionFloat keys so JSON can keep separate fields.
+    auto split_sla_speed_if_dual_floats = [&](const char* primary_key, const char* second_key) {
+        auto* p = dynamic_cast<ConfigOptionFloats*>(config.option(primary_key, false));
+        if (!p || p->values.size() < 2)
+            return;
+        const double v0 = p->values[0];
+        const double v1 = p->values[1];
+        config.erase(primary_key);
+        config.opt<ConfigOptionFloat>(primary_key, true)->value = v0;
+        config.opt<ConfigOptionFloat>(second_key, true)->value = v1;
+    };
+    split_sla_speed_if_dual_floats("bottom_lift_speed", "bottom_lift_second_speed");
+    split_sla_speed_if_dual_floats("lifting_speed", "lift_second_speed");
+    split_sla_speed_if_dual_floats("bottom_retract_speed", "bottom_retract_second_speed");
+    split_sla_speed_if_dual_floats("retract_speed", "retract_second_speed");
 }
 
 void DynamicPrintConfig::set_num_extruders(unsigned int num_extruders)

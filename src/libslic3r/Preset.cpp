@@ -677,6 +677,9 @@ void Preset::set_visible_from_appconfig(const AppConfig &app_config)
 				return it != installed.end() && ! it->second.empty();
 	    	};
 	    	is_visible = has(this->name);
+	    	// SLA materials: wizard may write "Phrozen X" while preset name from JSON is "X"; treat as visible if either matches.
+	    	if (! is_visible && type == TYPE_SLA_MATERIAL && ! this->name.empty())
+	    		is_visible = has(std::string("Phrozen ") + this->name);
 	    	for (auto it = this->renamed_from.begin(); ! is_visible && it != this->renamed_from.end(); ++ it)
 	    		is_visible = has(*it);
 	    }
@@ -937,9 +940,13 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "bottom_retract_distance",
     "retract_distance",
     "bottom_lift_speed",
+    "bottom_lift_second_speed",
     "lifting_speed",
+    "lift_second_speed",
     "bottom_retract_speed",
+    "bottom_retract_second_speed",
     "retract_speed",
+    "retract_second_speed",
     "bottom_light_pwm",
     "light_pwm",
     "picture_grayscale",

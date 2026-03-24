@@ -118,36 +118,26 @@ function HandleModelList( pVal )
 		$(".OneVendorBlock[vendor='"+key+"'] .PrinterArea").append( ModelHtml[key] );
 	}
 
-	// Bind click for PrinterBlock: single-select, same button effect as page 12 (delegated so filtered blocks work)
+	// Bind click for PrinterBlock: multi-select (delegated so filtered blocks work)
 	$('#Content').on('click', '.PrinterBlock', function() {
 		SelectPrinterBlock(this);
 	});
-	
-	//Update Checkbox
-	$('input').prop("checked", false);
-	for(let m=0;m<nTotal;m++)
-	{
-		let OneModel=pModel[m];
 
-		let SelectList=OneModel['nozzle_selected'];
-		if(SelectList!='')
-		{
-			SelectList=OneModel['nozzle_selected'].split(';');
-    		let nLen=SelectList.length;
-
-		    for(let a=0;a<nLen;a++)
-			{
-			    let nNozzel=SelectList[a];
-				$("input[vendor='" + OneModel['vendor'] + "'][model='" + OneModel['model'] + "'][nozzel='" + nNozzel + "']").prop("checked", true);
-
+	// Restore multi-selection from C++ (nozzle_selected) and apply .selected class to blocks
+	for (let m = 0; m < nTotal; m++) {
+		let OneModel = pModel[m];
+		let SelectList = OneModel['nozzle_selected'];
+		let nozzleVal = (OneModel['nozzle_diameter'] != null && OneModel['nozzle_diameter'] !== '') ? OneModel['nozzle_diameter'] : 'default';
+		if (SelectList !== '' && SelectList != null) {
+			SelectList = OneModel['nozzle_selected'].split(';');
+			for (let a = 0; a < SelectList.length; a++) {
+				let nNozzel = SelectList[a].trim();
+				if (!nNozzel) nNozzel = nozzleVal;
 				SetModelSelect(OneModel['vendor'], OneModel['model'], nNozzel, true);
 			}
+			$('.PrinterBlock[data-model="' + OneModel['model'] + '"][data-vendor="' + OneModel['vendor'] + '"]').addClass('selected');
 		}
-		else
-		{
-			$("input[vendor='"+OneModel['vendor']+"'][model='"+OneModel['model']+"']").prop("checked", false);
-		}
-	}	
+	}
 
 	// let AlreadySelect=$("input:checked");
 	// let nSelect=AlreadySelect.length;
@@ -170,7 +160,7 @@ function CheckBoxOnclick(obj) {
 
 }
 
-// Single-select printer block (LCD path, no nozzle); same UX as page 12 option buttons
+// Multi-select printer block (LCD path, no nozzle); click toggles selection
 function SelectPrinterBlock(el) {
 	let $el = $(el);
 	let model = $el.data('model');
@@ -178,12 +168,23 @@ function SelectPrinterBlock(el) {
 	let nozzle = $el.data('nozzle');
 	if (!model || !vendor) return;
 	if (nozzle == null || nozzle === '') nozzle = 'default';
-	$('.PrinterBlock').removeClass('selected');
-	$el.addClass('selected');
-	ModelNozzleSelected = {};
-	ModelNozzleSelected[vendor] = {};
-	ModelNozzleSelected[vendor][model] = {};
-	ModelNozzleSelected[vendor][model][nozzle] = true;
+	// Toggle this block
+	let wasSelected = $el.hasClass('selected');
+	if (wasSelected) {
+		$el.removeClass('selected');
+		SetModelSelect(vendor, model, nozzle, false);
+		// Clean empty entries
+		if (ModelNozzleSelected[vendor] && ModelNozzleSelected[vendor][model]) {
+			delete ModelNozzleSelected[vendor][model][nozzle];
+			if (Object.keys(ModelNozzleSelected[vendor][model]).length === 0)
+				delete ModelNozzleSelected[vendor][model];
+			if (Object.keys(ModelNozzleSelected[vendor]).length === 0)
+				delete ModelNozzleSelected[vendor];
+		}
+	} else {
+		$el.addClass('selected');
+		SetModelSelect(vendor, model, nozzle, true);
+	}
 }
 
 function SetModelSelect(vendor, model, nozzel, checked) {
@@ -306,27 +307,15 @@ function FilterModelList(keyword) {
 		obj.append(ModelHtml[key]);
 	}
 
-
-	//Update Checkbox
-	ModelSelect = $('input[type=checkbox]');
-	for (let n = 0; n < ModelSelect.length; n++) {
-		let OneItem = ModelSelect[n];
-
-		let strModel = OneItem.getAttribute("model");
-		let strVendor = OneItem.getAttribute("vendor");
-		let strNozzel = OneItem.getAttribute("nozzel");
-
-		let checked = GetModelSelect(strVendor, strModel, strNozzel);
-
-		OneItem.checked = checked;
+	// Restore .selected class from ModelNozzleSelected (multi-select state)
+	for (let v in ModelNozzleSelected) {
+		for (let mod in ModelNozzleSelected[v]) {
+			for (let noz in ModelNozzleSelected[v][mod]) {
+				if (ModelNozzleSelected[v][mod][noz])
+					$('.PrinterBlock[data-model="' + mod + '"][data-vendor="' + v + '"]').addClass('selected');
+			}
+		}
 	}
-
-	// let AlreadySelect=$("input:checked");
-	// let nSelect=AlreadySelect.length;
-	// if(nSelect==0)
-	// {
-	// 	$("input[nozzel='0.4'][vendor='Custom']").prop("checked", true);
-	// }
 
 	TranslatePage();
 }

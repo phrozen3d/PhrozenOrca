@@ -617,6 +617,14 @@ bool ParamsPanel::is_active_and_shown_tab(wxPanel* tab)
         return false;
 }
 
+void ParamsPanel::switch_process_tab_for_printer_technology()
+{
+    const bool was_on_process_tab = (m_current_tab == m_tab_print);
+    refresh_tabs();
+    if (was_on_process_tab && m_tab_print)
+        set_active_tab(m_tab_print);
+}
+
 void ParamsPanel::update_mode()
 {
     int app_mode = Slic3r::GUI::wxGetApp().get_mode();

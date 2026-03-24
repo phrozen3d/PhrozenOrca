@@ -1,6 +1,7 @@
 #include "SideButton.hpp"
 #include "Label.hpp"
 
+#include <algorithm>
 #include <wx/dcclient.h>
 #include <wx/dcgraph.h>
 
@@ -14,6 +15,9 @@ SideButton::SideButton(wxWindow* parent, wxString text, wxString icon, long stly
     : wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, stlye)
     , state_handler(this)
 {
+    // Prevent background erase artifacts (especially visible as white corners with antialiased rounded rects on dark UI).
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+
     radius = 12;
 #ifdef __APPLE__
     extra_size = wxSize(38 + FromDIP(20), 10);
@@ -174,6 +178,32 @@ void SideButton::SetIconOffset(const int offset)
     messureSize();
 }
 
+void SideButton::SetPhrozenOutlineToolbarStyle()
+{
+    m_phrozen_outline_toolbar = true;
+    const wxColour accent(255, 124, 63);
+    text_color.clear();
+    text_color.append(accent, StateColor::Normal);
+    text_color.append(accent, StateColor::Hovered);
+    text_color.append(accent, StateColor::Pressed);
+    border_color.clear();
+    border_color.append(accent, StateColor::Normal);
+    background_color.clear();
+    background_color.append(wxColour(45, 45, 48), StateColor::Normal);
+    state_handler.update_binds();
+    Refresh();
+}
+
+void SideButton::SetIconBitmapName(const std::string& bmp_key, int icon_px)
+{
+    if (bmp_key.empty())
+        icon = ScalableBitmap();
+    else
+        icon = ScalableBitmap(this, bmp_key, icon_px > 0 ? icon_px : 18);
+    messureSize();
+    Refresh();
+}
+
 void SideButton::paintEvent(wxPaintEvent& evt)
 {
     // depending on your system you may need to look at double-buffered dcs
@@ -196,21 +226,40 @@ void SideButton::paintEvent(wxPaintEvent& evt)
 void SideButton::dorender(wxDC& dc, wxDC& text_dc)
 {
     wxSize size = GetSize();
+    int    states = state_handler.states();
 
-    // draw background
-    dc.SetPen(wxNullPen);
-    dc.SetBrush(StateColor::darkModeColorFor(bottom_color));
-    dc.DrawRectangle(0, 0, size.x, size.y);
+    if (m_phrozen_outline_toolbar) {
+        const wxColour pcb(59, 68, 70);
+        // Clear the whole surface first so antialias blending uses the correct background instead of default (often white).
+        dc.SetBackground(wxBrush(pcb));
+        dc.Clear();
 
-    int states = state_handler.states();
-    dc.SetBrush(wxBrush(background_color.colorForStates(states)));
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(pcb));
+        if (radius > 1e-5)
+            dc.DrawRoundedRectangle(0, 0, size.x, size.y, radius);
+        else
+            dc.DrawRectangle(0, 0, size.x, size.y);
+        const int pw = std::max(1, FromDIP(1));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.SetPen(wxPen(wxColour(255, 124, 63), pw));
+        if (radius > 1e-5)
+            dc.DrawRoundedRectangle(pw / 2, pw / 2, size.x - pw, size.y - pw, radius);
+        else
+            dc.DrawRectangle(0, 0, size.x, size.y);
+    } else {
+        // draw background
+        dc.SetPen(wxNullPen);
+        dc.SetBrush(StateColor::darkModeColorFor(bottom_color));
+        dc.DrawRectangle(0, 0, size.x, size.y);
 
-    dc.SetPen(wxPen(border_color.colorForStates(states)));
-    int pen_width = dc.GetPen().GetWidth();
+        dc.SetBrush(wxBrush(background_color.colorForStates(states)));
 
-    
-    // draw icon style
-    if (icon.bmp().IsOk()) {
+        dc.SetPen(wxPen(border_color.colorForStates(states)));
+        int pen_width = dc.GetPen().GetWidth();
+
+        // draw icon style
+        if (icon.bmp().IsOk()) {
         if (radius > 1e-5) {
             dc.DrawRoundedRectangle(0, 0, size.x, size.y, radius);
             dc.DrawRectangle(radius, 0, size.x - radius, size.y);
@@ -236,6 +285,7 @@ void SideButton::dorender(wxDC& dc, wxDC& text_dc)
         } else {
             dc.DrawRectangle(0, 0, size.x, size.y);
         }
+    }
     }
 
     dc.SetBrush(*wxTRANSPARENT_BRUSH);
