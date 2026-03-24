@@ -1057,6 +1057,21 @@ void PhrozenStatusBasePanel::Initizlize()
     this->Layout();
 }
 
+void PhrozenStatusBasePanel::gen_phrozen_theme_btn( StateColor& kBtn_backGround, StateColor& kBtn_Border )
+{
+    wxColour kPhrozenBgNormal = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue() );
+    wxColour kPhrozenBgDisabled = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue(), 50 );
+    wxColour kPhrozenBgPressed = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.3, AMS_CONTROL_BRAND_COLOUR.Green()/1.3, AMS_CONTROL_BRAND_COLOUR.Blue()/1.3 );
+    wxColour kPhrozenBgChecked = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.8, AMS_CONTROL_BRAND_COLOUR.Green()/1.8, AMS_CONTROL_BRAND_COLOUR.Blue()/1.8 );
+
+    kBtn_backGround = StateColor( std::pair<wxColour, int>(kPhrozenBgDisabled, StateColor::Disabled),
+                                  std::pair<wxColour, int>(kPhrozenBgPressed, StateColor::Pressed),
+                                  std::pair<wxColour, int>(kPhrozenBgChecked, StateColor::Checked),
+                                  std::pair<wxColour, int>(kPhrozenBgNormal, StateColor::Normal));
+
+    kBtn_Border = StateColor(std::pair<wxColour, int>(kPhrozenBgPressed, StateColor::Hovered) );
+}
+
 wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page() 
 {
     
@@ -1103,16 +1118,9 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     });
 #endif
 
-    wxColour kBgNormal = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue() );
-    wxColour kBgDisabled = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue(), 50 );
-    wxColour kBgPressed = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.3, AMS_CONTROL_BRAND_COLOUR.Green()/1.3, AMS_CONTROL_BRAND_COLOUR.Blue()/1.3 );
-    wxColour kBgChecked = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.8, AMS_CONTROL_BRAND_COLOUR.Green()/1.8, AMS_CONTROL_BRAND_COLOUR.Blue()/1.8 );
-    StateColor btn_phrozen_bg( std::pair<wxColour, int>(kBgDisabled, StateColor::Disabled),
-                               std::pair<wxColour, int>(kBgPressed, StateColor::Pressed),
-                               std::pair<wxColour, int>(kBgChecked, StateColor::Checked),
-                               std::pair<wxColour, int>(kBgNormal, StateColor::Normal));
-
-    StateColor btn_phrozen_bd(std::pair<wxColour, int>(kBgPressed, StateColor::Hovered) );
+    StateColor btn_phrozen_bg;
+    StateColor btn_phrozen_bd;
+    gen_phrozen_theme_btn( btn_phrozen_bg, btn_phrozen_bd );
 
     m_pCam_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Cam_Switch");
     m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
@@ -1182,16 +1190,13 @@ wxBoxSizer* PhrozenStatusBasePanel::create_machine_control_page(wxWindow* parent
     // m_staticText_control->SetFont(PAGE_TITLE_FONT);
     m_staticText_control->SetForegroundColour(PHROZEN_PAGE_TITLE_FONT_COL);
 
-    StateColor btn_bg_green(std::pair<wxColour, int>(AMS_CONTROL_DISABLE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
-                            std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
-    StateColor btn_bd_green(std::pair<wxColour, int>(AMS_CONTROL_WHITE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Enabled));
+    StateColor btn_phrozen_bg;
+    StateColor btn_phrozen_bd;
+    gen_phrozen_theme_btn( btn_phrozen_bg, btn_phrozen_bd );
 
     m_calibration_btn = new Button(m_panel_control_title, _L("Calibration"));
-    m_calibration_btn->SetBackgroundColor(btn_bg_green);
-    m_calibration_btn->SetBorderColor(btn_bd_green);
+    m_calibration_btn->SetBackgroundColor(btn_phrozen_bg);
+    m_calibration_btn->SetBorderColor(btn_phrozen_bd);
     m_calibration_btn->SetTextColor(wxColour("#FFFFFE"));
     m_calibration_btn->SetSize(wxSize(FromDIP(128), FromDIP(26)));
     m_calibration_btn->SetMinSize(wxSize(-1, FromDIP(26)));

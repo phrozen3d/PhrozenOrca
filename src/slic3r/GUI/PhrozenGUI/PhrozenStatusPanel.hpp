@@ -32,6 +32,7 @@
 #include "../StatusPanel.hpp"
 
 class wxHyperlinkCtrl;
+class StateColor;
 
 namespace Slic3r {
 namespace GUI {
@@ -318,6 +319,9 @@ public:
 
     wxPanel *       m_machine_ctrl_panel;
     PhrozenPrintingTaskPanel *       m_project_task_panel;
+
+    // phrozen status button color theme
+    void gen_phrozen_theme_btn( StateColor& kBtn_backGround, StateColor& kBtn_Border );
 
     // Virtual event handlers, override them in your derived class
     virtual void on_subtask_pause_resume(wxCommandEvent &event) { event.Skip(); }
