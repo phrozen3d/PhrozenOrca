@@ -1165,7 +1165,11 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     {
         wxPaintDC dc(media_ctrl_panel);
         if ( m_kCurrentWebCamBitmap.IsOk()) {
-            dc.DrawBitmap( m_kCurrentWebCamBitmap, 0, 0, false);
+            int pw, ph;
+            media_ctrl_panel->GetSize(&pw, &ph);
+            int bx = (pw - m_kCurrentWebCamBitmap.GetWidth())  / 2;
+            int by = (ph - m_kCurrentWebCamBitmap.GetHeight()) / 2;
+            dc.DrawBitmap( m_kCurrentWebCamBitmap, bx, by, false);
         }
     };
     media_ctrl_panel->Bind(wxEVT_PAINT, fnUpdate);//called by media_ctrl_panel->Refresh();
@@ -3229,12 +3233,29 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
     image = image.Rotate180(); //水平+垂直翻轉
-    int x, y;
-    media_ctrl_panel->GetSize( &x, &y );
-    image.Rescale(x, y);
+
+    // Arco 的webcam 是 1280x720，要維持比例 fit 進 panel (media_ctrl_panel)
+    const double kAspect = 1280.0 / 720.0;
+    int scaled_w, scaled_h;
+    revise_webcam_display_ratio( kAspect, scaled_w, scaled_h );
+
+    image.Rescale(scaled_w, scaled_h, wxIMAGE_QUALITY_BILINEAR);
 
     m_kCurrentWebCamBitmap = wxBitmap(image);
     media_ctrl_panel->Refresh();
+}
+
+void PhrozenStatusPanel::revise_webcam_display_ratio( const double& kAspect, int& scaled_w, int& scaled_h )
+{
+    int x, y;
+    media_ctrl_panel->GetSize( &x, &y );
+    if ( x / kAspect <= y ) {
+        scaled_w = x;
+        scaled_h = static_cast<int>(x / kAspect);
+    } else {
+        scaled_h = y;
+        scaled_w = static_cast<int>(y * kAspect);
+    }
 }
 
 void PhrozenStatusPanel::ResetWebcamView()

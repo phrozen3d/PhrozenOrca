@@ -567,6 +567,7 @@ protected:
     void update(MachineObject* obj);
     void update_phrozen();
     void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
+    void revise_webcam_display_ratio( const double& kAspect, int& scaled_w, int& scaled_h );
     void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
