@@ -78,7 +78,8 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
         scfg.head_width_mm = c.support_head_width.getFloat();
         scfg.object_elevation_mm = is_zero_elevation(c) ?
                                        0. : c.support_object_elevation.getFloat();
-        scfg.bridge_slope = c.support_critical_angle.getFloat() * PI / 180.0;
+        scfg.bridge_slope             = c.support_bracing_angle.getFloat() * PI / 180.0;
+        scfg.overhang_angle_threshold = c.support_critical_angle.getFloat() * PI / 180.0;
         scfg.max_bridge_length_mm = c.support_max_bridge_length.getFloat();
         scfg.max_pillar_link_distance_mm = c.support_max_pillar_link_distance.getFloat();
         scfg.pillar_connection_mode =
@@ -107,7 +108,8 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
         scfg.head_width_mm = c.branchingsupport_head_width.getFloat();
         scfg.object_elevation_mm = is_zero_elevation(c) ?
                                        0. : c.branchingsupport_object_elevation.getFloat();
-        scfg.bridge_slope = c.branchingsupport_critical_angle.getFloat() * PI / 180.0;
+        scfg.bridge_slope             = c.branchingsupport_bracing_angle.getFloat() * PI / 180.0;
+        scfg.overhang_angle_threshold = c.branchingsupport_critical_angle.getFloat() * PI / 180.0;
         scfg.max_bridge_length_mm = c.branchingsupport_max_bridge_length.getFloat();
         scfg.max_pillar_link_distance_mm = c.branchingsupport_max_pillar_link_distance.getFloat();
         scfg.pillar_connection_mode =
@@ -1005,9 +1007,12 @@ bool SLAPrintObject::invalidate_state_by_config_options(const std::vector<t_conf
             || opt_key == "support_base_diameter"
             || opt_key == "support_base_height"
             || opt_key == "support_critical_angle"
+            || opt_key == "support_bracing_angle"
             || opt_key == "support_max_bridge_length"
             || opt_key == "support_max_pillar_link_distance"
             || opt_key == "support_base_safety_distance"
+            || opt_key == "branchingsupport_critical_angle"
+            || opt_key == "branchingsupport_bracing_angle"
             ) {
             steps.emplace_back(slaposSupportTree);
         } else if (

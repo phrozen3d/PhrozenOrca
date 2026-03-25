@@ -1021,6 +1021,7 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "branchingsupport_base_height",
     "branchingsupport_base_safety_distance",
     "branchingsupport_critical_angle",
+    "branchingsupport_bracing_angle",
     "branchingsupport_max_bridge_length",
     "branchingsupport_max_pillar_link_distance",
     "branchingsupport_object_elevation",

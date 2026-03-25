@@ -73,6 +73,11 @@ struct SupportTreeConfig
     // The default angle for connecting support sticks and junctions.
     double bridge_slope = M_PI/4;
 
+    // Overhang angle threshold in radians (measured from horizontal plane).
+    // Support heads will not be placed on surfaces whose angle from horizontal
+    // exceeds this value. PI/2 means all overhangs get support (no filtering).
+    double overhang_angle_threshold = M_PI / 2;
+
     // The max length of a bridge in mm
     double max_bridge_length_mm = 10.0;
 

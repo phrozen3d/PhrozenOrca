@@ -12,6 +12,8 @@
 #include <libslic3r/SLA/Concurrency.hpp>
 #include <libslic3r/SLA/Pad.hpp>
 #include <libslic3r/SLA/SupportPointGenerator.hpp>
+#include <libslic3r/SLA/SupportTreeBuildsteps.hpp>   // dir_to_spheric
+#include <libslic3r/SLA/IndexedMesh.hpp>              // sla::normals
 #include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
 
 #include <libslic3r/ElephantFootCompensation.hpp>
@@ -679,6 +681,34 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
         po.m_supportdata->pts = sla::move_on_mesh_surface(
             layer_pts, po.m_supportdata->emesh, allowed_move,
             [this]() { throw_if_canceled(); });
+
+        // Phase 3: Filter support points by overhang angle threshold,
+        // matching the same condition used in SupportTreeBuildsteps::filterfn.
+        // This keeps UI-displayed points consistent with actually generated supports.
+        {
+            const double critical_angle = cfg.support_critical_angle.getFloat() * PI / 180.0;
+            if (critical_angle < M_PI / 2.0) {
+                sla::SupportPoints &pts = po.m_supportdata->pts;
+                // Build PointSet (Eigen matrix) for normals calculation.
+                sla::PointSet point_matrix(pts.size(), 3);
+                for (size_t i = 0; i < pts.size(); ++i)
+                    point_matrix.row(Eigen::Index(i)) = pts[i].pos.cast<double>();
+
+                sla::PointSet nmls = sla::normals(point_matrix, po.m_supportdata->emesh,
+                                                  cfg.support_head_front_diameter / 2.0,
+                                                  [this]() { throw_if_canceled(); });
+
+                sla::SupportPoints filtered;
+                filtered.reserve(pts.size());
+                for (size_t i = 0; i < pts.size(); ++i) {
+                    auto n = nmls.row(Eigen::Index(i));
+                    auto [polar, azimuth] = sla::dir_to_spheric(n);
+                    if (polar >= M_PI / 2.0 + critical_angle)
+                        filtered.push_back(pts[i]);
+                }
+                pts = std::move(filtered);
+            }
+        }
 
         BOOST_LOG_TRIVIAL(debug) << "Automatic support points: "
                                  << po.m_supportdata->pts.size();

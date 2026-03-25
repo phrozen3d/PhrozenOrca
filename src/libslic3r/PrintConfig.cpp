@@ -6352,14 +6352,24 @@ void PrintConfigDef::init_sla_support_params(const std::string &prefix)
     def->set_default_value(new ConfigOptionFloat(1));
 
     def = this->add(prefix + "support_critical_angle", coFloat);
-    //def->label = L("Critical angle");
+    //def->label = L("Overhang threshold");
+    //def->category = L("Supports");
+    //def->tooltip = L("Support will not be placed on surfaces whose slope angle (measured from the horizontal plane) is above this value. Set to 90° to support all overhangs.");
+    //def->sidetext = L("°");
+    def->min = 0;
+    def->max = 90;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(90));
+
+    def = this->add(prefix + "support_bracing_angle", coFloat);
+    //def->label = L("Bracing angle");
     //def->category = L("Supports");
     //def->tooltip = L("The default angle for connecting support sticks and junctions.");
     //def->sidetext = L("°");
     def->min = 0;
     def->max = 90;
     def->mode = comAdvanced;
-    def->set_default_value(new ConfigOptionFloat(45));
+    def->set_default_value(new ConfigOptionFloat(90));
 
     def = this->add(prefix + "support_max_bridge_length", coFloat);
     //def->label = L("Max bridge length");
@@ -7518,7 +7528,7 @@ void PrintConfigDef::init_sla_params()
     def->min = 0;
     def->max = 90;
     def->mode = comAdvanced;
-    def->set_default_value(new ConfigOptionFloat(45));
+    def->set_default_value(new ConfigOptionFloat(0));
 
     def = this->add("support_max_bridge_length", coFloat);
     //def->label = L("");

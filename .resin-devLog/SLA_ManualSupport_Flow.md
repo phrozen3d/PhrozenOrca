@@ -209,10 +209,16 @@ reslice_until_step(step)                          [GLGizmoSlaBase.cpp:74]
   → plater()->reslice_SLA_until_step(step, *model_object)  [Plater.cpp:13089]
   → background_process.set_task({to_object_step = step})
   → SLAPrint::process() 只執行到 step 為止（partial pipeline）
+    → support_points()：Phase 1（取樣）→ Phase 2（投影）→ Phase 3（overhang angle 過濾）
   → on_process_completed() 觸發
   → data_changed() 被呼叫
   → get_data_from_backend() 撈取計算結果到 m_normal_cache
 ```
+
+> **注意（2026-03-25）**：UI 顯示的支撐點（`m_normal_cache`）來自 `support_points()` 步驟，
+> 支撐結構由 `support_tree()` 步驟的 `SupportTreeBuildsteps::filterfn` 再次過濾。
+> 兩者使用相同的 `support_critical_angle` 閾值，確保 UI 顯示的點與最終支撐結構一致。
+> 詳見 [SLA_Support_CriticalAngle_Refactor.md](SLA_Support_CriticalAngle_Refactor.md)。
 
 ### get_data_from_backend()
 

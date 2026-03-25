@@ -681,6 +681,10 @@ void SupportTreeBuildsteps::filter()
         // skip if the tilt is not sane
         if (polar < PI - m_cfg.normal_cutoff_angle) return;
 
+        // skip if the surface is not steep enough to need support
+        // overhang_angle_threshold measured from horizontal: 0=only flat, PI/2=all overhangs
+        if (polar < M_PI / 2.0 + m_cfg.overhang_angle_threshold) return;
+
         // We saturate the polar angle to 3pi/4
         polar = std::max(polar, PI - m_cfg.bridge_slope);
 

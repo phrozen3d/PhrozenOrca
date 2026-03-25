@@ -146,12 +146,13 @@ SLAPrint::process()
 
 - **條件**：`supports_enable == true` 且 `sla_points_status != UserModified`
 - **算法**（Phase 4 已更新為 PrusaSlicer 新算法）：
-  1. `sla::generate_support_points()` — Voronoi Medial Axis + NearPoints KD-tree
-  2. `sla::move_on_mesh_surface()` — 將 2D 層平面的點投影到 3D mesh 表面
+  1. **Phase 1** `sla::generate_support_points()` — Voronoi Medial Axis + NearPoints KD-tree，依懸空幾何取樣，無角度過濾
+  2. **Phase 2** `sla::move_on_mesh_surface()` — 將 2D 層平面的點投影到 3D mesh 表面
+  3. **Phase 3** Overhang angle filter（2026-03-25 新增）— 使用 `sla::normals()` 計算表面法線，以 `support_critical_angle` 為閾值過濾不符合懸空條件的點，確保 UI 顯示的點與 `SupportTreeBuildsteps::filterfn` 的條件一致（`polar >= π/2 + critical_angle`）。`critical_angle = 90°` 時 guard 短路，不執行過濾。
 - **輸出**：`po.m_supportdata->pts`（`vector<sla::SupportPoint>`）
-- **關鍵參數**：`support_points_density_relative`, `support_head_front_diameter`
+- **關鍵參數**：`support_points_density_relative`, `support_head_front_diameter`, `support_critical_angle`
 
-若為使用者手動放置的點（`UserModified`），直接複製 `mo.sla_support_points` 到後端，不重新計算。
+若為使用者手動放置的點（`UserModified`），直接複製 `mo.sla_support_points` 到後端，不重新計算，Phase 3 不執行。
 
 ### Step 5：support_tree（支撐樹建立）
 **檔案**：[SLAPrintSteps.cpp:694](../src/libslic3r/SLAPrintSteps.cpp#L694)
