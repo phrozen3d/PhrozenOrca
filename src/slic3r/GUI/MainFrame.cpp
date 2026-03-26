@@ -1416,6 +1416,24 @@ void MainFrame::show_device(bool bBBLPrinter) {
             m_tabpanel->InsertPage(tpMonitor, m_printer_view, _L("Device_Console"), std::string("tab_monitor_active"),
                                std::string("tab_monitor_active"));
         }
+
+        // Show PhrozenMonitor only for Phrozen vendor in FDM mode
+        if (m_PhrozenMonitor) {
+            auto& pb = *wxGetApp().preset_bundle;
+            const bool is_phrozen_fdm = pb.is_phrozen_vendor() &&
+                pb.printers.get_edited_preset().printer_technology() == ptFFF;
+            if (is_phrozen_fdm) {
+                if (m_tabpanel->FindPage(m_PhrozenMonitor) == wxNOT_FOUND)
+                    m_tabpanel->InsertPage(tpMonitor, m_PhrozenMonitor, _L("Device"),
+                        std::string("tab_monitor_active"), std::string("tab_monitor_active"));
+            } else {
+                int idx = m_tabpanel->FindPage(m_PhrozenMonitor);
+                if (idx != wxNOT_FOUND) {
+                    m_PhrozenMonitor->Show(false);
+                    m_tabpanel->RemovePage(idx);
+                }
+            }
+        }
     }
 }
 
