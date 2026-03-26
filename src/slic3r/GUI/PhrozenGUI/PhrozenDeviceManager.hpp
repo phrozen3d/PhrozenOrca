@@ -114,6 +114,7 @@ public:
     ~PhrozenMachineObject_Dev();
 
     std::string GetMachineIp() { return m_strIp; }
+    PhrozenNetworkAgent* GetNetworkAgent() { return m_pNetworkAgent; }
 
     // Read from ui
     bool ReadDataFromWebcamSnapshot( std::vector<unsigned char>& data );

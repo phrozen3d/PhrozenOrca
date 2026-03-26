@@ -4,6 +4,7 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <string>
 #include <type_traits>
 #include "../json_diff.hpp"
 
@@ -130,6 +131,10 @@ public:
 /// 執行緒：由 PhrozenMachineObject_Dev 以 DoubleBufferSP 保存，與 snapshot 緩衝相同模式，
 /// 以便 UI 與網路／背景工作緒安全讀寫。
 struct PhrozenWebcamDisplayConfig {
+    /// Moonraker webcam 的唯一識別碼，從 GET /server/webcams/list 取得。
+    /// POST /server/webcams/item 需使用此 uid 才能更新正確的 webcam 條目。
+    /// 若為空字串表示尚未從機器端取得（此時 POST 以 name 欄位 fallback）。
+    std::string uid;
     /// 為 true 時在旋轉之後對影像做水平鏡像（左右對調）。
     bool flip_horizontal = false;
     /// 為 true 時在旋轉之後對影像做垂直鏡像（上下對調）。

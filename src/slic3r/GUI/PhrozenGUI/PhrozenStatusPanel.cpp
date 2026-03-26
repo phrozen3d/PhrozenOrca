@@ -1,4 +1,5 @@
 #include "PhrozenStatusPanel.hpp"
+#include "PhrozenWebcamSettingsPopup.hpp"
 
 #include "../I18N.hpp"
 #include "../Widgets/Label.hpp"
@@ -1140,6 +1141,14 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     StateColor btn_phrozen_bd;
     gen_phrozen_theme_btn( btn_phrozen_bg, btn_phrozen_bd );
 
+    m_pCam_settings_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Settings");
+    m_pCam_settings_button->SetBackgroundColor(btn_phrozen_bg);
+    m_pCam_settings_button->SetBorderColor(btn_phrozen_bd);
+    m_pCam_settings_button->SetTextColor(wxColour("#FFFFFE"));
+    m_pCam_settings_button->SetSize(wxSize(FromDIP(20), FromDIP(24)));
+    m_pCam_settings_button->SetMinSize(wxSize(-1, FromDIP(24)));
+    m_pCam_settings_button->SetCanFocus(false);
+
     m_pCam_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Cam_Switch");
     m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
     m_pCam_switch_button->SetBorderColor(btn_phrozen_bd);
@@ -1160,10 +1169,12 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     m_pCam_light_switch_button->Connect(wxEVT_COMMAND_BUTTON_CLICKED, wxCommandEventHandler(PhrozenStatusBasePanel::on_lighting_button_triggered), NULL, this);
 
 
+    m_pCam_settings_button->SetToolTip(_L("Webcam Settings"));
     m_pCam_switch_button->SetToolTip(_L("Turn On/Off Camera"));
     m_pCam_light_switch_button->SetToolTip(_L("Turn On/Off Light"));
 
-    bSizer_monitoring_title->Add(m_pCam_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
+    bSizer_monitoring_title->Add(m_pCam_settings_button,     0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
+    bSizer_monitoring_title->Add(m_pCam_switch_button,       0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
     bSizer_monitoring_title->Add(m_pCam_light_switch_button, 0, wxALIGN_CENTER_VERTICAL | wxALL, FromDIP(5));
 
 
@@ -2559,6 +2570,9 @@ PhrozenStatusPanel::PhrozenStatusPanel(wxWindow* parent, wxWindowID id, const wx
 
     InitWebCamUiUpdateTimer();
 
+    if (m_pCam_settings_button)
+        m_pCam_settings_button->Bind(wxEVT_BUTTON, &PhrozenStatusPanel::on_webcam_settings_button, this);
+
     Bind(wxEVT_WEBREQUEST_STATE, &PhrozenStatusPanel::on_webrequest_state, this);
 
     Bind(wxCUSTOMEVT_SET_TEMP_FINISH, [this](wxCommandEvent e) {
@@ -3182,6 +3196,12 @@ void PhrozenStatusPanel::start_webcam_update_timer()
     }
     if ( m_spWebCam_refresh_timer->IsRunning() ) return;
 
+    // 計時器首次啟動（即剛連線後）才向 Moonraker 取得 webcam 設定
+    if (!m_webcam_config_fetched && PhrozenObj()) {
+        m_webcam_config_fetched = true;
+        fetch_webcam_config_from_moonraker();
+    }
+
     m_spWebCam_refresh_timer->SetOwner(this);
     m_spWebCam_refresh_timer->Start(REFRESH_WEBCAM_UI_INTERVAL);
     wxPostEvent(this, wxTimerEvent());
@@ -3209,6 +3229,73 @@ void PhrozenStatusPanel::on_update_webcam_ui_timer(wxTimerEvent& event)
     }
     auto pObj = PhrozenObj();
     if ( pObj ) UpdateWebCameraView( pObj );
+}
+
+void PhrozenStatusPanel::fetch_webcam_config_from_moonraker()
+{
+    auto* pObj = PhrozenObj();
+    if (!pObj) return;
+
+    auto* agent = pObj->GetNetworkAgent();
+    if (!agent) return;
+
+    std::string ip = pObj->GetMachineIp();
+    if (ip.empty()) return;
+
+    // 背景 thread 執行 HTTP GET，完成後切回 UI thread 更新
+    std::thread([this, agent, ip]() {
+        PhrozenWebcamDisplayConfig cfg;
+        bool ok = agent->get_webcam_display_config(ip, cfg);
+        if (ok) {
+            wxTheApp->CallAfter([this, cfg]() {
+                if (auto* pObj = PhrozenObj())
+                    pObj->SetWebcamDisplayConfig(cfg);
+                if (m_webcam_settings_popup)
+                    m_webcam_settings_popup->SyncFromConfig(cfg);
+            });
+        }
+    }).detach();
+}
+
+void PhrozenStatusPanel::on_webcam_settings_button(wxCommandEvent& /*event*/)
+{
+    if (!m_webcam_settings_popup)
+        m_webcam_settings_popup = new PhrozenWebcamSettingsPopup(this);
+
+    // 同步目前設定到 popup
+    PhrozenWebcamDisplayConfig current;
+    if (auto* pObj = PhrozenObj())
+        pObj->TryGetWebcamDisplayConfig(current);
+    m_webcam_settings_popup->SyncFromConfig(current);
+
+    // 設定 callback：切換後立即更新本地預覽，並非同步回寫 Moonraker
+    m_webcam_settings_popup->OnConfigChanged = [this](const PhrozenWebcamDisplayConfig& cfg_from_ui) {
+        auto* pObj = PhrozenObj();
+
+        // popup 只記 flip/rotation；uid 需從 double-buffer 讀取（連線時 GET 存入）
+        PhrozenWebcamDisplayConfig cfg = cfg_from_ui;
+        PhrozenWebcamDisplayConfig stored;
+        if (pObj && pObj->TryGetWebcamDisplayConfig(stored))
+            cfg.uid = stored.uid;
+
+        if (pObj) pObj->SetWebcamDisplayConfig(cfg);
+
+        std::string ip = pObj ? pObj->GetMachineIp() : "";
+        auto* agent    = pObj ? pObj->GetNetworkAgent() : nullptr;
+        if (agent && !ip.empty()) {
+            std::thread([agent, ip, cfg]() {
+                agent->set_webcam_display_config(ip, cfg);
+            }).detach();
+        }
+    };
+
+    // 顯示在設定按鈕正下方
+    if (m_pCam_settings_button) {
+        wxPoint pos = m_pCam_settings_button->ClientToScreen(
+            wxPoint(0, m_pCam_settings_button->GetSize().GetHeight()));
+        m_webcam_settings_popup->SetPosition(pos);
+    }
+    m_webcam_settings_popup->Popup();
 }
 
 void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
@@ -5424,7 +5511,8 @@ void PhrozenStatusPanel::set_default()
     m_show_ams_group = true;
     reset_printing_values();
 
-    // webcam update 
+    // webcam update
+    m_webcam_config_fetched = false;
     stop_webcam_update_timer();
     UpdateWebCameraView( nullptr );
 

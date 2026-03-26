@@ -1739,6 +1739,113 @@ CURLcode PhrozenNetworkAgent::get_camera_snapshot(std::string dev_ip, std::vecto
     return res;
 }
 
+// ---- HTTP write callback for string body accumulation ----
+static size_t PhrozenHttpStringWriteCallback(void* data, size_t size, size_t nmemb, void* userp)
+{
+    auto* str = static_cast<std::string*>(userp);
+    str->append(static_cast<char*>(data), size * nmemb);
+    return size * nmemb;
+}
+
+bool PhrozenNetworkAgent::get_webcam_display_config(const std::string& dev_ip, PhrozenWebcamDisplayConfig& out)
+{
+    std::string url = "http://" + dev_ip + ":8808/server/webcams/list";
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent::get_webcam_display_config url=" << url;
+
+    CURL* curl = curl_easy_init();
+    if (!curl) return false;
+
+    std::string body;
+    curl_easy_setopt(curl, CURLOPT_URL,           url.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, PhrozenHttpStringWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA,     &body);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,        8000L);
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        BOOST_LOG_TRIVIAL(warning) << "get_webcam_display_config curl error: " << curl_easy_strerror(res);
+        return false;
+    }
+
+    try {
+        json j = json::parse(body);
+        auto& webcams = j["result"]["webcams"];
+        if (webcams.is_array() && !webcams.empty()) {
+            // 優先選 service == "mjpegstreamer"（非 adaptive）的鏡頭，
+            // 對應 PhrozenOrca snapshot URL /webcam/?action=snapshot
+            const json* target = nullptr;
+            for (const auto& cam : webcams) {
+                if (cam.value("service", "") == "mjpegstreamer") {
+                    target = &cam;
+                    break;
+                }
+            }
+            if (!target)
+                target = &webcams[0];
+
+            // Moonraker 回傳欄位使用 "name" 而非 "uid"
+            out.uid             = target->value("name",           std::string{});
+            out.flip_horizontal = target->value("flip_horizontal", false);
+            out.flip_vertical   = target->value("flip_vertical",   false);
+            out.rotation_deg    = target->value("rotation",        0);
+            BOOST_LOG_TRIVIAL(info) << "get_webcam_display_config ok: name=" << out.uid
+                                    << " flip_h=" << out.flip_horizontal
+                                    << " flip_v=" << out.flip_vertical
+                                    << " rot=" << out.rotation_deg;
+            return true;
+        }
+    } catch (const json::exception& e) {
+        BOOST_LOG_TRIVIAL(warning) << "get_webcam_display_config json parse error: " << e.what();
+    }
+    return false;
+}
+
+bool PhrozenNetworkAgent::set_webcam_display_config(const std::string& dev_ip, const PhrozenWebcamDisplayConfig& cfg)
+{
+    // Moonraker HTTP API — 此機台 Moonraker 跑在 8808（與 mjpg-streamer 同 port）
+    std::string url = "http://" + dev_ip + ":8808/server/webcams/item";
+    BOOST_LOG_TRIVIAL(info) << "PhrozenNetworkAgent::set_webcam_display_config url=" << url;
+
+    json body_json;
+    // Moonraker POST 以 "name" 識別鏡頭（GET 回傳無 uid 欄位）
+    body_json["name"] = cfg.uid.empty() ? "my_cam0" : cfg.uid;
+    body_json["flip_horizontal"] = cfg.flip_horizontal;
+    body_json["flip_vertical"]   = cfg.flip_vertical;
+    body_json["rotation"]        = cfg.rotation_deg;
+    std::string body_str = body_json.dump();
+
+    CURL* curl = curl_easy_init();
+    if (!curl) return false;
+
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    // discard response body
+    curl_easy_setopt(curl, CURLOPT_URL,             url.c_str());
+    curl_easy_setopt(curl, CURLOPT_POST,             1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS,       body_str.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,    (long)body_str.size());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER,       headers);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS,        8000L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
+        +[](void*, size_t s, size_t n, void*) -> size_t { return s * n; });
+
+    CURLcode res = curl_easy_perform(curl);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        BOOST_LOG_TRIVIAL(warning) << "set_webcam_display_config curl error: " << curl_easy_strerror(res);
+        return false;
+    }
+    BOOST_LOG_TRIVIAL(info) << "set_webcam_display_config ok";
+    return true;
+}
+
 CURLcode PhrozenNetworkAgent::send_action_Command( std::string send_payload )
 {
     //CURLcode res = curl_easy_perform(curl);

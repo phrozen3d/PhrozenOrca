@@ -248,6 +248,7 @@ public:
 
     Button* m_pCam_light_switch_button;
     Button* m_pCam_switch_button;
+    Button* m_pCam_settings_button{nullptr};
 
     /* title panel */
     wxPanel *       media_ctrl_panel;
@@ -673,6 +674,12 @@ protected:
 
     std::unique_ptr< wxTimer > m_spWebCam_refresh_timer = nullptr;
     bool IsWebCamRefreshTimerInitialized() { return m_spWebCam_refresh_timer != nullptr; }
+
+    // webcam settings popup
+    class PhrozenWebcamSettingsPopup* m_webcam_settings_popup{nullptr};
+    bool m_webcam_config_fetched{false};
+    void fetch_webcam_config_from_moonraker();
+    void on_webcam_settings_button(wxCommandEvent& event);
 #pragma endregion
 
 public:

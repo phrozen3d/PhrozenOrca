@@ -10,6 +10,7 @@
 #include <thread>
 #include <atomic>
 #include "slic3r/Utils/json_diff.hpp"
+#include "PhrozenMachineDatas.hpp"
 
 
 namespace Slic3r {
@@ -198,6 +199,11 @@ public:
 
     bool get_camera_stream_url(std::string dev_ip, std::string* url);
     CURLcode get_camera_snapshot(std::string dev_ip, std::vector<unsigned char>& image_data);
+
+    /// GET /server/webcams/list → 解析第一個 webcam 的 flip/rotation 並寫入 out
+    bool get_webcam_display_config(const std::string& dev_ip, PhrozenWebcamDisplayConfig& out);
+    /// POST /server/webcams/item 將 cfg 的 flip/rotation 寫回 Moonraker
+    bool set_webcam_display_config(const std::string& dev_ip, const PhrozenWebcamDisplayConfig& cfg);
 
 
     bool IsPrinterInfoChanged() { return m_bIsPrinterInfoChanged; }
