@@ -537,6 +537,11 @@ static const t_config_enum_values s_keys_map_AntiAliasing = {
     { "anti_aliasing_level", spAntiAliasingLevel }
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(AntiAliasing)
+
+static const t_config_enum_values s_keys_map_ContactType = {
+    {"none", spNone2},
+    {"sphere", spSphere}};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(ContactType)
 #pragma endregion
 
 static void assign_printer_technology_to_unknown(t_optiondef_map &options, PrinterTechnology printer_technology)
@@ -6991,11 +6996,26 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0));
 
     // Support
-    def           = this->add("generate_support", coBool);
-    def->label    = L("Generate support");
+
+    def                = this->add("contact_type", coEnum);
+    def->label         = L("Contact Type");
+    def->category      = L("Support");
+    def->tooltip       = L("Contact Type for support");
+    def->enum_keys_map = &ConfigOptionEnum<ContactType>::get_enum_values();
+    def->enum_values.push_back("none");
+    def->enum_values.push_back("sphere");
+    def->enum_labels.push_back(L("None"));
+    def->enum_labels.push_back(L("Sphere"));
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<ContactType>(spNone2));
+
+    def           = this->add("support_point_diameter", coFloat);
+    def->label    = L("Support Point Diameter");
     def->category = L("Support");
-    def->tooltip  = L("Generate support for support");
-    def->set_default_value(new ConfigOptionBool(false));
+    def->tooltip  = L("Support Point Diameter for support");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.4));
 
     def           = this->add("top_upper_diameter", coFloat);
     def->label    = L("Upper Diameter");
@@ -7060,6 +7080,30 @@ void PrintConfigDef::init_sla_params()
     //def->sidetext = "mm";
     //def->min      = 0;
     //def->set_default_value(new ConfigOptionFloat(5.0));
+
+    def           = this->add("pad_thickness_sla", coFloat);
+    def->label    = L("Raft Thickness");
+    def->category = L("Support");
+    def->tooltip  = L("Raft Thickness for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def           = this->add("pad_brim_size_sla", coFloat);
+    def->label    = L("Bottom Contact Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Bottom Contact Diameter for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(1.6));
+
+    def           = this->add("max_merge_distance_sla", coFloat);
+    def->label    = L("Raft Max Merge Distance");
+    def->category = L("Support");
+    def->tooltip  = L("Raft Max Merge Distance for support.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(50.0));
 
     def           = this->add("pad_wall_slope_sla", coFloat);
     def->label    = L("Support Angle");
@@ -7434,6 +7478,12 @@ void PrintConfigDef::init_sla_params()
     def->max = 15;
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def           = this->add("generate_support", coBool);
+    def->label    = L("Generate support");
+    def->category = L("Support");
+    def->tooltip  = L("Generate support for support");
+    def->set_default_value(new ConfigOptionBool(false));
 
     def = this->add("support_small_pillar_diameter_percent", coPercent);
     //def->label = L("");

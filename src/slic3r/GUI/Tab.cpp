@@ -6766,10 +6766,9 @@ void TabSLAPrint::build()
     // Support
     page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
 
-    optgroup = page->new_optgroup(L("Supports"), L"PhrozenImages_Resin/param_top", 15);
-    optgroup->append_single_option_line("generate_support", "123");
-
     optgroup = page->new_optgroup(L("Top"), L"PhrozenImages_Resin/param_main", 15);
+    optgroup->append_single_option_line("contact_type", "123");
+    optgroup->append_single_option_line("support_point_diameter", "123");
     optgroup->append_single_option_line("top_upper_diameter", "123");
     optgroup->append_single_option_line("top_contact_depth", "123");
     optgroup->append_single_option_line("pinhead_width", "123");
@@ -6782,10 +6781,11 @@ void TabSLAPrint::build()
     optgroup->append_single_option_line("support_bottom_diameter", "123");
     optgroup->append_single_option_line("support_boss_height", "123");
 
-    //optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_bottom", 15);
-    //optgroup->append_single_option_line("object_elevation", "123");
 
     optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_bottom", 15);
+    optgroup->append_single_option_line("pad_thickness_sla", "123");
+    optgroup->append_single_option_line("pad_brim_size_sla", "123");
+    optgroup->append_single_option_line("max_merge_distance_sla", "123");
     optgroup->append_single_option_line("pad_wall_slope_sla", "123");
 
     optgroup = page->new_optgroup(L("Automatic Generation"), L"param_speed_first", 15);

@@ -958,21 +958,6 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
     auto is_bottom_tolerance_compensation = config->opt_bool("bottom_tolerance_compensation");
     toggle_field("bottom_tolerance_compensation_a", is_bottom_tolerance_compensation);
     toggle_field("bottom_tolerance_compensation_b", is_bottom_tolerance_compensation);
-
-    auto is_support = config->opt_bool("generate_support");
-    toggle_field("top_upper_diameter", is_support);
-    toggle_field("top_contact_depth", is_support);
-    toggle_field("pinhead_width", is_support);
-    toggle_field("pillar_diameter", is_support);
-    toggle_field("support_bracing_angle", is_support);
-    toggle_field("branchingsupport_bracing_angle", is_support);
-    toggle_field("support_bottom_diameter", is_support);
-    toggle_field("support_boss_height", is_support);
-    //toggle_field("object_elevation", is_support);
-    toggle_field("pad_wall_slope_sla", is_support);
-    toggle_field("support_points_density", is_support);
-    toggle_field("max_bridge_length_sla", is_support);
-    toggle_field("max_pillar_linking_distance", is_support);
 #pragma endregion
 }
 

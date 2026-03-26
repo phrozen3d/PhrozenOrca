@@ -411,6 +411,7 @@ enum CounterboreHoleBridgingOption {
  enum WaitingModeDuringPrinting { spRestingTime, spLightOffDelay };
  enum ImageBlurPixel { sp2, sp3, sp4, sp5, sp6, sp7, sp8 };
  enum AntiAliasing { spNone, spGrayScaleLevel, spAntiAliasingLevel };
+ enum ContactType { spNone2, spSphere };
 #pragma endregion
 
 static std::string bed_type_to_gcode_string(const BedType type)
@@ -1537,6 +1538,8 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, bottom_tolerance_compensation_a))
     ((ConfigOptionFloat, bottom_tolerance_compensation_b))
 
+    ((ConfigOptionEnum<ContactType>, contact_type))
+    ((ConfigOptionFloat, support_point_diameter))
     ((ConfigOptionFloat, top_upper_diameter))
     ((ConfigOptionFloat, top_contact_depth))
     ((ConfigOptionFloat, pinhead_width))
@@ -1548,6 +1551,9 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, support_boss_height))
 
     //((ConfigOptionFloat, object_elevation))
+    ((ConfigOptionFloat, pad_thickness_sla))
+    ((ConfigOptionFloat, pad_brim_size_sla))
+    ((ConfigOptionFloat, max_merge_distance_sla))
     ((ConfigOptionFloat, pad_wall_slope_sla))
 
     ((ConfigOptionInt, support_points_density))
