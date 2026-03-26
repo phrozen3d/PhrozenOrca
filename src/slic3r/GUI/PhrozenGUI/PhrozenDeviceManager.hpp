@@ -132,6 +132,36 @@ public:
     void SetIsMachineLED_On( const bool& bOn );
     void SetIsNozzleDetectFilament( const bool& bDetected );
 
+    /// 將目前鏡頭顯示用變換參數複製到 out（無鎖讀取已發布的最新快照）。
+    /// 由 PhrozenStatusPanel::UpdateWebCameraView 的 UI 計時路徑在縮放至控制項之前呼叫。
+    /// 僅在內部快照指標異常缺失時回傳 false（正常使用下不應發生）。
+    bool TryGetWebcamDisplayConfig(PhrozenWebcamDisplayConfig& out) const;
+    /// 寫入新變換並對雙緩衝執行 flip：於寫入端互斥鎖內更新後交換讀寫緩衝，
+    /// 使 TryGetWebcamDisplayConfig 可原子性地讀到新值。rotation_deg 會限制為 Moonraker 象限角
+    /// （實作：對 360 取餘後僅保留 0／90／180／270）。
+    ///
+    /// **目前原始碼中的呼叫點：** 尚無其他模組呼叫本函式；監控頁僅透過 TryGetWebcamDisplayConfig 讀取並畫出。
+    /// 預期由連線流程、Moonraker GET /server/webcams/list 解析、或監控頁 UI 在適當時機寫入。
+    ///
+    /// **呼叫範例（1）透過 PhrozenDeviceManager 取得當前連線中的 Dev 物件**
+    /// （與 PhrozenMonitorPanel::update_all 設定 SetPhrozenMachineObject 來源相同）：
+    /// \code
+    /// using Slic3r::PhrozenWebcamDisplayConfig;
+    /// using Slic3r::GUI::wxGetApp;
+    /// if (auto* mgr = wxGetApp().GetPhrozenDeviceManager()) {
+    ///     if (auto* dev = mgr->GetConnectingMachine()) {
+    ///         dev->SetWebcamDisplayConfig(PhrozenWebcamDisplayConfig{ true, false, 90 }); // 水平翻轉、順時針 90°
+    ///     }
+    /// }
+    /// \endcode
+    ///
+    /// **呼叫範例（2）已取得 PhrozenStatusPanel 時**（與 UpdateWebCameraView 使用同一支 PhrozenMachineObject_Dev*）：
+    /// \code
+    /// if (auto* dev = status_panel->PhrozenObj()) {
+    ///     dev->SetWebcamDisplayConfig({ false, false, 180 }); // 相容舊版「一律旋轉 180°」畫面
+    /// }
+    /// \endcode
+    void SetWebcamDisplayConfig(const PhrozenWebcamDisplayConfig& cfg);
 
     //PrinterInfo
     float GetPhrozenBedTemperature();
@@ -179,10 +209,9 @@ private:
     DoubleBufferSP< bool > m_machineLED_On;
     DoubleBufferSP< bool > m_nozzleDetectFilament;
     DoubleBufferSP< std::vector< PhrozenAMSInfo > > m_AMSInfoList;
-     
 
-
-
+    /// 與 m_webcame_snapshot 邏輯成對的「即時快照預覽」顯示用變換（不修改 JPEG 內容）。
+    DoubleBufferSP<PhrozenWebcamDisplayConfig> m_webcam_display_config;
 };
 #pragma endregion
 

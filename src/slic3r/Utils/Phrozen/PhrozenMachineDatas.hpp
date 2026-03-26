@@ -121,6 +121,25 @@ public:
 };
 #pragma endregion
 
+#pragma region PhrozenWebcamDisplayConfig
+/// Phrozen 監控分頁「即時鏡頭預覽」用的畫面端幾何設定（僅影響顯示，不改變主機回傳的 JPEG 位元組）。
+///
+/// 欄位命名與語意對齊 Moonraker 的 webcam 項目（API 文件中的 flip_horizontal、flip_vertical、rotation），
+/// 因此日後可將 GET /server/webcams/list 回傳值經正規化後寫入此結構。
+///
+/// 執行緒：由 PhrozenMachineObject_Dev 以 DoubleBufferSP 保存，與 snapshot 緩衝相同模式，
+/// 以便 UI 與網路／背景工作緒安全讀寫。
+struct PhrozenWebcamDisplayConfig {
+    /// 為 true 時在旋轉之後對影像做水平鏡像（左右對調）。
+    bool flip_horizontal = false;
+    /// 為 true 時在旋轉之後對影像做垂直鏡像（上下對調）。
+    bool flip_vertical   = false;
+    /// 順時針旋轉角度（度）。Moonraker 僅使用 0、90、180、270。
+    /// 其他角度在 SetWebcamDisplayConfig 內會被正規化；非象限角度會視為 0。
+    int rotation_deg     = 0;
+};
+#pragma endregion
+
 #pragma region PhrozenWebServiceInfo
 
 enum class PhrozenPrinterID : int32_t 

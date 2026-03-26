@@ -38,6 +38,24 @@
 //對應MonitorControl::ReceiveWebCameraView 的更新頻率，這裡設高一點點讓他不容易衝突
 #define REFRESH_WEBCAM_UI_INTERVAL 15 
 
+/// 將已解碼的 JPEG（wxImage）套用監控預覽用的幾何變換。
+/// 順序與常見 Moonraker／前端一致：先依順時針步數旋轉，再做翻轉。
+/// wx：Rotate90(true) 為順時針 90 度；Rotate90(false) 為逆時針 90 度（等同順時針 270 度）。
+/// Mirror(true) 交換欄（水平翻轉）；Mirror(false) 交換列（垂直翻轉）。
+static void apply_phrozen_webcam_display_transforms(wxImage& image, const Slic3r::PhrozenWebcamDisplayConfig& cfg)
+{
+    switch (cfg.rotation_deg) {
+    case 90:  image = image.Rotate90(true); break;
+    case 180: image = image.Rotate180(); break;
+    case 270: image = image.Rotate90(false); break;
+    default: break;
+    }
+    if (cfg.flip_horizontal)
+        image = image.Mirror(true);
+    if (cfg.flip_vertical)
+        image = image.Mirror(false);
+}
+
 namespace Slic3r { namespace GUI {
 
 #pragma region PanelParameter
@@ -3228,7 +3246,13 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     }
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
-    image = image.Rotate180(); //水平+垂直翻轉
+    if (!image.IsOk()) {
+        return;
+    }
+    // 顯示用變換可與 JPEG 取樣分開更新（對應 Moonraker 的 flip／rotation 等 metadata 語意）。
+    Slic3r::PhrozenWebcamDisplayConfig disp;
+    pPhrozenObj->TryGetWebcamDisplayConfig(disp);
+    apply_phrozen_webcam_display_transforms(image, disp);
     int x, y;
     media_ctrl_panel->GetSize( &x, &y );
     image.Rescale(x, y);

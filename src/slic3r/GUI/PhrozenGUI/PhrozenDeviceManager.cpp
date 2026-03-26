@@ -1255,6 +1255,34 @@ bool PhrozenMachineObject_Dev::ReadDataFromWebcamSnapshot( std::vector<unsigned 
     return pWebcam->try_read( data );
 }
 
+/// 將任意角度正規化為 Moonraker 允許的 rotation（僅 0、90、180、270）。
+/// 先對 360 取餘使結果落在 [0, 360)，僅保留象限角；其餘一律改為 0，避免 wx 旋轉分支不支援的值。
+static int normalize_webcam_rotation_deg(int deg)
+{
+    int r = deg % 360;
+    if (r < 0) r += 360;
+    if (r == 0 || r == 90 || r == 180 || r == 270)
+        return r;
+    return 0;
+}
+
+// 從雙緩衝讀取目前發布給 UI 的鏡頭顯示變換（與 JPEG snapshot 讀取路徑分離）。
+bool PhrozenMachineObject_Dev::TryGetWebcamDisplayConfig(PhrozenWebcamDisplayConfig& out) const
+{
+    return m_webcam_display_config.try_read(out);
+}
+
+// 發布新變換：寫入後 flip，讀端（監控頁計時器）下一幀即套用。
+// 目前專案內尚無其他呼叫點（讀取端：PhrozenStatusPanel::UpdateWebCameraView）；呼叫範例見 PhrozenDeviceManager.hpp 註解。
+void PhrozenMachineObject_Dev::SetWebcamDisplayConfig(const PhrozenWebcamDisplayConfig& cfg)
+{
+    // 水平／垂直翻轉旗標維持原值；僅旋轉角度依 Moonraker／wx 旋轉 API 做清理。
+    PhrozenWebcamDisplayConfig normalized = cfg;
+    normalized.rotation_deg = normalize_webcam_rotation_deg(normalized.rotation_deg);
+    m_webcam_display_config.write(normalized);
+    m_webcam_display_config.flip();
+}
+
 bool PhrozenMachineObject_Dev::ReadDataFromAMSInfoList( std::vector< PhrozenAMSInfo >& data )
 {
     return m_AMSInfoList.try_read( data );
