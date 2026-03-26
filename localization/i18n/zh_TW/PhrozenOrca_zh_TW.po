@@ -18756,5 +18756,20 @@ msgstr "樹脂"
 msgid "Linear"
 msgstr "線性"
 
+msgid "Raft Thickness"
+msgstr "底筏厚度"
+
+msgid "Bottom Contact Diameter"
+msgstr "底部接觸直徑"
+
+msgid "Raft Max Merge Distance"
+msgstr "底筏最大合併距離"
+
 msgid "Support Angle"
 msgstr "底筏坡度"
+
+msgid "Contact Type"
+msgstr "接觸類型"
+
+msgid "Support Point Diameter"
+msgstr "支撐點直徑"
