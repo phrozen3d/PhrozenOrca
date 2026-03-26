@@ -1847,6 +1847,8 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     m_plater->sidebar().on_filaments_change(pb->filament_presets.size());
     if (m_param_panel)
         m_param_panel->switch_process_tab_for_printer_technology();
+    if (m_topbar)
+        m_topbar->ShowCalibrationButton(!resin);
     Layout();
 }
 
