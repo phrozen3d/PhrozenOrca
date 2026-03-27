@@ -2143,6 +2143,13 @@ void PhrozenSelectMachineDialog::on_send_print()
 
     if ( bSuccessSend )
     {
+        // 儲存上次成功送印的 IP，供下次開啟對話框時自動帶入，立即寫入磁碟
+        AppConfig* app_cfg = wxGetApp().app_config;
+        if (app_cfg) {
+            app_cfg->set_str("phrozen", "last_print_ip", m_printer_last_select_ip);
+            app_cfg->save();
+        }
+
         wxBusyCursor kWait;
         //確認送印成功，要同步連接device page的ip connect
         bool bConnectDevice = true;
@@ -2160,7 +2167,7 @@ void PhrozenSelectMachineDialog::on_send_print()
                 std::this_thread::sleep_for(std::chrono::seconds(1));// wait for process end
             }
         }
-
+        
         if ( bConnectDevice )
         {
             wxGetApp().InitPhrozenConnector(m_printer_last_select_ip);
@@ -3444,7 +3451,23 @@ bool PhrozenSelectMachineDialog::Show(bool show)
     wxGetApp().UpdateDlgDarkUI(this);
     wxGetApp().reset_to_active();
     set_default();
-    update_user_machine_list();
+
+    // 讀取上次送印的 IP（set_default() 已清空 m_printer_last_select_ip，需在其之後讀取）
+    std::string last_ip;
+    AppConfig* app_cfg = wxGetApp().app_config;
+    if (app_cfg)
+        last_ip = app_cfg->get("phrozen", "last_print_ip");
+
+    if (!last_ip.empty()) {
+        // 有紀錄：直接帶入 combobox，跳過自動搜索流程
+        m_comboBox_printer->Append(wxString::FromUTF8(last_ip));
+        m_comboBox_printer->SetValue(wxString::FromUTF8(last_ip));
+        m_printer_last_select_ip = last_ip;
+        Enable_Send_Button(true);
+    } else {
+        // 沒有紀錄：走正常搜索流程
+        update_user_machine_list();
+    }
 
     Layout();
     Fit();
