@@ -90,6 +90,11 @@ private:
 
     void init_cylinder_model();
 
+    // Renders the secondary drill panel (DrillPanel2) placed below the legacy panel.
+    // Only draws the ImGui window and updates action flags; does not execute deletion or refresh.
+    void render_new_drill_panel(float x, float y, float legacy_panel_h,
+                                ModelObject* mo, bool& remove_selected, bool& remove_all);
+
 protected:
     void on_set_state() override;
     void on_set_hover_id() override;

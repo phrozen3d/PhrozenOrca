@@ -467,6 +467,175 @@ void GLGizmoDrill::update_hole_raycasters_for_picking_transform()
 }
 
 
+void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h,
+                                          ModelObject* mo, bool& remove_selected, bool& remove_all)
+{
+    const float scale         = m_parent.get_scale();
+    const float new_panel_gap = 8.f * scale;           // gap between panels — adjustable
+
+    // Layout metrics — all adjustable
+    const float label_col_w = std::max(
+        std::max(ImGui::CalcTextSize("Diameter").x, ImGui::CalcTextSize("Depth").x),
+        ImGui::CalcTextSize("Clipping of View").x
+    ) + m_imgui->scaled(1.5f);                         // right-padding of label column — adjustable
+
+    const float value_box_w   = m_imgui->scaled(4.f);  // value box width — adjustable
+
+    const float fp    = ImGui::GetStyle().FramePadding.x * 2.f;
+    const float btn_w = std::max(
+        std::max(ImGui::CalcTextSize("Remove selected").x, ImGui::CalcTextSize("Remove all").x),
+        std::max(ImGui::CalcTextSize("Preview").x,         ImGui::CalcTextSize("Reset direction").x)
+    ) + fp + m_imgui->scaled(1.f);                     // extra padding to avoid tight fit — adjustable
+
+    // push_toolbar_style before set_next_window_pos/begin so WindowRounding etc. take effect.
+    // Provides: WindowRounding=3*scale, WindowBorderSize=0, WindowPadding=(20,10)*scale,
+    //           FrameBorderSize=1, FrameRounding=2*scale, ItemSpacing=(10,10)*scale,
+    //           WindowBg=COL_WINDOW_BG(white), Button=white, ButtonHovered=COL_HOVER,
+    //           Separator=COL_SEPARATOR, FrameBg(transparent+bordered), Text, etc.
+    ImGuiWrapper::push_toolbar_style(scale);            // (TOOLBAR) pushes 6 vars + 16 colors
+
+    // X-axis right-edge correction: mirrors GizmoImguiSetNextWIndowPos 5-param logic.
+    // Uses new_panel_w captured from the previous frame (0 on first frame = no correction).
+    // Y-axis intentionally not corrected; also no handling if panel wider than canvas.
+    static float new_panel_w = 0.f;   // width from previous frame — updated after window renders
+    float new_panel_x = x;
+    GizmoImguiSetNextWIndowPos(new_panel_x, y + legacy_panel_h + new_panel_gap,
+                               new_panel_w, 0, ImGuiCond_Always);
+    m_imgui->begin(wxString("DrillPanel2"),
+                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+                   ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+
+    // Row 1: Diameter
+    // Source: m_new_hole_radius*2; range [1,60] (slider min 1.f, hard cap 60 from on_render_input_window)
+    // Commit: only radius is written to selected holes — height is intentionally untouched.
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Diameter");                 // fixed English — adjustable to _L later
+    ImGui::SameLine(label_col_w);
+    ImGui::PushItemWidth(value_box_w);
+    float display_diam = m_new_hole_radius * 2.f;
+    ImGui::InputFloat("##ph_diameter", &display_diam, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+    if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
+        m_new_hole_radius = std::clamp(display_diam, 1.f, 60.f) / 2.f;
+        if (!m_selection_empty) {
+            for (size_t idx = 0; idx < m_selected.size(); ++idx)
+                if (m_selected[idx])
+                    mo->sla_drain_holes[idx].radius = m_new_hole_radius; // radius only
+            m_parent.set_as_dirty();
+        }
+    }
+    ImGui::PopItemWidth();
+
+    // Row 2: Depth
+    // Source: m_new_hole_height; range [0,100] (slider min 0.f, actual clamp 100)
+    // Commit: only height is written to selected holes — radius is intentionally untouched.
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Depth");
+    ImGui::SameLine(label_col_w);
+    ImGui::PushItemWidth(value_box_w);
+    float display_depth = m_new_hole_height;
+    ImGui::InputFloat("##ph_depth", &display_depth, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+    if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
+        m_new_hole_height = std::clamp(display_depth, 0.f, 100.f);
+        if (!m_selection_empty) {
+            for (size_t idx = 0; idx < m_selected.size(); ++idx)
+                if (m_selected[idx])
+                    mo->sla_drain_holes[idx].height = m_new_hole_height; // height only
+            m_parent.set_as_dirty();
+        }
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::Separator();
+
+    // Row 3: Clipping of View
+    // Source: m_c->object_clipper()->get_position(); range [0,1]
+    // Commit calls set_position_by_ratio (same as old UI slider, false = non-dragging)
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("Clipping of View");
+    ImGui::SameLine(label_col_w);
+    ImGui::PushItemWidth(value_box_w);
+    float display_clip = m_c->object_clipper()->get_position();
+    ImGui::InputFloat("##ph_clip", &display_clip, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+    if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled())
+        m_c->object_clipper()->set_position_by_ratio(std::clamp(display_clip, 0.f, 1.f), false);
+    ImGui::PopItemWidth();
+
+    // Button section: tighter spacing (overrides push_toolbar_style's ItemSpacing=(10,10)*scale)
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f)); // +1 var
+
+    // Row 4: [?] | Remove selected | Remove all
+    // "?" help icon: same ImageButton3 + BeginTooltip2 pattern as GLGizmoAdvancedCut / GLGizmoFdmSupports.
+    // PushStyleVar(2) scoped tightly around ImageButton3 + its tooltip block.
+    {
+        ImTextureID normal_id = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP);
+        ImTextureID hover_id  = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP_HOVER);
+
+        const float  icon_sz    = 25.f * scale;    // matches FdmSupports pattern — adjustable
+        ImVec2       button_size(icon_sz, icon_sz);
+
+        // Caption column width: max of all caption strings + ": " separator margin
+        const float caption_max =
+            std::max(m_imgui->calc_text_size(wxString::FromUTF8("左鍵")).x,
+                     m_imgui->calc_text_size(wxString::FromUTF8("右鍵")).x)
+            + m_imgui->calc_text_size(wxString::FromUTF8(": ")).x + 15.f;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);    // no border on icon button
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {0, 0});   // no padding on icon button
+        ImGui::ImageButton3(normal_id, hover_id, button_size);        // click = no-op (return value ignored)
+
+        if (ImGui::IsItemHovered()) {
+            // Tooltip anchored below the new panel — same y formula as FdmSupports::show_tooltip_information
+            const float tooltip_y = ImGui::GetContentRegionMax().y + ImGui::GetFrameHeight()
+                                    + y + legacy_panel_h + new_panel_gap;
+            ImGui::BeginTooltip2(ImVec2(new_panel_x, tooltip_y));
+
+            auto draw_row = [&](const wxString& caption, const wxString& text) {
+                m_imgui->text_colored(ImGuiWrapper::COL_ACTIVE,     caption);
+                ImGui::SameLine(caption_max);
+                m_imgui->text_colored(ImGuiWrapper::COL_WINDOW_BG,  text);
+            };
+            draw_row(wxString::FromUTF8("左鍵: "), wxString::FromUTF8("新增洞"));
+            draw_row(wxString::FromUTF8("右鍵: "), wxString::FromUTF8("移除洞"));
+
+            ImGui::EndTooltip();
+        }
+        ImGui::PopStyleVar(2);  // FrameBorderSize + FramePadding
+
+        ImGui::SameLine();
+        // Guard: same condition as old UI disabled_begin for "remove selected"
+        if (ImGui::Button("Remove selected##new", ImVec2(btn_w, 0.f)))
+            if (is_input_enabled() && !m_selection_empty)
+                remove_selected = true;   // post-render block in on_render_input_window handles deletion
+        ImGui::SameLine();
+        // Guard: same condition as old UI disabled_begin for "remove all"
+        if (ImGui::Button("Remove all##new",      ImVec2(btn_w, 0.f)))
+            if (is_input_enabled() && !mo->sla_drain_holes.empty())
+                remove_all = true;        // post-render block in on_render_input_window handles deletion
+
+        // Row 5: [indent = icon width] | Preview | Reset direction
+        ImGui::Dummy(ImVec2(button_size.x, 0.f)); // aligned to icon width
+        ImGui::SameLine();
+        if (ImGui::Button("Preview##new",         ImVec2(btn_w, 0.f)))
+            reslice_until_step(slaposDrillHoles); // same call as old UI
+        ImGui::SameLine();
+        if (ImGui::Button("Reset direction##new", ImVec2(btn_w, 0.f)))
+            wxGetApp().CallAfter([this](){
+                m_c->object_clipper()->set_position_by_ratio(-1., false); // same lambda as old UI
+            });
+    } // end Row 4-5 help icon block
+
+    ImGui::PopStyleVar(1);       // end ItemSpacing override (+1 var popped, net var stack balanced)
+
+    new_panel_w = ImGui::GetWindowWidth(); // capture actual width for next frame's X correction
+
+    m_imgui->end();
+
+    ImGuiWrapper::pop_toolbar_style(); // (TOOLBAR) pops 6 vars + 16 colors
+}
+
+
 void GLGizmoDrill::on_render_input_window(float x, float y, float bottom_limit)
 {
     ModelObject* mo = m_c->selection_info()->model_object();
@@ -605,7 +774,13 @@ RENDER_AGAIN:
     }
 
     m_imgui->disabled_end();
+    const float legacy_panel_h = ImGui::GetWindowSize().y; // capture before end, for new panel positioning
     m_imgui->end();
+
+    // Render the secondary drill panel placed below the legacy panel.
+    // This helper only draws the panel and updates the action flags.
+    // Post-render deletion / refresh flow stays below in on_render_input_window().
+    render_new_drill_panel(x, y, legacy_panel_h, mo, remove_selected, remove_all);
 
 
     if (remove_selected || remove_all) {
