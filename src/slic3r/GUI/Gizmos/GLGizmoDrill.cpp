@@ -467,6 +467,91 @@ void GLGizmoDrill::update_hole_raycasters_for_picking_transform()
 }
 
 
+// Custom horizontal slider for DrillPanel2.
+// Draws a bar (left=orange, right=gray) with a triangle handle (▲) below it.
+//
+// IMPORTANT — two separate range concepts:
+//   s_min / s_max : slider bar interaction range.
+//                   Controls the drag-to-value mapping and the handle's visual position.
+//                   The handle is clamped to [s_min, s_max] for drawing purposes, so a value
+//                   outside this range is shown at the left or right endpoint — the value itself
+//                   is NOT silently overwritten just because it falls outside the slider range.
+//   v_min / v_max : value / final-clamp range.
+//                   The value produced by a slider interaction is clamped here before being
+//                   written to v. Typically wider than the slider range (matches old Hollow UI:
+//                   "allows entering off-scale values and still protects against complete nonsense").
+//
+// enabled : when false, draws the widget but does not modify v.
+// step    : if > 0, snaps to multiples of step (reserved for integer-step mode; pass 0 for continuous).
+// Returns true if v was changed this frame by slider interaction.
+static bool draw_custom_slider(const char* id, float& v,
+                               float s_min, float s_max,  // slider bar range (drag + visual)
+                               float v_min, float v_max,  // value clamp range (final allowed)
+                               float bar_w,
+                               bool enabled = true, float step = 0.f)
+{
+    ImDrawList*  dl  = ImGui::GetWindowDrawList();
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    const float  fh  = ImGui::GetFrameHeight();
+
+    // Geometry constants (fixed screen-pixel sizes; not DPI-scaled — stays sharp at any resolution)
+    constexpr float kBarH     = 3.f;
+    constexpr float kGap      = 2.f;   // gap between bar bottom and triangle apex
+    constexpr float kTriH     = 7.f;
+    constexpr float kTriW     = 10.f;
+    constexpr float kRounding = 1.5f;
+
+    // Vertically center the bar+gap+triangle block within the frame height
+    const float block_h = kBarH + kGap + kTriH;
+    const float v_off   = std::floor((fh - block_h) * 0.5f);
+    const float bar_y0  = pos.y + v_off;
+    const float bar_y1  = bar_y0 + kBarH;
+    const float tri_ay  = bar_y1 + kGap;   // apex y (top of triangle, touching bar bottom)
+    const float tri_by  = tri_ay + kTriH;  // base  y (bottom of triangle)
+
+    // Full bar_w × fh hit area — captures both click-to-set and drag
+    ImGui::InvisibleButton(id, ImVec2(bar_w, fh));
+    const bool active  = ImGui::IsItemActive();
+    bool       changed = false;
+
+    if (active && enabled) {
+        // Map mouse X within slider range [s_min, s_max]; Y axis is intentionally ignored.
+        // Then clamp to the (possibly wider) value range [v_min, v_max] as a safety net.
+        const float t  = std::clamp((ImGui::GetIO().MousePos.x - pos.x) / bar_w, 0.f, 1.f);
+        float       nv = s_min + t * (s_max - s_min);
+        if (step > 0.f)
+            nv = std::round(nv / step) * step;  // integer-step snap (reserved)
+        nv = std::clamp(nv, v_min, v_max);
+        if (nv != v) { v = nv; changed = true; }
+    }
+
+    // Compute handle draw position using slider range [s_min, s_max].
+    // std::clamp to [0,1] means values outside the slider range show the handle at the
+    // left or right endpoint — the bar visually saturates without changing v.
+    const float t_draw = (s_max > s_min)
+        ? std::clamp((v - s_min) / (s_max - s_min), 0.f, 1.f) : 0.f;
+    const float hx = pos.x + t_draw * bar_w;
+
+    constexpr ImU32 kOrange = IM_COL32(232, 107, 32, 255);  // OrcaSlicer orange
+    constexpr ImU32 kGray   = IM_COL32(190, 190, 190, 255);
+
+    // Bar: left segment (orange) + right segment (gray)
+    if (hx > pos.x)
+        dl->AddRectFilled(ImVec2(pos.x, bar_y0), ImVec2(hx,          bar_y1), kOrange, kRounding);
+    if (hx < pos.x + bar_w)
+        dl->AddRectFilled(ImVec2(hx,    bar_y0), ImVec2(pos.x+bar_w, bar_y1), kGray,   kRounding);
+
+    // Triangle handle ▲: apex up (near bar), base down
+    dl->AddTriangleFilled(
+        ImVec2(hx,               tri_ay),
+        ImVec2(hx - kTriW * .5f, tri_by),
+        ImVec2(hx + kTriW * .5f, tri_by),
+        kOrange);
+
+    return changed;
+}
+
+
 void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h,
                                           ModelObject* mo, bool& remove_selected, bool& remove_all)
 {
@@ -480,6 +565,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     ) + m_imgui->scaled(1.5f);                         // right-padding of label column — adjustable
 
     const float value_box_w   = m_imgui->scaled(4.f);  // value box width — adjustable
+    const float slider_w      = m_imgui->scaled(8.f);  // custom slider bar width — adjustable
 
     const float fp    = ImGui::GetStyle().FramePadding.x * 2.f;
     const float btn_w = std::max(
@@ -506,16 +592,29 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
 
     // Row 1: Diameter
-    // Source: m_new_hole_radius*2; range [1,60] (slider min 1.f, hard cap 60 from on_render_input_window)
+    // Source: m_new_hole_radius*2.  slider range [1, 25] / final clamp [0.1, 60].
     // Commit: only radius is written to selected holes — height is intentionally untouched.
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Diameter");                 // fixed English — adjustable to _L later
     ImGui::SameLine(label_col_w);
+    // slider range [1, 25]: common drag range (matches old Hollow UI).
+    // final clamp [0.1, 60]: allows keyboard input beyond slider range, protects against nonsense.
+    // If current value exceeds slider range, handle visually saturates at the endpoint.
+    float display_diam = m_new_hole_radius * 2.f;       // shared by slider and InputFloat below
+    if (draw_custom_slider("##sl_diameter", display_diam, 1.f, 25.f, 0.1f, 60.f, slider_w, is_input_enabled())) {
+        m_new_hole_radius = display_diam / 2.f;         // slider: immediate apply, every frame
+        if (!m_selection_empty) {
+            for (size_t idx = 0; idx < m_selected.size(); ++idx)
+                if (m_selected[idx])
+                    mo->sla_drain_holes[idx].radius = m_new_hole_radius; // radius only
+            m_parent.set_as_dirty();
+        }
+    }
+    ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
-    float display_diam = m_new_hole_radius * 2.f;
     ImGui::InputFloat("##ph_diameter", &display_diam, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
-        m_new_hole_radius = std::clamp(display_diam, 1.f, 60.f) / 2.f;
+        m_new_hole_radius = std::clamp(display_diam, 0.1f, 60.f) / 2.f;  // final clamp [0.1, 60]
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
@@ -526,13 +625,25 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     ImGui::PopItemWidth();
 
     // Row 2: Depth
-    // Source: m_new_hole_height; range [0,100] (slider min 0.f, actual clamp 100)
+    // Source: m_new_hole_height.  slider range [0, 10] / final clamp [0, 100].
     // Commit: only height is written to selected holes — radius is intentionally untouched.
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Depth");
     ImGui::SameLine(label_col_w);
+    // slider range [0, 10]: common drag range (matches old Hollow UI).
+    // final clamp [0, 100]: allows keyboard input beyond slider range, protects against nonsense.
+    float display_depth = m_new_hole_height;            // shared by slider and InputFloat below
+    if (draw_custom_slider("##sl_depth", display_depth, 0.f, 10.f, 0.f, 100.f, slider_w, is_input_enabled())) {
+        m_new_hole_height = display_depth;              // slider: immediate apply, every frame
+        if (!m_selection_empty) {
+            for (size_t idx = 0; idx < m_selected.size(); ++idx)
+                if (m_selected[idx])
+                    mo->sla_drain_holes[idx].height = m_new_hole_height; // height only
+            m_parent.set_as_dirty();
+        }
+    }
+    ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
-    float display_depth = m_new_hole_height;
     ImGui::InputFloat("##ph_depth", &display_depth, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
         m_new_hole_height = std::clamp(display_depth, 0.f, 100.f);
@@ -553,8 +664,12 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("Clipping of View");
     ImGui::SameLine(label_col_w);
+    // slider range == value range [0, 1]: no separation needed for clipping.
+    float display_clip = m_c->object_clipper()->get_position(); // shared by slider and InputFloat below
+    if (draw_custom_slider("##sl_clip", display_clip, 0.f, 1.f, 0.f, 1.f, slider_w, is_input_enabled()))
+        m_c->object_clipper()->set_position_by_ratio(std::clamp(display_clip, 0.f, 1.f), false);
+    ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
-    float display_clip = m_c->object_clipper()->get_position();
     ImGui::InputFloat("##ph_clip", &display_clip, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled())
         m_c->object_clipper()->set_position_by_ratio(std::clamp(display_clip, 0.f, 1.f), false);
