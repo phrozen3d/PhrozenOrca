@@ -1,7 +1,7 @@
 # SLA PRZ 格式匯出實作記錄
 
 **建立日期**: 2026-03-12
-**最後更新**: 2026-03-17
+**最後更新**: 2026-03-30
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [src/libslic3r/Format/PhrozenPRZ.hpp](../src/libslic3r/Format/PhrozenPRZ.hpp)（新增）
@@ -43,7 +43,7 @@ PRZ File
 │   ├─ Printer Type (32 bytes) ← printer_model
 │   ├─ Profile Name (32 bytes) ← sla_print_settings_id
 │   ├─ Anti-aliasing level (2 bytes, big-endian short)
-│   ├─ Grey level (2 bytes)
+│   ├─ Grey level (2 bytes) ← gray_scale_level[0] / 255 × 8，範圍 0~8
 │   ├─ Blur level (2 bytes)
 │   ├─ Preview 116×116 (116*116*2 bytes, RGB565) ← preview_image_path/PreviewImage_116_116.png（或全 0）
 │   ├─ CR LF (2 bytes)
@@ -88,7 +88,7 @@ PRZ File
 │   ├─ BottomLightPwm (2 bytes, short) ← bottom_light_pwm
 │   ├─ LightPwm (2 bytes, short) ← light_pwm
 │   ├─ Advance_Mode (1 byte, 固定 0x00)
-│   ├─ PrintTimes (4 bytes, int, 0)
+│   ├─ PrintTimes (4 bytes, int) ← calculate_prz_print_time()（秒）
 │   ├─ TotalVolume (4 bytes, float) ← objects_used_material + support_used_material（mm³）
 │   ├─ TotalWeight (4 bytes, float) ← total_weight（g）
 │   ├─ TotalPrice (4 bytes, float) ← total_cost
@@ -198,7 +198,7 @@ std::string generate_prz(const SLAPrint &print);
 | `bottom_layer_count` | `bottom_layer_count` | `coInt` | `cfg_i()` |
 | `transition_layer_count` | `transition_layer_count` | `coInt` | `cfg_i()` |
 | `anti_aliasing_level` | `anti_aliasing_level` | `coInt` | `cfg_i()` |
-| `gray_level` | `picture_grayscale` | `coInt` | `cfg_i()` |
+| `gray_level` | `gray_scale_level[0]` | `coInts` | 直接讀 `ConfigOptionInts::values[0]`，換算至 0~8 |
 | `blur` | `image_blur_pixel` | `coEnum` | `cfg_i()` |
 | `Bottom Light PWM` | `bottom_light_pwm` | `coInt` | `cfg_i()` |
 | `Light PWM` | `light_pwm` | `coInt` | `cfg_i()` |
@@ -623,3 +623,51 @@ auto lvlfn = [this, &slck, increment, &dstatus, &pst, raster_shift]
 ```
 
 `shift` 計算邏輯與 Pipeline 2（cv::Mat）完全相同，確保 SL1 PNG 與 PRZ 輸出的模型位置一致。
+
+---
+
+## 九、2026-03-30 修改記錄
+
+### 9-1 PrintTimes — 從硬寫 0 改為實際預估值（PhrozenPRZ.cpp）
+
+**問題**：PRZ header 的 `PrintTimes` 欄位（4 bytes int）硬寫為 0，導致印表機顯示無列印時間。
+
+**修正**：在 `PhrozenPRZ.cpp` 新增靜態函式 `calculate_prz_print_time(print, cfg)`，在 `prz_header()` 呼叫並填入計算結果（單位：秒）。
+
+**公式架構**（每層時間 = 曝光 + 關燈延遲 + 抬升兩段 + 下降兩段 + 靜止等待）：
+
+```
+T_layer = T_exposure + light_off_day + T_lift1 + T_lift2 + T_retract1 + T_retract2 + rest_time_after_retract
+
+T_motion(dist_mm, speed_mm_min) = (speed == 0) ? 0 : dist / speed * 60   // mm/min → s
+```
+
+三個層類型：
+
+| 層類型 | 層數 | 曝光時間 | 運動參數 |
+|---|---|---|---|
+| 底層 | `bottom_layer_count` | `bottom_exposure_time` | `bottom_lift_*` / `bottom_retract_*` |
+| 過渡層 | `transition_layer_count` | 線性插值（算術級數，均值 `(bt+nt)/2`） | 普通層運動參數 |
+| 普通層 | 剩餘 | `exposure_time` | `lifting_*` / `retract_*` |
+
+`retract_dist_1 = lift1 + lift2 - retract2`（與 `prz_header` 現有邏輯一致，≤ 0 時取 `lift1 + lift2`）。
+速度為 0 時該段運動時間定為 0，避免除以零。
+
+---
+
+### 9-2 Grey level — 改用 gray_scale_level[0] 並換算至 [0,8]（PhrozenPRZ.cpp）
+
+**問題**：`Grey level` 欄位原本讀取 `picture_grayscale`（`coInt`，0~255），但 PRZ 格式的 Grey level 欄位值域為 0~8。
+
+**修正**：改讀 `gray_scale_level`（`coInts`，`values[0]`，0~255），並做等比例換算：
+
+```cpp
+int raw = gray_scale_level.values[0];   // 範圍 0~255，取 [0]
+raw = clamp(raw, 0, 255);
+short v = (short)round(raw / 255.0 * 8.0);  // 映射至 0~8
+```
+
+`gray_scale_level` 定義：
+- 型別：`coInts`，`def->min = 0`，`def->max = 255`
+- 預設值：`{0, 255}`（`[0]` = gray_lo，`[1]` = gray_hi）
+- `[0]` 已用於 anti-aliasing 後處理的 `gray_lo`（`SLAPrintSteps.cpp`），語意一致

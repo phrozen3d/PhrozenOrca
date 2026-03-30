@@ -66,6 +66,88 @@ static void write_be(std::string &fh, T val)
 }
 
 // ---------------------------------------------------------------------------
+// Calculate estimated print time in seconds from PRZ parameters
+// ---------------------------------------------------------------------------
+static int calculate_prz_print_time(const SLAPrint          &print,
+                                    const DynamicPrintConfig &cfg)
+{
+    // speed == 0 → treat that motion segment as 0 s (avoid divide-by-zero)
+    auto motion_s = [](float dist_mm, float speed_mm_min) -> float {
+        if (speed_mm_min <= 0.f) return 0.f;
+        return dist_mm / speed_mm_min * 60.f;
+    };
+
+    const int   total_layers     = static_cast<int>(print.layer_images().size());
+    const int   bottom_count     = cfg_i(cfg, "bottom_layer_count");
+    const int   transition_count = cfg_i(cfg, "transition_layer_count");
+
+    const float bt  = cfg_f(cfg, "bottom_exposure_time");
+    const float nt  = cfg_f(cfg, "exposure_time");
+    const float lod = cfg_f(cfg, "light_off_day");
+    const float rtr = cfg_f(cfg, "rest_time_after_retract");
+
+    // ---- Bottom layer motion parameters ----
+    const float b_lh  = cfg_floats0(cfg, "bottom_lift_distance");
+    const float b_lh2 = cfg_floats0(cfg, "bottom_lift_second_distance");
+    const float b_dh2 = cfg_floats0(cfg, "bottom_retract_second_distance");
+    float b_dh1 = b_lh + b_lh2 - b_dh2;
+    if (b_dh1 <= 0.f) b_dh1 = b_lh + b_lh2;
+
+    const float b_ls  = cfg_floats0(cfg, "bottom_lift_speed");
+    const float b_ls2 = cfg_floats0(cfg, "bottom_lift_second_speed");
+    const float b_ds  = cfg_floats0(cfg, "bottom_retract_speed");
+    const float b_ds2 = cfg_floats0(cfg, "bottom_retract_second_speed");
+
+    // ---- Normal/transition layer motion parameters ----
+    const float n_lh  = cfg_floats0(cfg, "lifting_distance");
+    const float n_lh2 = cfg_floats0(cfg, "lift_second_distance");
+    const float n_dh2 = cfg_floats0(cfg, "retract_second_distance");
+    float n_dh1 = n_lh + n_lh2 - n_dh2;
+    if (n_dh1 <= 0.f) n_dh1 = n_lh + n_lh2;
+
+    const float n_ls  = cfg_floats0(cfg, "lifting_speed");
+    const float n_ls2 = cfg_floats0(cfg, "lift_second_speed");
+    const float n_ds  = cfg_floats0(cfg, "retract_speed");
+    const float n_ds2 = cfg_floats0(cfg, "retract_second_speed");
+
+    // ---- Pre-compute motion time per segment ----
+    const float t_b_motion = motion_s(b_lh,  b_ls)
+                           + motion_s(b_lh2, b_ls2)
+                           + motion_s(b_dh1, b_ds)
+                           + motion_s(b_dh2, b_ds2);
+
+    const float t_n_motion = motion_s(n_lh,  n_ls)
+                           + motion_s(n_lh2, n_ls2)
+                           + motion_s(n_dh1, n_ds)
+                           + motion_s(n_dh2, n_ds2);
+
+    // ---- Count effective layers per zone ----
+    const int eff_bottom     = std::min(bottom_count, total_layers);
+    const int eff_transition = std::min(transition_count,
+                                        std::max(0, total_layers - eff_bottom));
+    const int eff_normal     = std::max(0, total_layers - eff_bottom - eff_transition);
+
+    // ---- Bottom zone ----
+    float total_s = static_cast<float>(eff_bottom)
+                  * (bt + lod + t_b_motion + rtr);
+
+    // ---- Transition zone (exposure interpolated, motion = normal) ----
+    // Sum of interpolated exposure times (arithmetic series):
+    //   Σ_{k=1}^{N_t} [ bt + (nt-bt)/(N_t+1)*k ] = N_t*(bt+nt)/2
+    if (eff_transition > 0) {
+        const float exp_sum = static_cast<float>(eff_transition) * (bt + nt) * 0.5f;
+        total_s += exp_sum
+                 + static_cast<float>(eff_transition) * (lod + t_n_motion + rtr);
+    }
+
+    // ---- Normal zone ----
+    total_s += static_cast<float>(eff_normal)
+             * (nt + lod + t_n_motion + rtr);
+
+    return static_cast<int>(total_s);
+}
+
+// ---------------------------------------------------------------------------
 // PRZ Header  (mirrors Slicer::PrzHeader)
 // ---------------------------------------------------------------------------
 static void prz_header(std::string             &fh,
@@ -147,9 +229,15 @@ static void prz_header(std::string             &fh,
         write_be(fh, v);
         layerContent_position_offset += 2;
     }
-    // Grey level / picture_grayscale (2 bytes)
+    // Grey level: gray_scale_level[0] mapped from [0,255] to [0,8]
     {
-        short v = static_cast<short>(cfg_i(cfg, "picture_grayscale"));
+        int raw = 0;
+        if (cfg.has("gray_scale_level"))
+            if (auto *opt = cfg.option<ConfigOptionInts>("gray_scale_level"))
+                if (!opt->values.empty())
+                    raw = opt->values[0];
+        raw = std::max(0, std::min(raw, 255));
+        short v = static_cast<short>(std::lround(raw / 255.0 * 8.0));
         write_be(fh, v);
         layerContent_position_offset += 2;
     }
@@ -321,8 +409,8 @@ static void prz_header(std::string             &fh,
     { short v = static_cast<short>(cfg_i(cfg, "light_pwm")); write_be(fh, v); layerContent_position_offset += 2; }
     // Advance_Mode (0 = normal, 1 byte)
     { fh += '\0'; layerContent_position_offset += 1; }
-    // PrintTimes (estimated, 0)
-    { int v = 0; write_be(fh, v); layerContent_position_offset += 4; }
+    // PrintTimes (estimated, seconds)
+    { int v = calculate_prz_print_time(print, cfg); write_be(fh, v); layerContent_position_offset += 4; }
     // TotalVolume / TotalWeight / TotalPrice (from print statistics)
     {
         const SLAPrintStatistics &stats = print.print_statistics();
