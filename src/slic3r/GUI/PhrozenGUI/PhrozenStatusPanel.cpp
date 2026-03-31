@@ -1414,8 +1414,13 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, _L("Z-Offset"));
     sizerZOffsetTitle->Add(zOffsetTitle, 0, wxLEFT, 5);
     sizerZOffsetTitle->AddStretchSpacer(1);  // Push value to the right
-    m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000");
-    sizerZOffsetTitle->Add(m_staticText_zOffset_value, 0, wxRIGHT, 5);
+    // wxST_NO_AUTORESIZE：label 改變時不自動縮放寬度，避免負號出現時擠壓版面
+    // SetMinSize 以最寬預期字串 "-0.000" 為基準預留固定寬度
+    m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT | wxST_NO_AUTORESIZE);
+    m_staticText_zOffset_value->SetMinSize(
+        wxSize(box->GetTextExtent("-0.000").GetWidth() + FromDIP(4), -1));
+    sizerZOffsetTitle->Add(m_staticText_zOffset_value, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 5);
     sizerBottomRight->Add(sizerZOffsetTitle, 0, wxEXPAND);
 
     // z-offset body
