@@ -16,7 +16,7 @@
 //#include "MsgDialog.hpp"
 //#include "Plater.hpp"
 //#include "ReleaseNote.hpp"
-//#include <thread>
+#include <thread>
 //#include <mutex>
 //#include <codecvt>
 //#include <boost/foreach.hpp>
@@ -1479,6 +1479,20 @@ void PhrozenDeviceManager::StopReceiveWebcam()
         m_spRecieveWebcam->Stop();
         m_spRecieveWebcam = nullptr;
     }
+}
+
+void PhrozenDeviceManager::StopReceiveWebcamAsync()
+{
+    if ( !m_spRecieveWebcam ) return;
+
+    // 立即移走 ownership：m_spRecieveWebcam 立即為 nullptr，
+    // 後續 StartReceiveWebcam() 可立刻重建，不需等待 join。
+    // Stop()（內部 join，最多等 snapshot curl timeout 5s）移至 detached thread 執行，
+    // 不阻塞 UI thread。m_spSendMessage / m_spReceiveMessage 不受影響。
+    std::thread( [worker = std::move(m_spRecieveWebcam)]() mutable {
+        worker->Stop();
+        // worker 於此銷毀，thread 資源完整釋放
+    } ).detach();
 }
 
 bool PhrozenDeviceManager::StartSendMessage()

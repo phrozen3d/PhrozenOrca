@@ -3203,11 +3203,29 @@ void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
     m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
 }
 
+void PhrozenStatusPanel::on_camera_button_triggered( wxCommandEvent& event )
+{
+    // 1. base 負責切換按鈕視覺狀態（toggle value）
+    PhrozenStatusBasePanel::on_camera_button_triggered( event );
+
+    // 2. 根據新狀態同步背景取流
+    auto* mgr = wxGetApp().GetPhrozenDeviceManager();
+    if ( !mgr || !mgr->IsMachineConnecting() ) return;
+
+    if ( IsWebcamUiEnabled() ) {
+        // 按鈕 ON：重啟背景 snapshot 取流
+        mgr->StartReceiveWebcam();
+    } else {
+        // 按鈕 OFF：非同步停止（不阻塞 UI thread，join 在 detached thread 完成）
+        mgr->StopReceiveWebcamAsync();
+    }
+}
+
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
 {
     PhrozenStatusBasePanel::on_lighting_button_triggered( event );
 
-    if ( MonitorControl::IsStartReceiving() ) 
+    if ( MonitorControl::IsStartReceiving() )
     {
         auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
         if ( !pPhrozenMachineObj ) return;

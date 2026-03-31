@@ -342,7 +342,7 @@ public:
     void on_ams_unload_all(wxCommandEvent& event);
     void on_ams_unload_single_slot(wxCommandEvent& event);
     void on_ams_load_single_slot(wxCommandEvent& event);
-    void on_camera_button_triggered( wxCommandEvent& event );
+    virtual void on_camera_button_triggered( wxCommandEvent& event );
     virtual void on_lighting_button_triggered( wxCommandEvent& event );
     bool IsWebcamUiEnabled();
     bool IsLightingUiEnabled();
@@ -610,6 +610,9 @@ protected:
     void on_update_webcam_ui_timer(wxTimerEvent& event);
     void InitWebCamUiUpdateTimer();
     void update_console_hyperlink( const std::string& strLink );
+
+    /* camera switch */
+    void on_camera_button_triggered( wxCommandEvent& event ) override;
 
     /* lighting(LED) */
     void on_lighting_button_triggered( wxCommandEvent& event ) override;
