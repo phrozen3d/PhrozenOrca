@@ -66,14 +66,14 @@
 ((ConfigOptionFloats, retract_second_distance))        // ← 插入於此
 
 // 速度群組（插入方式）
-((ConfigOptionFloats, bottom_lift_speed))
-((ConfigOptionFloats, bottom_lift_second_speed))       // ← 插入於此
-((ConfigOptionFloats, lifting_speed))
-((ConfigOptionFloats, lift_second_speed))              // ← 插入於此
-((ConfigOptionFloats, bottom_retract_speed))
-((ConfigOptionFloats, bottom_retract_second_speed))    // ← 插入於此
-((ConfigOptionFloats, retract_speed))
-((ConfigOptionFloats, retract_second_speed))           // ← 插入於此
+((ConfigOptionFloat, bottom_lift_speed))
+((ConfigOptionFloat, bottom_lift_second_speed))       // ← 插入於此
+((ConfigOptionFloat, lifting_speed))
+((ConfigOptionFloat, lift_second_speed))              // ← 插入於此
+((ConfigOptionFloat, bottom_retract_speed))
+((ConfigOptionFloat, bottom_retract_second_speed))    // ← 插入於此
+((ConfigOptionFloat, retract_speed))
+((ConfigOptionFloat, retract_second_speed))           // ← 插入於此
 ```
 
 **型別說明**：使用 `ConfigOptionFloats`（複數），配合 `dual_float` GUI type，UI 顯示為「主值 + 次值」兩欄位。
@@ -107,9 +107,10 @@ def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
 - 單位 `mm`、`min = 0`
 
 **所有速度參數共用屬性**：
-- `coFloats` / `ConfigOptionDef::GUIType::dual_float`
-- `dual_float_width = 5`、`dual_float_width_second = 10`
+- `coFloat`（純量，**非** `coFloats`）/ 不使用 `dual_float` GUI type
 - 單位 `mm/min`、`min = 0`
+
+> **注意**：速度參數型別為 `coFloat`，與距離參數的 `coFloats` 不同。在 `PhrozenPRZ.cpp` 中必須用 `cfg_f()` 存取，不能用 `cfg_floats0()`（後者只能讀 `coFloats`，讀速度時 cast 失敗會靜默回傳 0）。
 
 ---
 
@@ -159,14 +160,14 @@ optgroup->append_single_option_line("retract_second_speed", "123");           //
 + ((ConfigOptionFloats, bottom_retract_second_distance))
   ((ConfigOptionFloats, retract_distance))
 + ((ConfigOptionFloats, retract_second_distance))
-  ((ConfigOptionFloats, bottom_lift_speed))
-+ ((ConfigOptionFloats, bottom_lift_second_speed))
-  ((ConfigOptionFloats, lifting_speed))
-+ ((ConfigOptionFloats, lift_second_speed))
-  ((ConfigOptionFloats, bottom_retract_speed))
-+ ((ConfigOptionFloats, bottom_retract_second_speed))
-  ((ConfigOptionFloats, retract_speed))
-+ ((ConfigOptionFloats, retract_second_speed))
+  ((ConfigOptionFloat, bottom_lift_speed))
++ ((ConfigOptionFloat, bottom_lift_second_speed))
+  ((ConfigOptionFloat, lifting_speed))
++ ((ConfigOptionFloat, lift_second_speed))
+  ((ConfigOptionFloat, bottom_retract_speed))
++ ((ConfigOptionFloat, bottom_retract_second_speed))
+  ((ConfigOptionFloat, retract_speed))
++ ((ConfigOptionFloat, retract_second_speed))
 ```
 
 ### PrintConfig.cpp — 新增 8 個 option 定義
@@ -177,10 +178,10 @@ optgroup->append_single_option_line("retract_second_speed", "123");           //
 | `lift_second_distance` | Lift Second Distance | Distance | {7.0, 0.0} |
 | `bottom_retract_second_distance` | Bottom Retract Second Distance | Distance | {8.0, 0.0} |
 | `retract_second_distance` | Retract Second Distance | Distance | {7.0, 0.0} |
-| `bottom_lift_second_speed` | Bottom Lift Second Speed | Speed | {45.0, 0.0} |
-| `lift_second_speed` | Lift Second Speed | Speed | {45.0, 0.0} |
-| `bottom_retract_second_speed` | Bottom Retract Second Speed | Speed | {150.0, 0.0} |
-| `retract_second_speed` | Retract Second Speed | Speed | {150.0, 0.0} |
+| `bottom_lift_second_speed` | Bottom Lift Second Speed | Speed | 45.0 |
+| `lift_second_speed` | Lift Second Speed | Speed | 45.0 |
+| `bottom_retract_second_speed` | Bottom Retract Second Speed | Speed | 150.0 |
+| `retract_second_speed` | Retract Second Speed | Speed | 150.0 |
 
 ### Tab.cpp — Distance 頁面 +4 行、Speed 頁面 +4 行
 

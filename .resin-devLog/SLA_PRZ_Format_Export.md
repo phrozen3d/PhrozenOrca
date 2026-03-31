@@ -1,7 +1,7 @@
 # SLA PRZ 格式匯出實作記錄
 
 **建立日期**: 2026-03-12
-**最後更新**: 2026-03-30
+**最後更新**: 2026-03-31
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [src/libslic3r/Format/PhrozenPRZ.hpp](../src/libslic3r/Format/PhrozenPRZ.hpp)（新增）
@@ -204,19 +204,19 @@ std::string generate_prz(const SLAPrint &print);
 | `Light PWM` | `light_pwm` | `coInt` | `cfg_i()` |
 | `layer_height` | `layer_height` | `coFloat` | `cfg_f()` |
 | `bottom_layer_lift_height` | `bottom_lift_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `bottom_layer_lift_speed` | `bottom_lift_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `bottom_layer_lift_speed` | `bottom_lift_speed` | `coFloat` | `cfg_f()` |
 | `bottom_layer_lift_second_height` | `bottom_lift_second_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `bottom_layer_lift_second_speed` | `bottom_lift_second_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `bottom_layer_lift_second_speed` | `bottom_lift_second_speed` | `coFloat` | `cfg_f()` |
 | `bottom_layer_drop_second_height` | `bottom_retract_second_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `bottom_drop_speed` | `bottom_retract_speed` | `coFloats[0]` | `cfg_floats0()` |
-| `bottom_drop_second_speed` | `bottom_retract_second_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `bottom_drop_speed` | `bottom_retract_speed` | `coFloat` | `cfg_f()` |
+| `bottom_drop_second_speed` | `bottom_retract_second_speed` | `coFloat` | `cfg_f()` |
 | `normal_layer_lift_height` | `lifting_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `normal_layer_lift_speed` | `lifting_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `normal_layer_lift_speed` | `lifting_speed` | `coFloat` | `cfg_f()` |
 | `normal_layer_lift_second_height` | `lift_second_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `normal_layer_lift_second_speed` | `lift_second_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `normal_layer_lift_second_speed` | `lift_second_speed` | `coFloat` | `cfg_f()` |
 | `normal_layer_drop_second_height` | `retract_second_distance` | `coFloats[0]` | `cfg_floats0()` |
-| `normal_drop_speed` | `retract_speed` | `coFloats[0]` | `cfg_floats0()` |
-| `normal_drop_second_speed` | `retract_second_speed` | `coFloats[0]` | `cfg_floats0()` |
+| `normal_drop_speed` | `retract_speed` | `coFloat` | `cfg_f()` |
+| `normal_drop_second_speed` | `retract_second_speed` | `coFloat` | `cfg_f()` |
 
 **新增 config 對應**（2026-03-16）：
 
@@ -671,3 +671,35 @@ short v = (short)round(raw / 255.0 * 8.0);  // 映射至 0~8
 - 型別：`coInts`，`def->min = 0`，`def->max = 255`
 - 預設值：`{0, 255}`（`[0]` = gray_lo，`[1]` = gray_hi）
 - `[0]` 已用於 anti-aliasing 後處理的 `gray_lo`（`SLAPrintSteps.cpp`），語意一致
+
+---
+
+### 9-3 速度參數讀取修正：cfg_floats0 → cfg_f（PhrozenPRZ.cpp）
+
+**問題**：UI 設定的速度值（`lifting_speed`、`retract_speed` 等 8 個速度參數）在 PRZ 輸出時全為 0，導致印表機收到錯誤的 0 mm/min 速度。`calculate_prz_print_time()` 估算列印時間時所有運動段也因此計算為 0 秒。
+
+**根因**：`PhrozenPRZ.cpp` 的 `cfg_floats0()` 會對 option 做 `dynamic_cast<const ConfigOptionFloats*>`，只有 `coFloats`（向量）型別才能成功。速度參數在 `PrintConfig.cpp` 定義為 `coFloat`（純量純值），cast 必然失敗並回傳預設值 `0.f`。
+
+距離參數（`bottom_lift_distance`、`lifting_distance` 等）定義為 `coFloats`（向量），`cfg_floats0()` 正確無誤，**不需要修改**。
+
+| 型別 | `coFloat`（純量） | `coFloats`（向量） |
+|---|---|---|
+| 存取函式 | `cfg_f()` → `opt->getFloat()` | `cfg_floats0()` → `fo->values[0]` |
+| 速度參數 | ✓ 正確 | ✗ cast 失敗，回傳 0 |
+| 距離參數 | — | ✓ 正確 |
+
+**修正**：`PhrozenPRZ.cpp` 中三個函式的所有速度 key 改呼叫 `cfg_f()`：
+
+| 函式 | 修改的 key |
+|---|---|
+| `calculate_prz_print_time()` | `bottom_lift_speed`、`bottom_lift_second_speed`、`bottom_retract_speed`、`bottom_retract_second_speed`、`lifting_speed`、`lift_second_speed`、`retract_speed`、`retract_second_speed` |
+| `prz_header()` | 同上 8 個 |
+| `prz_layer_content()` | 同上 8 個（底/一般層各 4 個，以三元表達式選擇） |
+
+```diff
+- const float b_ls  = cfg_floats0(cfg, "bottom_lift_speed");
++ const float b_ls  = cfg_f(cfg, "bottom_lift_speed");
+// （其餘 7 個速度 key 同樣改法，距離 key 不動）
+```
+
+**影響範圍**：僅 `src/libslic3r/Format/PhrozenPRZ.cpp`，不涉及 PrintConfig 或 GUI 修改。

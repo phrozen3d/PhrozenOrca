@@ -93,10 +93,10 @@ static int calculate_prz_print_time(const SLAPrint          &print,
     float b_dh1 = b_lh + b_lh2 - b_dh2;
     if (b_dh1 <= 0.f) b_dh1 = b_lh + b_lh2;
 
-    const float b_ls  = cfg_floats0(cfg, "bottom_lift_speed");
-    const float b_ls2 = cfg_floats0(cfg, "bottom_lift_second_speed");
-    const float b_ds  = cfg_floats0(cfg, "bottom_retract_speed");
-    const float b_ds2 = cfg_floats0(cfg, "bottom_retract_second_speed");
+    const float b_ls  = cfg_f(cfg, "bottom_lift_speed");
+    const float b_ls2 = cfg_f(cfg, "bottom_lift_second_speed");
+    const float b_ds  = cfg_f(cfg, "bottom_retract_speed");
+    const float b_ds2 = cfg_f(cfg, "bottom_retract_second_speed");
 
     // ---- Normal/transition layer motion parameters ----
     const float n_lh  = cfg_floats0(cfg, "lifting_distance");
@@ -105,10 +105,10 @@ static int calculate_prz_print_time(const SLAPrint          &print,
     float n_dh1 = n_lh + n_lh2 - n_dh2;
     if (n_dh1 <= 0.f) n_dh1 = n_lh + n_lh2;
 
-    const float n_ls  = cfg_floats0(cfg, "lifting_speed");
-    const float n_ls2 = cfg_floats0(cfg, "lift_second_speed");
-    const float n_ds  = cfg_floats0(cfg, "retract_speed");
-    const float n_ds2 = cfg_floats0(cfg, "retract_second_speed");
+    const float n_ls  = cfg_f(cfg, "lifting_speed");
+    const float n_ls2 = cfg_f(cfg, "lift_second_speed");
+    const float n_ds  = cfg_f(cfg, "retract_speed");
+    const float n_ds2 = cfg_f(cfg, "retract_second_speed");
 
     // ---- Pre-compute motion time per segment ----
     const float t_b_motion = motion_s(b_lh,  b_ls)
@@ -360,11 +360,11 @@ static void prz_header(std::string             &fh,
     // BottomLiftDist
     { float v = cfg_floats0(cfg, "bottom_lift_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomLiftSpeed
-    { float v = cfg_floats0(cfg, "bottom_lift_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "bottom_lift_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // LiftDist (normal)
     { float v = cfg_floats0(cfg, "lifting_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // LiftSpeed (normal)
-    { float v = cfg_floats0(cfg, "lifting_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "lifting_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomRetractDist = bottom_lift_distance + bottom_lift_second_distance - bottom_retract_second_distance
     {
         float lh  = cfg_floats0(cfg, "bottom_lift_distance");
@@ -375,7 +375,7 @@ static void prz_header(std::string             &fh,
         write_be(fh, v); layerContent_position_offset += 4;
     }
     // BottomRetractSpeed
-    { float v = cfg_floats0(cfg, "bottom_retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "bottom_retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // RetractDist = lifting_distance + lift_second_distance - retract_second_distance
     {
         float lh  = cfg_floats0(cfg, "lifting_distance");
@@ -386,23 +386,23 @@ static void prz_header(std::string             &fh,
         write_be(fh, v); layerContent_position_offset += 4;
     }
     // RetractSpeed
-    { float v = cfg_floats0(cfg, "retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomLift_second_Dist
     { float v = cfg_floats0(cfg, "bottom_lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomLift_second_Speed
-    { float v = cfg_floats0(cfg, "bottom_lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "bottom_lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // Lift_second_Dist
     { float v = cfg_floats0(cfg, "lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // Lift_second_Speed
-    { float v = cfg_floats0(cfg, "lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomRetract_second_Dist
     { float v = cfg_floats0(cfg, "bottom_retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomRetract_second_Speed
-    { float v = cfg_floats0(cfg, "bottom_retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "bottom_retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // Retract_second_Dist
     { float v = cfg_floats0(cfg, "retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
     // Retract_second_Speed
-    { float v = cfg_floats0(cfg, "retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = cfg_f(cfg, "retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomLightPwm (2 bytes)
     { short v = static_cast<short>(cfg_i(cfg, "bottom_light_pwm")); write_be(fh, v); layerContent_position_offset += 2; }
     // LightPwm (2 bytes)
@@ -491,8 +491,8 @@ static void prz_layer_content(std::string              &fh,
     }
     // LiftSpeed
     {
-        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_speed")
-                            : cfg_floats0(cfg, "lifting_speed");
+        float v = is_bottom ? cfg_f(cfg, "bottom_lift_speed")
+                            : cfg_f(cfg, "lifting_speed");
         write_be(fh, v);
     }
     // Lift_Second_Dist
@@ -503,8 +503,8 @@ static void prz_layer_content(std::string              &fh,
     }
     // Lift_Second_Speed
     {
-        float v = is_bottom ? cfg_floats0(cfg, "bottom_lift_second_speed")
-                            : cfg_floats0(cfg, "lift_second_speed");
+        float v = is_bottom ? cfg_f(cfg, "bottom_lift_second_speed")
+                            : cfg_f(cfg, "lift_second_speed");
         write_be(fh, v);
     }
     // Retract_Dist = lift + lift2 - drop2
@@ -525,8 +525,8 @@ static void prz_layer_content(std::string              &fh,
     }
     // Retract_Speed
     {
-        float v = is_bottom ? cfg_floats0(cfg, "bottom_retract_speed")
-                            : cfg_floats0(cfg, "retract_speed");
+        float v = is_bottom ? cfg_f(cfg, "bottom_retract_speed")
+                            : cfg_f(cfg, "retract_speed");
         write_be(fh, v);
     }
     // Retract_Second_Dist
@@ -537,8 +537,8 @@ static void prz_layer_content(std::string              &fh,
     }
     // Retract_Second_Speed
     {
-        float v = is_bottom ? cfg_floats0(cfg, "bottom_retract_second_speed")
-                            : cfg_floats0(cfg, "retract_second_speed");
+        float v = is_bottom ? cfg_f(cfg, "bottom_retract_second_speed")
+                            : cfg_f(cfg, "retract_second_speed");
         write_be(fh, v);
     }
     // LightPwm (short)
