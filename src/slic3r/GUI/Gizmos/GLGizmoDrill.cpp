@@ -33,14 +33,18 @@ GLGizmoDrill::GLGizmoDrill(GLCanvas3D& parent, const std::string& icon_filename,
 bool GLGizmoDrill::on_init()
 {
     m_shortcut_key = WXK_CONTROL_D;
-    m_desc["preview"]          = _(L("Preview hollowed and drilled model"));
-    m_desc["hole_diameter"]    = _(L("Hole diameter")) + ": ";
-    m_desc["hole_depth"]       = _(L("Hole depth")) + ": ";
-    m_desc["remove_selected"]  = _(L("Remove selected holes"));
-    m_desc["remove_all"]       = _(L("Remove all holes"));
-    m_desc["clipping_of_view"] = _(L("Clipping of view"))+ ": ";
+    m_desc["preview"]          = _(L("Preview"));
+    m_desc["diameter"]         = _(L("Diameter"));
+    m_desc["depth"]            = _(L("Depth"));
+    m_desc["view_clipping"]    = _(L("View clipping"));
+    m_desc["remove_selected"]  = _(L("Remove selected"));
+    m_desc["remove_all"]       = _(L("Remove all"));
     m_desc["reset_direction"]  = _(L("Reset direction"));
-    m_desc["show_supports"]    = _(L("Show supports"));
+
+    m_desc["left_click"]       = _(L("Left click:"));
+    m_desc["right_click"]      = _(L("Right click:"));
+    m_desc["add_hole"]         = _(L("Add hole"));
+    m_desc["remove_hole"]      = _(L("Remove hole"));
 
     return true;
 }
@@ -558,20 +562,23 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     const float scale         = m_parent.get_scale();
     const float new_panel_gap = 8.f * scale;           // gap between panels — adjustable
 
-    // Layout metrics — all adjustable
+    // Layout metrics — use translated strings so widths remain correct after locale switch
     const float label_col_w = std::max(
-        std::max(ImGui::CalcTextSize("Diameter").x, ImGui::CalcTextSize("Depth").x),
-        ImGui::CalcTextSize("Clipping of View").x
-    ) + m_imgui->scaled(1.5f);                         // right-padding of label column — adjustable
+        std::max(m_imgui->calc_text_size(m_desc.at("diameter")).x,
+                 m_imgui->calc_text_size(m_desc.at("depth")).x),
+        m_imgui->calc_text_size(m_desc.at("view_clipping")).x
+    ) + m_imgui->scaled(1.5f);
 
     const float value_box_w   = m_imgui->scaled(4.f);  // value box width — adjustable
     const float slider_w      = m_imgui->scaled(8.f);  // custom slider bar width — adjustable
 
     const float fp    = ImGui::GetStyle().FramePadding.x * 2.f;
     const float btn_w = std::max(
-        std::max(ImGui::CalcTextSize("Remove selected").x, ImGui::CalcTextSize("Remove all").x),
-        std::max(ImGui::CalcTextSize("Preview").x,         ImGui::CalcTextSize("Reset direction").x)
-    ) + fp + m_imgui->scaled(1.f);                     // extra padding to avoid tight fit — adjustable
+        std::max(m_imgui->calc_text_size(m_desc.at("remove_selected")).x,
+                 m_imgui->calc_text_size(m_desc.at("remove_all")).x),
+        std::max(m_imgui->calc_text_size(m_desc.at("preview")).x,
+                 m_imgui->calc_text_size(m_desc.at("reset_direction")).x)
+    ) + fp + m_imgui->scaled(1.f);
 
     // push_toolbar_style before set_next_window_pos/begin so WindowRounding etc. take effect.
     // Provides: WindowRounding=3*scale, WindowBorderSize=0, WindowPadding=(20,10)*scale,
@@ -595,7 +602,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // Source: m_new_hole_radius*2.  slider range [1, 25] / final clamp [0.1, 60].
     // Commit: only radius is written to selected holes — height is intentionally untouched.
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Diameter");                 // fixed English — adjustable to _L later
+    m_imgui->text(m_desc.at("diameter"));
     ImGui::SameLine(label_col_w);
     // slider range [1, 25]: common drag range (matches old Hollow UI).
     // final clamp [0.1, 60]: allows keyboard input beyond slider range, protects against nonsense.
@@ -628,7 +635,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // Source: m_new_hole_height.  slider range [0, 10] / final clamp [0, 100].
     // Commit: only height is written to selected holes — radius is intentionally untouched.
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Depth");
+    m_imgui->text(m_desc.at("depth"));
     ImGui::SameLine(label_col_w);
     // slider range [0, 10]: common drag range (matches old Hollow UI).
     // final clamp [0, 100]: allows keyboard input beyond slider range, protects against nonsense.
@@ -658,11 +665,11 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
 
     ImGui::Separator();
 
-    // Row 3: Clipping of View
+    // Row 3: View Clipping
     // Source: m_c->object_clipper()->get_position(); range [0,1]
     // Commit calls set_position_by_ratio (same as old UI slider, false = non-dragging)
     ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted("Clipping of View");
+    m_imgui->text(m_desc.at("view_clipping"));
     ImGui::SameLine(label_col_w);
     // slider range == value range [0, 1]: no separation needed for clipping.
     float display_clip = m_c->object_clipper()->get_position(); // shared by slider and InputFloat below
@@ -690,11 +697,11 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
         const float  icon_sz    = 25.f * scale;    // matches FdmSupports pattern — adjustable
         ImVec2       button_size(icon_sz, icon_sz);
 
-        // Caption column width: max of all caption strings + ": " separator margin
+        // Caption column width: max of caption strings (colons already included) + margin
         const float caption_max =
-            std::max(m_imgui->calc_text_size(wxString::FromUTF8("左鍵")).x,
-                     m_imgui->calc_text_size(wxString::FromUTF8("右鍵")).x)
-            + m_imgui->calc_text_size(wxString::FromUTF8(": ")).x + 15.f;
+            std::max(m_imgui->calc_text_size(m_desc.at("left_click")).x,
+                     m_imgui->calc_text_size(m_desc.at("right_click")).x)
+            + 15.f;
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);    // no border on icon button
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {0, 0});   // no padding on icon button
@@ -711,8 +718,8 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
                 ImGui::SameLine(caption_max);
                 m_imgui->text_colored(ImGuiWrapper::COL_WINDOW_BG,  text);
             };
-            draw_row(wxString::FromUTF8("左鍵: "), wxString::FromUTF8("新增洞"));
-            draw_row(wxString::FromUTF8("右鍵: "), wxString::FromUTF8("移除洞"));
+            draw_row(m_desc.at("left_click"),  m_desc.at("add_hole"));
+            draw_row(m_desc.at("right_click"), m_desc.at("remove_hole"));
 
             ImGui::EndTooltip();
         }
@@ -720,22 +727,22 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
 
         ImGui::SameLine();
         // Guard: same condition as old UI disabled_begin for "remove selected"
-        if (ImGui::Button("Remove selected##new", ImVec2(btn_w, 0.f)))
+        if (ImGui::Button((m_desc.at("remove_selected") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             if (is_input_enabled() && !m_selection_empty)
                 remove_selected = true;   // post-render block in on_render_input_window handles deletion
         ImGui::SameLine();
         // Guard: same condition as old UI disabled_begin for "remove all"
-        if (ImGui::Button("Remove all##new",      ImVec2(btn_w, 0.f)))
+        if (ImGui::Button((m_desc.at("remove_all") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             if (is_input_enabled() && !mo->sla_drain_holes.empty())
                 remove_all = true;        // post-render block in on_render_input_window handles deletion
 
         // Row 5: [indent = icon width] | Preview | Reset direction
         ImGui::Dummy(ImVec2(button_size.x, 0.f)); // aligned to icon width
         ImGui::SameLine();
-        if (ImGui::Button("Preview##new",         ImVec2(btn_w, 0.f)))
+        if (ImGui::Button((m_desc.at("preview") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             reslice_until_step(slaposDrillHoles); // same call as old UI
         ImGui::SameLine();
-        if (ImGui::Button("Reset direction##new", ImVec2(btn_w, 0.f)))
+        if (ImGui::Button((m_desc.at("reset_direction") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             wxGetApp().CallAfter([this](){
                 m_c->object_clipper()->set_position_by_ratio(-1., false); // same lambda as old UI
             });
@@ -762,144 +769,13 @@ void GLGizmoDrill::on_render_input_window(float x, float y, float bottom_limit)
 RENDER_AGAIN:
     const float approx_height = m_imgui->scaled(14.0f);
     y = std::min(y, bottom_limit - approx_height);
-    m_imgui->set_next_window_pos(x, y, ImGuiCond_Always);
 
-    m_imgui->begin(get_name(), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
-
-    const float clipping_slider_left = std::max(m_imgui->calc_text_size(m_desc.at("clipping_of_view")).x,
-                                                m_imgui->calc_text_size(m_desc.at("reset_direction")).x) + m_imgui->scaled(0.5f);
-
-    const float diameter_slider_left =
-        std::max(std::max(m_imgui->calc_text_size(m_desc.at("hole_diameter")).x,
-                          m_imgui->calc_text_size(m_desc.at("hole_depth")).x) + m_imgui->scaled(0.5f), clipping_slider_left);
-
-    const float minimal_slider_width = m_imgui->scaled(4.f);
-    const float button_preview_width = m_imgui->calc_button_size(m_desc.at("preview")).x;
-    float window_width = minimal_slider_width + std::max(diameter_slider_left, clipping_slider_left);
-    window_width = std::max(window_width, button_preview_width);
-
-    // Preview button — triggers reslice up to slaposDrillHoles so the drilled mesh is visible.
-    m_imgui->disabled_begin(!is_input_enabled());
-    if (m_imgui->button(m_desc["preview"]))
-        reslice_until_step(slaposDrillHoles);
-    m_imgui->disabled_end();
-
-    ImGui::Separator();
-
-    bool force_refresh = false;
     bool remove_selected = false;
     bool remove_all = false;
 
-    float diameter_upper_cap = 60.;
-    if (m_new_hole_radius * 2.f > diameter_upper_cap)
-        m_new_hole_radius = diameter_upper_cap / 2.f;
-    ImGui::AlignTextToFramePadding();
-
-    m_imgui->disabled_begin(!is_input_enabled());
-
-    m_imgui->text(m_desc.at("hole_diameter"));
-    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
-    ImGui::PushItemWidth(window_width - diameter_slider_left);
-    float diam = 2.f * m_new_hole_radius;
-    m_imgui->slider_float("##hole_diameter", &diam, 1.f, 25.f, "%.1f mm", 1.f, false);
-
-    diam = std::clamp(diam, 0.1f, diameter_upper_cap);
-    m_new_hole_radius = diam / 2.f;
-    bool clicked = m_imgui->get_last_slider_status().clicked;
-    bool edited = m_imgui->get_last_slider_status().edited;
-    bool deactivated = m_imgui->get_last_slider_status().deactivated_after_edit;
-
-    ImGui::AlignTextToFramePadding();
-
-    m_imgui->text(m_desc["hole_depth"]);
-    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
-    m_imgui->slider_float("##hole_depth", &m_new_hole_height, 0.f, 10.f, "%.1f mm", 1.f, false);
-
-    m_imgui->disabled_end();
-
-    m_new_hole_height = std::clamp(m_new_hole_height, 0.f, 100.f);
-
-    clicked |= m_imgui->get_last_slider_status().clicked;
-    edited |= m_imgui->get_last_slider_status().edited;
-    deactivated |= m_imgui->get_last_slider_status().deactivated_after_edit;;
-
-    if (!m_selection_empty) {
-        if (clicked) {
-            m_holes_stash = mo->sla_drain_holes;
-        }
-        if (edited) {
-            for (size_t idx=0; idx<m_selected.size(); ++idx)
-                if (m_selected[idx]) {
-                    mo->sla_drain_holes[idx].radius = m_new_hole_radius;
-                    mo->sla_drain_holes[idx].height = m_new_hole_height;
-                }
-        }
-        if (deactivated) {
-            sla::DrainHoles new_holes = mo->sla_drain_holes;
-            mo->sla_drain_holes = m_holes_stash;
-            float backup_rad = m_new_hole_radius;
-            float backup_hei = m_new_hole_height;
-            for (size_t i=0; i<m_holes_stash.size(); ++i) {
-                if (m_selected[i]) {
-                    m_new_hole_radius = m_holes_stash[i].radius;
-                    m_new_hole_height = m_holes_stash[i].height;
-                    break;
-                }
-            }
-            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Change drainage hole diameter");
-            m_new_hole_radius = backup_rad;
-            m_new_hole_height = backup_hei;
-            mo->sla_drain_holes = new_holes;
-        }
-    }
-
-    m_imgui->disabled_begin(!is_input_enabled() || m_selection_empty);
-    remove_selected = m_imgui->button(m_desc.at("remove_selected"));
-    m_imgui->disabled_end();
-
-    m_imgui->disabled_begin(!is_input_enabled() || mo->sla_drain_holes.empty());
-    remove_all = m_imgui->button(m_desc.at("remove_all"));
-    m_imgui->disabled_end();
-
-    ImGui::Separator();
-    m_imgui->disabled_begin(!is_input_enabled());
-    if (m_c->object_clipper()->get_position() == 0.f) {
-        ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc.at("clipping_of_view"));
-    }
-    else {
-        if (m_imgui->button(m_desc.at("reset_direction"))) {
-            wxGetApp().CallAfter([this](){
-                    m_c->object_clipper()->set_position_by_ratio(-1., false);
-                });
-        }
-    }
-
-    ImGui::SameLine(diameter_slider_left, m_imgui->get_item_spacing().x);
-    ImGui::PushItemWidth(window_width - diameter_slider_left);
-    float clp_dist = m_c->object_clipper()->get_position();
-    if (m_imgui->slider_float("##clp_dist", &clp_dist, 0.f, 1.f, "%.2f"))
-        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
-
-    ImGui::Separator();
-    bool show_sups = are_sla_supports_shown();
-    if (m_imgui->checkbox(m_desc["show_supports"], show_sups)) {
-        show_sla_supports(show_sups);
-        force_refresh = true;
-    }
-
-    m_imgui->disabled_end();
-    const float legacy_panel_h = ImGui::GetWindowSize().y; // capture before end, for new panel positioning
-    m_imgui->end();
-
-    // Render the secondary drill panel placed below the legacy panel.
-    // This helper only draws the panel and updates the action flags.
-    // Post-render deletion / refresh flow stays below in on_render_input_window().
-    render_new_drill_panel(x, y, legacy_panel_h, mo, remove_selected, remove_all);
-
+    render_new_drill_panel(x, y, 0.f, mo, remove_selected, remove_all);
 
     if (remove_selected || remove_all) {
-        force_refresh = false;
         m_parent.set_as_dirty();
 
         if (remove_all) {
@@ -914,9 +790,6 @@ RENDER_AGAIN:
             goto RENDER_AGAIN;
         }
     }
-
-    if (force_refresh)
-        m_parent.set_as_dirty();
 }
 
 bool GLGizmoDrill::on_is_activable() const
