@@ -3218,7 +3218,7 @@ void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
 
 void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozenObj)
 {
-    if ( !pPhrozenObj || IsWebcamUiEnabled() ) 
+    if ( !pPhrozenObj || !IsWebcamUiEnabled() ) 
     {
         ResetWebcamView();// clear image result (black)
         return;
@@ -5421,7 +5421,8 @@ void PhrozenStatusPanel::set_default()
     m_show_ams_group = true;
     reset_printing_values();
 
-    // webcam update 
+    // webcam update
+    m_pCam_switch_button->SetValue(true); // 切換/斷線時重置按鈕狀態，避免殘留上一台機器的值
     stop_webcam_update_timer();
     UpdateWebCameraView( nullptr );
 
