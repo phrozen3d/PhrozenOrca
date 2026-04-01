@@ -279,6 +279,7 @@ process_sla()
 |---|---|---|
 | 使用者切換 Profile / 修改設定 | `BackgroundSlicingProcess::apply()` → `SLAPrint::apply()` | `DynamicPrintConfig` (preset bundle) + PartPlate config |
 | 機器設定注入光柵化器 | `SLAPrint::apply()` 中 `m_printer->apply(m_printer_config)` | `SLAPrinterConfig` |
+| Shrinkage 補正縮放 | `sla_trafo()` 讀取 `m_shrinkage_compensation*`（快取於 `SLAPrint`），乘以 `relative_correction()` 結果；`apply()` 偵測到製程 preset 變更時手動更新所有物件 trafo（見 [SLA_ShrinkageCompensation.md](SLA_ShrinkageCompensation.md)） | `DynamicPrintConfig`（process preset） |
 | 層高計算 | `Steps::slice_model()` 中 `m_material_config.initial_layer_height` | `SLAMaterialConfig` |
 | 支撐參數 | `make_support_cfg(po.m_config)` in `Steps::support_tree()` | `SLAPrintObjectConfig` |
 | 底座參數 | `make_pad_cfg(po.m_config)` in `Steps::generate_pad()` | `SLAPrintObjectConfig` |

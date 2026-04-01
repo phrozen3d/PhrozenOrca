@@ -531,6 +531,13 @@ private:
     SLAMaterialConfig               m_material_config;
     SLAPrintObjectConfig            m_default_object_config;
 
+    // Shrinkage compensation values from the process preset (percentage, 100 = no change).
+    // Stored separately because they live in PrintObjectConfig (FDM), not SLAPrintObjectConfig.
+    bool   m_shrinkage_compensation        = false;
+    double m_shrinkage_compensation_x      = 100.0;
+    double m_shrinkage_compensation_y      = 100.0;
+    double m_shrinkage_compensation_z      = 100.0;
+
     PrintObjects                    m_objects;
     std::vector<bool>               m_stepmask;
 

@@ -189,6 +189,13 @@ Transform3d SLAPrint::sla_trafo(const ModelObject &model_object) const
 
     Vec3d corr = this->relative_correction();
 
+    // Apply shrinkage compensation from process preset (cached in m_shrinkage_compensation*).
+    if (m_shrinkage_compensation) {
+        corr.x() *= m_shrinkage_compensation_x / 100.0;
+        corr.y() *= m_shrinkage_compensation_y / 100.0;
+        corr.z() *= m_shrinkage_compensation_z / 100.0;
+    }
+
     ModelInstance &model_instance = *model_object.instances.front();
     Vec3d          offset         = model_instance.get_offset();
     Vec3d          rotation       = model_instance.get_rotation();
@@ -296,6 +303,35 @@ SLAPrint::ApplyStatus SLAPrint::apply(const Model &model, DynamicPrintConfig con
     m_material_config.apply_only(config, material_diff, true);
     // Handle changes to object config defaults
     m_default_object_config.apply_only(config, object_diff, true);
+
+    // Shrinkage compensation lives in PrintObjectConfig (FDM), not SLAPrintObjectConfig,
+    // so we read it from the full DynamicPrintConfig and cache it manually.
+    {
+        bool   sc   = false;
+        double sc_x = 100.0, sc_y = 100.0, sc_z = 100.0;
+        if (const auto *v = config.opt<ConfigOptionBool>("shrinkage_compensation"))
+            sc = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("shrinkage_compensation_x"))
+            sc_x = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("shrinkage_compensation_y"))
+            sc_y = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("shrinkage_compensation_z"))
+            sc_z = v->value;
+        if (sc != m_shrinkage_compensation || sc_x != m_shrinkage_compensation_x ||
+            sc_y != m_shrinkage_compensation_y || sc_z != m_shrinkage_compensation_z) {
+            m_shrinkage_compensation   = sc;
+            m_shrinkage_compensation_x = sc_x;
+            m_shrinkage_compensation_y = sc_y;
+            m_shrinkage_compensation_z = sc_z;
+            // Force trafo recalculation for all objects on next process().
+            update_apply_status(this->invalidate_step(slapsMergeSlicesAndEval));
+            for (SLAPrintObject *obj : m_objects) {
+                update_apply_status(obj->invalidate_all_steps());
+                obj->set_trafo(sla_trafo(*obj->m_model_object),
+                               obj->m_model_object->instances.front()->is_left_handed());
+            }
+        }
+    }
 
     if (m_printer) m_printer->apply(m_printer_config);
 
