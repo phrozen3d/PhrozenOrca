@@ -2,6 +2,7 @@
 #define slic3r_PhrozenMonitorController_hpp_
 
 #include <curl/curl.h>
+#include <atomic>
 #include <functional>
 #include <queue>
 #include <chrono>
@@ -284,6 +285,13 @@ struct CalibrationProgressInfo {
     
     // Initialize startTime
     CalibrationProgressInfo() : startTime(std::chrono::steady_clock::now()) {}
+};
+
+// Moonraker GET /printer/info (Klippy host state)
+struct KlippyHostInfo {
+    bool        ok = false;
+    std::string state;
+    std::string state_message;
 };
 
 enum DetectionState 
@@ -739,6 +747,8 @@ struct HttpErrorInfo {
     extern bool m_bDoingAction;
     extern std::atomic<bool> m_bStartReceiving;
     extern std::atomic<bool> m_bStartSending;
+    extern std::atomic<bool> m_bSuppressAuxiliaryWebsocketQueries;
+    void SetCalibrationDialogOpen(bool open);
     void SetStartSending( bool bStart );
     bool IsStartSending();
     void SetStartReceiving( bool bStart );
@@ -839,6 +849,13 @@ struct HttpErrorInfo {
     HttpErrorInfo ParseHttpErrorResponse(const json& response_json, int http_status_code);
     bool doAction_http(std::string script, std::string  exected_payload, int timeout);
     CURLcode doAction(std::string method, std::string script, int id);
+
+    KlippyHostInfo FetchPrinterInfoHttp();
+    bool RequestFirmwareRestartHttp();
+
+    // Reset all calibration progress fields to idle (STOPPED / 0%). Call when calibration UI returns to idle
+    // so a subsequent G29 can transition RUNNING -> COMPLETED again (Mesh Complete only applies when RUNNING).
+    void ResetCalibrationProgressMonitorToIdle();
     
     CURLcode NozzleFilamentCheck();
 

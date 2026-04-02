@@ -58,7 +58,14 @@ void DebugOutput(const std::string& prefix, const char* message = ""  ) {
     //bool m_bStartSending = false;
     std::atomic<bool> m_bStartSending{false};
     std::atomic<bool> m_bStartReceiving{false};
-    
+    std::atomic<bool> m_bSuppressAuxiliaryWebsocketQueries{false};
+
+    void SetCalibrationDialogOpen(bool open)
+    {
+        m_bSuppressAuxiliaryWebsocketQueries.store(open, std::memory_order_relaxed);
+        if (!open)
+            threadControl.first_time_to_send_query = true;
+    }
 
     void SetStartSending( bool bStart )
     {
@@ -1023,7 +1030,9 @@ struct MessageProcessor {
                             }
                         } else if (params.find("probe at ") != std::string::npos) {
                             std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
-                            CalibrationProgressCalculator::UpdateCalibrationProgress(params, m_calibrationProgressInfo);
+                            // Only advance mesh probe progress during an active session; ignore stray lines while COMPLETED/STOPPED
+                            if (m_calibrationProgressInfo.calibrationStatus == CalibrationState::RUNNING)
+                                CalibrationProgressCalculator::UpdateCalibrationProgress(params, m_calibrationProgressInfo);
                         }
                         
                         // Resonance compensation messages
@@ -2807,6 +2816,115 @@ CURLcode doAction(std::string method, std::string script, int id)
     return result;
 }
 
+KlippyHostInfo FetchPrinterInfoHttp()
+{
+    KlippyHostInfo out;
+    if (!m_pWebServiceInfo || m_pWebServiceInfo->ip.empty())
+        return out;
+
+    std::string response;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        curl_global_cleanup();
+        return out;
+    }
+
+    std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/printer/info";
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fnWriteData);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+
+    CURLcode res = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    if (res != CURLE_OK || http_code != 200 || response.empty())
+        return out;
+
+    try {
+        json j = json::parse(response);
+        if (!j.contains("result") || j["result"].is_null())
+            return out;
+        const json& r = j["result"];
+        if (!r.is_object())
+            return out;
+        if (r.contains("state") && r["state"].is_string()) {
+            out.state = r["state"].get<std::string>();
+            out.ok = true;
+            if (r.contains("state_message") && r["state_message"].is_string())
+                out.state_message = r["state_message"].get<std::string>();
+        }
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(warning) << "FetchPrinterInfoHttp: parse error: " << e.what();
+    }
+    return out;
+}
+
+bool RequestFirmwareRestartHttp()
+{
+    if (!m_pWebServiceInfo || m_pWebServiceInfo->ip.empty())
+        return false;
+
+    std::string response;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        curl_global_cleanup();
+        return false;
+    }
+
+    std::string url = "http://" + m_pWebServiceInfo->ip + m_pWebServiceInfo->port_device + "/printer/firmware_restart";
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fnWriteData);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 3L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
+
+    CURLcode res = curl_easy_perform(curl);
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+
+    if (res != CURLE_OK || http_code != 200) {
+        BOOST_LOG_TRIVIAL(warning) << "RequestFirmwareRestartHttp: HTTP " << http_code << " curl " << int(res);
+        return false;
+    }
+
+    if (response.empty())
+        return true;
+
+    try {
+        json j = json::parse(response);
+        if (j.contains("error") && !j["error"].is_null())
+            return false;
+        if (j.contains("result")) {
+            const json& r = j["result"];
+            if (r.is_string())
+                return r.get<std::string>() == "ok";
+        }
+        return true;
+    } catch (const std::exception& e) {
+        BOOST_LOG_TRIVIAL(warning) << "RequestFirmwareRestartHttp: parse error: " << e.what();
+        return true;
+    }
+}
+
 CURLcode GetAMSInfo()
 {
     m_bStartlistening = true;
@@ -3063,7 +3181,9 @@ void GetAllInfo_websocket()
                 //}
                 // TODO: Allow duplicate execution until we implement a better mechanism
                 // Temporarily allow repeated execution until better solution is found
-                if ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query)
+                const bool allowAux = !m_bSuppressAuxiliaryWebsocketQueries.load(std::memory_order_relaxed);
+                if (allowAux &&
+                    ((timeDiff > 5 && m_pPrinterInfo->state != "printing") || threadControl.first_time_to_send_query))
                 {
                     result = send_action_Command(payload_AMS.dump());
                     result = send_action_Command(payload_history.dump());
@@ -4471,6 +4591,20 @@ bool IsStartThumbnailChecking()
 void ResetPreviousPrintState(  )
 {
     prev_state.clear();
+}
+
+void ResetCalibrationProgressMonitorToIdle()
+{
+    std::lock_guard<std::mutex> lock(m_kCalibrationProgressMutex);
+    m_calibrationProgressInfo.calibrationStatus            = CalibrationState::STOPPED;
+    m_calibrationProgressInfo.calibrationProgress          = 0.f;
+    m_calibrationProgressInfo.heatingCompleted             = false;
+    m_calibrationProgressInfo.resonanceCompensationStatus   = CalibrationState::STOPPED;
+    m_calibrationProgressInfo.resonanceCompensationProgress  = 0.f;
+    m_calibrationProgressInfo.startResonanceCompensation   = false;
+    m_calibrationProgressInfo.temperatureCalibrationStatus   = CalibrationState::STOPPED;
+    m_calibrationProgressInfo.temperatureCalibrationProgress = 0.f;
+    m_calibrationProgressInfo.tempProgress                 = 0;
 }
 
 // Calibration progress and status query APIs
