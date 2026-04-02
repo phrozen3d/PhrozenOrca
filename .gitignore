@@ -18,6 +18,7 @@ xs/assertlib*
 local-lib
 /src/TAGS
 /.vscode/
+/.vscode
 build-linux/*
 deps/build*/*
 **/.DS_Store
@@ -37,3 +38,4 @@ src/OrcaSlicer-doc/
 resources/profiles/user/default
 *.code-workspace
 _temp/
+deps_src/build/

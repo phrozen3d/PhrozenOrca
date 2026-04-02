@@ -2125,82 +2125,31 @@ void PhrozenSelectMachineDialog::on_send_print()
         BOOST_LOG_TRIVIAL(info) << "Plate " << target_plate_idx << " is not sliced yet";
     }
     
-    // 4. 動態設定列印機配置
-    // 注意：print_host 變更會導致 apply() 返回 APPLY_STATUS_INVALIDATED，
-    // 進而將切片結果標記為無效。但如果值沒有改變，就不會觸發 apply()。
-    DynamicPrintConfig* new_printer_config =
-        &wxGetApp().preset_bundle->printers.get_edited_preset().config;
-    
-    // 保存當前列印板的 Print 對象的原始 print_host（每個列印板可能有不同的配置）
-    std::string original_print_host_printer_config = new_printer_config->opt_string("print_host");
-    std::string original_print_host_full_config = "";
-    try {
-        Print& current_print = m_plater->get_partplate_list().get_current_fff_print();
-        original_print_host_full_config = current_print.full_print_config().opt_string("print_host");
-    } catch (...) {
-        // 如果無法獲取，使用 printer_config 的值作為備用
-        original_print_host_full_config = original_print_host_printer_config;
-    }
-    
-    // 確保 m_printer_last_select_ip 包含端口號
+    // 4. 確保目標 IP 包含端口號
     std::string target_print_host = m_printer_last_select_ip;
     if (target_print_host.find(":") == std::string::npos) {
         target_print_host += ":8808";
     }
-    
-    // 保存當前切片結果狀態
-    bool was_slice_result_valid = plate ? plate->is_slice_result_valid() : false;
-    bool print_host_changed_printer = (original_print_host_printer_config != target_print_host);
-    bool print_host_changed_full = (original_print_host_full_config != target_print_host);
-    bool print_host_changed = print_host_changed_printer || print_host_changed_full;
-    
-    // 只有在值真的改變時才設置 print_host，避免不必要的 apply()
-    if (print_host_changed) {
-        if (print_host_changed_printer) {
-            new_printer_config->set("print_host", target_print_host);
-            BOOST_LOG_TRIVIAL(info) << "print_host (printer_config) changed from '" << original_print_host_printer_config
-                                     << "' to '" << target_print_host << "'";
-        }
-        
-        // 同步更新 Print 對象的 m_full_print_config，避免 send_gcode_legacy() 內部檢測到變更
-        // 這樣可以避免切片結果被標記為無效
-        // 注意：m_full_print_config 是 protected 成員，我們通過 background_process 訪問
-        if (print_host_changed_full) {
-            try {
-                // 獲取當前列印板對應的 Print 對象
-                Print& current_print = m_plater->get_partplate_list().get_current_fff_print();
-                // 獲取當前的 m_full_print_config 並更新 print_host
-                DynamicPrintConfig old_printer_config = current_print.full_print_config();
-                old_printer_config.set("print_host", target_print_host);
-                // 通過 const_cast 更新 m_full_print_config（因為 full_print_config() 返回 const 引用）
-                // 注意：這是一個 workaround，因為 m_full_print_config 是 protected 成員
-                const_cast<DynamicPrintConfig&>(current_print.full_print_config()) = std::move(old_printer_config);
-                BOOST_LOG_TRIVIAL(info) << "print_host (m_full_print_config) changed from '" << original_print_host_full_config
-                                         << "' to '" << target_print_host << "'";
-            } catch (const std::exception& e) {
-                BOOST_LOG_TRIVIAL(warning) << "Failed to update m_full_print_config: " << e.what() 
-                                           << ", will rely on apply() to sync";
-            } catch (...) {
-                BOOST_LOG_TRIVIAL(warning) << "Failed to update m_full_print_config, will rely on apply() to sync";
-            }
-        }
-    } else {
-        BOOST_LOG_TRIVIAL(info) << "print_host unchanged: '" << target_print_host << "'";
-    }
-    
-    // 5. 使用當前列印板索引並進行檔案上傳與送印
-    // Hide this dialog before showing the upload dialog (PrintHostSendDialog)
+    BOOST_LOG_TRIVIAL(info) << "print_host target: '" << target_print_host << "'";
+
+    // 5. 送印：直接將目標 IP 傳入 send_gcode_legacy，不修改全域 preset
     this->Hide();
     bool bSuccessSend = false;
     try {
-        bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf);
+        bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf, target_print_host);
     } catch (...) {
-        // Ensure print_host restoration happens even if send_gcode_legacy throws an exception
         BOOST_LOG_TRIVIAL(error) << "Exception occurred in send_gcode_legacy()";
     }
 
     if ( bSuccessSend )
     {
+        // 儲存上次成功送印的 IP，供下次開啟對話框時自動帶入，立即寫入磁碟
+        AppConfig* app_cfg = wxGetApp().app_config;
+        if (app_cfg) {
+            app_cfg->set_str("phrozen", "last_print_ip", m_printer_last_select_ip);
+            app_cfg->save();
+        }
+
         wxBusyCursor kWait;
         //確認送印成功，要同步連接device page的ip connect
         bool bConnectDevice = true;
@@ -2218,7 +2167,7 @@ void PhrozenSelectMachineDialog::on_send_print()
                 std::this_thread::sleep_for(std::chrono::seconds(1));// wait for process end
             }
         }
-
+        
         if ( bConnectDevice )
         {
             wxGetApp().InitPhrozenConnector(m_printer_last_select_ip);
@@ -2227,34 +2176,7 @@ void PhrozenSelectMachineDialog::on_send_print()
     }
 
     BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
-    
-    // 6. 還原各自列印配置檔案的原始 print_host 值（只有在值真的改變時才需要還原）
-    if (print_host_changed) {
-        // 還原 printer_config 的 print_host（使用該列印板的原始值）
-        if (print_host_changed_printer) {
-            new_printer_config->set("print_host", original_print_host_printer_config);
-            BOOST_LOG_TRIVIAL(info) << "Restored printer_config.print_host to original value: '" 
-                                     << original_print_host_printer_config << "'";
-        }
-        
-        // 還原 Print 對象的 m_full_print_config 的 print_host（使用該列印板的原始值）
-        if (print_host_changed_full) {
-            try {
-                Print& current_print = m_plater->get_partplate_list().get_current_fff_print();
-                DynamicPrintConfig restored_config = current_print.full_print_config();
-                restored_config.set("print_host", original_print_host_full_config);
-                const_cast<DynamicPrintConfig&>(current_print.full_print_config()) = std::move(restored_config);
-                BOOST_LOG_TRIVIAL(info) << "Restored m_full_print_config.print_host to original value: '" 
-                                         << original_print_host_full_config << "'";
-            } catch (const std::exception& e) {
-                BOOST_LOG_TRIVIAL(warning) << "Failed to restore m_full_print_config: " << e.what();
-            } catch (...) {
-                BOOST_LOG_TRIVIAL(warning) << "Failed to restore m_full_print_config";
-            }
-        }
-    }
-    
-    // Clear flag after restoring IP (following the restore IP flow as requested)
+
     if (m_plater) {
         m_plater->set_skip_apply_for_phrozen_print(false);
     }
@@ -3529,7 +3451,23 @@ bool PhrozenSelectMachineDialog::Show(bool show)
     wxGetApp().UpdateDlgDarkUI(this);
     wxGetApp().reset_to_active();
     set_default();
-    update_user_machine_list();
+
+    // 讀取上次送印的 IP（set_default() 已清空 m_printer_last_select_ip，需在其之後讀取）
+    std::string last_ip;
+    AppConfig* app_cfg = wxGetApp().app_config;
+    if (app_cfg)
+        last_ip = app_cfg->get("phrozen", "last_print_ip");
+
+    if (!last_ip.empty()) {
+        // 有紀錄：直接帶入 combobox，跳過自動搜索流程
+        m_comboBox_printer->Append(wxString::FromUTF8(last_ip));
+        m_comboBox_printer->SetValue(wxString::FromUTF8(last_ip));
+        m_printer_last_select_ip = last_ip;
+        Enable_Send_Button(true);
+    } else {
+        // 沒有紀錄：走正常搜索流程
+        update_user_machine_list();
+    }
 
     Layout();
     Fit();

@@ -251,7 +251,7 @@ void Tab::create_preset_tab()
                                    "or click this button.")));
 
     add_scaled_button(panel, &m_search_btn, "search");
-    m_search_btn->SetToolTip(format_wxstr(_L("Search in settings [%1%]"), "Ctrl+F"));*/
+    m_search_btn->SetToolTip(format_wxstr(_L("Search in settings [%1%]"), _L("Ctrl+") + "F"));*/
 
     // Bitmaps to be shown on the "Revert to system" aka "Lock to system" button next to each input field.
     add_scaled_bitmap(this, m_bmp_value_lock  , "unlock_normal");
@@ -1633,6 +1633,35 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
         }
     }
 
+    if (opt_key == "sparse_infill_rotate_template") {
+        // Orca: show warning dialog if rotate template for solid infill if not support
+        const auto _sparse_infill_pattern = m_config->option<ConfigOptionEnum<InfillPattern>>("sparse_infill_pattern")->value;
+        bool       is_safe_to_rotate      = _sparse_infill_pattern == ipRectilinear || _sparse_infill_pattern == ipLine ||
+                                 _sparse_infill_pattern == ipZigZag || _sparse_infill_pattern == ipCrossZag ||
+                                 _sparse_infill_pattern == ipLockedZag;
+        
+        auto new_value = boost::any_cast<std::string>(value);
+        is_safe_to_rotate = is_safe_to_rotate || new_value.empty();
+
+        if (!is_safe_to_rotate) {
+            wxString msg_text = _(
+                L("Infill patterns are typically designed to handle rotation automatically to ensure proper printing and achieve their "
+                  "intended effects (e.g., Gyroid, Cubic). Rotating the current sparse infill pattern may lead to insufficient support. "
+                  "Please proceed with caution and thoroughly check for any potential printing issues."
+                  "Are you sure you want to enable this option?"));
+            msg_text += "\n\n" + _(L("Are you sure you want to enable this option?"));
+            MessageDialog dialog(wxGetApp().plater(), msg_text, "", wxICON_WARNING | wxYES | wxNO);
+            dialog.SetButtonLabel(wxID_YES, _L("Enable"));
+            dialog.SetButtonLabel(wxID_NO, _L("Cancel"));
+            if (dialog.ShowModal() == wxID_NO) {
+                DynamicPrintConfig new_conf = *m_config;
+                new_conf.set_key_value("sparse_infill_rotate_template", new ConfigOptionString(""));
+                m_config_manipulation.apply(m_config, &new_conf);
+                wxGetApp().plater()->update();
+            }
+        }
+    }
+
     if(opt_key=="layer_height"){
         auto min_layer_height_from_nozzle=wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("min_layer_height")->values;
         auto max_layer_height_from_nozzle=wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("max_layer_height")->values;
@@ -2195,6 +2224,7 @@ void TabPrint::build()
         optgroup->append_single_option_line("detect_thin_wall", "strength_settings_walls#detect-thin-wall");
 
         optgroup = page->new_optgroup(L("Top/bottom shells"), L"param_shell");
+
         optgroup->append_single_option_line("top_shell_layers", "strength_settings_top_bottom_shells#shells-layers");
         optgroup->append_single_option_line("top_shell_thickness", "strength_settings_top_bottom_shells#shell-thickness");
         optgroup->append_single_option_line("top_surface_density", "strength_settings_top_bottom_shells#surface-density");
@@ -2220,8 +2250,8 @@ void TabPrint::build()
         optgroup->append_single_option_line("symmetric_infill_y_axis", "strength_settings_infill#zig-zag");
         optgroup->append_single_option_line("infill_shift_step", "strength_settings_infill#cross-hatch");
 
-        optgroup->append_single_option_line("lattice_angle_1", "strength_settings_infill#2d-lattice");
-        optgroup->append_single_option_line("lattice_angle_2", "strength_settings_infill#2d-lattice");
+        optgroup->append_single_option_line("lateral_lattice_angle_1", "strength_settings_infill#2d-lattice");
+        optgroup->append_single_option_line("lateral_lattice_angle_2", "strength_settings_infill#2d-lattice");
         optgroup->append_single_option_line("infill_overhang_angle", "strength_settings_infill#2d-honeycomb");
         optgroup->append_single_option_line("infill_anchor_max", "strength_settings_infill#anchor");
         optgroup->append_single_option_line("infill_anchor", "strength_settings_infill#anchor");
@@ -2233,6 +2263,8 @@ void TabPrint::build()
         optgroup->append_single_option_line("infill_wall_overlap", "strength_settings_infill#infill-wall-overlap");
 
         optgroup = page->new_optgroup(L("Advanced"), L"param_advanced");
+        optgroup->append_single_option_line("align_infill_direction_to_model", "strength_settings_advanced#align-infill-direction-to-model");
+        optgroup->append_single_option_line("extra_solid_infills", "strength_settings_infill#extra-solid-infill");
         optgroup->append_single_option_line("bridge_angle", "strength_settings_advanced#bridge-infill-direction");
         optgroup->append_single_option_line("internal_bridge_angle", "strength_settings_advanced#bridge-infill-direction"); // ORCA: Internal bridge angle override
         optgroup->append_single_option_line("minimum_sparse_infill_area", "strength_settings_advanced#minimum-sparse-infill-threshold");
@@ -2454,6 +2486,7 @@ optgroup->append_single_option_line("skirt_loops", "others_settings_skirt#loops"
 
         optgroup = page->new_optgroup(L("Fuzzy Skin"), L"fuzzy_skin");
         optgroup->append_single_option_line("fuzzy_skin", "others_settings_special_mode#fuzzy-skin");
+        optgroup->append_single_option_line("fuzzy_skin_mode");
         optgroup->append_single_option_line("fuzzy_skin_noise_type", "others_settings_special_mode#fuzzy-skin-mode");
         optgroup->append_single_option_line("fuzzy_skin_point_distance", "others_settings_special_mode#point-distance");
         optgroup->append_single_option_line("fuzzy_skin_thickness", "others_settings_special_mode#skin-thickness");
@@ -2927,8 +2960,10 @@ void TabPrintPlate::reset_model_config()
         }
         auto plate = dynamic_cast<PartPlate*>(plate_item.first);
         plate->reset_bed_type();
+        plate->reset_skirt_start_angle();
         plate->set_print_seq(PrintSequence::ByDefault);
         plate->set_first_layer_print_sequence({});
+        plate->set_other_layers_print_sequence({});
         plate->set_spiral_vase_mode(false, true);
         notify_changed(plate_item.first);
     }
@@ -3775,6 +3810,10 @@ void TabFilament::toggle_options()
                         "filament_unloading_speed_start", "filament_unloading_speed", "filament_toolchange_delay", "filament_cooling_moves",
                         "filament_cooling_initial_speed", "filament_cooling_final_speed"})
             toggle_option(el, !is_BBL_printer);
+
+        bool multitool_ramming = m_config->opt_bool("filament_multitool_ramming", 0);
+        toggle_option("filament_multitool_ramming_volume", multitool_ramming);
+        toggle_option("filament_multitool_ramming_flow", multitool_ramming);
     }
 }
 

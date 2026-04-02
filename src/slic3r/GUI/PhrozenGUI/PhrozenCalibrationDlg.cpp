@@ -2,8 +2,8 @@
 #include <wx/event.h>
 #include <wx/timer.h>
 #include "../I18N.hpp"
-#include "../libslic3r/Utils.hpp"
-#include "../libslic3r/Thread.hpp"
+#include "libslic3r/Utils.hpp"
+#include "libslic3r/Thread.hpp"
 #include "../GUI.hpp"
 #include "../GUI_App.hpp"
 #include "../GUI_Preview.hpp"
@@ -12,6 +12,10 @@
 #include "../Widgets/RoundedRectangle.hpp"
 #include "../Widgets/StaticBox.hpp"
 #include "PhrozenDeviceManager.hpp"
+#include "PhrozenMonitorController.hpp"
+
+#include <chrono>
+#include <thread>
 
 namespace Slic3r { namespace GUI {
 wxDEFINE_EVENT(EVT_PHROZEN_CALIBRATION_SELECTED, wxCommandEvent);
@@ -45,10 +49,14 @@ void CalibrationProgressBar::SetProgress(int percent)
     if (percent < 0) percent = 0;
     if (percent > 100) percent = 100;
 
-    if (m_progress != percent) {
-        m_progress = percent;
+    if (percent > 0)
+        m_bWaitingForSendCommand = false;
+
+    const bool changed = (m_progress != percent);
+    m_progress = percent;
+    // Always repaint at 100% so "Done" / orange fill show even if value was already 100 on this tick
+    if (changed || percent == 100)
         Refresh();
-    }
 }
 
 void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
@@ -164,7 +172,6 @@ void CalibrationProgressBar::OnPaint(wxPaintEvent& event)
         gc->DrawText(percent_text, percent_x, percent_y);
     }
     else if (m_progress > 0) {
-        m_bWaitingForSendCommand = false;
         wxString percent_text =  m_progress != 100 ?
                                 wxString::Format("%d%%", m_progress) : wxString( _L("Done") );
 
@@ -245,6 +252,7 @@ PhrozenCalibrationDlg::PhrozenCalibrationDlg(Plater *plater)
     m_description_text->SetFont(font);
     m_description_text->SetForegroundColour(wxColour(0xE0, 0xE0, 0xE0));
     main_sizer->Add(m_description_text, 0, wxLEFT | wxRIGHT, FromDIP(30));
+    m_defaultCalibrationDescription = m_description_text->GetLabel();
 
     main_sizer->Add(0, 0, 0, wxTOP, FromDIP(30));
 
@@ -282,26 +290,31 @@ PhrozenCalibrationDlg::PhrozenCalibrationDlg(Plater *plater)
     m_spRefresh_timer->SetOwner(this);
     Bind(wxEVT_TIMER, &PhrozenCalibrationDlg::OnTimer, this);
 
-    Bind(wxEVT_CLOSE_WINDOW, [this](auto& e) {
-        if ( m_eCurrentProcessingCalib != ECalibType::None ) return;
-
-        StopRefreshTimer();
-        EndModal(wxID_CANCEL);
-    });
+    Bind(wxEVT_CLOSE_WINDOW, &PhrozenCalibrationDlg::OnCloseWindow, this);
 }
 
 PhrozenCalibrationDlg::~PhrozenCalibrationDlg()
 {
+    m_abortKlippyRecovery.store(true, std::memory_order_relaxed);
+    if (m_spKlippy_recovery_thread && m_spKlippy_recovery_thread->joinable()) {
+        m_spKlippy_recovery_thread->join();
+    }
+    m_spKlippy_recovery_thread.reset();
+
     if (m_spSend_command_thread && m_spSend_command_thread->joinable()) {
         m_spSend_command_thread->join();
     }
 
+    MonitorControl::SetCalibrationDialogOpen(false);
 }
 
 int PhrozenCalibrationDlg::ShowModal()
 {
     SyncAndUpdateMachineStatus();
-    return DPIDialog::ShowModal();
+    MonitorControl::SetCalibrationDialogOpen(true);
+    const int ret = DPIDialog::ShowModal();
+    MonitorControl::SetCalibrationDialogOpen(false);
+    return ret;
 }
 
 void PhrozenCalibrationDlg::SyncAndUpdateMachineStatus()
@@ -414,6 +427,9 @@ bool PhrozenCalibrationDlg::Show(bool show)
     if (show) {
         wxGetApp().UpdateDlgDarkUI(this);
         CentreOnParent();
+        MonitorControl::SetCalibrationDialogOpen(true);
+    } else {
+        MonitorControl::SetCalibrationDialogOpen(false);
     }
     return DPIDialog::Show(show);
 }
@@ -421,15 +437,29 @@ bool PhrozenCalibrationDlg::Show(bool show)
 void PhrozenCalibrationDlg::OnCalibrationSelected( wxCommandEvent& event )
 {
     if ( m_eCurrentProcessingCalib != ECalibType::None ) return;
+    if ( m_klippyRecoveryActive.load(std::memory_order_relaxed) ) return;
 
     auto pEventObj = event.GetEventObject();
     if ( !pEventObj ) return;
+
+    if ( pEventObj != m_auto_leveling && pEventObj != m_resonance_compensation
+         && pEventObj != m_temperature_calibration )
+    {
+        wxMessageBox(_(L("Not supported operator!!!")));
+        return;
+    }
+
+    // Restore default hint (e.g. after previous run left "Firmware restart complete.")
+    if (m_description_text)
+        m_description_text->SetLabel(m_defaultCalibrationDescription);
+
     if ( pEventObj == m_auto_leveling )
     {
         // Disable all buttons including the clicked one
         if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
         if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
         if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetAutoLevelingProgress(0);
         SetAutoLevelingCommandState( true );
         SendCommandToMachine( ECalibType::Auto_Leveling );
     }
@@ -439,6 +469,7 @@ void PhrozenCalibrationDlg::OnCalibrationSelected( wxCommandEvent& event )
         if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
         if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
         if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetResonanceCompensationProgress(0);
         SetResonanceCompensationCommandState( true );
         SendCommandToMachine( ECalibType::Resonance_Compensation );
     }
@@ -448,12 +479,9 @@ void PhrozenCalibrationDlg::OnCalibrationSelected( wxCommandEvent& event )
         if (m_auto_leveling) m_auto_leveling->SetDisabled(true);
         if (m_resonance_compensation) m_resonance_compensation->SetDisabled(true);
         if (m_temperature_calibration) m_temperature_calibration->SetDisabled(true);
+        SetTemperatureCalibrationProgress(0);
         SetTemperatureCalibrationCommandState( true );
         SendCommandToMachine( ECalibType::Temperature_Calibration );
-    }
-    else
-    {
-        wxMessageBox(_(L("Not supported operator!!!")));
     }
 }
 
@@ -534,44 +562,39 @@ void PhrozenCalibrationDlg::OnTimer( wxTimerEvent& event )
 
     bool bCalibrationDone = false;
     int nPercentage = 0;
-    
+    int calibStatus = -1;
+
     // Get calibration status and progress based on current type
     switch( m_eCurrentProcessingCalib )
     {
         case ECalibType::Auto_Leveling: {
-            int status = obj->GetCalibrationStatus();
+            calibStatus = obj->GetCalibrationStatus();
             nPercentage = static_cast<int>(obj->GetCalibrationProgress());
+            if (calibStatus == 2)
+                nPercentage = 100;
             SetAutoLevelingProgress(nPercentage);
-            
-            // Check if calibration is completed or error
-            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
-            if (status == 2 || status == 3) {
+            if (calibStatus == 2 || calibStatus == 3)
                 bCalibrationDone = true;
-            }
             break;
         }
         case ECalibType::Resonance_Compensation: {
-            int status = obj->GetResonanceCompensationStatus();
+            calibStatus = obj->GetResonanceCompensationStatus();
             nPercentage = static_cast<int>(obj->GetResonanceCompensationProgress());
+            if (calibStatus == 2)
+                nPercentage = 100;
             SetResonanceCompensationProgress(nPercentage);
-            
-            // Check if calibration is completed or error
-            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
-            if (status == 2 || status == 3) {
+            if (calibStatus == 2 || calibStatus == 3)
                 bCalibrationDone = true;
-            }
             break;
         }
         case ECalibType::Temperature_Calibration: {
-            int status = obj->GetTemperatureCalibrationStatus();
+            calibStatus = obj->GetTemperatureCalibrationStatus();
             nPercentage = static_cast<int>(obj->GetTemperatureCalibrationProgress());
+            if (calibStatus == 2)
+                nPercentage = 100;
             SetTemperatureCalibrationProgress(nPercentage);
-            
-            // Check if calibration is completed or error
-            // CalibrationState values: 0=STOPPED, 1=RUNNING, 2=COMPLETED, 3=ERROR
-            if (status == 2 || status == 3) {
+            if (calibStatus == 2 || calibStatus == 3)
                 bCalibrationDone = true;
-            }
             break;
         }
         default:
@@ -582,12 +605,31 @@ void PhrozenCalibrationDlg::OnTimer( wxTimerEvent& event )
 
     if ( bCalibrationDone )
     {
-        // Re-enable all buttons when calibration is done
-        if (m_auto_leveling) m_auto_leveling->SetDisabled(false);
-        if (m_resonance_compensation) m_resonance_compensation->SetDisabled(false);
-        if (m_temperature_calibration) m_temperature_calibration->SetDisabled(false);
-        m_eCurrentProcessingCalib = ECalibType::None;
         StopRefreshTimer();
+        // COMPLETED: wait for Klippy ready (may restart firmware); HAS_ERROR: release UI immediately
+        if ( calibStatus == 2 ) {
+            // Avoid duplicate EVT_TIMER handling aborting an in-flight recovery worker
+            if (m_klippyRecoveryActive.exchange(true, std::memory_order_acq_rel))
+                return;
+
+            // Reap the previous recovery thread (already finished) without setting m_abortKlippyRecovery,
+            // otherwise the flag stays true and the next worker exits immediately.
+            if ( m_spKlippy_recovery_thread && m_spKlippy_recovery_thread->joinable() )
+                m_spKlippy_recovery_thread->join();
+            m_spKlippy_recovery_thread.reset();
+
+            m_abortKlippyRecovery.store(false, std::memory_order_relaxed);
+            if ( m_description_text ) {
+                m_description_text->SetLabel(_L("Firmware restarting..."));
+                m_description_text->Refresh();
+            }
+            Refresh();
+
+            m_spKlippy_recovery_thread = std::make_unique<boost::thread>(
+                Slic3r::create_thread([this]() { RunKlippyRecoveryWorker(); }));
+        } else {
+            ResetCalibrationBarsAndDescriptionToIdle();
+        }
     }
 }
 
@@ -630,6 +672,144 @@ void PhrozenCalibrationDlg::OnRefreshTest()
         StopRefreshTimer();
         m_eCurrentProcessingCalib = ECalibType::None;
     }
+}
+
+void PhrozenCalibrationDlg::ResetCalibrationBarsAndDescriptionToIdle()
+{
+    MonitorControl::ResetCalibrationProgressMonitorToIdle();
+    if (m_description_text)
+        m_description_text->SetLabel(m_defaultCalibrationDescription);
+    SetAutoLevelingProgress(0);
+    SetResonanceCompensationProgress(0);
+    SetTemperatureCalibrationProgress(0);
+    if (m_auto_leveling) {
+        m_auto_leveling->SetDisabled(false);
+        m_auto_leveling->SetWaiting(false);
+    }
+    if (m_resonance_compensation) {
+        m_resonance_compensation->SetDisabled(false);
+        m_resonance_compensation->SetWaiting(false);
+    }
+    if (m_temperature_calibration) {
+        m_temperature_calibration->SetDisabled(false);
+        m_temperature_calibration->SetWaiting(false);
+    }
+    m_eCurrentProcessingCalib = ECalibType::None;
+    Refresh();
+}
+
+void PhrozenCalibrationDlg::EnableCalibrationBarsAfterRecovery()
+{
+    MonitorControl::ResetCalibrationProgressMonitorToIdle();
+    SetAutoLevelingProgress(0);
+    SetResonanceCompensationProgress(0);
+    SetTemperatureCalibrationProgress(0);
+    if (m_auto_leveling) {
+        m_auto_leveling->SetDisabled(false);
+        m_auto_leveling->SetWaiting(false);
+    }
+    if (m_resonance_compensation) {
+        m_resonance_compensation->SetDisabled(false);
+        m_resonance_compensation->SetWaiting(false);
+    }
+    if (m_temperature_calibration) {
+        m_temperature_calibration->SetDisabled(false);
+        m_temperature_calibration->SetWaiting(false);
+    }
+    m_eCurrentProcessingCalib = ECalibType::None;
+    Refresh();
+}
+
+void PhrozenCalibrationDlg::OnKlippyRecoverySuccessUi()
+{
+    m_klippyRecoveryActive.store(false, std::memory_order_relaxed);
+    if (m_description_text) {
+        m_description_text->SetLabel(_L("Firmware restart complete."));
+        m_description_text->Refresh();
+    }
+    EnableCalibrationBarsAfterRecovery();
+}
+
+void PhrozenCalibrationDlg::OnKlippyRecoveryFailedUi()
+{
+    m_klippyRecoveryActive.store(false, std::memory_order_relaxed);
+    wxMessageBox(
+        _L("Firmware restart failed. Please power-cycle the printer."),
+        _L("Calibration"),
+        wxOK | wxICON_WARNING);
+    ResetCalibrationBarsAndDescriptionToIdle();
+}
+
+void PhrozenCalibrationDlg::OnKlippyRecoveryAbortedUi()
+{
+    m_klippyRecoveryActive.store(false, std::memory_order_relaxed);
+    ResetCalibrationBarsAndDescriptionToIdle();
+}
+
+void PhrozenCalibrationDlg::RunKlippyRecoveryWorker()
+{
+    auto sleep_abortable_seconds = [this](int seconds) -> bool {
+        for (int t = 0; t < seconds * 10; ++t) {
+            if (m_abortKlippyRecovery.load(std::memory_order_relaxed))
+                return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        return m_abortKlippyRecovery.load(std::memory_order_relaxed);
+    };
+
+    if (sleep_abortable_seconds(7)) {
+        CallAfter([this]() { OnKlippyRecoveryAbortedUi(); });
+        return;
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        if (m_abortKlippyRecovery.load(std::memory_order_relaxed)) {
+            CallAfter([this]() { OnKlippyRecoveryAbortedUi(); });
+            return;
+        }
+
+        MonitorControl::KlippyHostInfo info = MonitorControl::FetchPrinterInfoHttp();
+        if (info.ok && info.state == "ready") {
+            CallAfter([this]() { OnKlippyRecoverySuccessUi(); });
+            return;
+        }
+
+        if (i >= 3) {
+            CallAfter([this]() { OnKlippyRecoveryFailedUi(); });
+            return;
+        }
+
+        MonitorControl::RequestFirmwareRestartHttp();
+        if (sleep_abortable_seconds(7)) {
+            CallAfter([this]() { OnKlippyRecoveryAbortedUi(); });
+            return;
+        }
+    }
+}
+
+void PhrozenCalibrationDlg::OnCloseWindow(wxCloseEvent& event)
+{
+    if (m_klippyRecoveryActive.load(std::memory_order_relaxed)) {
+        m_abortKlippyRecovery.store(true, std::memory_order_relaxed);
+        if (m_spKlippy_recovery_thread && m_spKlippy_recovery_thread->joinable())
+            m_spKlippy_recovery_thread->join();
+        m_spKlippy_recovery_thread.reset();
+        m_klippyRecoveryActive.store(false, std::memory_order_relaxed);
+        StopRefreshTimer();
+        ResetCalibrationBarsAndDescriptionToIdle();
+        EndModal(wxID_CANCEL);
+        event.Skip(false);
+        return;
+    }
+
+    if (m_eCurrentProcessingCalib != ECalibType::None) {
+        event.Veto();
+        return;
+    }
+
+    StopRefreshTimer();
+    EndModal(wxID_CANCEL);
+    event.Skip(false);
 }
 
 #pragma endregion

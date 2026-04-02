@@ -104,6 +104,8 @@ set(lisbslic3r_sources
     Fill/FillGyroid.hpp
     Fill/FillTpmsD.cpp
     Fill/FillTpmsD.hpp
+    Fill/FillTpmsFK.cpp
+    Fill/FillTpmsFK.hpp
     Fill/FillPlanePath.cpp
     Fill/FillPlanePath.hpp
     Fill/FillLine.cpp
@@ -502,7 +504,7 @@ if (_opts)
     target_compile_options(libslic3r_cgal PRIVATE "${_opts_bad}")
 endif()
 
-target_link_libraries(libslic3r_cgal PRIVATE ${_cgal_tgt} libigl mcut boost_libs)
+target_link_libraries(libslic3r_cgal PRIVATE ${_cgal_tgt} eigen admesh libigl mcut boost_libs)
 
 if (MSVC AND "${CMAKE_SIZEOF_VOID_P}" STREQUAL "4") # 32 bit MSVC workaround
     target_compile_definitions(libslic3r_cgal PRIVATE CGAL_DO_NOT_USE_MPZF)
@@ -552,54 +554,61 @@ set(OCCT_LIBS
 
 find_package(libnoise REQUIRED)
 target_link_libraries(libslic3r
-    libnest2d
-    admesh
-    cereal::cereal
-    libigl
-    miniz
-    boost_libs
-    clipper
-    ${EXPAT_LIBRARIES}
-    glu-libtess
-    qhull
-    semver
-    TBB::tbb
-    TBB::tbbmalloc
-    libslic3r_cgal
-    ${CMAKE_DL_LIBS}
-    PNG::PNG
-    ZLIB::ZLIB
-    ${OCCT_LIBS}
-    mcut
-    JPEG::JPEG
-    qoi
-    opencv_world
-    noise::noise
+    PUBLIC
+        admesh
+        libigl
+        libnest2d
+        miniz
+        opencv_world
+    PRIVATE
+        ${CMAKE_DL_LIBS}
+        ${EXPAT_LIBRARIES}
+        ${OCCT_LIBS}
+        boost_libs
+        cereal::cereal
+        clipper
+        eigen
+        glu-libtess
+        JPEG::JPEG
+        libslic3r_cgal
+        mcut
+        noise::noise
+        PNG::PNG
+        qhull
+        qoi
+        semver
+        TBB::tbb
+        TBB::tbbmalloc
+        ZLIB::ZLIB
     )
 
+
+
 if(NOT WIN32)
-    target_link_libraries(libslic3r freetype)
+    # Link freetype for OCCT dependency (CAD operations need font rendering)
+target_link_libraries(libslic3r PRIVATE freetype)
+    target_link_libraries(libslic3r PRIVATE OpenSSL::Crypto)
     if (NOT APPLE)
-        target_link_libraries(libslic3r fontconfig)
+        target_link_libraries(libslic3r PRIVATE fontconfig)
     endif()
 endif()
 
 if (APPLE)
     find_library(FOUNDATION Foundation REQUIRED)
     find_library(MODELIO ModelIO REQUIRED)
-    target_link_libraries(libslic3r ${FOUNDATION} ${MODELIO})
+    target_link_libraries(libslic3r PRIVATE ${FOUNDATION} ${MODELIO})
 endif ()
 
 if (TARGET OpenVDB::openvdb)
-    target_link_libraries(libslic3r OpenVDB::openvdb)
+    target_link_libraries(libslic3r PRIVATE OpenVDB::openvdb)
 endif()
 
 if(WIN32)
-    target_link_libraries(libslic3r Psapi.lib)
+    target_link_libraries(libslic3r PRIVATE Psapi.lib)
 endif()
 
 if(SLIC3R_PROFILE)
-    target_link_libraries(libslic3r Shiny)
+    target_link_libraries(libslic3r PRIVATE Shiny)
 endif()
 
 if (SLIC3R_PCH AND NOT SLIC3R_SYNTAXONLY)

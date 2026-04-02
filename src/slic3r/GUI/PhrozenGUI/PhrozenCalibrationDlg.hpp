@@ -32,6 +32,8 @@
 #include "../Widgets/StepCtrl.hpp"
 #include "../Widgets/CheckBox.hpp"
 
+#include <atomic>
+
 namespace Slic3r { namespace GUI {
 
 
@@ -46,7 +48,7 @@ public:
 
     void SetProgress(int percent);
     int GetProgress() const { return m_progress; }
-    void SetWaiting ( bool waitingType) { m_bWaitingForSendCommand = waitingType; }
+    void SetWaiting ( bool waitingType) { m_bWaitingForSendCommand = waitingType; Refresh(); }
     bool IsWaiting () { return m_bWaitingForSendCommand; }
     void SetDisabled(bool disabled) { m_bDisabled = disabled; Refresh(); }
     
@@ -86,20 +88,33 @@ private:
     wxStaticText* m_description_text{nullptr};
 
     std::unique_ptr<boost::thread> m_spSend_command_thread{nullptr};
+    std::unique_ptr<boost::thread> m_spKlippy_recovery_thread{nullptr};
     std::weak_ptr<int> m_token;
 
     int m_nRefreshInterval{ 500 }; // 0.5 second
     std::unique_ptr<wxTimer> m_spRefresh_timer{nullptr};
 
     ECalibType m_eCurrentProcessingCalib{ ECalibType::None };
+    std::atomic<bool> m_abortKlippyRecovery{ false };
+    std::atomic<bool> m_klippyRecoveryActive{ false };
+    wxString m_defaultCalibrationDescription;
+
     void OnCalibrationSelected( wxCommandEvent& event );
     void SendCommandToMachine( const ECalibType& eType );
     void OnTimer( wxTimerEvent& event );
     void StartRefreshTimer();
     void StopRefreshTimer();
 
+    void RunKlippyRecoveryWorker();
+    void OnKlippyRecoverySuccessUi();
+    void OnKlippyRecoveryFailedUi();
+    void OnKlippyRecoveryAbortedUi();
+    void ResetCalibrationBarsAndDescriptionToIdle();
+    void EnableCalibrationBarsAfterRecovery();
+
     bool m_bTestMode = false;
     void OnRefreshTest();
+    void OnCloseWindow(wxCloseEvent& event);
 
 public:
     PhrozenCalibrationDlg(Plater *plater = nullptr);

@@ -32,6 +32,7 @@
 #include "../StatusPanel.hpp"
 
 class wxHyperlinkCtrl;
+class StateColor;
 
 namespace Slic3r {
 namespace GUI {
@@ -319,6 +320,9 @@ public:
     wxPanel *       m_machine_ctrl_panel;
     PhrozenPrintingTaskPanel *       m_project_task_panel;
 
+    // phrozen status button color theme
+    void gen_phrozen_theme_btn( StateColor& kBtn_backGround, StateColor& kBtn_Border );
+
     // Virtual event handlers, override them in your derived class
     virtual void on_subtask_pause_resume(wxCommandEvent &event) { event.Skip(); }
     virtual void on_subtask_abort(wxCommandEvent &event) { event.Skip(); }
@@ -338,7 +342,7 @@ public:
     void on_ams_unload_all(wxCommandEvent& event);
     void on_ams_unload_single_slot(wxCommandEvent& event);
     void on_ams_load_single_slot(wxCommandEvent& event);
-    void on_camera_button_triggered( wxCommandEvent& event );
+    virtual void on_camera_button_triggered( wxCommandEvent& event );
     virtual void on_lighting_button_triggered( wxCommandEvent& event );
     bool IsWebcamUiEnabled();
     bool IsLightingUiEnabled();
@@ -563,6 +567,7 @@ protected:
     void update(MachineObject* obj);
     void update_phrozen();
     void UpdateWebCameraView( PhrozenMachineObject_Dev* obj);
+    void revise_webcam_display_ratio( const double& kAspect, int& scaled_w, int& scaled_h );
     void ResetWebcamView();
     void update_left_time(int mc_left_time);
     void update_basic_print_data(bool def = false);
@@ -605,6 +610,9 @@ protected:
     void on_update_webcam_ui_timer(wxTimerEvent& event);
     void InitWebCamUiUpdateTimer();
     void update_console_hyperlink( const std::string& strLink );
+
+    /* camera switch */
+    void on_camera_button_triggered( wxCommandEvent& event ) override;
 
     /* lighting(LED) */
     void on_lighting_button_triggered( wxCommandEvent& event ) override;
