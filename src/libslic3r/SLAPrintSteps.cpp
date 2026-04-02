@@ -118,6 +118,53 @@ void SLAPrint::Steps::apply_printer_corrections(SLAPrintObject &po, SliceOrigin 
             slices[idx] = offset_ex(slices[idx], float(clpr_offs));
     }
 
+    // --- Tolerance compensation: independent inner (a) and outer (b) diameter control ---
+    // a > 0: holes shrink (solid grows into holes); b > 0: outer contour expands.
+    auto apply_tc_layer = [](ExPolygons &layer_slices, coord_t ca, coord_t cb) {
+        if (ca == 0 && cb == 0) return;
+        ExPolygons result;
+        result.reserve(layer_slices.size());
+        for (const ExPolygon &ep : layer_slices) {
+            Polygons new_contour = offset(ep.contour, float(cb));
+            Polygons hole_solids;
+            for (Polygon h : ep.holes) {
+                h.reverse();                                    // CW hole → CCW solid area
+                append(hole_solids, offset(h, float(-ca)));     // positive a = shrink hole area
+            }
+            append(result, diff_ex(new_contour, hole_solids));
+        }
+        layer_slices = std::move(result);
+    };
+
+    const int blc = m_print->m_tolerance_bottom_layer_count;
+
+    // Normal layers (index >= bottom_layer_count)
+    {
+        coord_t ca = scaled(m_print->m_tolerance_compensation_a);
+        coord_t cb = scaled(m_print->m_tolerance_compensation_b);
+        if (m_print->m_tolerance_compensation && (ca != 0 || cb != 0)) {
+            for (size_t i = (size_t)std::max(0, blc); i < po.m_slice_index.size(); ++i) {
+                size_t idx = po.m_slice_index[i].get_slice_idx(o);
+                if (idx < slices.size())
+                    apply_tc_layer(slices[idx], ca, cb);
+            }
+        }
+    }
+
+    // Bottom layers (index < bottom_layer_count)
+    {
+        coord_t ca = scaled(m_print->m_bottom_tolerance_compensation_a);
+        coord_t cb = scaled(m_print->m_bottom_tolerance_compensation_b);
+        if (m_print->m_bottom_tolerance_compensation && (ca != 0 || cb != 0)) {
+            size_t n = std::min((size_t)std::max(0, blc), po.m_slice_index.size());
+            for (size_t i = 0; i < n; ++i) {
+                size_t idx = po.m_slice_index[i].get_slice_idx(o);
+                if (idx < slices.size())
+                    apply_tc_layer(slices[idx], ca, cb);
+            }
+        }
+    }
+
     if (start_efc > 0.) for (size_t i = 0; i < faded_lyrs; ++i) {
         size_t idx = po.m_slice_index[i].get_slice_idx(o);
         if (idx < slices.size())

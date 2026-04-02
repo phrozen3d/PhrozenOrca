@@ -136,7 +136,7 @@ SLAPrint::process()
   1. 建立層高索引 `po.m_slice_index`（以 `initial_layer_height` + `layer_height` 為間隔）
   2. `slice_mesh_ex()` → 產生每層 `ExPolygons`，存入 `po.m_model_slices`
   3. 若有 interior mesh，以 `diff_ex()` 從每層切掉內部
-  4. 呼叫 `apply_printer_corrections()`（absolute_correction, elefant_foot_compensation）
+  4. 呼叫 `apply_printer_corrections()`（absolute_correction → tolerance_compensation → bottom_tolerance_compensation → elefant_foot_compensation → zcorrection；詳見 [SLA_ShrinkageCompensation.md](SLA_ShrinkageCompensation.md) §2.6）
   5. 呼叫 `prepare_for_generate_supports()`（預計算支撐生成資料）
 - **輸出**：`po.m_model_slices`（`vector<ExPolygons>`）、`po.m_slice_index`、`po.m_support_point_generator_data`
 - **關鍵參數**：`layer_height`, `initial_layer_height`, `slice_closing_radius`
@@ -279,7 +279,8 @@ process_sla()
 |---|---|---|
 | 使用者切換 Profile / 修改設定 | `BackgroundSlicingProcess::apply()` → `SLAPrint::apply()` | `DynamicPrintConfig` (preset bundle) + PartPlate config |
 | 機器設定注入光柵化器 | `SLAPrint::apply()` 中 `m_printer->apply(m_printer_config)` | `SLAPrinterConfig` |
-| Shrinkage 補正縮放 | `sla_trafo()` 讀取 `m_shrinkage_compensation*`（快取於 `SLAPrint`），乘以 `relative_correction()` 結果；`apply()` 偵測到製程 preset 變更時手動更新所有物件 trafo（見 [SLA_ShrinkageCompensation.md](SLA_ShrinkageCompensation.md)） | `DynamicPrintConfig`（process preset） |
+| Shrinkage 補正縮放 | `sla_trafo()` 讀取 `m_shrinkage_compensation*`（快取於 `SLAPrint`），乘以 `relative_correction()` 結果；`apply()` 偵測到製程 preset 變更時手動更新所有物件 trafo（見 [SLA_ShrinkageCompensation.md](SLA_ShrinkageCompensation.md) §一） | `DynamicPrintConfig`（process preset） |
+| Tolerance 公差補正 | `slice_model()` 末段的 `apply_printer_corrections()` 讀取 `m_tolerance_compensation*`（快取於 `SLAPrint`），對 2D 切層輪廓做獨立 inner/outer offset（見 [SLA_ShrinkageCompensation.md](SLA_ShrinkageCompensation.md) §二） | `DynamicPrintConfig`（process preset） |
 | 層高計算 | `Steps::slice_model()` 中 `m_material_config.initial_layer_height` | `SLAMaterialConfig` |
 | 支撐參數 | `make_support_cfg(po.m_config)` in `Steps::support_tree()` | `SLAPrintObjectConfig` |
 | 底座參數 | `make_pad_cfg(po.m_config)` in `Steps::generate_pad()` | `SLAPrintObjectConfig` |

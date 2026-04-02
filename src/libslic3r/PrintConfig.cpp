@@ -6962,7 +6962,6 @@ void PrintConfigDef::init_sla_params()
     def->category = L("Advanced");
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
-    def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("tolerance_compensation_b", coFloat);
@@ -6970,7 +6969,6 @@ void PrintConfigDef::init_sla_params()
     def->category = L("Advanced");
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
-    def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("bottom_tolerance_compensation", coBool);
@@ -6984,7 +6982,6 @@ void PrintConfigDef::init_sla_params()
     def->category = L("Advanced");
     def->tooltip  = L("A for advanced.");
     def->sidetext = "mm";
-    def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(0));
 
     def           = this->add("bottom_tolerance_compensation_b", coFloat);
@@ -6992,7 +6989,6 @@ void PrintConfigDef::init_sla_params()
     def->category = L("Advanced");
     def->tooltip  = L("B for advanced.");
     def->sidetext = "mm";
-    def->min      = 0;
     def->set_default_value(new ConfigOptionFloat(0));
 
     // Support

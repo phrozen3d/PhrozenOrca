@@ -538,6 +538,16 @@ private:
     double m_shrinkage_compensation_y      = 100.0;
     double m_shrinkage_compensation_z      = 100.0;
 
+    // Tolerance compensation (inner/outer diameter) from process preset.
+    // Stored separately because they live in PrintConfig (FDM), not SLA config.
+    bool   m_tolerance_compensation             = false;
+    double m_tolerance_compensation_a           = 0.0;
+    double m_tolerance_compensation_b           = 0.0;
+    bool   m_bottom_tolerance_compensation      = false;
+    double m_bottom_tolerance_compensation_a    = 0.0;
+    double m_bottom_tolerance_compensation_b    = 0.0;
+    int    m_tolerance_bottom_layer_count       = 0;
+
     PrintObjects                    m_objects;
     std::vector<bool>               m_stepmask;
 

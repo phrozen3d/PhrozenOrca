@@ -1,30 +1,43 @@
-# SLA Shrinkage Compensation 實作記錄
+# SLA 補正參數實作記錄（Shrinkage & Tolerance Compensation）
 
-**建立日期**: 2026-04-01
+**建立日期**: 2026-04-01（Shrinkage）、2026-04-02（Tolerance）
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [SLAPrint.hpp](../src/libslic3r/SLAPrint.hpp)
 - [SLAPrint.cpp](../src/libslic3r/SLAPrint.cpp)
+- [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp)（Tolerance 專用）
 
 ---
 
-## 一、修改原因
+## 核心問題：FDM 參數在 SLA 中的孤兒困境
 
-`shrinkage_compensation_x/y/z` 這組參數已在 UI 中顯示，並儲存於 SLA 製程 profile（`s_Preset_sla_print_options`），但在 SLA 切片流程中完全無作用——切出的 PRZ 影像尺寸不受任何影響。
+兩組補正參數皆定義在 `PrintObjectConfig`（FDM 用），而非 SLA typed struct（`SLAPrintObjectConfig` / `SLAMaterialConfig` / `SLAPrinterConfig`）。`SLAPrint::apply()` 只將 `DynamicPrintConfig` diff 到這四個 typed struct；不屬於任何 struct 的 key 會被**靜默忽略**，導致 UI 設定對 SLA 切片毫無影響。
 
-根本原因有三：
+**通用解法**：手動快取策略
+1. 在 `SLAPrint` 加入 private member 快取製程值。
+2. `apply()` 從 `DynamicPrintConfig` 動態讀取，偵測到變化時更新快取並失效相關步驟。
+3. 切片步驟直接讀快取值。
 
-1. **型別系統孤兒**：這三個參數定義在 `PrintObjectConfig`（FDM 用），而非任何 SLA typed struct（`SLAPrintObjectConfig` / `SLAMaterialConfig` / `SLAPrinterConfig`）。`SLAPrint::apply()` 只將 `DynamicPrintConfig` diff 到這四個 typed struct；不屬於任何 struct 的 key 會被靜默忽略。
-
-2. **沒有讀取路徑**：`sla_trafo()` 只從 `relative_correction()`（讀取 `relative_correction_x/y/z` 和 `material_correction_x/y/z`）取得縮放係數，沒有地方讀取 shrinkage 值。
-
-3. **Trafo 不觸發更新**：當製程 config 改變時，`set_trafo()` 只在物件幾何改變（`sla_trafo_differs` 偵測）或首次建立時才重新計算，純 config 改變不會觸發更新。
+| 功能 | 作用層面 | 失效步驟 | 需要更新 trafo？ |
+|------|---------|---------|--------------|
+| Shrinkage Compensation | 3D trafo（mesh scale） | `slaposObjectSlice` + 手動 `set_trafo()` | 是 |
+| Tolerance Compensation | 2D slice 輪廓偏移 | `slaposObjectSlice` | 否 |
 
 ---
 
-## 二、參數說明
+---
 
-這組參數與 `relative_correction_x/y/z` 功能相同（縮放補正），但層級不同：
+# 一、Shrinkage Compensation（縮放補正）
+
+## 1.1 修改原因
+
+`shrinkage_compensation_x/y/z` 已在 UI 顯示並儲存於 SLA 製程 profile，但 SLA 切片流程中完全無作用。根本原因有三：
+
+1. **型別系統孤兒**：參數在 `PrintObjectConfig`（FDM），SLA apply 機制無法讀取。
+2. **沒有讀取路徑**：`sla_trafo()` 只從 `relative_correction()` 取得縮放係數。
+3. **Trafo 不觸發更新**：純 config 改變不會觸發 `set_trafo()` 重算。
+
+## 1.2 參數說明
 
 | 參數 | 所在層級 | Config struct | 說明 |
 |------|---------|--------------|------|
@@ -33,25 +46,9 @@
 | `shrinkage_compensation_x/y/z` | 製程（Process） | `PrintObjectConfig`（FDM） | 製程層補正，百分比（100 = 不縮放） |
 | `shrinkage_compensation` | 製程（Process） | `PrintObjectConfig`（FDM） | 開關，false 時以上三個值不生效 |
 
-`relative_correction()` 將機台與材料兩層補正合併為 `Vec3d`，`sla_trafo()` 用此 Vec3d 對物件做 scale。本次修改在這個 Vec3d 上再乘以 shrinkage 補正，達成三層串接。
+## 1.3 具體修改
 
----
-
-## 三、修改方式
-
-由於 shrinkage 參數不屬於任何 SLA typed struct，無法用 typed struct diff 機制偵測變化，採用**手動快取**策略：
-
-1. 在 `SLAPrint` 加入 4 個 private member 變數，快取製程 preset 中的 shrinkage 值。
-2. `apply()` 中從 `DynamicPrintConfig` 動態讀取（`opt<T>()`），偵測到變化時更新快取並手動重算所有物件的 trafo。
-3. `sla_trafo()` 讀快取成員，對 `corr` Vec3d 做額外 scale。
-
----
-
-## 四、具體修改
-
-### SLAPrint.hpp — 新增 4 個 private member
-
-**位置**：`SLAPrint` class 的 private 區段，`m_default_object_config` 之後（行 ~532）
+### SLAPrint.hpp — 新增 4 個 private member（行 ~534）
 
 ```cpp
 // Shrinkage compensation values from the process preset (percentage, 100 = no change).
@@ -62,11 +59,7 @@ double m_shrinkage_compensation_y      = 100.0;
 double m_shrinkage_compensation_z      = 100.0;
 ```
 
----
-
-### SLAPrint.cpp — sla_trafo() 讀取快取
-
-**位置**：`SLAPrint::sla_trafo()`（行 ~187），在 `relative_correction()` 之後立即加入
+### SLAPrint.cpp — sla_trafo() 讀取快取（行 ~187）
 
 ```cpp
 Vec3d corr = this->relative_correction();
@@ -79,17 +72,9 @@ if (m_shrinkage_compensation) {
 }
 ```
 
-`relative_correction()` 原本回傳的 Vec3d 已包含機台和材料兩層補正；此處再乘以製程層的 shrinkage，三層串接後傳入後續的 `trafo.scale(corr)`。
-
----
-
-### SLAPrint.cpp — apply() 偵測變化並更新 trafo
-
-**位置**：`apply()` 中，`m_default_object_config.apply_only()` 之後，`if (m_printer) m_printer->apply(...)` 之前（行 ~307）
+### SLAPrint.cpp — apply() 快取並手動更新 trafo（行 ~307）
 
 ```cpp
-// Shrinkage compensation lives in PrintObjectConfig (FDM), not SLAPrintObjectConfig,
-// so we read it from the full DynamicPrintConfig and cache it manually.
 {
     bool   sc   = false;
     double sc_x = 100.0, sc_y = 100.0, sc_z = 100.0;
@@ -107,7 +92,6 @@ if (m_shrinkage_compensation) {
         m_shrinkage_compensation_x = sc_x;
         m_shrinkage_compensation_y = sc_y;
         m_shrinkage_compensation_z = sc_z;
-        // Force trafo recalculation for all objects on next process().
         update_apply_status(this->invalidate_step(slapsMergeSlicesAndEval));
         for (SLAPrintObject *obj : m_objects) {
             update_apply_status(obj->invalidate_all_steps());
@@ -118,15 +102,9 @@ if (m_shrinkage_compensation) {
 }
 ```
 
-**為什麼需要手動呼叫 `set_trafo()`**：`SLAPrint::apply()` 的標準流程只在偵測到 instance 幾何變化（`sla_trafo_differs`）或新物件建立時才更新 trafo。純 config 改變不會觸發這條路徑，因此必須在偵測到 shrinkage 值改變時手動更新所有現有物件的 trafo。
+**為什麼需要手動呼叫 `set_trafo()`**：SLA apply 流程只在偵測到 instance 幾何變化（`sla_trafo_differs`）或新物件建立時才更新 trafo。純 config 改變不觸發此路徑，必須手動更新。
 
-新物件（在此 block 執行後才加入的）不受影響——建立時會呼叫 `sla_trafo()`，此時 `m_shrinkage_compensation*` 快取已是最新值。
-
----
-
-## 五、縮放串接關係
-
-完整縮放計算流程（`sla_trafo()` 內）：
+## 1.4 縮放串接關係
 
 ```
 relative_correction()
@@ -139,20 +117,180 @@ corr *= shrinkage_compensation_x/y/z / 100.0   ← 本次新增
 trafo.scale(corr)
 ```
 
----
-
-## 六、未涉及的修改（刻意不做）
+## 1.5 未涉及的修改（刻意不做）
 
 | 項目 | 原因 |
 |------|------|
-| `SLAPrint::invalidate_state_by_config_options()` 的 `steps_full` | 此函數處理 printer/material config 層的 key，shrinkage 屬於 process 層，加入這裡反而錯誤 |
-| `SLAPrintObject::invalidate_state_by_config_options()` | 此函數只處理 `SLAPrintObjectConfig` 中的 key；shrinkage 不在該 struct，永遠不會被 diff 進來 |
-| `PrintConfig.hpp` / `PrintConfig.cpp` | 參數本身已存在（定義在 `PrintObjectConfig`）；UI 也已正確顯示，無需修改 |
+| `SLAPrint::invalidate_state_by_config_options()` 的 `steps_full` | shrinkage 屬於 process 層，加入這裡反而錯誤 |
+| `SLAPrintObject::invalidate_state_by_config_options()` | 此函數只處理 `SLAPrintObjectConfig` 中的 key |
+| `PrintConfig.hpp` / `PrintConfig.cpp` | 參數本身已存在，UI 也已正確顯示 |
 
----
-
-## 七、驗證方式
+## 1.6 驗證方式
 
 設定 `shrinkage_compensation = true`，`shrinkage_compensation_x = 50`（其餘為 100），切片並匯出 PRZ：
 - X 方向的切層輪廓應縮小為原本的 50%
 - Y、Z 方向輪廓不受影響
+
+---
+
+---
+
+# 二、Tolerance Compensation（公差補償）
+
+## 2.1 功能說明
+
+公差補償對每一切層的 2D 輪廓做獨立的內孔／外輪廓偏移，補正機台或材料在孔徑與外形尺寸上的系統性偏差：
+
+| 參數 | 符號 | 正值效果 | 負值效果 |
+|------|------|---------|---------|
+| `tolerance_compensation_a` | a（內孔） | 孔洞縮小（solid 長入孔） | 孔洞放大 |
+| `tolerance_compensation_b` | b（外徑） | 外輪廓外擴 | 外輪廓收縮 |
+| `bottom_tolerance_compensation_a` | a（底層內孔） | 同上，作用於底層 | 同上 |
+| `bottom_tolerance_compensation_b` | b（底層外徑） | 同上，作用於底層 | 同上 |
+
+「底層」定義為層索引 `< bottom_layer_count`（`coInt`，預設 6）。
+
+## 2.2 PrintConfig.cpp — 參數定義（行 ~6954）
+
+| 參數名稱 | 類型 | 預設值 |
+|---------|------|--------|
+| `tolerance_compensation` | `coBool` | `true` |
+| `tolerance_compensation_a` | `coFloat` | `0` mm |
+| `tolerance_compensation_b` | `coFloat` | `0` mm |
+| `bottom_tolerance_compensation` | `coBool` | `true` |
+| `bottom_tolerance_compensation_a` | `coFloat` | `0` mm |
+| `bottom_tolerance_compensation_b` | `coFloat` | `0` mm |
+
+## 2.3 SLAPrint.hpp — 7 個 private member（行 ~541）
+
+```cpp
+// Tolerance compensation (inner/outer diameter) from process preset.
+// Stored separately because they live in PrintConfig (FDM), not SLA config.
+bool   m_tolerance_compensation             = false;
+double m_tolerance_compensation_a           = 0.0;
+double m_tolerance_compensation_b           = 0.0;
+bool   m_bottom_tolerance_compensation      = false;
+double m_bottom_tolerance_compensation_a    = 0.0;
+double m_bottom_tolerance_compensation_b    = 0.0;
+int    m_tolerance_bottom_layer_count       = 0;
+```
+
+## 2.4 SLAPrint.cpp — apply() 快取與失效（行 ~336）
+
+```cpp
+// Tolerance compensation lives in PrintConfig (FDM), not SLA config → cache manually.
+{
+    bool   tc   = true,  btc  = true;   // match PrintConfig defaults (tolerance_compensation default = true)
+    double tc_a = 0.0,  tc_b  = 0.0, btc_a = 0.0, btc_b = 0.0;
+    int    blc  = 0;
+    if (const auto *v = config.opt<ConfigOptionBool> ("tolerance_compensation"))          tc   = v->value;
+    if (const auto *v = config.opt<ConfigOptionFloat>("tolerance_compensation_a"))        tc_a = v->value;
+    if (const auto *v = config.opt<ConfigOptionFloat>("tolerance_compensation_b"))        tc_b = v->value;
+    if (const auto *v = config.opt<ConfigOptionBool> ("bottom_tolerance_compensation"))   btc  = v->value;
+    if (const auto *v = config.opt<ConfigOptionFloat>("bottom_tolerance_compensation_a")) btc_a = v->value;
+    if (const auto *v = config.opt<ConfigOptionFloat>("bottom_tolerance_compensation_b")) btc_b = v->value;
+    if (const auto *v = config.opt<ConfigOptionInt>  ("bottom_layer_count"))              blc  = v->value;
+    if (tc   != m_tolerance_compensation            || tc_a  != m_tolerance_compensation_a  ||
+        tc_b != m_tolerance_compensation_b          || btc   != m_bottom_tolerance_compensation ||
+        btc_a!= m_bottom_tolerance_compensation_a  || btc_b != m_bottom_tolerance_compensation_b ||
+        blc  != m_tolerance_bottom_layer_count) {
+        m_tolerance_compensation            = tc;
+        m_tolerance_compensation_a          = tc_a;
+        m_tolerance_compensation_b          = tc_b;
+        m_bottom_tolerance_compensation     = btc;
+        m_bottom_tolerance_compensation_a   = btc_a;
+        m_bottom_tolerance_compensation_b   = btc_b;
+        m_tolerance_bottom_layer_count      = blc;
+        update_apply_status(this->invalidate_step(slapsMergeSlicesAndEval));
+        for (SLAPrintObject *obj : m_objects)
+            update_apply_status(obj->invalidate_step(slaposObjectSlice));
+    }
+}
+```
+
+**預設值陷阱**：local bool 必須初始化為 `true`（與 PrintConfig default 一致）。若誤用 `false`，當 key 不在 `DynamicPrintConfig` 中時，快取會錯誤地記為 `false`，導致即使有非零 a/b 值也永遠不作用。
+
+## 2.5 SLAPrintSteps.cpp — apply_printer_corrections() 內的實作（行 ~121）
+
+### Lambda：apply_tc_layer
+
+```cpp
+auto apply_tc_layer = [](ExPolygons &layer_slices, coord_t ca, coord_t cb) {
+    if (ca == 0 && cb == 0) return;
+    ExPolygons result;
+    result.reserve(layer_slices.size());
+    for (const ExPolygon &ep : layer_slices) {
+        Polygons new_contour = offset(ep.contour, float(cb));
+        Polygons hole_solids;
+        for (Polygon h : ep.holes) {
+            h.reverse();                                    // CW hole → CCW solid area
+            append(hole_solids, offset(h, float(-ca)));     // positive a = shrink hole area
+        }
+        append(result, diff_ex(new_contour, hole_solids));
+    }
+    layer_slices = std::move(result);
+};
+```
+
+**設計細節**：
+- `offset(ep.contour, float(cb))`：外輪廓 CCW → 正 delta = 外擴。
+- hole 先 `reverse()` 轉為 CCW solid，再 `offset(h, float(-ca))`（注意負號）：a > 0 → solid 縮小 → 孔洞縮小。
+- `diff_ex(new_contour, {})` 空 clip 情形：Clipper ctDifference 中所有 subject 邊 WindCnt2=0，全部貢獻輸出，即正確回傳 subject 本身。
+
+### 一般層（行 ~141，層索引 ≥ blc）
+
+```cpp
+const int blc = m_print->m_tolerance_bottom_layer_count;
+{
+    coord_t ca = scaled(m_print->m_tolerance_compensation_a);
+    coord_t cb = scaled(m_print->m_tolerance_compensation_b);
+    if (m_print->m_tolerance_compensation && (ca != 0 || cb != 0)) {
+        for (size_t i = (size_t)std::max(0, blc); i < po.m_slice_index.size(); ++i) {
+            size_t idx = po.m_slice_index[i].get_slice_idx(o);
+            if (idx < slices.size())
+                apply_tc_layer(slices[idx], ca, cb);
+        }
+    }
+}
+```
+
+### 底層（行 ~154，層索引 < blc）
+
+```cpp
+{
+    coord_t ca = scaled(m_print->m_bottom_tolerance_compensation_a);
+    coord_t cb = scaled(m_print->m_bottom_tolerance_compensation_b);
+    if (m_print->m_bottom_tolerance_compensation && (ca != 0 || cb != 0)) {
+        size_t n = std::min((size_t)std::max(0, blc), po.m_slice_index.size());
+        for (size_t i = 0; i < n; ++i) {
+            size_t idx = po.m_slice_index[i].get_slice_idx(o);
+            if (idx < slices.size())
+                apply_tc_layer(slices[idx], ca, cb);
+        }
+    }
+}
+```
+
+## 2.6 apply_printer_corrections() 完整執行順序
+
+```
+apply_printer_corrections(po, o)
+    │
+    ├─ 1. absolute_correction          （全層均勻外擴/收縮）
+    ├─ 2. tolerance_compensation       （一般層，layers >= blc）← 本次新增
+    ├─ 3. bottom_tolerance_compensation（底層，layers < blc）  ← 本次新增
+    ├─ 4. elephant_foot_compensation   （faded layers）
+    └─ 5. zcorrection                  （僅 soModel）
+```
+
+> TC 在 EFC 之前執行：EFC 疊加在 TC 調整後的輪廓上計算。
+
+## 2.7 驗證方式
+
+| 測試 | 設定 | 預期結果（2D Layer View） |
+|------|------|------------------------|
+| 一般層外擴 | `tolerance_compensation_b = 0.5mm` | 層 6 以上外輪廓外擴 0.5mm |
+| 底層外擴 | `bottom_tolerance_compensation_b = 0.5mm` | 層 0-5 外輪廓外擴 0.5mm |
+| 孔洞縮小 | `tolerance_compensation_a = 0.3mm` | 一般層孔洞直徑縮小 0.6mm |
+| Bool 開關 | `tolerance_compensation = false` | 即使 b = 0.5mm 也無效果 |
+| 負值 | `tolerance_compensation_b = -0.5mm` | 外輪廓收縮 0.5mm |

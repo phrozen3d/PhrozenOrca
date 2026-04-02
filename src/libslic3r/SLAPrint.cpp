@@ -333,6 +333,35 @@ SLAPrint::ApplyStatus SLAPrint::apply(const Model &model, DynamicPrintConfig con
         }
     }
 
+    // Tolerance compensation lives in PrintConfig (FDM), not SLA config → cache manually.
+    {
+        bool   tc   = true,  btc  = true;   // match PrintConfig defaults (tolerance_compensation default = true)
+        double tc_a = 0.0,  tc_b  = 0.0, btc_a = 0.0, btc_b = 0.0;
+        int    blc  = 0;
+        if (const auto *v = config.opt<ConfigOptionBool> ("tolerance_compensation"))          tc   = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("tolerance_compensation_a"))        tc_a = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("tolerance_compensation_b"))        tc_b = v->value;
+        if (const auto *v = config.opt<ConfigOptionBool> ("bottom_tolerance_compensation"))   btc  = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("bottom_tolerance_compensation_a")) btc_a = v->value;
+        if (const auto *v = config.opt<ConfigOptionFloat>("bottom_tolerance_compensation_b")) btc_b = v->value;
+        if (const auto *v = config.opt<ConfigOptionInt>  ("bottom_layer_count"))              blc  = v->value;
+        if (tc   != m_tolerance_compensation            || tc_a  != m_tolerance_compensation_a  ||
+            tc_b != m_tolerance_compensation_b          || btc   != m_bottom_tolerance_compensation ||
+            btc_a!= m_bottom_tolerance_compensation_a  || btc_b != m_bottom_tolerance_compensation_b ||
+            blc  != m_tolerance_bottom_layer_count) {
+            m_tolerance_compensation            = tc;
+            m_tolerance_compensation_a          = tc_a;
+            m_tolerance_compensation_b          = tc_b;
+            m_bottom_tolerance_compensation     = btc;
+            m_bottom_tolerance_compensation_a   = btc_a;
+            m_bottom_tolerance_compensation_b   = btc_b;
+            m_tolerance_bottom_layer_count      = blc;
+            update_apply_status(this->invalidate_step(slapsMergeSlicesAndEval));
+            for (SLAPrintObject *obj : m_objects)
+                update_apply_status(obj->invalidate_step(slaposObjectSlice));
+        }
+    }
+
     if (m_printer) m_printer->apply(m_printer_config);
 
     struct ModelObjectStatus {
