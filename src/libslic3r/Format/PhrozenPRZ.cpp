@@ -81,10 +81,12 @@ static int calculate_prz_print_time(const SLAPrint          &print,
     const int   bottom_count     = cfg_i(cfg, "bottom_layer_count");
     const int   transition_count = cfg_i(cfg, "transition_layer_count");
 
-    const float bt  = cfg_f(cfg, "bottom_exposure_time");
-    const float nt  = cfg_f(cfg, "exposure_time");
-    const float lod = cfg_f(cfg, "light_off_day");
-    const float rtr = cfg_f(cfg, "rest_time_after_retract");
+    const float bt   = cfg_f(cfg, "bottom_exposure_time");
+    const float nt   = cfg_f(cfg, "exposure_time");
+    const float lod  = cfg_f(cfg, "light_off_day");
+    const float rtbl = cfg_f(cfg, "rest_time_before_lift");
+    const float rtal = cfg_f(cfg, "rest_time_after_lift");
+    const float rtr  = cfg_f(cfg, "rest_time_after_retract");
 
     // ---- Bottom layer motion parameters ----
     const float b_lh  = cfg_floats0(cfg, "bottom_lift_distance");
@@ -129,7 +131,7 @@ static int calculate_prz_print_time(const SLAPrint          &print,
 
     // ---- Bottom zone ----
     float total_s = static_cast<float>(eff_bottom)
-                  * (bt + lod + t_b_motion + rtr);
+                  * (bt + lod + rtbl + t_b_motion + rtal + rtr);
 
     // ---- Transition zone (exposure interpolated, motion = normal) ----
     // Sum of interpolated exposure times (arithmetic series):
@@ -137,12 +139,12 @@ static int calculate_prz_print_time(const SLAPrint          &print,
     if (eff_transition > 0) {
         const float exp_sum = static_cast<float>(eff_transition) * (bt + nt) * 0.5f;
         total_s += exp_sum
-                 + static_cast<float>(eff_transition) * (lod + t_n_motion + rtr);
+                 + static_cast<float>(eff_transition) * (lod + rtbl + t_n_motion + rtal + rtr);
     }
 
     // ---- Normal zone ----
     total_s += static_cast<float>(eff_normal)
-             * (nt + lod + t_n_motion + rtr);
+             * (nt + lod + rtbl + t_n_motion + rtal + rtr);
 
     return static_cast<int>(total_s);
 }
@@ -341,16 +343,16 @@ static void prz_header(std::string             &fh,
     { fh += '\x01'; layerContent_position_offset += 1; }
     // TurnOffTime (light_off_day, 4 bytes)
     { float v = cfg_f(cfg, "light_off_day"); write_be(fh, v); layerContent_position_offset += 4; }
-    // Bottom_Before_lift_static_time (4 bytes, 0)
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
-    // Bottom_After_lift_static_time (4 bytes, 0)
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // Bottom_Before_lift_static_time (rest_time_before_lift)
+    { float v = cfg_f(cfg, "rest_time_before_lift"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Bottom_After_lift_static_time (rest_time_after_lift)
+    { float v = cfg_f(cfg, "rest_time_after_lift"); write_be(fh, v); layerContent_position_offset += 4; }
     // Bottom_After_retract_static_time (rest_time_after_retract)
     { float v = cfg_f(cfg, "rest_time_after_retract"); write_be(fh, v); layerContent_position_offset += 4; }
-    // Before_lift_static_time (0)
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
-    // After_lift_static_time (0)
-    { float v = 0.f; write_be(fh, v); layerContent_position_offset += 4; }
+    // Before_lift_static_time (rest_time_before_lift)
+    { float v = cfg_f(cfg, "rest_time_before_lift"); write_be(fh, v); layerContent_position_offset += 4; }
+    // After_lift_static_time (rest_time_after_lift)
+    { float v = cfg_f(cfg, "rest_time_after_lift"); write_be(fh, v); layerContent_position_offset += 4; }
     // After_retract_static_time (rest_time_after_retract)
     { float v = cfg_f(cfg, "rest_time_after_retract"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomExposureTime

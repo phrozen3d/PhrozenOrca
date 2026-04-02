@@ -1,7 +1,7 @@
 # SLA PRZ 格式匯出實作記錄
 
 **建立日期**: 2026-03-12
-**最後更新**: 2026-03-31
+**最後更新**: 2026-04-02
 **分支**: phrozen-resin-dev
 **涉及檔案**:
 - [src/libslic3r/Format/PhrozenPRZ.hpp](../src/libslic3r/Format/PhrozenPRZ.hpp)（新增）
@@ -61,11 +61,11 @@ PRZ File
 │   ├─ ExposureTime (4 bytes, float) ← exposure_time（一般層）
 │   ├─ Exposure_delay_mode (1 byte, 固定 0x01)
 │   ├─ TurnOffTime (4 bytes, float) ← light_off_day
-│   ├─ Bottom_Before_lift_static_time (4 bytes, 0)
-│   ├─ Bottom_After_lift_static_time (4 bytes, 0)
+│   ├─ Bottom_Before_lift_static_time (4 bytes) ← rest_time_before_lift
+│   ├─ Bottom_After_lift_static_time (4 bytes) ← rest_time_after_lift
 │   ├─ Bottom_After_retract_static_time (4 bytes) ← rest_time_after_retract
-│   ├─ Before_lift_static_time (4 bytes, 0)
-│   ├─ After_lift_static_time (4 bytes, 0)
+│   ├─ Before_lift_static_time (4 bytes) ← rest_time_before_lift
+│   ├─ After_lift_static_time (4 bytes) ← rest_time_after_lift
 │   ├─ After_retract_static_time (4 bytes) ← rest_time_after_retract
 │   ├─ BottomExposureTime (4 bytes, float) ← bottom_exposure_time
 │   ├─ BottomLayers (4 bytes, int) ← bottom_layer_count
@@ -222,6 +222,10 @@ std::string generate_prz(const SLAPrint &print);
 
 | PRZ 欄位 | PhrozenOrca key | 型別 | 來源 |
 |---|---|---|---|
+| Bottom_Before_lift_static_time | `rest_time_before_lift` | `coFloat` | `PrintConfig` |
+| Bottom_After_lift_static_time | `rest_time_after_lift` | `coFloat` | `PrintConfig` |
+| Before_lift_static_time | `rest_time_before_lift` | `coFloat` | `PrintConfig` |
+| After_lift_static_time | `rest_time_after_lift` | `coFloat` | `PrintConfig` |
 | Printer Name | `printer_settings_id` | `coString` | `PrintConfig` |
 | Printer Type | `printer_model` | `coString` | `PrintConfig` |
 | Profile Name | `sla_print_settings_id` | `coString` | `SLAPrintConfig` |
@@ -701,5 +705,52 @@ short v = (short)round(raw / 255.0 * 8.0);  // 映射至 0~8
 + const float b_ls  = cfg_f(cfg, "bottom_lift_speed");
 // （其餘 7 個速度 key 同樣改法，距離 key 不動）
 ```
+
+**影響範圍**：僅 `src/libslic3r/Format/PhrozenPRZ.cpp`，不涉及 PrintConfig 或 GUI 修改。
+
+---
+
+## 十、2026-04-02 修改記錄
+
+### 10-1 靜止等待時間欄位改接 rest_time_before_lift / rest_time_after_lift（PhrozenPRZ.cpp）
+
+**問題**：PRZ header 中四個靜止等待時間欄位硬寫 `0.0`，印表機無法依使用者設定執行抬升前後的等待動作，影響剝離品質。
+
+**欄位對應調整**：
+
+| PRZ 欄位 | 修改前 | 修改後 |
+|---|---|---|
+| `Bottom_Before_lift_static_time` | 硬寫 `0.0` | `rest_time_before_lift` |
+| `Bottom_After_lift_static_time` | 硬寫 `0.0` | `rest_time_after_lift` |
+| `Before_lift_static_time` | 硬寫 `0.0` | `rest_time_before_lift` |
+| `After_lift_static_time` | 硬寫 `0.0` | `rest_time_after_lift` |
+
+底層（Bottom）與一般層各自的同名欄位填入相同參數值，符合 PRZ 格式預期（底層/一般層共用同一組靜止時間設定）。
+
+---
+
+### 10-2 calculate_prz_print_time 加入靜止等待時間（PhrozenPRZ.cpp）
+
+**問題**：`calculate_prz_print_time()` 的每層時間公式只包含曝光 + 關燈延遲 + 運動 + 回程後等待，未計入抬升前（`rest_time_before_lift`）與抬升後（`rest_time_after_lift`）的靜止時間，導致估算偏低。
+
+**修正**：讀取兩個新參數，加入三個層類型的時間計算：
+
+```cpp
+const float rtbl = cfg_f(cfg, "rest_time_before_lift");
+const float rtal = cfg_f(cfg, "rest_time_after_lift");
+```
+
+**公式調整**（底層、過渡層、普通層三者一致）：
+
+```
+// 修改前
+T_layer = T_exposure + light_off_day + T_motion + rest_time_after_retract
+
+// 修改後
+T_layer = T_exposure + light_off_day + rest_time_before_lift
+        + T_motion + rest_time_after_lift + rest_time_after_retract
+```
+
+`T_motion` 為抬升兩段 + 下降兩段的運動時間之和，`rest_time_before_lift` 插入於關燈延遲之後、運動開始之前；`rest_time_after_lift` 插入於抬升完成之後、回程開始之前。
 
 **影響範圍**：僅 `src/libslic3r/Format/PhrozenPRZ.cpp`，不涉及 PrintConfig 或 GUI 修改。
