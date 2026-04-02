@@ -35,9 +35,8 @@ class GLGizmoHollow : public GLGizmoSlaBase
 {
 public:
     GLGizmoHollow(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
-    void data_changed(bool is_serializing) override; // Step 4.3: replaces set_sla_support_data()
+    void data_changed(bool is_serializing) override;
     bool gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_position, bool shift_down, bool alt_down, bool control_down);
-    void delete_selected_points();
     bool is_selection_rectangle_dragging() const override {
         return m_selection_rectangle.is_dragging();
     }
@@ -57,58 +56,24 @@ protected:
     virtual void on_unregister_raycasters_for_picking() override; // Step 4.3: new raycaster lifecycle
 
 private:
-    void render_points(const Selection& selection); // Step 4.3: removed 'bool picking' param (PickingModel handles it)
-    void register_hole_raycasters_for_picking();
-    void unregister_hole_raycasters_for_picking();
-    void update_hole_raycasters_for_picking_transform();
-
-    ObjectID m_old_mo_id = -1;
-
-    // Step 4.3: Changed from GLModel to PickingModel (adds mesh_raycaster for scene picking).
-    PickingModel m_cylinder;
-    std::vector<std::shared_ptr<SceneRaycasterItem>> m_hole_raycasters;
-
-    float m_new_hole_radius = 2.f;        // Size of a new hole.
-    float m_new_hole_height = 6.f;
-    mutable std::vector<bool> m_selected; // which holes are currently selected
-
     bool m_enable_hollowing = true;
 
-    // Stashes to keep data for undo redo. Is taken after the editing
-    // is done, the data are updated continuously.
-    float m_offset_stash = 3.0f;
-    float m_quality_stash = 0.5f;
+    float m_offset_stash    = 3.0f;
+    float m_quality_stash   = 0.5f;
     float m_closing_d_stash = 2.f;
-    Vec3f m_hole_before_drag = Vec3f::Zero();
-    sla::DrainHoles m_holes_in_drilled_mesh;
 
-    sla::DrainHoles m_holes_stash;
+    EState m_old_state = Off;
 
-    // This map holds all translated description texts, so they can be easily referenced during layout calculations
-    // etc. When language changes, GUI is recreated and this class constructed again, so the change takes effect.
-    // Note: kept as wxString (PhrozenOrca uses m_imgui->xxx() API which expects wxString).
     std::map<std::string, wxString> m_desc;
 
+    // Kept for is_selection_rectangle_dragging() override called by GLGizmosManager.
     GLSelectionRectangle m_selection_rectangle;
 
-    bool m_wait_for_up_event = false;
-    bool m_selection_empty = true;
-    EState m_old_state = Off; // to be able to see that the gizmo has just been closed (see on_set_state)
-
     std::vector<std::pair<const ConfigOption*, const ConfigOptionDef*>> get_config_options(const std::vector<std::string>& keys) const;
-    bool is_mesh_point_clipped(const Vec3d& point) const;
 
-    // Methods that do the model_object and editing cache synchronization,
-    // editing mode selection, etc:
-    enum {
-        AllPoints = -2,
-        NoPoints,
-    };
-    void select_point(int i);
-    void unselect_point(int i);
-    void reload_cache();
-
-    void init_cylinder_model(); // Step 4.3: lazy-init PickingModel for hole cylinders
+    void render_hollow_panel(float x, float y,
+                             ModelObject* mo, ConfigOptionMode current_mode,
+                             bool& config_changed);
 
 protected:
     void on_set_state() override;
