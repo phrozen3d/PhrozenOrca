@@ -13,50 +13,75 @@ enum class PointsStatus {
     UserModified    // User has done some edits.
 };
 
+// Ported from PrusaSlicer 2.9.1: three-value classification replacing bool is_new_island.
+// File format encoding (float, range-based, compatible with PrusaSlicer 2.9.1+):
+//   ≈1.0 (0.999–1.001) → island      (same as old is_new_island=true)
+//   ≈2.0 (1.999–2.001) → manual_add  (new)
+//   ≈3.0 (2.999–3.001) → slope       (new)
+//   all other values   → slope        (legacy fallback: old is_new_island=false → slope)
+enum class SupportPointType {
+    manual_add = 0, // User manually placed, or promoted by dragging an auto-generated point
+    island     = 1, // Auto-generated on a completely new island (prev_parts.empty())
+    slope      = 2, // Auto-generated on an overhang / peninsula
+};
+
 struct SupportPoint
 {
-    Vec3f pos;
-    float head_front_radius;
-    bool  is_new_island;
-    
+    Vec3f            pos;
+    float            head_front_radius;
+    SupportPointType type;
+
     SupportPoint()
-        : pos(Vec3f::Zero()), head_front_radius(0.f), is_new_island(false)
+        : pos(Vec3f::Zero()), head_front_radius(0.f), type(SupportPointType::manual_add)
     {}
-    
+
     SupportPoint(float pos_x,
                  float pos_y,
                  float pos_z,
                  float head_radius,
-                 bool  new_island = false)
+                 SupportPointType t = SupportPointType::manual_add)
         : pos(pos_x, pos_y, pos_z)
         , head_front_radius(head_radius)
-        , is_new_island(new_island)
+        , type(t)
     {}
-    
-    SupportPoint(Vec3f position, float head_radius, bool new_island = false)
+
+    SupportPoint(Vec3f position, float head_radius, SupportPointType t = SupportPointType::manual_add)
         : pos(position)
         , head_front_radius(head_radius)
-        , is_new_island(new_island)
+        , type(t)
     {}
-    
+
+    // Construct from serialized 5-float vector (legacy & new format).
+    // Encoding matches PrusaSlicer 2.9.1 range-based scheme.
     SupportPoint(Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data)
         : pos(data(0), data(1), data(2))
         , head_front_radius(data(3))
-        , is_new_island(data(4) != 0.f)
-    {}
-    
+    {
+        float v = data(4);
+        if (v > 0.999f && v < 1.001f)
+            type = SupportPointType::island;
+        else if (v > 1.999f && v < 2.001f)
+            type = SupportPointType::manual_add;
+        else if (v > 2.999f && v < 3.001f)
+            type = SupportPointType::slope;
+        else
+            type = SupportPointType::slope; // legacy is_new_island=false → slope
+    }
+
+    bool is_island() const { return type == SupportPointType::island; }
+
     bool operator==(const SupportPoint &sp) const
     {
         float rdiff = std::abs(head_front_radius - sp.head_front_radius);
         return (pos == sp.pos) && rdiff < float(EPSILON) &&
-               is_new_island == sp.is_new_island;
+               type == sp.type;
     }
-    
+
     bool operator!=(const SupportPoint &sp) const { return !(sp == (*this)); }
-    
+
     template<class Archive> void serialize(Archive &ar)
     {
-        ar(pos, head_front_radius, is_new_island);
+        ar(pos, head_front_radius, type);
     }
 };
 

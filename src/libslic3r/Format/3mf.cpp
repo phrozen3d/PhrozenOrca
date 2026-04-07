@@ -1225,16 +1225,20 @@ ModelVolumeType type_from_string(const std::string &s)
                                                     float(std::atof(object_data_points[i+1].c_str())),
 													float(std::atof(object_data_points[i+2].c_str())),
                                                     0.4f,
-                                                    false);
+                                                    sla::SupportPointType::slope);
                 }
                 if (version == 1) {
-                    for (unsigned int i=0; i<object_data_points.size(); i+=5)
-                    sla_support_points.emplace_back(float(std::atof(object_data_points[i+0].c_str())),
-                                                    float(std::atof(object_data_points[i+1].c_str())),
-                                                    float(std::atof(object_data_points[i+2].c_str())),
-                                                    float(std::atof(object_data_points[i+3].c_str())),
-													//FIXME storing boolean as 0 / 1 and importing it as float.
-                                                    std::abs(std::atof(object_data_points[i+4].c_str()) - 1.) < EPSILON);
+                    // Decode SupportPointType from float (PrusaSlicer 2.9.1 range-based scheme):
+                    // ≈1.0→island, ≈2.0→manual_add, ≈3.0→slope, other→slope (legacy 0.0 fallback)
+                    for (unsigned int i=0; i<object_data_points.size(); i+=5) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i+0].c_str())),
+                                float(std::atof(object_data_points[i+1].c_str())),
+                                float(std::atof(object_data_points[i+2].c_str())),
+                                float(std::atof(object_data_points[i+3].c_str())),
+                                float(std::atof(object_data_points[i+4].c_str()));
+                        sla_support_points.emplace_back(data);
+                    }
                 }
 
                 if (!sla_support_points.empty())
@@ -2993,7 +2997,11 @@ ModelVolumeType type_from_string(const std::string &s)
 
                 // Store the layer height profile as a single space separated list.
                 for (size_t i = 0; i < sla_support_points.size(); ++i) {
-                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),  sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2), sla_support_points[i].head_front_radius, (float)sla_support_points[i].is_new_island);
+                    // Encode SupportPointType as float (PrusaSlicer 2.9.1 range-based scheme):
+                    // island=1.0, manual_add=2.0, slope=3.0
+                    float type_f = (sla_support_points[i].type == sla::SupportPointType::island)     ? 1.0f :
+                                   (sla_support_points[i].type == sla::SupportPointType::manual_add) ? 2.0f : 3.0f;
+                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),  sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2), sla_support_points[i].head_front_radius, type_f);
                     out += buffer;
                 }
                 out += "\n";

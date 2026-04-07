@@ -3,8 +3,7 @@
 //        move_on_mesh_surface() from PrusaSlicer/SLA/SupportPointGenerator.cpp.
 //
 // Key PhrozenOrca adaptations:
-//   - SupportPointType::island -> true  (is_new_island bool, PhrozenOrca SupportPoint)
-//   - SupportPointType::slope  -> false
+//   - SupportPointType::island / slope now used directly (is_new_island bool removed)
 //   - AABBMesh -> sla::IndexedMesh  (same API: query_ray_hit + squared_distance)
 
 #include "SupportPointGenerator.hpp"
@@ -237,7 +236,7 @@ void support_part_overhangs(
                 SupportPoint{
                     Vec3f{unscale<float>(p.x()), unscale<float>(p.y()), part_z},
                     /* head_front_radius */ config.head_diameter / 2,
-                    /* is_new_island */ false   // slope/overhang, not new island
+                    SupportPointType::slope
                 },
                 /* position_on_layer */ p,
                 /* radius_curve_index */ 0,
@@ -265,7 +264,7 @@ void support_island(
                     part_z
                 },
                 /* head_front_radius */ cfg.head_diameter / 2,
-                /* is_new_island */ true
+                SupportPointType::island
             },
             /* position_on_layer */ sample->point,
             /* radius_curve_index */ 0,
@@ -293,7 +292,7 @@ void support_peninsulas(
                         part_z
                     },
                     /* head_front_radius */ cfg.head_diameter / 2,
-                    /* is_new_island */ true   // peninsula treated as island
+                    SupportPointType::island
                 },
                 /* position_on_layer */ support->point,
                 /* radius_curve_index */ 0,

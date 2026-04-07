@@ -318,15 +318,22 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         if (clipped)
             continue;
 
-        // Color logic — PhrozenOrca uses is_new_island (no SupportPointType enum here)
+        // Color logic based on SupportPointType (ported from PrusaSlicer):
+        //   manual_add → CYAN (user-placed)
+        //   island     → ORANGE-ish / BLUEISH when locked (auto-generated critical)
+        //   slope      → LIGHT_GRAY (auto-generated ordinary)
         if (m_editing_mode && size_t(m_hover_id) == i)
             render_color = ColorRGBA::CYAN();
         else if (m_editing_mode && point_selected)
-            render_color = ColorRGBA { 1.f, 0.3f, 0.3f, 1.f }; // REDISH (ColorRGBA::REDISH not in PhrozenOrca)
-        else if (m_lock_unique_islands && support_point.is_new_island && m_editing_mode)
+            render_color = ColorRGBA { 1.f, 0.3f, 0.3f, 1.f }; // REDISH
+        else if (m_lock_unique_islands && support_point.is_island() && m_editing_mode)
             render_color = ColorRGBA::BLUEISH();
+        else if (m_editing_mode && support_point.type == sla::SupportPointType::manual_add)
+            render_color = ColorRGBA::CYAN();
+        else if (m_editing_mode && support_point.type == sla::SupportPointType::island)
+            render_color = ColorRGBA { 1.f, 0.6f, 0.0f, 1.f }; // orange — auto island
         else if (m_editing_mode)
-            render_color = ColorRGBA::LIGHT_GRAY();
+            render_color = ColorRGBA::LIGHT_GRAY(); // slope
         else
             render_color = ColorRGBA { 0.5f, 0.5f, 0.5f, 1.f };
 
@@ -439,7 +446,7 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                 std::pair<Vec3f, Vec3f> pos_and_normal;
                 if (unproject_on_mesh(mouse_position, pos_and_normal)) { // we got an intersection
                     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add support point");
-                    m_editing_cache.emplace_back(sla::SupportPoint(pos_and_normal.first, m_new_point_head_diameter/2.f, false), false, pos_and_normal.second);
+                    m_editing_cache.emplace_back(sla::SupportPoint(pos_and_normal.first, m_new_point_head_diameter/2.f, sla::SupportPointType::manual_add), false, pos_and_normal.second);
                     // Step 2.3 Mod 6: Re-register raycasters after adding a point
                     unregister_point_raycasters_for_picking();
                     register_point_raycasters_for_picking();
@@ -595,7 +602,7 @@ void GLGizmoSlaSupports::delete_selected_points(bool force)
     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Delete support point");
 
     for (unsigned int idx=0; idx<m_editing_cache.size(); ++idx) {
-        if (m_editing_cache[idx].selected && (!m_editing_cache[idx].support_point.is_new_island || !m_lock_unique_islands || force)) {
+        if (m_editing_cache[idx].selected && (!m_editing_cache[idx].support_point.is_island() || !m_lock_unique_islands || force)) {
             m_editing_cache.erase(m_editing_cache.begin() + (idx--));
         }
     }
@@ -611,12 +618,13 @@ void GLGizmoSlaSupports::on_dragging(const UpdateData& data)
     if (! m_editing_mode)
         return;
     else {
-        if (m_hover_id != -1 && (! m_editing_cache[m_hover_id].support_point.is_new_island || !m_lock_unique_islands)) {
+        if (m_hover_id != -1 && (! m_editing_cache[m_hover_id].support_point.is_island() || !m_lock_unique_islands)) {
             std::pair<Vec3f, Vec3f> pos_and_normal;
             if (! unproject_on_mesh(data.mouse_pos.cast<double>(), pos_and_normal))
                 return;
             m_editing_cache[m_hover_id].support_point.pos = pos_and_normal.first;
-            m_editing_cache[m_hover_id].support_point.is_new_island = false;
+            // Dragging promotes any auto-generated point to manual_add (user takes responsibility)
+            m_editing_cache[m_hover_id].support_point.type = sla::SupportPointType::manual_add;
             m_editing_cache[m_hover_id].normal = pos_and_normal.second;
         }
     }
@@ -867,15 +875,19 @@ RENDER_AGAIN:
             auto_generate();
         }
 
-        // Step 4.5+: Support point statistics (adapted from PrusaSlicer; uses is_new_island
-        // instead of SupportPointType because PhrozenOrca's SupportPoint struct lacks the type field).
+        // Support point statistics by SupportPointType
         {
-            int count_island = 0;
-            for (const sla::SupportPoint &sp : m_normal_cache)
-                if (sp.is_new_island) ++count_island;
+            int count_manual = 0, count_island = 0;
+            for (const sla::SupportPoint &sp : m_normal_cache) {
+                if (sp.type == sla::SupportPointType::manual_add) ++count_manual;
+                else if (sp.is_island())                          ++count_island;
+            }
             std::string stats;
             if (m_normal_cache.empty())
                 stats = "No support points generated yet.";
+            else if (count_manual > 0)
+                stats = GUI::format("%d(%d manual) support points (%d on islands)",
+                    (int)m_normal_cache.size(), count_manual, count_island);
             else
                 stats = GUI::format("%d support points (%d on islands)",
                     (int)m_normal_cache.size(), count_island);
@@ -1209,7 +1221,7 @@ void GLGizmoSlaSupports::get_data_from_backend()
             const std::vector<sla::SupportPoint>& points = po->get_support_points();
             auto mat = po->trafo().inverse().cast<float>();
             for (unsigned int i=0; i<points.size();++i)
-                m_normal_cache.emplace_back(sla::SupportPoint(mat * points[i].pos, points[i].head_front_radius, points[i].is_new_island));
+                m_normal_cache.emplace_back(sla::SupportPoint(mat * points[i].pos, points[i].head_front_radius, points[i].type));
 
             mo->sla_points_status = sla::PointsStatus::AutoGenerated;
             break;

@@ -1206,7 +1206,11 @@ bool load_amf(const char *path, DynamicPrintConfig *config, ConfigSubstitutionCo
             for (size_t i = 0; i < sla_support_points.size(); ++i) {
                 if (i != 0)
                     stream << ";";
-                stream << sla_support_points[i].pos(0) << ";" << sla_support_points[i].pos(1) << ";" << sla_support_points[i].pos(2) << ";" << sla_support_points[i].head_front_radius << ";" << sla_support_points[i].is_new_island;
+                // Encode SupportPointType as float (PrusaSlicer 2.9.1 range-based scheme):
+                // island=1.0, manual_add=2.0, slope=3.0
+                float type_f = (sla_support_points[i].type == sla::SupportPointType::island)     ? 1.0f :
+                               (sla_support_points[i].type == sla::SupportPointType::manual_add) ? 2.0f : 3.0f;
+                stream << sla_support_points[i].pos(0) << ";" << sla_support_points[i].pos(1) << ";" << sla_support_points[i].pos(2) << ";" << sla_support_points[i].head_front_radius << ";" << type_f;
             }
             stream << "\n    </metadata>\n";
         }
