@@ -13,6 +13,7 @@
 #include "../I18N.hpp"
 
 #include "bbs_3mf.hpp"
+#include "3mf.hpp"  // support_points_format_version, drain_holes_format_version
 
 #include <limits>
 #include <stdexcept>
@@ -171,8 +172,8 @@ const std::string SLICE_INFO_CONFIG_FILE = "Metadata/slice_info.config";
 const std::string BBS_LAYER_HEIGHTS_PROFILE_FILE = "Metadata/layer_heights_profile.txt";
 const std::string LAYER_CONFIG_RANGES_FILE = "Metadata/layer_config_ranges.xml";
 const std::string BRIM_EAR_POINTS_FILE = "Metadata/brim_ear_points.txt";
-/*const std::string SLA_SUPPORT_POINTS_FILE = "Metadata/Slic3r_PE_sla_support_points.txt";
-const std::string SLA_DRAIN_HOLES_FILE = "Metadata/Slic3r_PE_sla_drain_holes.txt";*/
+const std::string SLA_SUPPORT_POINTS_FILE = "Metadata/Slic3r_PE_sla_support_points.txt";
+const std::string SLA_DRAIN_HOLES_FILE = "Metadata/Slic3r_PE_sla_drain_holes.txt";
 const std::string CUSTOM_GCODE_PER_PRINT_Z_FILE = "Metadata/custom_gcode_per_layer.xml";
 const std::string AUXILIARY_DIR = "Auxiliaries/";
 const std::string PROJECT_EMBEDDED_PRINT_PRESETS_FILE = "Metadata/print_setting_";
@@ -818,8 +819,8 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
         typedef std::map<int, std::vector<coordf_t>> IdToLayerHeightsProfileMap;
         typedef std::map<int, t_layer_config_ranges> IdToLayerConfigRangesMap;
         typedef std::map<int, BrimPoints>             IdToBrimPointsMap;
-        /*typedef std::map<int, std::vector<sla::SupportPoint>> IdToSlaSupportPointsMap;
-        typedef std::map<int, std::vector<sla::DrainHole>> IdToSlaDrainHolesMap;*/
+        typedef std::map<int, std::vector<sla::SupportPoint>> IdToSlaSupportPointsMap;
+        typedef std::map<int, std::vector<sla::DrainHole>> IdToSlaDrainHolesMap;
         using PathToEmbossShapeFileMap = std::map<std::string, std::shared_ptr<std::string>>;
 
         struct ObjectImporter
@@ -1011,8 +1012,8 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
         IdToLayerHeightsProfileMap m_layer_heights_profiles;
         IdToLayerConfigRangesMap m_layer_config_ranges;
         IdToBrimPointsMap m_brim_ear_points;
-        /*IdToSlaSupportPointsMap m_sla_support_points;
-        IdToSlaDrainHolesMap    m_sla_drain_holes;*/
+        IdToSlaSupportPointsMap m_sla_support_points;
+        IdToSlaDrainHolesMap    m_sla_drain_holes;
         PathToEmbossShapeFileMap m_path_to_emboss_shape_files;
         std::string m_curr_metadata_name;
         std::string m_curr_characters;
@@ -1280,7 +1281,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
         m_layer_heights_profiles.clear();
         m_layer_config_ranges.clear();
         m_brim_ear_points.clear();
-        //m_sla_support_points.clear();
+        m_sla_support_points.clear();
         m_curr_metadata_name.clear();
         m_curr_characters.clear();
         //BBS: plater data init
@@ -1773,15 +1774,14 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                     // extract slic3r config file
                     _extract_brim_ear_points_from_archive(archive, stat);
                 }
-                //BBS: disable SLA related files currently
-                /*else if (boost::algorithm::iequals(name, SLA_SUPPORT_POINTS_FILE)) {
+                else if (boost::algorithm::iequals(name, SLA_SUPPORT_POINTS_FILE)) {
                     // extract sla support points file
                     _extract_sla_support_points_from_archive(archive, stat);
                 }
                 else if (boost::algorithm::iequals(name, SLA_DRAIN_HOLES_FILE)) {
-                    // extract sla support points file
+                    // extract sla drain holes file
                     _extract_sla_drain_holes_from_archive(archive, stat);
-                }*/
+                }
                 //BBS: project setting file
                 //if (!dont_load_config && boost::algorithm::iequals(name, BBS_PRINT_CONFIG_FILE)) {
                     // extract slic3r print config file
@@ -1961,7 +1961,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 model_object->brim_points = std::move(obj_brim_points->second);
 
             // m_sla_support_points are indexed by a 1 based model object index.
-            /*IdToSlaSupportPointsMap::iterator obj_sla_support_points = m_sla_support_points.find(object.second + 1);
+            IdToSlaSupportPointsMap::iterator obj_sla_support_points = m_sla_support_points.find(object.second + 1);
             if (obj_sla_support_points != m_sla_support_points.end() && !obj_sla_support_points->second.empty()) {
                 model_object->sla_support_points = std::move(obj_sla_support_points->second);
                 model_object->sla_points_status = sla::PointsStatus::UserModified;
@@ -1970,7 +1970,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             IdToSlaDrainHolesMap::iterator obj_drain_holes = m_sla_drain_holes.find(object.second + 1);
             if (obj_drain_holes != m_sla_drain_holes.end() && !obj_drain_holes->second.empty()) {
                 model_object->sla_drain_holes = std::move(obj_drain_holes->second);
-            }*/
+            }
 
             std::vector<Component> object_id_list;
             _generate_current_object_list(object_id_list, object.first, m_current_objects);
@@ -2851,7 +2851,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             }
         }
     }
-    /*
+
     void _BBS_3MF_Importer::_extract_sla_support_points_from_archive(mz_zip_archive& archive, const mz_zip_archive_file_stat& stat)
     {
         if (stat.m_uncomp_size > 0) {
@@ -2912,20 +2912,24 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
 
                 if (version == 0) {
                     for (unsigned int i=0; i<object_data_points.size(); i+=3)
-                    sla_support_points.emplace_back(float(std::atof(object_data_points[i+0].c_str())),
-                                                    float(std::atof(object_data_points[i+1].c_str())),
-													float(std::atof(object_data_points[i+2].c_str())),
-                                                    0.4f,
-                                                    false);
+                        sla_support_points.emplace_back(float(std::atof(object_data_points[i+0].c_str())),
+                                                        float(std::atof(object_data_points[i+1].c_str())),
+                                                        float(std::atof(object_data_points[i+2].c_str())),
+                                                        0.4f,
+                                                        sla::SupportPointType::slope);
                 }
                 if (version == 1) {
-                    for (unsigned int i=0; i<object_data_points.size(); i+=5)
-                    sla_support_points.emplace_back(float(std::atof(object_data_points[i+0].c_str())),
-                                                    float(std::atof(object_data_points[i+1].c_str())),
-                                                    float(std::atof(object_data_points[i+2].c_str())),
-                                                    float(std::atof(object_data_points[i+3].c_str())),
-													//FIXME storing boolean as 0 / 1 and importing it as float.
-                                                    std::abs(std::atof(object_data_points[i+4].c_str()) - 1.) < EPSILON);
+                    // Decode SupportPointType from float (PrusaSlicer 2.9.1 range-based scheme):
+                    // ≈1.0→island, ≈2.0→manual_add, ≈3.0→slope, other→slope (legacy 0.0/1.0 fallback)
+                    for (unsigned int i=0; i<object_data_points.size(); i+=5) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i+0].c_str())),
+                                float(std::atof(object_data_points[i+1].c_str())),
+                                float(std::atof(object_data_points[i+2].c_str())),
+                                float(std::atof(object_data_points[i+3].c_str())),
+                                float(std::atof(object_data_points[i+4].c_str()));
+                        sla_support_points.emplace_back(data);
+                    }
                 }
 
                 if (!sla_support_points.empty())
@@ -3017,7 +3021,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                     m_sla_drain_holes.insert({ object_id, sla_drain_holes });
             }
         }
-    }*/
+    }
 
     void _BBS_3MF_Importer::_extract_embossed_svg_shape_file(const std::string &filename, mz_zip_archive &archive, const mz_zip_archive_file_stat &stat){
         assert(m_path_to_emboss_shape_files.find(filename) == m_path_to_emboss_shape_files.end());
@@ -6017,24 +6021,15 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 return false;
             }
 
-            // BBS progress point
-            /*BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ":" <<__LINE__ << boost::format("export 3mf EXPORT_STAGE_ADD_SUPPORT\n");
-            if (proFn) {
-                proFn(EXPORT_STAGE_ADD_SUPPORT, 0, 1, cb_cancel);
-                if (cb_cancel)
-                    return false;
-            }
-
             // Adds sla support points file ("Metadata/Slic3r_PE_sla_support_points.txt").
-            // All  sla support points of all ModelObjects are stored here, indexed by 1 based index of the ModelObject in Model.
-            // The index differes from the index of an object ID of an object instance of a 3MF file!
+            // All sla support points of all ModelObjects are stored here, indexed by 1 based index of the ModelObject in Model.
             if (!_add_sla_support_points_file_to_archive(archive, model)) {
                 return false;
             }
 
             if (!_add_sla_drain_holes_file_to_archive(archive, model)) {
                 return false;
-            }*/
+            }
 
             // BBS progress point
             BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ":" << __LINE__ << boost::format(", before add custom gcodes\n");
@@ -7304,7 +7299,6 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
         return true;
     }
 
-    /*
     bool _BBS_3MF_Exporter::_add_sla_support_points_file_to_archive(mz_zip_archive& archive, Model& model)
     {
         assert(is_decimal_separator_point());
@@ -7319,9 +7313,15 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 sprintf(buffer, "object_id=%d|", count);
                 out += buffer;
 
-                // Store the layer height profile as a single space separated list.
+                // Store support points as space-separated list.
+                // Encode SupportPointType as float (PrusaSlicer 2.9.1 range-based scheme):
+                // island=1.0, manual_add=2.0, slope=3.0
                 for (size_t i = 0; i < sla_support_points.size(); ++i) {
-                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),  sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2), sla_support_points[i].head_front_radius, (float)sla_support_points[i].is_new_island);
+                    float type_f = (sla_support_points[i].type == sla::SupportPointType::island)     ? 1.0f :
+                                   (sla_support_points[i].type == sla::SupportPointType::manual_add) ? 2.0f : 3.0f;
+                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),
+                            sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2),
+                            sla_support_points[i].head_front_radius, type_f);
                     out += buffer;
                 }
                 out += "\n";
@@ -7329,8 +7329,8 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
         }
 
         if (!out.empty()) {
-            // Adds version header at the beginning:
-            //out = std::string("support_points_format_version=") + std::to_string(support_points_format_version) + std::string("\n") + out;
+            // Add version header so reader can detect the encoding format.
+            out = std::string("support_points_format_version=") + std::to_string(support_points_format_version) + std::string("\n") + out;
 
             if (!mz_zip_writer_add_mem(&archive, SLA_SUPPORT_POINTS_FILE.c_str(), (const void*)out.data(), out.length(), MZ_DEFAULT_COMPRESSION)) {
                 add_error("Unable to add sla support points file to archive");
@@ -7391,7 +7391,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             }
         }
         return true;
-    }*/
+    }
 
     bool _BBS_3MF_Exporter::_add_print_config_file_to_archive(mz_zip_archive& archive, const DynamicPrintConfig &config)
     {
