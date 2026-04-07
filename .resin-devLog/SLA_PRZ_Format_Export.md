@@ -337,6 +337,8 @@ std::vector<cv::Mat> m_layer_images;
 
 `m_layer_images` 在 `SLAPrintSteps.cpp::rasterize()` 結尾填入，之後由 `generate_prz()` 透過 `print.layer_images()` 讀取。
 
+> **注意（2026-04-07）**：`m_layer_images` 在寫入前已套用 `picture_grayscale` 等比縮放（`pixel = pixel * picture_grayscale / 255`，整數四捨五入）。`PhrozenPRZ.cpp` 直接讀取已縮放的像素，不需自行處理。詳見 [SLA_AntiAliasing_Rasterization.md](SLA_AntiAliasing_Rasterization.md) 第九節。
+
 ---
 
 ### 3-7 SLAPrintSteps.cpp — rasterize() 修改

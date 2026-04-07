@@ -47,7 +47,7 @@ enum AntiAliasing { spNone, spGrayScaleLevel, spAntiAliasingLevel };
 |---|---|---|
 | `anti_aliasing` | `SLAPrinterConfig` | AA 模式開關（Enum） |
 | `anti_aliasing_level` | `PrintConfig` | AA 層數（整數，min=1, default=4） |
-| `picture_grayscale` | `PrintConfig` | 灰階數值 |
+| `picture_grayscale` | `SLAPrinterConfig`（+`PrintConfig`） | 像素等比縮放上限（0–255，default 255）；2026-04-07 加入 `SLAPrinterConfig`，供 rasterize 後置縮放及 SL1 encoder 使用 |
 | `gray_scale_level` | `PrintConfig` | 灰階層數（ConfigOptionInts） |
 | `image_blur_enable` | `PrintConfig` | 啟用影像模糊 |
 | `image_blur_pixel` | `PrintConfig` | 模糊像素數 |
@@ -185,16 +185,19 @@ c = (uint8_t)std::round(double(gray_lo) + range * (double(c) / 255.0));
 
 | 檔案 | 修改內容 |
 |---|---|
-| [PrintConfig.hpp](../src/libslic3r/PrintConfig.hpp) | `SLAPrinterConfig` 新增 `((ConfigOptionEnum<AntiAliasing>, anti_aliasing))` |
+| [PrintConfig.hpp](../src/libslic3r/PrintConfig.hpp) | `SLAPrinterConfig` 新增 `anti_aliasing`（2026-03-19）、`picture_grayscale`（2026-04-07） |
 | [SLA/RasterToCvMat.hpp](../src/libslic3r/SLA/RasterToCvMat.hpp) | 新增 `aa_steps`、`gray_lo`、`gray_hi`、`blur_pixel` 參數（預設值，向後相容） |
 | [SLA/RasterToCvMat.cpp](../src/libslic3r/SLA/RasterToCvMat.cpp) | 實作兩階段後處理（Stage 1 量化 + Stage 2 範圍映射）；AA 後處理完成後執行 Gaussian Blur |
-| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `anti_aliasing`；`spNone` 強制 `gamma=0`；`spGrayScaleLevel` 讀取 `gray_scale_level`/`anti_aliasing_level` 並傳入；讀取 `image_blur_enable`/`image_blur_pixel` 並傳入 `blur_pixel` |
+| [SLAPrintSteps.cpp](../src/libslic3r/SLAPrintSteps.cpp) | `rasterize()` 讀取 `anti_aliasing`；`spNone` 強制 `gamma=0`；`spGrayScaleLevel` 讀取 `gray_scale_level`/`anti_aliasing_level` 並傳入；讀取 `image_blur_enable`/`image_blur_pixel` 並傳入 `blur_pixel`；`m_layer_images` 產生後套用 `picture_grayscale` 等比縮放 pass（2026-04-07） |
+| [Format/SL1.cpp](../src/libslic3r/Format/SL1.cpp) | `get_encoder()` 加入 `picture_grayscale` LUT encoder（2026-04-07） |
+| [SLAPrint.cpp](../src/libslic3r/SLAPrint.cpp) | `steps_rasterize` 新增 `"picture_grayscale"`，確保 UI 變更觸發重新 rasterize（2026-04-07） |
 
 **未修改**（不需要改動）：
 
 - [SLA/RasterBase.cpp](../src/libslic3r/SLA/RasterBase.cpp) — `gamma=0` 的 threshold 邏輯已存在
-- `PrintConfig.hpp/.cpp` — `gray_scale_level`、`image_blur_enable`、`image_blur_pixel` 已存在
+- `PrintConfig.cpp` — `add("picture_grayscale", coInt)` 已存在（全域定義不重複）
 - `ConfigManipulation.cpp` — UI 可見性已正確控制
+- `PhrozenPRZ.cpp` — 直接讀 `m_layer_images`，縮放已在上游套用，不需改
 
 ---
 
@@ -309,4 +312,97 @@ expolygons_to_cvmat()
        └── Stage 2：線性映射到 [gray_lo, gray_hi]
     3. blur_pixel >= 2 時
        └── cv::GaussianBlur(kernel = blur_pixel*2+1)
+
+SLAPrintSteps::rasterize()（expolygons_layers_to_cvmat 之後）
+    4. picture_grayscale < 255 時
+       └── 256-entry LUT 等比縮放：pixel = (pixel * pg + 127) / 255
 ```
+
+---
+
+## 九、picture_grayscale 等比例縮放（2026-04-07 新增）
+
+### 設計概念
+
+`picture_grayscale`（整數 0–255，default 255）是所有像素的**等比例縮放上限**。縮放在所有 AA/blur 後處理**完成後**，作為獨立第四階段套用於整個 `m_layer_images`（PRZ 路徑）及 SL1 archive PNG encoder（SL1 路徑）。
+
+兩條路徑互相獨立，但使用相同公式：
+
+```
+pixel_out = (pixel_in * picture_grayscale + 127) / 255   // 整數運算，round-to-nearest
+```
+
+- `picture_grayscale = 255`（default）→ identity，輸出與修改前完全相同
+- `picture_grayscale = 200` → 所有像素乘以 200/255 ≈ 0.784（255→200，128→100）
+- `picture_grayscale = 0` → 所有像素歸零（完全黑）
+
+### 與 gray_scale_level 的關係
+
+兩者**獨立堆疊**（不互相排斥）：
+
+```
+AGG 光柵化 → [gray_scale_level 量化+映射] → [Blur] → [picture_grayscale 縮放]
+```
+
+例如：`gray_hi = 200`、`picture_grayscale = 200` → 最大輸出 ≈ 200 × 200/255 ≈ 157（非 200）。
+
+### Config 存取
+
+| 路徑 | 存取方式 |
+|------|---------|
+| PRZ（`SLAPrintSteps.cpp`） | `cfg.picture_grayscale.getInt()`（`cfg` 是 `SLAPrinterConfig`） |
+| SL1（`SL1.cpp get_encoder()`） | `m_cfg.picture_grayscale.getInt()`（`m_cfg` 是 `SLAPrinterConfig`） |
+
+`picture_grayscale` 加入 `SLAPrinterConfig`（`PrintConfig.hpp` line ~1828）後，`SLAPrint::apply()` 自動 diff/apply，UI 變更直接觸發重新 rasterize（`steps_rasterize` 已含此 key）。
+
+### PRZ 路徑實作（SLAPrintSteps.cpp）
+
+```cpp
+// 在 expolygons_layers_to_cvmat() 之後，SLAPrintSteps::rasterize() 末端
+{
+    const unsigned pg = static_cast<unsigned>(
+        std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
+    if (pg < 255u) {
+        uint8_t lut[256];
+        for (int i = 0; i < 256; i++)
+            lut[i] = static_cast<uint8_t>((i * pg + 127u) / 255u);
+        for (cv::Mat &img : m_print->m_layer_images) {
+            uint8_t  *data  = img.data;
+            const int total = img.rows * img.cols;
+            for (int j = 0; j < total; ++j)
+                data[j] = lut[data[j]];
+        }
+    }
+}
+```
+
+**注意**：`cv::LUT(src, lut, dst)` 不支援 `src == dst`（OpenCV 4.6.0 內部會先 `_dst.create()` 再讀 src，造成資料破壞），因此使用手寫 `img.data` 指標迴圈（in-place 安全）。
+
+### SL1 路徑實作（Format/SL1.cpp）
+
+```cpp
+sla::RasterEncoder SL1Archive::get_encoder() const
+{
+    const unsigned pg = static_cast<unsigned>(
+        std::clamp(m_cfg.picture_grayscale.getInt(), 0, 255));
+
+    if (pg >= 255u)
+        return sla::PNGRasterEncoder{};
+
+    std::array<uint8_t, 256> lut;
+    for (int i = 0; i < 256; i++)
+        lut[i] = static_cast<uint8_t>((i * pg + 127u) / 255u);
+
+    return [lut](const void *ptr, size_t w, size_t h, size_t) -> sla::EncodedRaster {
+        const size_t npx = w * h;
+        std::vector<uint8_t> buf(
+            static_cast<const uint8_t *>(ptr),
+            static_cast<const uint8_t *>(ptr) + npx);
+        for (uint8_t &v : buf)
+            v = lut[v];
+        return sla::PNGRasterEncoder{}(buf.data(), w, h, 1);
+    };
+}
+```
+
+LUT 在 `get_encoder()` 建立時預算一次，由 lambda `[lut]` by-value 捕捉，每層呼叫時直接使用，不重複計算。

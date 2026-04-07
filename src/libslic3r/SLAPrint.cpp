@@ -956,7 +956,8 @@ bool SLAPrint::invalidate_state_by_config_options(const std::vector<t_config_opt
         "display_pixels_y",
         "display_mirror_x",
         "display_mirror_y",
-        "display_orientation"
+        "display_orientation",
+        "picture_grayscale"
     };
 
     static std::unordered_set<std::string> steps_ignore = {

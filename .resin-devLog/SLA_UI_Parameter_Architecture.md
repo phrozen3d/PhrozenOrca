@@ -125,6 +125,7 @@ StaticPrintConfig (基類)
 | `relative_correction_x/y/z` | `ConfigOptionFloat` | 相對尺寸補正 |
 | `gamma_correction` | `ConfigOptionFloat` | Gamma 值，影響光柵化 AA 效果 |
 | `anti_aliasing` | `ConfigOptionEnum<AntiAliasing>` | AA 模式（`spNone`/`spGrayScaleLevel`/`spAntiAliasingLevel`）；2026-03-19 加入，供 `SLAPrint::rasterize()` 讀取 |
+| `picture_grayscale` | `ConfigOptionInt` | 像素等比縮放上限（0–255，default 255）；2026-04-07 加入，供 rasterize 後置縮放及 SL1 encoder 使用 |
 | `sla_archive_format` | `ConfigOptionString` | 輸出格式（sl1/phz 等） |
 
 ### 參數定義 Macro 格式

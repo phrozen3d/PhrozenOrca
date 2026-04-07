@@ -8,6 +8,8 @@
 #include "libslic3r/Zipper.hpp"
 #include "libslic3r/SLAPrint.hpp"
 
+#include <algorithm>
+#include <array>
 #include <sstream>
 
 #include "libslic3r/Exception.hpp"
@@ -475,7 +477,26 @@ std::unique_ptr<sla::RasterBase> SL1Archive::create_raster() const
 
 sla::RasterEncoder SL1Archive::get_encoder() const
 {
-    return sla::PNGRasterEncoder{};
+    const unsigned pg = static_cast<unsigned>(
+        std::clamp(m_cfg.picture_grayscale.getInt(), 0, 255));
+
+    if (pg >= 255u)
+        return sla::PNGRasterEncoder{};
+
+    // Build LUT once at encoder creation time; lambda captures by value
+    std::array<uint8_t, 256> lut;
+    for (int i = 0; i < 256; i++)
+        lut[i] = static_cast<uint8_t>((i * pg + 127u) / 255u);
+
+    return [lut](const void *ptr, size_t w, size_t h, size_t) -> sla::EncodedRaster {
+        const size_t npx = w * h;
+        std::vector<uint8_t> buf(
+            static_cast<const uint8_t *>(ptr),
+            static_cast<const uint8_t *>(ptr) + npx);
+        for (uint8_t &v : buf)
+            v = lut[v];
+        return sla::PNGRasterEncoder{}(buf.data(), w, h, 1);
+    };
 }
 
 static void write_thumbnail(Zipper &zipper, const ThumbnailData &data)

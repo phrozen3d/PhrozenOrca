@@ -1334,6 +1334,24 @@ void SLAPrint::Steps::rasterize()
         m_print->m_layer_images =
             sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
                                             aa_steps, gray_lo, gray_hi, blur_pixel);
+
+        // Apply picture_grayscale proportional scaling (all pixels, always, post-AA)
+        // pixel = pixel * picture_grayscale / 255 (rounded)
+        {
+            const unsigned pg = static_cast<unsigned>(
+                std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
+            if (pg < 255u) {
+                uint8_t lut[256];
+                for (int i = 0; i < 256; i++)
+                    lut[i] = static_cast<uint8_t>((i * pg + 127u) / 255u);
+                for (cv::Mat &img : m_print->m_layer_images) {
+                    uint8_t  *data  = img.data;
+                    const int total = img.rows * img.cols;
+                    for (int j = 0; j < total; ++j)
+                        data[j] = lut[data[j]];
+                }
+            }
+        }
     }
 }
 
