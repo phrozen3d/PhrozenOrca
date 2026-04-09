@@ -1267,7 +1267,10 @@ void Tab::msw_rescale()
         bmp.msw_rescale();
     // recreate and set new ImageList for tree_ctrl
     m_icons->RemoveAll();
-    m_icons = new wxImageList(m_scaled_icons_list.front().bmp().GetWidth(), m_scaled_icons_list.front().bmp().GetHeight(), false);
+    if ( !m_scaled_icons_list.empty() ) {
+        m_icons = new wxImageList(m_scaled_icons_list.front().bmp().GetWidth(), m_scaled_icons_list.front().bmp().GetHeight(), false);
+    }
+    
     for (ScalableBitmap& bmp : m_scaled_icons_list)
         //m_icons->Add(bmp.bmp());
     m_tabctrl->AssignImageList(m_icons);
