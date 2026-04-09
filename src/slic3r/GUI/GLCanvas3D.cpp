@@ -3066,6 +3066,16 @@ void GLCanvas3D::on_idle(wxIdleEvent& evt)
     m_dirty |= imgui_requires_extra_frame;
 #endif // ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
 
+    // Stage 1: SLA prepare view 需要持續渲染以保持 Z-clip slider 的 ImGui 視窗存活。
+    // render() 中途被中斷（遞迴呼叫或排版變更）時，_render_prepare_clip_slider()
+    // 不會被執行，導致 request_extra_frame() 鏈結斷掉。
+    // 在 on_idle 層級直接維持 m_dirty 與 m_extra_frame_requested，
+    // 可確保即使單次 render 失敗，下一個 idle 仍會重試。
+    if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA) {
+        m_dirty = true;
+        request_extra_frame();
+    }
+
     if (!m_dirty)
         return;
 
@@ -7624,6 +7634,9 @@ void GLCanvas3D::_render_overlays()
     //_render_view_toolbar();
     _render_paint_toolbar();
 
+    // Stage 1: Prepare view global Z-clip slider (SLA only, always visible)
+    _render_prepare_clip_slider();
+
     //BBS: GUI refactor: GLToolbar
     //move gizmos behind of main
     _render_gizmos_overlay();
@@ -8894,6 +8907,141 @@ void GLCanvas3D::_render_selection_sidebar_hints()
 {
     m_selection.render_sidebar_hints(m_sidebar_field, m_gizmos.get_uniform_scaling());
 }
+
+// Stage 1: Prepare view global Z-clip slider ----------------------------
+
+void GLCanvas3D::_update_prepare_scene_max_z()
+{
+    // Compute max Z of all model volumes in world coordinates.
+    double max_z = 0.0;
+    for (const GLVolume* vol : m_volumes.volumes) {
+        if (vol == nullptr)
+            continue;
+        const BoundingBoxf3 bb = vol->transformed_bounding_box();
+        max_z = std::max(max_z, bb.max.z());
+    }
+    if (max_z <= 0.0)
+        max_z = 50.0;  // default when scene is empty
+
+    m_prepare_scene_max_z = max_z;
+
+    // Initialize z_high on first call or when scene grows taller.
+    if (m_prepare_clip_z_high < 0.0 || m_prepare_clip_z_high > m_prepare_scene_max_z)
+        m_prepare_clip_z_high = m_prepare_scene_max_z;
+}
+
+void GLCanvas3D::_on_prepare_clip_changed(double z_low, double z_high)
+{
+    // Clamp to valid range.
+    z_low  = std::clamp(z_low,  0.0, m_prepare_scene_max_z);
+    z_high = std::clamp(z_high, z_low, m_prepare_scene_max_z);
+
+    m_prepare_clip_z_low  = z_low;
+    m_prepare_clip_z_high = z_high;
+
+    // Update visual clipping planes.
+    const bool full_range = (z_low <= 0.0 && z_high >= m_prepare_scene_max_z);
+    if (full_range) {
+        m_use_clipping_planes = false;
+    } else {
+        if (z_low > 0.0)
+            set_clipping_plane(0, ClippingPlane(Vec3d::UnitZ(), -z_low));
+        else
+            set_clipping_plane(0, ClippingPlane::ClipsNothing());
+
+        if (z_high < m_prepare_scene_max_z)
+            set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z_high));
+        else
+            set_clipping_plane(1, ClippingPlane::ClipsNothing());
+
+        m_use_clipping_planes = true;
+    }
+
+    set_as_dirty();
+}
+
+void GLCanvas3D::_render_prepare_clip_slider()
+{
+    // Only show in SLA prepare view.
+    if (m_canvas_type != ECanvasType::CanvasView3D)
+        return;
+    if (current_printer_technology() != ptSLA)
+        return;
+
+    // Refresh scene max Z each frame (cheap: just iterates volumes).
+    _update_prepare_scene_max_z();
+
+    ImGuiWrapper& imgui = *wxGetApp().imgui();
+    const Size canvas_size = get_canvas_size();
+    const float canvas_w   = static_cast<float>(canvas_size.get_width());
+    const float canvas_h   = static_cast<float>(canvas_size.get_height());
+
+    // Slider geometry: 60% of canvas height, positioned at right edge.
+    const float slider_h    = canvas_h * 0.6f;
+    const float bar_w       = 20.f * get_scale();
+    const float margin_r    = 54.f * get_scale();  // right margin from canvas edge
+    const float win_w       = bar_w + 20.f * get_scale();
+    const float win_x       = canvas_w - margin_r - win_w;
+    const float win_y       = (canvas_h - slider_h) * 0.5f;
+
+    ImGui::SetNextWindowPos(ImVec2(win_x, win_y), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(win_w, slider_h), ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoScrollbar
+        | ImGuiWindowFlags_NoSavedSettings
+        | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(2.f, 2.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,   ImVec2(2.f, 4.f));
+    ImGui::Begin("##prepare_clip_slider", nullptr, flags);
+
+    const float half_h  = slider_h * 0.5f - 6.f;
+    const double max_z  = m_prepare_scene_max_z;
+
+    // --- Top bar: controls z_high (clip from above) ---
+    // VSliderFloat: min displayed at bottom, max at top.
+    // Dragging DOWN reduces z_high (cuts more from top).
+    float z_high_f = static_cast<float>(m_prepare_clip_z_high);
+    float z_low_f  = static_cast<float>(m_prepare_clip_z_low);
+
+    ImGui::PushItemWidth(bar_w);
+    if (ImGui::VSliderFloat("##clip_top", ImVec2(bar_w, half_h),
+                             &z_high_f,
+                             static_cast<float>(m_prepare_clip_z_low),   // v_min
+                             static_cast<float>(max_z),                   // v_max
+                             "")) {
+        if (ImGui::IsItemActive())
+            ImGui::SetTooltip("%.1f mm", z_high_f);
+        _on_prepare_clip_changed(m_prepare_clip_z_low, static_cast<double>(z_high_f));
+    } else if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%.1f mm", z_high_f);
+    }
+    ImGui::PopItemWidth();
+
+    // --- Bottom bar: controls z_low (clip from below) ---
+    ImGui::PushItemWidth(bar_w);
+    if (ImGui::VSliderFloat("##clip_bot", ImVec2(bar_w, half_h),
+                             &z_low_f,
+                             0.0f,                                        // v_min
+                             static_cast<float>(m_prepare_clip_z_high),  // v_max
+                             "")) {
+        if (ImGui::IsItemActive())
+            ImGui::SetTooltip("%.1f mm", z_low_f);
+        _on_prepare_clip_changed(static_cast<double>(z_low_f), m_prepare_clip_z_high);
+    } else if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("%.1f mm", z_low_f);
+    }
+    ImGui::PopItemWidth();
+
+    ImGui::End();
+    ImGui::PopStyleVar(2);
+}
+
+// End Stage 1 -----------------------------------------------------------
 
 void GLCanvas3D::_update_volumes_hover_state()
 {

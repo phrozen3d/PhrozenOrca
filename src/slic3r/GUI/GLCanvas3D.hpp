@@ -537,6 +537,11 @@ private:
     ClippingPlane m_camera_clipping_plane;
     bool m_use_clipping_planes;
     std::array<SlaCap, 2> m_sla_caps;
+
+    // Stage 1: Prepare view global Z-clip slider (SLA only)
+    double m_prepare_clip_z_low  = 0.0;   // bottom clipping plane Z (mm)
+    double m_prepare_clip_z_high = -1.0;  // top clipping plane Z (-1 = uninitialized)
+    double m_prepare_scene_max_z = 50.0;  // cached: scene volumes max Z (mm)
     std::string m_sidebar_field;
     // when true renders an extra frame by not resetting m_dirty to false
     // see request_extra_frame()
@@ -803,6 +808,7 @@ public:
 
     bool                                get_use_clipping_planes() const { return m_use_clipping_planes; }
     const std::array<ClippingPlane, 2> &get_clipping_planes() const { return m_clipping_planes; };
+    double get_prepare_scene_max_z() const { return m_prepare_scene_max_z; }
 
     void set_use_color_clip_plane(bool use) { m_volumes.set_use_color_clip_plane(use); }
     void set_color_clip_plane(const Vec3d& cp_normal, double offset) { m_volumes.set_color_clip_plane(cp_normal, offset); }
@@ -1200,6 +1206,10 @@ private:
 #endif // ENABLE_SHOW_CAMERA_TARGET
     void _render_sla_slices();
     void _render_selection_sidebar_hints();
+    // Stage 1: Prepare view global Z-clip slider
+    void _update_prepare_scene_max_z();
+    void _on_prepare_clip_changed(double z_low, double z_high);
+    void _render_prepare_clip_slider();
     //BBS: GUI refactor: adjust main toolbar position
     bool _render_orient_menu(float left, float right, float bottom, float top);
     bool _render_arrange_menu(float left, float right, float bottom, float top);
