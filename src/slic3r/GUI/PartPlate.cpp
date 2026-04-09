@@ -2860,9 +2860,18 @@ void PartPlate::update_slice_context(BackgroundSlicingProcess & process)
 
 	process.set_fff_print(m_print);
 	process.set_gcode_result(m_gcode_result);
-	process.select_technology(this->printer_technology);
+	// Use the process's own current technology as the authoritative source.
+	// this->printer_technology defaults to ptFFF and is never updated when the
+	// user switches to an SLA preset, so calling select_technology(this->printer_technology)
+	// would silently reset ptSLA → ptFFF. Using the process's existing value is safe:
+	// - FFF mode: process already has ptFFF, select_technology(ptFFF) keeps m_print = m_fff_print.
+	// - SLA mode: process already has ptSLA set by Plater::set_printer_technology(),
+	//   select_technology(ptSLA) is a no-op on tech but still assigns m_print = m_sla_print.
+	process.select_technology(process.current_printer_technology());
 	process.set_current_plate(this);
-	m_print->set_status_callback(statuscb);
+	// m_print is an FFF Print; skip status callback in SLA mode where m_print is nullptr.
+	if (m_print != nullptr)
+	    m_print->set_status_callback(statuscb);
 	process.switch_print_preprocess();
 
 	return;
