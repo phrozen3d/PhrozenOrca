@@ -179,10 +179,14 @@ void GLGizmoLcdOverhangDetection::render_painter_gizmo()
     m_c->instances_hider()->render_cut();
     render_cursor();
 
-    // Render island detection contours (line loops in world space)
-    render_island_contours();
-
     glsafe(::glDisable(GL_BLEND));
+}
+
+void GLGizmoLcdOverhangDetection::on_render()
+{
+    // Called after ALL volumes (including transparent) are rendered.
+    // Island contours must be drawn here so they are never buried under the model.
+    render_island_contours();
 }
 
 // BBS
@@ -1064,31 +1068,49 @@ void GLGizmoLcdOverhangDetection::rebuild_island_models()
 
     for (size_t i = 0; i < m_detected_islands.size(); ++i) {
         const island::Island& isl = m_detected_islands[i];
-        if (isl.contour.size() < 3)
+        const size_t n = isl.contour.size();
+        if (n < 3)
             continue;
 
+        // Compute centroid for triangle fan
+        float cx = 0.f, cy = 0.f;
+        for (const auto& p : isl.contour) { cx += p.x; cy += p.y; }
+        cx /= (float)n; cy /= (float)n;
+
+        // Build filled polygon as triangle fan: (centroid, contour[j], contour[j+1])
+        // This renders as a solid semi-transparent fill — visible from any camera angle.
         GLModel::Geometry geo;
         geo.format = {
-            GLModel::Geometry::EPrimitiveType::LineLoop,
+            GLModel::Geometry::EPrimitiveType::Triangles,
             GLModel::Geometry::EVertexLayout::P3
         };
-        geo.reserve_vertices(isl.contour.size());
-        geo.reserve_indices(isl.contour.size());
+        // 1 centroid + n contour vertices; n triangles × 3 indices
+        geo.reserve_vertices(1 + n);
+        geo.reserve_indices(n * 3);
 
-        for (unsigned int j = 0; j < (unsigned int)isl.contour.size(); ++j) {
-            geo.add_vertex(Vec3f(isl.contour[j].x, isl.contour[j].y, isl.z));
-            geo.add_index(j);
+        // Offset z slightly below the island layer so the polygon sits just above
+        // the previous layer surface rather than inside the model geometry.
+        constexpr float k_z_offset = -0.2f; // mm; tweak if still buried or floating
+        const float render_z = isl.z + k_z_offset;
+
+        geo.add_vertex(Vec3f(cx, cy, render_z));                           // index 0: centroid
+        for (unsigned int j = 0; j < (unsigned int)n; ++j)
+            geo.add_vertex(Vec3f(isl.contour[j].x, isl.contour[j].y, render_z)); // index 1..n
+
+        for (unsigned int j = 0; j < (unsigned int)n; ++j) {
+            geo.add_index(0);                          // centroid
+            geo.add_index(1 + j);                     // contour[j]
+            geo.add_index(1 + (j + 1) % (unsigned int)n); // contour[j+1]
         }
 
         m_island_models[i].init_from(std::move(geo));
-        // Orange-red color to stand out from the model
-        m_island_models[i].set_color(ColorRGBA(1.0f, 0.584f, 0.0f, 1.0f)); // #FF9500
+        // Semi-transparent orange — visible as filled area, alpha=0.55 for see-through
+        m_island_models[i].set_color(ColorRGBA(1.0f, 0.95f, 0.0f, 1.0f));
 
-        // Debug: print first contour point to verify coordinate space
         BOOST_LOG_TRIVIAL(info) << "[IslandDebug] Island[" << i << "]"
             << " z=" << isl.z
             << " contour[0]=(" << isl.contour[0].x << ", " << isl.contour[0].y << ")"
-            << " contour_count=" << isl.contour.size();
+            << " contour_count=" << n;
     }
 
     // Debug: print raw_bounding_box center used for rasterization reference
@@ -1123,13 +1145,14 @@ void GLGizmoLcdOverhangDetection::render_island_contours()
 
     const Camera& camera = wxGetApp().plater()->get_camera();
 
-    // Draw contours on top of the model (disable depth test so they are always visible)
+    // Draw filled opaque island areas on top of everything.
+    // Disable depth test so islands are always visible above the model.
     glsafe(::glDisable(GL_DEPTH_TEST));
-    glsafe(::glLineWidth(15.0f));
+    // Render both faces so the fill is visible from below as well.
+    glsafe(::glDisable(GL_CULL_FACE));
 
     shader->start_using();
     shader->set_uniform("projection_matrix", camera.get_projection_matrix());
-    // Island contour coordinates are in the same space as the sliced model (no extra transform)
     shader->set_uniform("view_model_matrix", camera.get_view_matrix());
 
     for (GLModel& model : m_island_models) {
@@ -1139,8 +1162,8 @@ void GLGizmoLcdOverhangDetection::render_island_contours()
 
     shader->stop_using();
 
+    glsafe(::glEnable(GL_CULL_FACE));
     glsafe(::glEnable(GL_DEPTH_TEST));
-    glsafe(::glLineWidth(1.0f)); // restore default
 }
 
 } // namespace Slic3r::GUI

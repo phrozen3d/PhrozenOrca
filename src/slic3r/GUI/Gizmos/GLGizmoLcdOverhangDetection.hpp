@@ -20,6 +20,7 @@ public:
     GLGizmoLcdOverhangDetection(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
 
     void render_painter_gizmo() override;
+    void on_render() override;
 
     //BBS: add edit state
     enum EditState {
@@ -57,7 +58,7 @@ protected:
     };
     DetectionAccuracy m_detection_accuracy = Accuracy_Low;
     int m_current_model_index = 0;
-    int m_current_overhang_area_index = 0;
+    int m_current_overhang_area_index = 1;
     int m_total_overhang_areas = 8;
     std::vector<std::string> m_model_names;
 
