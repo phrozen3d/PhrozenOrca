@@ -29,6 +29,6 @@
     "support_pillar_diameter": "1",
     "support_pillar_connection_mode": "zigzag",
     "support_pillar_widening_factor": "0",
-    "generate_support": "1",
+    "generate_support": "0",
     "support_small_pillar_diameter_percent": "60%"
 }
