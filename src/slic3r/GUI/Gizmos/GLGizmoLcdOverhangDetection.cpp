@@ -1077,6 +1077,18 @@ void GLGizmoLcdOverhangDetection::rebuild_island_models()
         for (const auto& p : isl.contour) { cx += p.x; cy += p.y; }
         cx /= (float)n; cy /= (float)n;
 
+        // Inflate contour so small islands remain visible.
+        // Each vertex is pushed outward from the centroid to at least min_radius.
+        constexpr float k_min_radius = 1.0f; // mm; minimum guaranteed display size
+        std::vector<std::pair<float,float>> inflated(n);
+        for (size_t j = 0; j < n; ++j) {
+            float dx = isl.contour[j].x - cx;
+            float dy = isl.contour[j].y - cy;
+            float dist = std::sqrt(dx * dx + dy * dy);
+            float scale = (dist < 1e-6f) ? 1.0f : std::max(1.0f, k_min_radius / dist);
+            inflated[j] = { cx + dx * scale, cy + dy * scale };
+        }
+
         // Build filled polygon as triangle fan: (centroid, contour[j], contour[j+1])
         // This renders as a solid semi-transparent fill — visible from any camera angle.
         GLModel::Geometry geo;
@@ -1095,7 +1107,7 @@ void GLGizmoLcdOverhangDetection::rebuild_island_models()
 
         geo.add_vertex(Vec3f(cx, cy, render_z));                           // index 0: centroid
         for (unsigned int j = 0; j < (unsigned int)n; ++j)
-            geo.add_vertex(Vec3f(isl.contour[j].x, isl.contour[j].y, render_z)); // index 1..n
+            geo.add_vertex(Vec3f(inflated[j].first, inflated[j].second, render_z)); // index 1..n
 
         for (unsigned int j = 0; j < (unsigned int)n; ++j) {
             geo.add_index(0);                          // centroid
