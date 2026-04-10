@@ -1042,6 +1042,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat, top_surface_speed))
     //BBS
     ((ConfigOptionBool,                 enable_overhang_speed))
+    ((ConfigOptionFloatOrPercent,       overhang_0_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_1_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_2_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_3_4_speed))

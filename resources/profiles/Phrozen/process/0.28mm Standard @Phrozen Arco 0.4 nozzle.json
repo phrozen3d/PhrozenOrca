@@ -33,9 +33,10 @@
     "gap_infill_speed": "200",
 
     "enable_overhang_speed": "1",
-    "overhang_1_4_speed": "0",
-    "overhang_2_4_speed": "50",
-    "overhang_3_4_speed": "30",
+    "overhang_0_4_speed": "0",
+    "overhang_1_4_speed": "50",
+    "overhang_2_4_speed": "30",
+    "overhang_3_4_speed": "10",
     "overhang_4_4_speed": "10",
     "bridge_speed": "50",
     "internal_bridge_speed": "150%"

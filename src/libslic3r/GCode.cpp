@@ -5461,7 +5461,9 @@ std::string GCode::_extrude(const ExtrusionPath &path, std::string description, 
 
             if (m_config.slowdown_for_curled_perimeters){
                 ConfigOptionFloatsOrPercents dynamic_overhang_speeds(
-                    {FloatOrPercent{100, true},
+                    {(m_config.get_abs_value("overhang_0_4_speed", ref_speed) < 0.5) ?
+                         FloatOrPercent{100, true} :
+                         FloatOrPercent{m_config.get_abs_value("overhang_0_4_speed", ref_speed) * 100 / ref_speed, true},
                      (m_config.get_abs_value("overhang_1_4_speed", ref_speed) < 0.5) ?
                          FloatOrPercent{100, true} :
                          FloatOrPercent{m_config.get_abs_value("overhang_1_4_speed", ref_speed) * 100 / ref_speed, true},
@@ -5482,7 +5484,9 @@ std::string GCode::_extrude(const ExtrusionPath &path, std::string description, 
                                                                               ref_speed, speed, m_config.slowdown_for_curled_perimeters);
         	}else{
                 ConfigOptionFloatsOrPercents dynamic_overhang_speeds(
-                                                                     {FloatOrPercent{100, true},
+                                                                     {(m_config.get_abs_value("overhang_0_4_speed", ref_speed) < 0.5) ?
+                         FloatOrPercent{100, true} :
+                         FloatOrPercent{m_config.get_abs_value("overhang_0_4_speed", ref_speed) * 100 / ref_speed, true},
                      (m_config.get_abs_value("overhang_1_4_speed", ref_speed) < 0.5) ?
                          FloatOrPercent{100, true} :
                          FloatOrPercent{m_config.get_abs_value("overhang_1_4_speed", ref_speed) * 100 / ref_speed, true},
