@@ -25,11 +25,21 @@ enum class SupportPointType {
     slope      = 2, // Auto-generated on an overhang / peninsula
 };
 
+// Per-point pillar thickness for manually-placed support points.
+// Scales head_back_radius: Light=0.6x, Medium=1.0x (default), Heavy=1.4x.
+// Only applied when SupportPointType == manual_add; auto-generated points ignore this.
+enum class SupportWeight {
+    Light  = 0,
+    Medium = 1,
+    Heavy  = 2,
+};
+
 struct SupportPoint
 {
     Vec3f            pos;
     float            head_front_radius;
     SupportPointType type;
+    SupportWeight    weight = SupportWeight::Medium;
 
     SupportPoint()
         : pos(Vec3f::Zero()), head_front_radius(0.f), type(SupportPointType::manual_add)
@@ -66,6 +76,7 @@ struct SupportPoint
             type = SupportPointType::slope;
         else
             type = SupportPointType::slope; // legacy is_new_island=false → slope
+        // weight defaults to Medium; loaded from 6th float when Step 3 is implemented
     }
 
     bool is_island() const { return type == SupportPointType::island; }
@@ -74,14 +85,14 @@ struct SupportPoint
     {
         float rdiff = std::abs(head_front_radius - sp.head_front_radius);
         return (pos == sp.pos) && rdiff < float(EPSILON) &&
-               type == sp.type;
+               type == sp.type && weight == sp.weight;
     }
 
     bool operator!=(const SupportPoint &sp) const { return !(sp == (*this)); }
 
     template<class Archive> void serialize(Archive &ar)
     {
-        ar(pos, head_front_radius, type);
+        ar(pos, head_front_radius, type, weight);
     }
 };
 

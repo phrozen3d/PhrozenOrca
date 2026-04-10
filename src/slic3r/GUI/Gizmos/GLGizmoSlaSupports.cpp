@@ -446,7 +446,11 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                 std::pair<Vec3f, Vec3f> pos_and_normal;
                 if (unproject_on_mesh(mouse_position, pos_and_normal)) { // we got an intersection
                     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add support point");
-                    m_editing_cache.emplace_back(sla::SupportPoint(pos_and_normal.first, m_new_point_head_diameter/2.f, sla::SupportPointType::manual_add), false, pos_and_normal.second);
+                    {
+                        sla::SupportPoint sp(pos_and_normal.first, m_new_point_head_diameter/2.f, sla::SupportPointType::manual_add);
+                        sp.weight = m_new_point_weight; // Task 4.3: apply current weight selection
+                        m_editing_cache.emplace_back(sp, false, pos_and_normal.second);
+                    }
                     // Step 2.3 Mod 6: Re-register raycasters after adding a point
                     unregister_point_raycasters_for_picking();
                     register_point_raycasters_for_picking();
@@ -802,6 +806,22 @@ RENDER_AGAIN:
                 if (cache_entry.selected)
                     cache_entry.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
             m_old_point_head_diameter = 0.f;
+        }
+
+        // Task 4.2: Weight selector — controls pillar thickness of next manually placed point.
+        ImGui::AlignTextToFramePadding();
+        m_imgui->text(_L("Support weight"));
+        ImGui::SameLine(diameter_slider_left);
+        {
+            int weight_int = static_cast<int>(m_new_point_weight);
+            bool changed_w = false;
+            if (ImGui::RadioButton(_u8L("Light").c_str(),  &weight_int, static_cast<int>(sla::SupportWeight::Light)))  changed_w = true;
+            ImGui::SameLine();
+            if (ImGui::RadioButton(_u8L("Medium").c_str(), &weight_int, static_cast<int>(sla::SupportWeight::Medium))) changed_w = true;
+            ImGui::SameLine();
+            if (ImGui::RadioButton(_u8L("Heavy").c_str(),  &weight_int, static_cast<int>(sla::SupportWeight::Heavy)))  changed_w = true;
+            if (changed_w)
+                m_new_point_weight = static_cast<sla::SupportWeight>(weight_int);
         }
 
         bool changed = m_lock_unique_islands;

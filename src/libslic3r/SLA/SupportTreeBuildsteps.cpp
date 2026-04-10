@@ -468,7 +468,8 @@ bool SupportTreeBuildsteps::connect_to_nearpillar(const Head &head,
 bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
                                                  const Vec3d &sourcedir,
                                                  double       radius,
-                                                 long         head_id)
+                                                 long         head_id,
+                                                 bool         allow_widening)
 {
     Vec3d  jp           = hjp, endp = jp, dir = sourcedir;
     long   pillar_id    = SupportTreeNode::ID_UNSET;
@@ -493,8 +494,9 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 
     eval_limits();
 
-    // We are dealing with a mini pillar that's potentially too long
-    if (radius < m_cfg.head_back_radius_mm && jp.z() - gndlvl > 20 * radius)
+    // We are dealing with a mini pillar that's potentially too long.
+    // Skip widening when allow_widening=false (e.g. user-requested Light support).
+    if (allow_widening && radius < m_cfg.head_back_radius_mm && jp.z() - gndlvl > 20 * radius)
     {
         std::optional<DiffBridge> diffbr =
             search_widening_path(jp, dir, radius, m_cfg.head_back_radius_mm);
@@ -754,7 +756,19 @@ void SupportTreeBuildsteps::filter()
 
     ccr::for_each(size_t(0), filtered_indices.size(),
                   [this, &filterfn, &filtered_indices] (size_t i) {
-                      filterfn(filtered_indices[i], i, m_cfg.head_back_radius_mm);
+                      unsigned fidx = filtered_indices[i];
+                      double back_r = m_cfg.head_back_radius_mm;
+                      // Apply per-point weight scaling for manually-placed points only.
+                      // Auto-generated (island/slope) points always use the global value.
+                      const SupportPoint &sp = m_support_pts[fidx];
+                      if (sp.type == SupportPointType::manual_add) {
+                          switch (sp.weight) {
+                          case SupportWeight::Light:  back_r *= 0.5; break;
+                          case SupportWeight::Heavy:  back_r *= 2.0; break;
+                          default: /* Medium: no scale */ break;
+                          }
+                      }
+                      filterfn(fidx, i, back_r);
                   });
 
     for (size_t i = 0; i < heads.size(); ++i)
@@ -855,7 +869,9 @@ void SupportTreeBuildsteps::routing_to_ground()
 
         Head &h = m_builder.head(hid);
 
-        if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id)) {
+        bool widen = !(h.id >= 0 && size_t(h.id) < m_support_pts.size() &&
+                       m_support_pts[size_t(h.id)].weight == SupportWeight::Light);
+        if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id, widen)) {
             BOOST_LOG_TRIVIAL(warning)
                 << "Pillar cannot be created for support point id: " << hid;
             m_iheads_onmodel.emplace_back(h.id);
@@ -886,7 +902,11 @@ void SupportTreeBuildsteps::routing_to_ground()
                     Vec3d pstart = sidehead.junction_point();
                     // Vec3d pend = Vec3d{pstart(X), pstart(Y), gndlvl};
                     // Could not find a pillar, create one
-                    create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id);
+                    {
+                        bool sw = !(sidehead.id >= 0 && size_t(sidehead.id) < m_support_pts.size() &&
+                                    m_support_pts[size_t(sidehead.id)].weight == SupportWeight::Light);
+                        create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id, sw);
+                    }
                 }
             }
         }
@@ -909,7 +929,9 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     Vec3d endp = hjp + d * dir;
     bool ret = false;
 
-    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm))) {
+    bool widen_ctg = !(head.id >= 0 && size_t(head.id) < m_support_pts.size() &&
+                       m_support_pts[size_t(head.id)].weight == SupportWeight::Light);
+    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, SupportTreeNode::ID_UNSET, widen_ctg))) {
         m_builder.add_bridge(head.id, endp);
         m_builder.add_junction(endp, head.r_back_mm);
     }

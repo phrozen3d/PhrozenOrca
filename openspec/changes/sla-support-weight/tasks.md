@@ -1,13 +1,13 @@
 ## 1. 資料結構
 
-- [ ] 1.1 在 `SupportPoint.hpp` 中新增 `SupportWeight` 列舉（`Light=0`、`Medium=1`、`Heavy=2`）
-- [ ] 1.2 在 `SupportPoint` struct 中新增 `SupportWeight weight = SupportWeight::Medium` 欄位
-- [ ] 1.3 更新 `operator==`，加入 `weight` 比較
-- [ ] 1.4 更新 cereal `serialize()`：`ar(pos, head_front_radius, type, weight)`
+- [x] 1.1 在 `SupportPoint.hpp` 中新增 `SupportWeight` 列舉（`Light=0`、`Medium=1`、`Heavy=2`）
+- [x] 1.2 在 `SupportPoint` struct 中新增 `SupportWeight weight = SupportWeight::Medium` 欄位
+- [x] 1.3 更新 `operator==`，加入 `weight` 比較
+- [x] 1.4 更新 cereal `serialize()`：`ar(pos, head_front_radius, type, weight)`
 
 ## 2. 支撐樹建構
 
-- [ ] 2.1 在 `SupportTreeBuildsteps.cpp` 的 `filterfn` 中，於計算 `back_r` 後加入 weight 縮放邏輯：
+- [x] 2.1 在 `SupportTreeBuildsteps.cpp` 的 `filterfn` 中，於計算 `back_r` 後加入 weight 縮放邏輯：
   - 若 `pt.type == manual_add`：`back_r *= weight_scale(pt.weight)`（Light=0.6, Medium=1.0, Heavy=1.4）
   - 否則不縮放
 
@@ -20,9 +20,9 @@
 
 ## 4. GLGizmo UI
 
-- [ ] 4.1 在 `GLGizmoSlaSupports.hpp` 中新增 `m_new_point_weight`（`SupportWeight`，預設 Medium）
-- [ ] 4.2 在 `on_render_input_window()` 手動模式區塊新增 Light/Medium/Heavy 選擇器（RadioButton 或 SegmentedControl）
-- [ ] 4.3 在點擊放置新點時將 `m_new_point_weight` 設入新 `SupportPoint.weight`
+- [x] 4.1 在 `GLGizmoSlaSupports.hpp` 中新增 `m_new_point_weight`（`SupportWeight`，預設 Medium）
+- [x] 4.2 在 `on_render_input_window()` 手動模式區塊新增 Light/Medium/Heavy 選擇器（RadioButton 或 SegmentedControl）
+- [x] 4.3 在點擊放置新點時將 `m_new_point_weight` 設入新 `SupportPoint.weight`
 
 ## 5. 驗證
 

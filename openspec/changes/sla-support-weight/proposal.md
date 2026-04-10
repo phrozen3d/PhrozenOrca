@@ -24,11 +24,27 @@
 
 **修改的檔案：**
 - `src/libslic3r/SLA/SupportPoint.hpp` — 新增 `SupportWeight` 列舉與 `weight` 欄位
-- `src/libslic3r/SLA/SupportTreeBuildsteps.cpp` — `filterfn` 中根據 weight 縮放 `back_r`
+- `src/libslic3r/SLA/SupportTreeBuildsteps.cpp` — `filterfn` 中根據 weight 縮放 `back_r`；`create_ground_pillar` 呼叫端根據 weight 傳入 `allow_widening` 旗標
+- `src/libslic3r/SLA/SupportTreeBuildsteps.hpp` — `create_ground_pillar` 新增 `bool allow_widening = true` 參數
 - `src/slic3r/GUI/Gizmos/GLGizmoSlaSupports.cpp` / `.hpp` — 新增重量選擇 UI
-- `src/libslic3r/Format/3mf.cpp` / `bbs_3mf.cpp` / `AMF.cpp` — 序列化 weight 欄位
+- `src/libslic3r/Format/3mf.cpp` / `bbs_3mf.cpp` / `AMF.cpp` — 序列化 weight 欄位（暫緩）
 
 **不需修改：**
 - `SupportTreeConfig` 或其他全域參數
 - FDM 支撐程式碼
 - PhrozenOrca 自訂功能
+
+## 實作備註
+
+### Light 柱子加寬問題（實測發現）
+
+`create_ground_pillar()` 內有一段「細柱自動加寬」邏輯：當柱子半徑小於全域 `head_back_radius_mm` 且高度超過 `20 * radius` 時，系統會自動插入 `DiffBridge` 將柱子漸寬至全尺寸，以確保結構強度。
+
+此行為導致 Light 點雖然接觸頭（Head）正確縮小，但支撐柱到底盤的部分仍被強制加寬回全尺寸。
+
+**修法：** 在 `create_ground_pillar()` 新增 `bool allow_widening = true` 參數。所有既有呼叫點不變（預設 `true`）。Light weight 點的呼叫傳入 `allow_widening = false`，跳過加寬邏輯，讓整根柱子維持縮小後的半徑。修改的呼叫點：
+- `make_pillar_only_heads()` 的主要呼叫
+- 同函式內 cluster sidepoint fallback 呼叫
+- `connect_to_ground()` 的呼叫
+
+Light 點在特別高的模型上可能因無法找到支撐路徑而回退至 `m_iheads_onmodel`（log warning），屬預期行為。
