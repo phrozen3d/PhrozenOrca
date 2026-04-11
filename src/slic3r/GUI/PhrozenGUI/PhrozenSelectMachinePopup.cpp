@@ -732,16 +732,16 @@ void PhrozenMachineObjectPanel::doRender(wxDC &dc)
             dc.DrawRectangle(0, 0, size.x, size.y);
         }
 
-        if (m_show_bind) {
-            if (m_bind_state == PhrozenPrinterBindState::ALLOW_UNBIND) {
-                left = size.x - m_unbind_img.GetBmpSize().x - 6;
-                dc.DrawBitmap(m_unbind_img.bmp(), left, (size.y - m_unbind_img.GetBmpSize().y) / 2);
-            }
-        }
-
         if (m_show_edit) {
             left = size.x - m_unbind_img.GetBmpSize().x - 6 - m_edit_name_img.GetBmpSize().x - 6;
             dc.DrawBitmap(m_edit_name_img.bmp(), left, (size.y - m_edit_name_img.GetBmpSize().y) / 2);
+        }
+    }
+
+    if (m_show_bind) {
+        if (m_bind_state == PhrozenPrinterBindState::ALLOW_UNBIND) {
+            left = size.x - m_unbind_img.GetBmpSize().x - 6;
+            dc.DrawBitmap(m_unbind_img.bmp(), left, (size.y - m_unbind_img.GetBmpSize().y) / 2);
         }
     }
 

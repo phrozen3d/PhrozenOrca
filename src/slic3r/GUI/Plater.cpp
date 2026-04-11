@@ -13281,7 +13281,7 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
     // and let the background processing start.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
 }
-bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf)
+bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf, const std::string& override_print_host)
 {
     // if physical_printer is selected, send gcode for this printer
     // DynamicPrintConfig* physical_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
@@ -13289,7 +13289,17 @@ bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
     if (! physical_printer_config || p->model.objects.empty())
         return false;
 
-    PrintHostJob upload_job(physical_printer_config);
+    // If an override IP is provided, construct PrintHostJob from a local config copy
+    // so the global preset is never modified.
+    DynamicPrintConfig local_config;
+    DynamicPrintConfig* job_config = physical_printer_config;
+    if (!override_print_host.empty()) {
+        local_config = *physical_printer_config;
+        local_config.set("print_host", override_print_host);
+        job_config = &local_config;
+    }
+
+    PrintHostJob upload_job(job_config);
     if (upload_job.empty())
         return false;
 

@@ -1057,6 +1057,21 @@ void PhrozenStatusBasePanel::Initizlize()
     this->Layout();
 }
 
+void PhrozenStatusBasePanel::gen_phrozen_theme_btn( StateColor& kBtn_backGround, StateColor& kBtn_Border )
+{
+    wxColour kPhrozenBgNormal = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue() );
+    wxColour kPhrozenBgDisabled = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue(), 50 );
+    wxColour kPhrozenBgPressed = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.3, AMS_CONTROL_BRAND_COLOUR.Green()/1.3, AMS_CONTROL_BRAND_COLOUR.Blue()/1.3 );
+    wxColour kPhrozenBgChecked = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.8, AMS_CONTROL_BRAND_COLOUR.Green()/1.8, AMS_CONTROL_BRAND_COLOUR.Blue()/1.8 );
+
+    kBtn_backGround = StateColor( std::pair<wxColour, int>(kPhrozenBgDisabled, StateColor::Disabled),
+                                  std::pair<wxColour, int>(kPhrozenBgPressed, StateColor::Pressed),
+                                  std::pair<wxColour, int>(kPhrozenBgChecked, StateColor::Checked),
+                                  std::pair<wxColour, int>(kPhrozenBgNormal, StateColor::Normal));
+
+    kBtn_Border = StateColor(std::pair<wxColour, int>(kPhrozenBgPressed, StateColor::Hovered) );
+}
+
 wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page() 
 {
     
@@ -1103,16 +1118,9 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     });
 #endif
 
-    wxColour kBgNormal = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue() );
-    wxColour kBgDisabled = wxColour( AMS_CONTROL_BRAND_COLOUR.Red(), AMS_CONTROL_BRAND_COLOUR.Green(), AMS_CONTROL_BRAND_COLOUR.Blue(), 50 );
-    wxColour kBgPressed = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.3, AMS_CONTROL_BRAND_COLOUR.Green()/1.3, AMS_CONTROL_BRAND_COLOUR.Blue()/1.3 );
-    wxColour kBgChecked = wxColour( AMS_CONTROL_BRAND_COLOUR.Red()/1.8, AMS_CONTROL_BRAND_COLOUR.Green()/1.8, AMS_CONTROL_BRAND_COLOUR.Blue()/1.8 );
-    StateColor btn_phrozen_bg( std::pair<wxColour, int>(kBgDisabled, StateColor::Disabled),
-                               std::pair<wxColour, int>(kBgPressed, StateColor::Pressed),
-                               std::pair<wxColour, int>(kBgChecked, StateColor::Checked),
-                               std::pair<wxColour, int>(kBgNormal, StateColor::Normal));
-
-    StateColor btn_phrozen_bd(std::pair<wxColour, int>(kBgPressed, StateColor::Hovered) );
+    StateColor btn_phrozen_bg;
+    StateColor btn_phrozen_bd;
+    gen_phrozen_theme_btn( btn_phrozen_bg, btn_phrozen_bd );
 
     m_pCam_switch_button = new Button(m_panel_monitoring_title, "", "PhrozenImages/Camera_Cam_Switch");
     m_pCam_switch_button->SetBackgroundColor(btn_phrozen_bg);
@@ -1157,7 +1165,11 @@ wxBoxSizer* PhrozenStatusBasePanel::create_monitoring_page()
     {
         wxPaintDC dc(media_ctrl_panel);
         if ( m_kCurrentWebCamBitmap.IsOk()) {
-            dc.DrawBitmap( m_kCurrentWebCamBitmap, 0, 0, false);
+            int pw, ph;
+            media_ctrl_panel->GetSize(&pw, &ph);
+            int bx = (pw - m_kCurrentWebCamBitmap.GetWidth())  / 2;
+            int by = (ph - m_kCurrentWebCamBitmap.GetHeight()) / 2;
+            dc.DrawBitmap( m_kCurrentWebCamBitmap, bx, by, false);
         }
     };
     media_ctrl_panel->Bind(wxEVT_PAINT, fnUpdate);//called by media_ctrl_panel->Refresh();
@@ -1182,16 +1194,13 @@ wxBoxSizer* PhrozenStatusBasePanel::create_machine_control_page(wxWindow* parent
     // m_staticText_control->SetFont(PAGE_TITLE_FONT);
     m_staticText_control->SetForegroundColour(PHROZEN_PAGE_TITLE_FONT_COL);
 
-    StateColor btn_bg_green(std::pair<wxColour, int>(AMS_CONTROL_DISABLE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(wxColour(0, 137, 123), StateColor::Pressed),
-                            std::pair<wxColour, int>(wxColour(240, 94, 32), StateColor::Hovered),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Normal));
-    StateColor btn_bd_green(std::pair<wxColour, int>(AMS_CONTROL_WHITE_COLOUR, StateColor::Disabled),
-                            std::pair<wxColour, int>(AMS_CONTROL_BRAND_COLOUR, StateColor::Enabled));
+    StateColor btn_phrozen_bg;
+    StateColor btn_phrozen_bd;
+    gen_phrozen_theme_btn( btn_phrozen_bg, btn_phrozen_bd );
 
     m_calibration_btn = new Button(m_panel_control_title, _L("Calibration"));
-    m_calibration_btn->SetBackgroundColor(btn_bg_green);
-    m_calibration_btn->SetBorderColor(btn_bd_green);
+    m_calibration_btn->SetBackgroundColor(btn_phrozen_bg);
+    m_calibration_btn->SetBorderColor(btn_phrozen_bd);
     m_calibration_btn->SetTextColor(wxColour("#FFFFFE"));
     m_calibration_btn->SetSize(wxSize(FromDIP(128), FromDIP(26)));
     m_calibration_btn->SetMinSize(wxSize(-1, FromDIP(26)));
@@ -1405,8 +1414,13 @@ wxBoxSizer* PhrozenStatusBasePanel::create_temp_axis_group(wxWindow* parent)
     wxStaticText* zOffsetTitle = new wxStaticText(box, wxID_ANY, _L("Z-Offset"));
     sizerZOffsetTitle->Add(zOffsetTitle, 0, wxLEFT, 5);
     sizerZOffsetTitle->AddStretchSpacer(1);  // Push value to the right
-    m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000");
-    sizerZOffsetTitle->Add(m_staticText_zOffset_value, 0, wxRIGHT, 5);
+    // wxST_NO_AUTORESIZE：label 改變時不自動縮放寬度，避免負號出現時擠壓版面
+    // SetMinSize 以最寬預期字串 "-0.000" 為基準預留固定寬度
+    m_staticText_zOffset_value = new wxStaticText(box, wxID_ANY, "0.000",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_RIGHT | wxST_NO_AUTORESIZE);
+    m_staticText_zOffset_value->SetMinSize(
+        wxSize(box->GetTextExtent("-0.000").GetWidth() + FromDIP(4), -1));
+    sizerZOffsetTitle->Add(m_staticText_zOffset_value, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 5);
     sizerBottomRight->Add(sizerZOffsetTitle, 0, wxEXPAND);
 
     // z-offset body
@@ -3194,11 +3208,29 @@ void PhrozenStatusPanel::update_console_hyperlink( const std::string& strLink )
     m_pConsoleControllerPage->Show( wxGetApp().IsPhrozenDeveloperMode() );
 }
 
+void PhrozenStatusPanel::on_camera_button_triggered( wxCommandEvent& event )
+{
+    // 1. base 負責切換按鈕視覺狀態（toggle value）
+    PhrozenStatusBasePanel::on_camera_button_triggered( event );
+
+    // 2. 根據新狀態同步背景取流
+    auto* mgr = wxGetApp().GetPhrozenDeviceManager();
+    if ( !mgr || !mgr->IsMachineConnecting() ) return;
+
+    if ( IsWebcamUiEnabled() ) {
+        // 按鈕 ON：重啟背景 snapshot 取流
+        mgr->StartReceiveWebcam();
+    } else {
+        // 按鈕 OFF：非同步停止（不阻塞 UI thread，join 在 detached thread 完成）
+        mgr->StopReceiveWebcamAsync();
+    }
+}
+
 void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
 {
     PhrozenStatusBasePanel::on_lighting_button_triggered( event );
 
-    if ( MonitorControl::IsStartReceiving() ) 
+    if ( MonitorControl::IsStartReceiving() )
     {
         auto pPhrozenMachineObj = wxGetApp().GetPhrozenMachineObject();
         if ( !pPhrozenMachineObj ) return;
@@ -3209,7 +3241,7 @@ void PhrozenStatusPanel::on_lighting_button_triggered( wxCommandEvent& event )
 
 void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozenObj)
 {
-    if ( !pPhrozenObj || IsWebcamUiEnabled() ) 
+    if ( !pPhrozenObj || !IsWebcamUiEnabled() ) 
     {
         ResetWebcamView();// clear image result (black)
         return;
@@ -3224,12 +3256,29 @@ void PhrozenStatusPanel::UpdateWebCameraView( PhrozenMachineObject_Dev* pPhrozen
     wxMemoryInputStream memStream(&m_kWebCameraImageData[0], m_kWebCameraImageData.size());
     wxImage image(memStream, wxBITMAP_TYPE_JPEG);
     image = image.Rotate180(); //水平+垂直翻轉
-    int x, y;
-    media_ctrl_panel->GetSize( &x, &y );
-    image.Rescale(x, y);
+
+    // Arco 的webcam 是 1280x720，要維持比例 fit 進 panel (media_ctrl_panel)
+    const double kAspect = 1280.0 / 720.0;
+    int scaled_w, scaled_h;
+    revise_webcam_display_ratio( kAspect, scaled_w, scaled_h );
+
+    image.Rescale(scaled_w, scaled_h, wxIMAGE_QUALITY_BILINEAR);
 
     m_kCurrentWebCamBitmap = wxBitmap(image);
     media_ctrl_panel->Refresh();
+}
+
+void PhrozenStatusPanel::revise_webcam_display_ratio( const double& kAspect, int& scaled_w, int& scaled_h )
+{
+    int x, y;
+    media_ctrl_panel->GetSize( &x, &y );
+    if ( x / kAspect <= y ) {
+        scaled_w = x;
+        scaled_h = static_cast<int>(x / kAspect);
+    } else {
+        scaled_h = y;
+        scaled_w = static_cast<int>(y * kAspect);
+    }
 }
 
 void PhrozenStatusPanel::ResetWebcamView()
@@ -5395,7 +5444,8 @@ void PhrozenStatusPanel::set_default()
     m_show_ams_group = true;
     reset_printing_values();
 
-    // webcam update 
+    // webcam update
+    m_pCam_switch_button->SetValue(true); // 切換/斷線時重置按鈕狀態，避免殘留上一台機器的值
     stop_webcam_update_timer();
     UpdateWebCameraView( nullptr );
 

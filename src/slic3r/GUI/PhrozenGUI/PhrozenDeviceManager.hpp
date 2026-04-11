@@ -271,6 +271,9 @@ public:
 
     bool StartReceiveWebcam();
     void StopReceiveWebcam();
+    // 非同步停止：立即釋放 m_spRecieveWebcam 所有權給 detached thread 執行 Stop()，
+    // 返回後 m_spRecieveWebcam == nullptr，可立即呼叫 StartReceiveWebcam()。
+    void StopReceiveWebcamAsync();
 
     bool StartSendMessage();
     void StopSendMessage();

@@ -114,7 +114,6 @@
     "infill_anchor": "400%",
     "internal_solid_infill_pattern": "rectilinear",
     "solid_infill_direction": "45",
-    "solid_infill_rotate_template": "0,90",
     "gap_fill_target": "topbottom",
     "filter_out_gap_fill": "0",
     "infill_wall_overlap": "15%",
