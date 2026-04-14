@@ -494,6 +494,19 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 
     eval_limits();
 
+    // Force base cone for manually-placed support points regardless of pillar radius.
+    if (head_id >= 0 && !can_add_base) {
+        long sp_id = m_builder.head(head_id).id;
+        if (sp_id >= 0 && size_t(sp_id) < m_support_pts.size() &&
+            m_support_pts[size_t(sp_id)].type == SupportPointType::manual_add) {
+            can_add_base = true;
+            gndlvl       = m_builder.ground_level;
+            jp_gnd       = gndlvl;
+            gap_dist     = m_cfg.pillar_base_safety_distance_mm
+                           + m_cfg.base_radius_mm + EPSILON;
+        }
+    }
+
     // We are dealing with a mini pillar that's potentially too long.
     // Skip widening when allow_widening=false (e.g. user-requested Light support).
     if (allow_widening && radius < m_cfg.head_back_radius_mm && jp.z() - gndlvl > 20 * radius)
@@ -823,6 +836,17 @@ void SupportTreeBuildsteps::classify()
 
     auto predicate = [this](const PointIndexEl &e1,
                             const PointIndexEl &e2) {
+        // A point must always belong to its own cluster; without this the
+        // clustering loop never removes the point from the spatial index and
+        // spins forever.
+        if (e1.second == e2.second) return true;
+        auto is_manual = [this](unsigned head_id) -> bool {
+            long sp_id = m_builder.head(head_id).id;
+            return sp_id >= 0 && size_t(sp_id) < m_support_pts.size() &&
+                   m_support_pts[size_t(sp_id)].type == SupportPointType::manual_add;
+        };
+        if (is_manual(e1.second) || is_manual(e2.second))
+            return false;
         double d2d = distance(to_2d(e1.first), to_2d(e2.first));
         double d3d = distance(e1.first, e2.first);
         return d2d < 2 * m_cfg.base_radius_mm
