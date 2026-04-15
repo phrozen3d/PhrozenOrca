@@ -95,6 +95,66 @@ slider range = [0.0, scene_max_z]
 
 ---
 
+## Stage 1.5：Slider UI 視覺樣式決策
+
+### 背景
+
+Stage 1 實作的 `_render_prepare_clip_slider()` 使用原始 `ImGui::VSliderFloat`（灰色無樣式雙滑桿），
+外觀與 Preview tab 的 IMSlider 差距過大。Stage 1.5 的目標是讓 Prepare slider 外型與 Preview slider 一致。
+
+### 方案比較
+
+#### 方案 A — 共用 IMSlider（Share）
+
+直接在 Prepare view 建立 `IMSlider` 新實例，複用 Preview 所用的相同 class。
+
+**關鍵障礙**：`IMSlider` 以整數 layer index 為值域（`m_values[index]`），
+Prepare clip slider 操作的是連續浮點 Z 值（`m_prepare_clip_z_low` / `m_prepare_clip_z_high`），
+兩者之間存在本質上的 impedance mismatch。
+
+| 面向 | 評估 |
+|------|------|
+| 視覺一致 | ✅ 完全相同外觀 |
+| 適配難度 | ❌ 高：需假造 `m_values[]` 陣列、設定 `DrawMode::dmSlaPrint`、處理整數/浮點轉換 |
+| 狀態隔離 | ❌ 風險高：IMSlider 內含大量 tick/colorchange/gcode 狀態，Prepare 完全用不到 |
+| 未來維護 | ❌ 上游 IMSlider 任何變更都可能破壞 Prepare 用法 |
+| 影響 Preview | ⚠️ 低風險但需謹慎：共用 class 的 texture 靜態資源 |
+
+#### 方案 B — 不共用，手寫仿 IMSlider 樣式（Replicate Style）✅ **採用**
+
+在 `_render_prepare_clip_slider()` 內使用 ImGui DrawList API 直接繪製，
+視覺模仿 IMSlider 的外觀（軌道、把手圓點、Z 值 label、半透明背景），邏輯完全獨立。
+
+| 面向 | 評估 |
+|------|------|
+| 視覺一致 | ✅ 可達 90% 相似（手工調整顏色/尺寸） |
+| 適配難度 | ✅ 低：直接操作浮點 Z 值，無轉換問題 |
+| 狀態隔離 | ✅ 完全獨立，不碰 GCodeViewer / IMSlider 內部狀態 |
+| 未來維護 | ✅ 只有 Prepare clip 自己用，上游改動不影響 |
+| 影響 Preview | ✅ 零風險 |
+
+### 決策
+
+**採用方案 B**。
+
+IMSlider 設計為 gcode/print preview 的 layer-index 驅動元件，強行套用到連續 Z 浮點 clip 值
+會引入不必要的複雜度與耦合。方案 B 在合理工作量下可達到視覺一致，並完全隔離兩個 slider 的狀態。
+
+### 視覺元素規格
+
+使用 `ImGui::GetWindowDrawList()` 繪製以下元素：
+
+| 元素 | 規格 |
+|------|------|
+| 背景面板 | 半透明深色圓角矩形（寬 34px，高度依畫布） |
+| 垂直軌道 | 寬 4px，圓角，中央居中 |
+| High handle | 圓形（半徑 8px），可拖曳，顏色 `#E0E0E0` |
+| Low handle | 圓形（半徑 8px），可拖曳，顏色 `#A0A0A0` |
+| 選中區間 | High/Low 之間的軌道填色（accent 色） |
+| Z 值 label | Handle 左側顯示 `12.3mm`，字型 `ImGui::GetFont()` |
+
+---
+
 ## 範圍邊界（Out of Scope）
 
 - FDM 模式不顯示此 Slider

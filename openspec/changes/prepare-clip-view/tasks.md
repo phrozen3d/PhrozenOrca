@@ -89,6 +89,136 @@
 
 ---
 
+## Stage 1.5：Slider UI 視覺樣式重構（方案 B — DrawList 仿 IMSlider）
+
+> **目標**：將 `_render_prepare_clip_slider()` 中原始的 `ImGui::VSliderFloat` 替換為
+> 以 ImGui DrawList 手繪的自訂滑桿，使外觀與 Preview tab 的 IMSlider 一致。
+>
+> **採用方案 B（不共用 IMSlider）**：直接操作浮點 Z 值，不引入 layer-index 轉換邏輯。
+> 詳細分析見 `proposal.md`「Stage 1.5 Slider UI 視覺樣式決策」章節。
+
+### 1.5.1 定義視覺常數
+
+- [x] 在 `_render_prepare_clip_slider()` 頂端（或匿名 namespace）定義以下常數：
+  ```cpp
+  constexpr float SLIDER_W        = 34.f;   // 背景面板寬（px）
+  constexpr float TRACK_W         = 4.f;    // 軌道寬（px）
+  constexpr float HANDLE_R        = 8.f;    // 把手圓半徑（px）
+  constexpr float LABEL_OFFSET_X  = 10.f;  // label 距把手左側距離（px）
+  // 顏色
+  const ImU32 COL_BG        = IM_COL32( 40,  40,  40, 160);  // 背景（半透明深色）
+  const ImU32 COL_TRACK     = IM_COL32(100, 100, 100, 220);  // 軌道底色
+  const ImU32 COL_RANGE     = IM_COL32( 88, 166, 255, 200);  // High~Low 之間的高亮軌道
+  const ImU32 COL_HANDLE_HI = IM_COL32(224, 224, 224, 255);  // High handle（較亮）
+  const ImU32 COL_HANDLE_LO = IM_COL32(160, 160, 160, 255);  // Low handle（較暗）
+  const ImU32 COL_LABEL     = IM_COL32(255, 255, 255, 200);  // Z 值文字
+  ```
+
+### 1.5.2 改寫背景面板與軌道繪製
+
+- [x] 移除原本的 `ImGui::BeginChild` / `ImGui::VSliderFloat` 區塊
+- [x] 改用 `ImGui::SetNextWindowPos` + `ImGui::BeginChild`（或直接取得 DrawList）：
+  ```cpp
+  // 位置：畫布右側，垂直置中
+  float panel_x = canvas_w - SLIDER_W - 8.f;
+  float panel_y = 40.f;
+  float panel_h = canvas_h - 80.f;
+
+  ImDrawList* dl = ImGui::GetWindowDrawList();
+  // 背景圓角矩形
+  dl->AddRectFilled({panel_x, panel_y},
+                    {panel_x + SLIDER_W, panel_y + panel_h},
+                    COL_BG, 6.f);
+
+  // 軌道（中央 X = panel_x + SLIDER_W/2）
+  float track_x = panel_x + SLIDER_W * 0.5f;
+  float track_y0 = panel_y + HANDLE_R + 4.f;
+  float track_y1 = panel_y + panel_h - HANDLE_R - 4.f;
+  float track_len = track_y1 - track_y0;
+
+  dl->AddRectFilled({track_x - TRACK_W * 0.5f, track_y0},
+                    {track_x + TRACK_W * 0.5f, track_y1},
+                    COL_TRACK, 2.f);
+  ```
+
+### 1.5.3 繪製 High / Low handle 與 High~Low 高亮區間
+
+- [x] 將 `m_prepare_clip_z_high` / `m_prepare_clip_z_low` 映射到螢幕 Y 座標：
+  ```cpp
+  auto z_to_y = [&](double z) -> float {
+      float t = (float)std::clamp(z / m_prepare_scene_max_z, 0.0, 1.0);
+      return track_y1 - t * track_len;   // Z=0 → 底部, Z=max → 頂部
+  };
+  float y_hi = z_to_y(m_prepare_clip_z_high);
+  float y_lo = z_to_y(m_prepare_clip_z_low);
+  ```
+- [x] 繪製高亮區間（High 到 Low 之間）：
+  ```cpp
+  dl->AddRectFilled({track_x - TRACK_W * 0.5f, y_hi},
+                    {track_x + TRACK_W * 0.5f, y_lo},
+                    COL_RANGE, 2.f);
+  ```
+- [x] 繪製兩個把手圓：
+  ```cpp
+  dl->AddCircleFilled({track_x, y_hi}, HANDLE_R, COL_HANDLE_HI);  // High
+  dl->AddCircleFilled({track_x, y_lo}, HANDLE_R, COL_HANDLE_LO);  // Low
+  ```
+
+### 1.5.4 Z 值 label 顯示
+
+- [x] 在每個 handle 左側顯示 Z 值（mm）：
+  ```cpp
+  char buf_hi[16], buf_lo[16];
+  std::snprintf(buf_hi, sizeof(buf_hi), "%.1f mm", m_prepare_clip_z_high);
+  std::snprintf(buf_lo, sizeof(buf_lo), "%.1f mm", m_prepare_clip_z_low);
+  dl->AddText({panel_x - LABEL_OFFSET_X - ImGui::CalcTextSize(buf_hi).x, y_hi - 7.f},
+              COL_LABEL, buf_hi);
+  dl->AddText({panel_x - LABEL_OFFSET_X - ImGui::CalcTextSize(buf_lo).x, y_lo - 7.f},
+              COL_LABEL, buf_lo);
+  ```
+
+### 1.5.5 滑鼠拖曳互動
+
+- [x] 新增兩個拖曳狀態成員至 `GLCanvas3D.hpp`：
+  ```cpp
+  bool m_prepare_dragging_high = false;
+  bool m_prepare_dragging_low  = false;
+  ```
+- [x] 在 `_render_prepare_clip_slider()` 中，使用 `ImGui::IsMouseHoveringRect` + `ImGui::IsMouseDown(0)` 偵測拖曳：
+  - High handle 命中區（圓形 hit box `HANDLE_R + 4px`）→ 設 `m_prepare_dragging_high = true`
+  - Low handle 命中區 → 設 `m_prepare_dragging_low = true`
+  - Mouse release → 兩個 flag 清除
+  - 拖曳時：`mouse_y` → 反算 Z 值，夾入合法範圍後呼叫 `_on_prepare_clip_changed(z_low, z_high)`
+    ```cpp
+    auto y_to_z = [&](float y) -> double {
+        float t = std::clamp((track_y1 - y) / track_len, 0.f, 1.f);
+        return (double)t * m_prepare_scene_max_z;
+    };
+    ```
+
+### 1.5.6 滾輪微調（可選）
+
+- [x] 若滑鼠在 slider 面板範圍內，捕捉滾輪事件微調 High handle（每格 0.1mm）
+- [x] 確認滾輪事件不傳遞到 3D viewport（消耗掉）
+
+---
+
+### ✅ Checkpoint 1.5
+
+**請執行編譯：**
+- [ ] C1.5：全專案編譯通過，無錯誤、無警告
+
+**請手動測試：**
+- [ ] M1.5-1：SLA Prepare view → 右側出現**深色半透明面板** + 垂直軌道 + 兩個圓形把手
+- [ ] M1.5-2：High handle 旁顯示當前 Z 值（mm），Low handle 旁同樣顯示
+- [ ] M1.5-3：拖曳 High handle 向下 → 高亮區間隨之縮短，模型頂部截面隨動
+- [ ] M1.5-4：拖曳 Low handle 向上 → 高亮區間隨之縮短，模型底部截面隨動
+- [ ] M1.5-5：兩 handle 回到端點 → 模型完整顯示，高亮區間佔滿整條軌道
+- [ ] M1.5-6：Preview tab 的 layer slider **外觀與行為完全不受影響**
+- [ ] M1.5-7：FDM 模式 → 自訂 slider **不顯示**
+
+---
+
 ## Stage 2：ObjectClipper 同步（raycasting 整合）
 
 > **目標**：Slider 移動時同步 ObjectClipper，確保 Drill/Support Gizmo 的 raycasting 正確識別截面。
@@ -275,8 +405,8 @@
 
 | 檔案 | 修改內容 |
 |------|---------|
-| `GLCanvas3D.hpp` | 新增 m_prepare_clip_* 成員、m_syncing_clipper、getter |
-| `GLCanvas3D.cpp` | 新增 _render_prepare_clip_slider()、_on_prepare_clip_changed()、_update_prepare_scene_max_z() |
+| `GLCanvas3D.hpp` | 新增 m_prepare_clip_* 成員、m_prepare_dragging_high/low、m_syncing_clipper、getter |
+| `GLCanvas3D.cpp` | 新增 _render_prepare_clip_slider()（Stage 1.5 改為 DrawList 自訂樣式）、_on_prepare_clip_changed()、_update_prepare_scene_max_z() |
 | `GLGizmoSlaBase.cpp` | 修改 on_set_state(On/Off) 加入同步 |
 | `GLGizmoHollow.cpp` | 移除 "View clipping" UI 區塊 |
 | `GLGizmoDrill.cpp` | 移除 "View clipping" UI 區塊 |

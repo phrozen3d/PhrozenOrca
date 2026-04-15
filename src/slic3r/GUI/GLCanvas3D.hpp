@@ -542,6 +542,9 @@ private:
     double m_prepare_clip_z_low  = 0.0;   // bottom clipping plane Z (mm)
     double m_prepare_clip_z_high = -1.0;  // top clipping plane Z (-1 = uninitialized)
     double m_prepare_scene_max_z = 50.0;  // cached: scene volumes max Z (mm)
+    // Stage 1.5: DrawList slider drag state
+    bool m_prepare_dragging_high = false; // true while user drags the High handle
+    bool m_prepare_dragging_low  = false; // true while user drags the Low handle
     std::string m_sidebar_field;
     // when true renders an extra frame by not resetting m_dirty to false
     // see request_extra_frame()
