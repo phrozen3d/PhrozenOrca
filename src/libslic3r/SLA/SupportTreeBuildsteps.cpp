@@ -354,11 +354,14 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
     // results in a cross connection between the pillars.
     Vec3d sj = supper, ej = slower; sj(Z) = startz; ej(Z) = sj(Z) + zstep;
 
+    // Bridge radius should not exceed the thinner of the two pillars.
+    double bridge_r = std::min(pillar.r_start, nextpillar.r_start);
+
     // TODO: This is a workaround to not have a faulty last bridge
     while(ej(Z) >= eupper(Z) /*endz*/) {
-        if(bridge_mesh_distance(sj, dirv(sj, ej), pillar.r_start) >= bridge_distance)
+        if(bridge_mesh_distance(sj, dirv(sj, ej), bridge_r) >= bridge_distance)
         {
-            m_builder.add_crossbridge(sj, ej, pillar.r_start);
+            m_builder.add_crossbridge(sj, ej, bridge_r);
             was_connected = true;
         }
 
@@ -368,9 +371,9 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
             Vec3d ejback(sj(X), sj(Y), ej(Z));
             if (sjback(Z) <= slower(Z) && ejback(Z) >= eupper(Z) &&
                 bridge_mesh_distance(sjback, dirv(sjback, ejback),
-                                      pillar.r_start) >= bridge_distance) {
+                                      bridge_r) >= bridge_distance) {
                 // need to check collision for the cross stick
-                m_builder.add_crossbridge(sjback, ejback, pillar.r_start);
+                m_builder.add_crossbridge(sjback, ejback, bridge_r);
                 was_connected = true;
             }
         }
@@ -396,7 +399,7 @@ bool SupportTreeBuildsteps::connect_to_nearpillar(const Head &head,
     Vec3d nearjp_u = nearpillar().startpoint();
     Vec3d nearjp_l = nearpillar().endpoint();
 
-    double r = head.r_back_mm;
+    double r = std::min(head.r_back_mm, nearpillar().r_start);
     double d2d = distance(to_2d(headjp), to_2d(nearjp_u));
     double d3d = distance(headjp, nearjp_u);
 
