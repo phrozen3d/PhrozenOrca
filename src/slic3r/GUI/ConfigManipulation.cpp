@@ -14,6 +14,12 @@
 namespace Slic3r {
 namespace GUI {
 
+void ConfigManipulation::sync_sla_retract_primary_distances(DynamicPrintConfig* config)
+{
+    if (config)
+        synchronize_sla_retract_primary_distances(*config);
+}
+
 void ConfigManipulation::apply(DynamicPrintConfig* config, DynamicPrintConfig* new_config)
 {
     bool modified = false;
@@ -533,7 +539,20 @@ void ConfigManipulation::apply_null_fff_config(DynamicPrintConfig *config, std::
 
 void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, const bool is_global_config)
 {
+    if (!config)
+        return;
+
     PresetBundle *preset_bundle  = wxGetApp().preset_bundle;
+    if (!preset_bundle)
+        return;
+
+    // Switching technologies may transiently call this with SLA config bound to TabPrint.
+    // Bail out instead of dereferencing missing FFF options.
+    if (!config->has("max_volumetric_extrusion_rate_slope") ||
+        !config->has("max_volumetric_extrusion_rate_slope_segment_length") ||
+        !config->has("wall_loops") ||
+        !config->has("sparse_infill_density"))
+        return;
 
     auto gcflavor = preset_bundle->printers.get_edited_preset().config.option<ConfigOptionEnum<GCodeFlavor>>("gcode_flavor")->value;
 
@@ -917,6 +936,8 @@ void ConfigManipulation::update_print_sla_config(DynamicPrintConfig* config, con
             }
         }
     }
+
+    update_sla_transition_layer_interval_time_difference(*config);
 }
 
 void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
@@ -943,19 +964,23 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
 
     toggle_field("transition_layer_interval_time_difference", true);
 
-    auto is_image_blur_enable = config->opt_bool("image_blur_enable");
+    const bool is_image_blur_enable =
+        config->has("image_blur_enable") && config->opt_bool("image_blur_enable");
     toggle_field("image_blur_pixel", is_image_blur_enable);
 
-    auto is_shrinkage_compensation = config->opt_bool("shrinkage_compensation");
+    const bool is_shrinkage_compensation =
+        config->has("shrinkage_compensation") && config->opt_bool("shrinkage_compensation");
     toggle_field("shrinkage_compensation_x", is_shrinkage_compensation);
     toggle_field("shrinkage_compensation_y", is_shrinkage_compensation);
     toggle_field("shrinkage_compensation_z", is_shrinkage_compensation);
 
-    auto is_tolerance_compensation = config->opt_bool("tolerance_compensation");
+    const bool is_tolerance_compensation =
+        config->has("tolerance_compensation") && config->opt_bool("tolerance_compensation");
     toggle_field("tolerance_compensation_a", is_tolerance_compensation);
     toggle_field("tolerance_compensation_b", is_tolerance_compensation);
 
-    auto is_bottom_tolerance_compensation = config->opt_bool("bottom_tolerance_compensation");
+    const bool is_bottom_tolerance_compensation =
+        config->has("bottom_tolerance_compensation") && config->opt_bool("bottom_tolerance_compensation");
     toggle_field("bottom_tolerance_compensation_a", is_bottom_tolerance_compensation);
     toggle_field("bottom_tolerance_compensation_b", is_bottom_tolerance_compensation);
 #pragma endregion

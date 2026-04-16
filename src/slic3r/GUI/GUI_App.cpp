@@ -5491,6 +5491,21 @@ std::string GUI_App::get_mode_str()
     return app_config->get("user_mode");
 }
 
+PrinterTechnology GUI_App::get_ui_printer_technology()
+{
+    if (!preset_bundle)
+        return ptFFF;
+    PrinterTechnology t = preset_bundle->printers.get_edited_preset().printer_technology();
+    if (preset_bundle->is_phrozen_vendor() && app_config) {
+        const std::string wm = app_config->get("phrozen_work_mode");
+        if (wm == "resin")
+            return ptSLA;
+        if (wm == "filament")
+            return ptFFF;
+    }
+    return t;
+}
+
 void GUI_App::save_mode(const /*ConfigOptionMode*/int mode)
 {
     //BBS
@@ -6495,10 +6510,17 @@ bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage
         pStyle = wxCAPTION | wxTAB_TRAVERSAL;
 
     GuideFrame wizard(this, pStyle);
-    auto page = start_page == ConfigWizard::SP_WELCOME ? GuideFrame::BBL_WELCOME :
-                start_page == ConfigWizard::SP_FILAMENTS ? GuideFrame::BBL_FILAMENT_ONLY :
-                start_page == ConfigWizard::SP_PRINTERS ? GuideFrame::BBL_MODELS_ONLY :
-                GuideFrame::BBL_MODELS;
+    GuideFrame::GuidePage page = GuideFrame::BBL_MODELS;
+    if (start_page == ConfigWizard::SP_WELCOME)
+        page = GuideFrame::BBL_WELCOME;
+    else if (start_page == ConfigWizard::SP_FILAMENTS)
+        page = GuideFrame::BBL_FILAMENT_ONLY;
+    else if (start_page == ConfigWizard::SP_PRINTERS)
+        page = GuideFrame::BBL_MODELS_ONLY;
+    else if (start_page == ConfigWizard::SP_SLA_PRINTERS)
+        page = GuideFrame::BBL_LCD_PRINTER_ONLY;
+    else if (start_page == ConfigWizard::SP_MATERIALS)
+        page = GuideFrame::BBL_LCD_RESIN_ONLY;
     wizard.SetStartPage(page);
     bool       res = wizard.run();
 

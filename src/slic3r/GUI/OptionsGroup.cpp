@@ -241,6 +241,9 @@ Line* OptionsGroup::get_line(const std::string& opt_key)
     {
         if(l.is_separator())
             continue;
+        // full_width description / custom widget lines may have no Option entries
+        if (l.get_options().empty())    
+            continue;
         if (l.get_first_option_key() == opt_key)
             return &l;
     }
@@ -541,6 +544,21 @@ bool OptionsGroup::activate(std::function<void()> throw_if_canceled/* = [](){}*/
 
 void free_window(wxWindow *win);
 
+static void clear_field_window_pointer(Field *field)
+{
+    if (!field)
+        return;
+    if (auto *f = dynamic_cast<TextCtrl*>(field))              { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<CheckBox*>(field))              { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<SpinCtrl*>(field))              { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<Choice*>(field))                { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<ColourPicker*>(field))          { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<PointCtrl*>(field))             { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<DualFloatField*>(field))        { f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<GrayScaleLevelRangeCtrl*>(field)){ f->window = nullptr; return; }
+    if (auto *f = dynamic_cast<StaticText*>(field))            { f->window = nullptr; return; }
+}
+
 // delete all controls from the option group
 void OptionsGroup::clear(bool destroy_custom_ctrl)
 {
@@ -550,6 +568,25 @@ void OptionsGroup::clear(bool destroy_custom_ctrl)
 	m_grid_sizer = nullptr;
 	sizer = nullptr;
     stb = nullptr; // BBS: fix pointer
+
+    // Pool field windows before line sizers run Clear(true), which destroys
+    // wx children; otherwise getWindow() can be nullptr or dangling (crash in free_window / Hide).
+    if (custom_ctrl) {
+        for (auto const &item : m_fields) {
+            if (!item.second)
+                continue;
+            wxWindow *win = item.second.get()->getWindow();
+            if (win)
+                free_window(win);
+            clear_field_window_pointer(item.second.get());
+        }
+    }
+    else {
+        // Non-custom controls are destroyed by line.widget_sizer->Clear(true), so
+        // proactively null cached Field::window pointers to avoid use-after-free.
+        for (auto const &item : m_fields)
+            clear_field_window_pointer(item.second.get());
+    }
 
 	for (Line& line : m_lines) {
         if (line.near_label_widget_win)
@@ -567,19 +604,8 @@ void OptionsGroup::clear(bool destroy_custom_ctrl)
 	}
 
     if (custom_ctrl) {
-        for (auto const &item : m_fields) {
-            wxWindow* win = item.second.get()->getWindow();
-            if (win) {
-                free_window(win);
-                win = nullptr;
-            }
-        }
-		//BBS: custom_ctrl already destroyed from sizer->clear(), no need to destroy here anymore
-		if (destroy_custom_ctrl)
-            //custom_ctrl->Destroy();
-			custom_ctrl = nullptr;
-        else
-            custom_ctrl = nullptr;
+		(void)destroy_custom_ctrl;
+		custom_ctrl = nullptr;
     }
 
 	m_extra_column_item_ptrs.clear();
@@ -754,6 +780,10 @@ void ConfigOptionsGroup::Hide()
 
 void ConfigOptionsGroup::Show(const bool show)
 {
+    // clear() nulls sizer before wx teardown finishes; save_mode -> update_mode can still
+    // reach here (e.g. Process tab Advanced toggle) — guard to avoid AV on ShowItems.
+    if (!sizer)
+        return;
     sizer->ShowItems(show);
 #if 0//#ifdef __WXGTK__
     m_panel->Show(show);
@@ -778,7 +808,7 @@ bool ConfigOptionsGroup::is_visible(ConfigOptionMode mode)
 
 bool ConfigOptionsGroup::update_visibility(ConfigOptionMode mode)
 {
-	if (m_options_mode.empty() || !m_grid_sizer)
+	if (m_options_mode.empty() || !m_grid_sizer || !sizer)
 		return true;
 
     if (custom_ctrl) {
@@ -814,7 +844,8 @@ bool ConfigOptionsGroup::update_visibility(ConfigOptionMode mode)
 	}
 
     if (hidden_row_cnt == opt_mode_size) {
-        sizer->ShowItems(false);
+        if (sizer)
+            sizer->ShowItems(false);
         return false;
     }
     return true;
@@ -938,7 +969,9 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 
 	boost::any ret;
 	wxString text_value = wxString("");
-	const ConfigOptionDef* opt = config.def()->get(opt_key);
+	const ConfigOptionDef* opt = config.def() ? config.def()->get(opt_key) : nullptr;
+	if (!opt)
+		return ret;
 
     if (opt->nullable)
     {
@@ -946,7 +979,8 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
         {
         case coPercents:
         case coFloats: {
-            if (config.option(opt_key)->is_nil())
+            const ConfigOption* raw_opt = config.option(opt_key);
+            if (!raw_opt || raw_opt->is_nil())
                 ret = _(L("N/A"));
             else {
                 double val = opt->type == coFloats ?
@@ -955,15 +989,30 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
                 ret = double_to_string(val); }
             }
             break;
-        case coBools:
-            ret = config.option<ConfigOptionBoolsNullable>(opt_key)->values[idx];
+        case coBools: {
+            const auto* b = config.option<ConfigOptionBoolsNullable>(opt_key);
+            if (!b || idx >= b->values.size())
+                ret = false;
+            else
+                ret = b->values[idx];
             break;
-        case coInts:
-            ret = config.option<ConfigOptionIntsNullable>(opt_key)->get_at(idx);
+        }
+        case coInts: {
+            const auto* ints = config.option<ConfigOptionIntsNullable>(opt_key);
+            if (!ints)
+                ret = 0;
+            else
+                ret = ints->get_at(idx);
             break;
-        case coEnums:
-            ret = config.option<ConfigOptionEnumsGenericNullable>(opt_key)->get_at(idx);
+        }
+        case coEnums: {
+            const auto* en = config.option<ConfigOptionEnumsGenericNullable>(opt_key);
+            if (!en)
+                ret = 0;
+            else
+                ret = en->get_at(idx);
             break;
+        }
         default:
             break;
         }
@@ -972,7 +1021,10 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 
 	switch (opt->type) {
 	case coFloatOrPercent:{
-		const auto &value = *config.option<ConfigOptionFloatOrPercent>(opt_key);
+        const auto* fo = config.option<ConfigOptionFloatOrPercent>(opt_key);
+        if (!fo)
+            break;
+		const auto &value = *fo;
 
         text_value = double_to_string(value.value);
 		if (value.percent)
@@ -982,8 +1034,9 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 		break;
 	}
 	case coPercent:{
-		double val = config.option<ConfigOptionPercent>(opt_key)->value;
-		ret = double_to_string(val);// += "%";
+        const auto* p = config.option<ConfigOptionPercent>(opt_key);
+        if (p)
+            ret = double_to_string(p->value);// += "%";
 	}
 		break;
 	case coPercents:
@@ -1006,33 +1059,39 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
 			break;
 		}
         double val = 0.0;
-
-        if (!opt) {
-            ret = "0";
-        } else {
-            try {
-                if (opt->type == coFloats) {
-                    auto floats = config.option<ConfigOptionFloats>(opt_key);
-                    if (floats && idx < floats->values.size())
-                        val = floats->get_at(idx);
-                } else if (opt->type == coFloat) {
-                    val = config.opt_float(opt_key);
-                } else if (opt->type == coPercents) {
-                    auto percents = config.option<ConfigOptionPercents>(opt_key);
-                    if (percents && idx < percents->values.size())
-                        val = percents->get_at(idx);
+        try {
+            if (opt->type == coFloats) {
+                auto floats = config.option<ConfigOptionFloats>(opt_key);
+                if (floats && idx < floats->values.size())
+                    val = floats->get_at(idx);
+            } else if (opt->type == coFloat) {
+                if (const auto* f = config.option<ConfigOptionFloat>(opt_key))
+                    val = f->value;
+                else if (opt->default_value) {
+                    const auto* def_f = dynamic_cast<const ConfigOptionFloat*>(opt->default_value.get());
+                    if (def_f)
+                        val = def_f->value;
                 }
-            } catch (...) {
-                val = 0.0;
+            } else if (opt->type == coPercents) {
+                auto percents = config.option<ConfigOptionPercents>(opt_key);
+                if (percents && idx < percents->values.size())
+                    val = percents->get_at(idx);
             }
-            ret = double_to_string(val);
+        } catch (...) {
+            val = 0.0;
         }
+        ret = double_to_string(val);
 
 #pragma endregion
 		break;
 		}
 	case coString:
-		ret = from_u8(config.opt_string(opt_key));
+		if (const auto* s = config.option<ConfigOptionString>(opt_key))
+			ret = from_u8(s->value);
+		else if (opt->default_value) {
+			if (const auto* def_s = dynamic_cast<const ConfigOptionString*>(opt->default_value.get()))
+				ret = from_u8(def_s->value);
+		}
 		break;
 	case coStrings:
 		if (opt_key == "compatible_printers" || opt_key == "compatible_prints") {
@@ -1080,10 +1139,12 @@ boost::any ConfigOptionsGroup::get_config_value(const DynamicPrintConfig& config
         if (!config.has("curr_bed_type") && opt_key == "curr_bed_type") {
             // reset to global value
             DynamicConfig& global_cfg = wxGetApp().preset_bundle->project_config;
-            ret = global_cfg.option("curr_bed_type")->getInt();
+            const ConfigOption* g = global_cfg.option("curr_bed_type");
+            ret = g ? g->getInt() : 0;
             break;
         }
-        ret = config.option(opt_key)->getInt();
+        if (const ConfigOption* eo = config.option(opt_key))
+            ret = eo->getInt();
         break;
     // BBS
     case coEnums:
@@ -1113,7 +1174,9 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
     size_t idx = opt_index == -1 ? 0 : opt_index;
 
     boost::any ret;
-    const ConfigOptionDef* opt = config.def()->get(opt_key);
+    const ConfigOptionDef* opt = config.def() ? config.def()->get(opt_key) : nullptr;
+    if (!opt)
+        return ret;
 
     if (opt->nullable)
     {
@@ -1121,7 +1184,8 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
         {
         case coPercents:
         case coFloats: {
-            if (config.option(opt_key)->is_nil())
+            const ConfigOption* raw_opt = config.option(opt_key);
+            if (!raw_opt || raw_opt->is_nil())
                 ret = ConfigOptionFloatsNullable::nil_value();
             else {
                 double val = opt->type == coFloats ?
@@ -1130,12 +1194,22 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
                 ret = val; }
         }
                      break;
-        case coBools:
-            ret = config.option<ConfigOptionBoolsNullable>(opt_key)->values[idx];
+        case coBools: {
+            const auto* b = config.option<ConfigOptionBoolsNullable>(opt_key);
+            if (!b || idx >= b->values.size())
+                ret = static_cast<unsigned char>(false);
+            else
+                ret = b->values[idx];
             break;
-        case coInts:
-            ret = config.option<ConfigOptionIntsNullable>(opt_key)->get_at(idx);
+        }
+        case coInts: {
+            const auto* ints = config.option<ConfigOptionIntsNullable>(opt_key);
+            if (!ints)
+                ret = 0;
+            else
+                ret = ints->get_at(idx);
             break;
+        }
         default:
             break;
         }
@@ -1144,7 +1218,10 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
 
     switch (opt->type) {
     case coFloatOrPercent:{
-        const auto &value = *config.option<ConfigOptionFloatOrPercent>(opt_key);
+        const auto* fo = config.option<ConfigOptionFloatOrPercent>(opt_key);
+        if (!fo)
+            break;
+        const auto &value = *fo;
 
         wxString text_value = double_to_string(value.value);
         if (value.percent)
@@ -1154,8 +1231,9 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
         break;
     }
     case coPercent:{
-        double val = config.option<ConfigOptionPercent>(opt_key)->value;
-        ret = val;
+        const auto* p = config.option<ConfigOptionPercent>(opt_key);
+        if (p)
+            ret = p->value;
     }
                   break;
     case coPercents:
@@ -1178,10 +1256,21 @@ boost::any ConfigOptionsGroup::get_config_value2(const DynamicPrintConfig& confi
             break;
         }
 #pragma endregion
-        double val = opt->type == coFloats ?
-            config.opt_float(opt_key, idx) :
-            opt->type == coFloat ? config.opt_float(opt_key) :
-            config.option<ConfigOptionPercents>(opt_key)->get_at(idx);
+        double val = 0.0;
+        if (opt->type == coFloats) {
+            if (const auto* floats = config.option<ConfigOptionFloats>(opt_key); floats && idx < floats->values.size())
+                val = floats->get_at(idx);
+        } else if (opt->type == coFloat) {
+            if (const auto* f = config.option<ConfigOptionFloat>(opt_key))
+                val = f->value;
+            else if (opt->default_value) {
+                const auto* def_f = dynamic_cast<const ConfigOptionFloat*>(opt->default_value.get());
+                if (def_f)
+                    val = def_f->value;
+            }
+        } else if (const auto* percents = config.option<ConfigOptionPercents>(opt_key); percents && idx < percents->values.size()) {
+            val = percents->get_at(idx);
+        }
         ret = val;
     }
                 break;

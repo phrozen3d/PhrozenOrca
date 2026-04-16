@@ -15,7 +15,6 @@
 #include <wx/utils.h> 
 
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/case_conv.hpp> // to_lower_copy
 #include <boost/log/trivial.hpp>
 #include <boost/property_tree/ptree.hpp>
 
@@ -89,6 +88,64 @@ namespace {
 
 static const wxColour g_phrozen_bar_bg(45, 45, 48);
 static const wxColour g_phrozen_orange(255, 124, 63);
+
+// Toolbar label + popup checkmark must match the user's chosen work mode.
+// Prefer app_config (set when using the mode menu or when switching printer preset);
+// fall back to the active printer's technology for older configs / first run.
+static bool phrozen_toolbar_mode_is_resin()
+{
+    GUI_App& app = wxGetApp();
+    if (app.app_config) {
+        const std::string m = app.app_config->get("phrozen_work_mode");
+        if (m == "resin")
+            return true;
+        if (m == "filament")
+            return false;
+    }
+    if (app.preset_bundle)
+        return app.preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA;
+    return false;
+}
+
+static bool preset_from_phrozen_profile_dir(const Preset& preset, bool resin)
+{
+    const char* vendor_id = resin ? "PhrozenSLA" : "Phrozen";
+    if (preset.vendor && boost::iequals(preset.vendor->id, vendor_id))
+        return true;
+
+    // Fallback: vendor pointer may be empty for edge cases; infer from source profile path.
+    if (!preset.file.empty()) {
+        const std::string needle_fwd = resin ? "/profiles/PhrozenSLA/" : "/profiles/Phrozen/";
+        const std::string needle_bwd = resin ? "\\profiles\\PhrozenSLA\\" : "\\profiles\\Phrozen\\";
+        if (boost::icontains(preset.file, needle_fwd) || boost::icontains(preset.file, needle_bwd))
+            return true;
+    }
+    return false;
+}
+
+static const Preset* find_phrozen_work_mode_target(const PresetBundle& pb, bool resin)
+{
+    const PrinterTechnology desired_tech = resin ? ptSLA : ptFFF;
+
+    auto pick = [&](bool require_visible) -> const Preset* {
+        for (const Preset& pr : pb.printers.get_presets()) {
+            if (!pr.is_system || pr.printer_technology() != desired_tech)
+                continue;
+            if (require_visible && !pr.is_visible)
+                continue;
+            if (!preset_from_phrozen_profile_dir(pr, resin))
+                continue;
+            return &pr;
+        }
+        return nullptr;
+    };
+
+    if (const Preset* p = pick(true))
+        return p;
+    if (const Preset* p = pick(false))
+        return p;
+    return nullptr;
+}
 
 class PhrozenModeMenuRow : public wxPanel
 {
@@ -176,7 +233,7 @@ public:
         PresetBundle* pb = wxGetApp().preset_bundle;
         if (!pb || !m_anchor || !m_mf)
             return;
-        const bool resin = pb->printers.get_edited_preset().printer_technology() == Slic3r::ptSLA;
+        const bool resin = phrozen_toolbar_mode_is_resin();
         const int  w     = m_anchor->GetClientSize().GetWidth() + m_mf->FromDIP(16);
         const int  rh    = m_mf->FromDIP(36);
         const int  pad   = m_mf->FromDIP(2);
@@ -184,7 +241,7 @@ public:
         DestroyChildren();
         wxSizer* outer = new wxBoxSizer(wxVERTICAL);
         wxSizer* sz    = new wxBoxSizer(wxVERTICAL);
-        auto*    rf = new PhrozenModeMenuRow(this, !resin, _L("Phrozen Orca Filament"), "PhrozenImages_Resin/Printer_FDM", m_ipx,
+        auto*    rf = new PhrozenModeMenuRow(this, !resin, _L("Phrozen Orca FDM"), "PhrozenImages_Resin/Printer_FDM", m_ipx,
                                              [this] {
                                                  m_mf->phrozen_apply_work_mode(false);
                                                  Dismiss();
@@ -1785,11 +1842,12 @@ void MainFrame::update_phrozen_mode_button_label()
 {
     if (!m_phrozen_mode_btn || !wxGetApp().preset_bundle)
         return;
-    const bool resin = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == Slic3r::ptSLA;
+    const bool resin = phrozen_toolbar_mode_is_resin();
     const int  ipx   = FromDIP(10);
     m_phrozen_mode_btn->SetIconBitmapName(
         resin ? "PhrozenImages_Resin/Printer_Resin" : "PhrozenImages_Resin/Printer_FDM", ipx);
-    m_phrozen_mode_btn->SetLabel(resin ? _L("Phrozen Orca Resin") : _L("Phrozen Orca Filament"));
+    m_phrozen_mode_btn->SetLabel(resin ? _L("Phrozen Orca Resin") : _L("Phrozen Orca FDM"));
+    m_phrozen_mode_btn->Refresh();
 }
 
 void MainFrame::phrozen_apply_work_mode(bool resin)
@@ -1800,48 +1858,9 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     if (!pb || !cfg || !m_plater)
         return;
 
-    const Preset* target = nullptr;
-    if (!resin) {
-        target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.4");
-        if (!target)
-            target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.2");
-        if (!target)
-            target = pb->printers.find_system_preset_by_model_and_variant("Phrozen Arco", "0.6");
-    } else {
-        // Try multiple naming variants because different JSON generations may store different printer_model strings.
-        // phrozen_apply_work_mode searches by system preset printer_model + printer_variant ("default").
-        static const char* sla_models[] = {
-            // "Sonic ..." form
-            "Sonic Mighty Revo 16K", "Sonic Mega 8K S", "Sonic Mega 8K V2",
-            // "Phrozen Sonic ..." form
-            "Phrozen Sonic Mighty Revo 16K", "Phrozen Sonic Mega 8K S", "Phrozen Sonic Mega 8K V2",
-            // Short form used by some machine_model JSONs
-            "Mighty Revo 16K", "Mega 8K S", "Mega 8K V2",
-            nullptr
-        };
-        for (const char** m = sla_models; *m && !target; ++m)
-            target = pb->printers.find_system_preset_by_model_and_variant(*m, "default");
-        if (!target) {
-            for (const Preset& pr : pb->printers.get_presets()) {
-                // Pick any visible SLA system preset (even if it's marked default) to avoid blocking resin mode.
-                if (!pr.is_system || pr.printer_technology() != ptSLA || !pr.is_visible)
-                    continue;
-                const std::string l = boost::algorithm::to_lower_copy(pr.name);
-                if (l.find("phrozen") != std::string::npos) {
-                    target = &pr;
-                    break;
-                }
-            }
-        }
-        if (!target) {
-            for (const Preset& pr : pb->printers.get_presets()) {
-                if (pr.is_system && pr.printer_technology() == ptSLA && pr.is_visible) {
-                    target = &pr;
-                    break;
-                }
-            }
-        }
-    }
+    // Select by vendor/profile source (resources/profiles/Phrozen*), not hardcoded model strings.
+    // This allows adding new machine JSONs without touching code.
+    const Preset* target = find_phrozen_work_mode_target(*pb, resin);
 
     if (!target) {
         MessageDialog d(this,
@@ -1855,16 +1874,22 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     const std::string               mid = target->config.opt_string("printer_model");
     const std::string               var = target->config.opt_string("printer_variant");
     PresetBundle::PresetPreferences pref{ mid, var, std::string(), std::string() };
+    // Record intended mode before load_selections so toolbar / popup never show a stale label vs. checkmark.
+    cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
     pb->load_selections(*cfg, pref);
     pb->export_selections(*cfg);
-    cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
     cfg->save();
-    wxGetApp().load_current_presets(false, true);
+
     m_plater->set_printer_technology(resin ? ptSLA : ptFFF);
     update_phrozen_mode_button_label();
+    // Rebuild ParamsPanel Process row (TabPrint vs TabSLAPrint) before load_current_presets reload_config,
+    // or Field::window can still point at controls from the wrong / torn-down layout.
+    update_side_preset_ui();
+
+    wxGetApp().load_current_presets(false, true);
     m_plater->sidebar().on_filaments_change(pb->filament_presets.size());
-    if (m_param_panel)
-        m_param_panel->switch_process_tab_for_printer_technology();
+    // switch_process_tab_for_printer_technology() is already invoked from update_side_preset_ui()
+
     if (m_topbar)
         m_topbar->ShowCalibrationButton(!resin);
     Layout();
@@ -1874,7 +1899,7 @@ wxBoxSizer* MainFrame::create_phrozen_mode_toolbar()
 {
     wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
     const int   ipx   = FromDIP(10);
-    m_phrozen_mode_btn = new SideButton(this, _L("Phrozen Orca Filament"), wxString("PhrozenImages_Resin/Printer_FDM"), 0, ipx);
+    m_phrozen_mode_btn = new SideButton(this, _L("Phrozen Orca FDM"), wxString("PhrozenImages_Resin/Printer_FDM"), 0, ipx);
 
     m_phrozen_mode_btn->SetCornerRadius(FromDIP(4));
     m_phrozen_mode_btn->SetExtraSize(wxSize(FromDIP(16), FromDIP(10)));
@@ -4346,15 +4371,15 @@ void MainFrame::update_side_preset_ui()
     //BBS: update the preset
     m_plater->sidebar().update_presets(Preset::TYPE_PRINTER);
 
-    // Update process and material presets based on printer technology
+    // Update process and material presets based on printer technology (Phrozen: honor toolbar work mode).
     PresetBundle &preset_bundle = *wxGetApp().preset_bundle;
-    const auto print_tech = preset_bundle.printers.get_edited_preset().printer_technology();
+    const auto print_tech = wxGetApp().get_ui_printer_technology();
 
     if (print_tech == ptFFF) {
         // FDM: update filament presets
         m_plater->sidebar().update_presets(Preset::TYPE_FILAMENT);
     } else {
-        // SLA: update SLA print and material presets
+        // SLA: update SLA print and material presets (sidebar Process row + material)
         m_plater->sidebar().update_presets(Preset::TYPE_SLA_PRINT);
         m_plater->sidebar().update_presets(Preset::TYPE_SLA_MATERIAL);
     }

@@ -104,8 +104,8 @@
 	
 </div>
 <div id="AcceptArea">
-	<div class="GrayBtn trans" id="PreBtn" tid="t8"  onclick="window.open('../12/index.html','_self')">Back</div>
-	<div class="NormalBtn trans" id="AcceptBtn" tid="t9"  onclick="GotoResinPage()">Next</div>
+	<div class="NormalBtn trans" tid="t39" id="AcceptBtn" onclick="ConfirmSelect()">Confirm</div>
+	<div class="GrayBtn trans" tid="t38" id="PreBtn" onclick="CancelSelect()">Cancel</div>
 </div>
 	
 <div id="NoticeMask"></div>
@@ -124,6 +124,9 @@
 <script>
 	document.onkeydown = function (event) {
 		var e = event || window.event || arguments.callee.caller.arguments[0];
+
+		if (e.keyCode == 27)
+			ClosePage();
 
 		if (window.event) {
 			try { e.keyCode = 0; } catch (e) { }

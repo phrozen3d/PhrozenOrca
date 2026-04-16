@@ -141,6 +141,9 @@ class ParamsPanel : public wxPanel
         } m_highlighter;
 
         void OnToggled(wxCommandEvent& event);
+        /// TabPrint / TabSLAPrint share m_tab_print; keep wx::Show consistent (do not use get_tab — it skips !completed()).
+        /// @param after_rebuild_layout if true, show the slot tab regardless of stale m_current_tab (technology switch gap).
+        void sync_process_tabs_visibility(bool after_rebuild_layout = false);
 
 	public:
 		ParamsPanel( wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 1800,1080 ), long style = wxTAB_TRAVERSAL, const wxString& type = wxEmptyString );

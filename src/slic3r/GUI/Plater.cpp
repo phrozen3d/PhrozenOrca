@@ -383,6 +383,10 @@ struct Sidebar::priv
     wxPanel* m_panel_sla_material_content = nullptr;
     wxBoxSizer* m_hsizer_sla_print_in_resin = nullptr;   // Process row inside 樹脂 block (shown when SLA)
     wxBoxSizer* m_hsizer_sla_material_row = nullptr;     // Resin dropdown row (hidden when SLA)
+    ScalableButton* m_sla_print_save_btn = nullptr;
+    ScalableButton* m_sla_print_del_btn = nullptr;
+    ScalableButton* m_sla_material_save_btn = nullptr;
+    ScalableButton* m_sla_material_del_btn = nullptr;
 
     ObjectList          *m_object_list{ nullptr };
     ObjectSettings      *object_settings{ nullptr };
@@ -401,6 +405,7 @@ struct Sidebar::priv
     ~priv();
 
     void show_preset_comboboxes();
+    void update_sla_preset_sidebar_buttons();
     void jump_to_object(ObjectDataViewModelNode* item);
     void can_search();
 
@@ -424,7 +429,8 @@ Sidebar::priv::~priv()
 
 void Sidebar::priv::show_preset_comboboxes()
 {
-    const bool showSLA = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA;
+    const bool showSLA = wxGetApp().get_ui_printer_technology() == ptSLA;
+    const bool showEditButtons = !showSLA; // ptFFF only
 
     // Show/Hide FDM panels (filament settings)
     if (m_panel_filament_title && m_panel_filament_content) {
@@ -443,7 +449,7 @@ void Sidebar::priv::show_preset_comboboxes()
         m_panel_sla_material_title->Show(showSLA);
         m_panel_sla_material_content->Show(showSLA);
         if (showSLA && m_text_sla_material_settings)
-            m_text_sla_material_settings->SetLabel(_L("SLA Material"));
+            m_text_sla_material_settings->SetLabel(_L("Resin"));
         // When SLA: show Process dropdown row, hide Resin dropdown row inside 樹脂 block
         if (m_hsizer_sla_print_in_resin)
             m_hsizer_sla_print_in_resin->Show(showSLA);
@@ -451,8 +457,35 @@ void Sidebar::priv::show_preset_comboboxes()
             m_hsizer_sla_material_row->Show(!showSLA);
     }
 
+    // ptSLA: hide EDIT buttons next to Printer / SLA material dropdowns.
+    if (combo_printer && combo_printer->edit_btn)
+        combo_printer->edit_btn->Show(showEditButtons);
+    if (combo_sla_print && combo_sla_print->edit_btn)
+        combo_sla_print->edit_btn->Show(showEditButtons);
+    if (combo_sla_material && combo_sla_material->edit_btn)
+        combo_sla_material->edit_btn->Show(showEditButtons);
+
+    update_sla_preset_sidebar_buttons();
+
     scrolled->GetParent()->Layout();
     scrolled->Refresh();
+}
+
+void Sidebar::priv::update_sla_preset_sidebar_buttons()
+{
+    PresetBundle *bundle = wxGetApp().preset_bundle;
+    if (!bundle)
+        return;
+    auto upd_del = [](ScalableButton *btn, PresetCollection &coll) {
+        if (!btn)
+            return;
+        const Preset &pr = coll.get_edited_preset();
+        btn->Show(!pr.is_default && !pr.is_system);
+    };
+    upd_del(m_sla_print_del_btn, bundle->sla_prints);
+    upd_del(m_sla_material_del_btn, bundle->sla_materials);
+    if (m_panel_sla_material_content)
+        m_panel_sla_material_content->Layout();
 }
 
 void Sidebar::priv::jump_to_object(ObjectDataViewModelNode* item)
@@ -738,10 +771,12 @@ Sidebar::Sidebar(Plater *parent)
 
         p->m_printer_setting = new ScalableButton(p->m_panel_printer_title, wxID_ANY, "settings");
         p->m_printer_setting->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
-            // p->editing_filament = -1;
-            // wxGetApp().params_dialog()->Popup();
-            // wxGetApp().get_tab(Preset::TYPE_FILAMENT)->restore_last_select_item();
-            wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
+            // FDM：BBL_MODELS_ONLY；樹脂：LCD_printer 選機（非 LCD_resin 材料頁）
+            const PrinterTechnology pt = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+            if (pt == ptSLA)
+                wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_SLA_PRINTERS);
+            else
+                wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
             });
 
         wxBoxSizer* h_sizer_title = new wxBoxSizer(wxHORIZONTAL);
@@ -952,11 +987,11 @@ Sidebar::Sidebar(Plater *parent)
         p->m_panel_sla_material_title->SetBackgroundColor2(0xF1F1F1);
 
         p->m_sla_material_icon = new ScalableButton(p->m_panel_sla_material_title, wxID_ANY, "resin");
-        p->m_text_sla_material_settings = new Label(p->m_panel_sla_material_title, _L("SLA Material"), LB_PROPAGATE_MOUSE_EVENT);
+        p->m_text_sla_material_settings = new Label(p->m_panel_sla_material_title, _L("Resin"), LB_PROPAGATE_MOUSE_EVENT);
 
         p->m_sla_material_setting = new ScalableButton(p->m_panel_sla_material_title, wxID_ANY, "settings");
         p->m_sla_material_setting->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
-            wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_PRINTERS);
+            wxGetApp().run_wizard(ConfigWizard::RR_USER, ConfigWizard::SP_MATERIALS);
         });
 
         wxBoxSizer* h_sizer_sla_material_title = new wxBoxSizer(wxHORIZONTAL);
@@ -1003,9 +1038,27 @@ Sidebar::Sidebar(Plater *parent)
         });
         combo_sla_print->edit_btn = edit_btn_sla_print;
         p->combo_sla_print = combo_sla_print;
+        ScalableButton* save_btn_sla_print = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "save");
+        save_btn_sla_print->SetToolTip(wxString::Format(_L("Save current %s"), _L("Process")));
+        ScalableButton* del_btn_sla_print = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "cross");
+        del_btn_sla_print->SetToolTip(_L("Delete this preset"));
+        p->m_sla_print_save_btn = save_btn_sla_print;
+        p->m_sla_print_del_btn = del_btn_sla_print;
+        save_btn_sla_print->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+            if (Tab *t = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT))
+                t->save_preset();
+            wxTheApp->CallAfter([this]() { p->update_sla_preset_sidebar_buttons(); });
+        });
+        del_btn_sla_print->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+            if (Tab *t = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT))
+                t->delete_preset();
+            wxTheApp->CallAfter([this]() { p->update_sla_preset_sidebar_buttons(); });
+        });
         wxBoxSizer* hsizer_sla_print_row = new wxBoxSizer(wxHORIZONTAL);
         hsizer_sla_print_row->Add(combo_sla_print, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
         hsizer_sla_print_row->Add(edit_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
+        hsizer_sla_print_row->Add(save_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        hsizer_sla_print_row->Add(del_btn_sla_print, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
         hsizer_sla_print_row->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
         vsizer_sla_material->Add(hsizer_sla_print_row, 0, wxEXPAND, 0);
         p->m_hsizer_sla_print_in_resin = hsizer_sla_print_row;
@@ -1021,9 +1074,27 @@ Sidebar::Sidebar(Plater *parent)
         });
         combo_sla_material->edit_btn = edit_btn_sla_material;
         p->combo_sla_material = combo_sla_material;
+        ScalableButton* save_btn_sla_material = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "save");
+        save_btn_sla_material->SetToolTip(wxString::Format(_L("Save current %s"), _L("Material")));
+        ScalableButton* del_btn_sla_material = new ScalableButton(p->m_panel_sla_material_content, wxID_ANY, "cross");
+        del_btn_sla_material->SetToolTip(_L("Delete this preset"));
+        p->m_sla_material_save_btn = save_btn_sla_material;
+        p->m_sla_material_del_btn = del_btn_sla_material;
+        save_btn_sla_material->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+            if (Tab *t = wxGetApp().get_tab(Preset::TYPE_SLA_MATERIAL))
+                t->save_preset();
+            wxTheApp->CallAfter([this]() { p->update_sla_preset_sidebar_buttons(); });
+        });
+        del_btn_sla_material->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+            if (Tab *t = wxGetApp().get_tab(Preset::TYPE_SLA_MATERIAL))
+                t->delete_preset();
+            wxTheApp->CallAfter([this]() { p->update_sla_preset_sidebar_buttons(); });
+        });
         wxBoxSizer* hsizer_sla_material = new wxBoxSizer(wxHORIZONTAL);
         hsizer_sla_material->Add(combo_sla_material, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ContentMargin()));
         hsizer_sla_material->Add(edit_btn_sla_material, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::ElementSpacing()));
+        hsizer_sla_material->Add(save_btn_sla_material, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
+        hsizer_sla_material->Add(del_btn_sla_material, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, FromDIP(SidebarProps::IconSpacing()));
         hsizer_sla_material->AddSpacer(FromDIP(SidebarProps::ContentMargin()));
         vsizer_sla_material->Add(hsizer_sla_material, 0, wxEXPAND, 0);
         p->m_hsizer_sla_material_row = hsizer_sla_material;
@@ -1445,7 +1516,7 @@ void Sidebar::remove_unused_filament_combos(const size_t current_extruder_count)
 void Sidebar::update_all_preset_comboboxes()
 {
     PresetBundle &preset_bundle = *wxGetApp().preset_bundle;
-    const auto print_tech = preset_bundle.printers.get_edited_preset().printer_technology();
+    const auto print_tech = wxGetApp().get_ui_printer_technology();
 
     bool is_bbl_vendor = preset_bundle.is_bbl_vendor();
 
@@ -1570,12 +1641,22 @@ void Sidebar::update_all_preset_comboboxes()
 
     // Show/hide FDM vs SLA preset panels based on printer technology
     p->show_preset_comboboxes();
+
+    // Refresh SLA preset lists when the edited printer changes (compatible user/system presets).
+    // Without this, the Process dropdown keeps stale entries until the user opens it again.
+    if (print_tech == ptSLA) {
+        if (p->combo_sla_print)
+            p->combo_sla_print->update();
+        if (p->combo_sla_material)
+            p->combo_sla_material->update();
+        p->update_sla_preset_sidebar_buttons();
+    }
 }
 
 void Sidebar::update_presets(Preset::Type preset_type)
 {
     PresetBundle &preset_bundle = *wxGetApp().preset_bundle;
-    const auto print_tech = preset_bundle.printers.get_edited_preset().printer_technology();
+    const auto print_tech = wxGetApp().get_ui_printer_technology();
 
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": enter, preset_type %1%")%preset_type;
     switch (preset_type) {
@@ -1622,12 +1703,14 @@ void Sidebar::update_presets(Preset::Type preset_type)
         // Update SLA print preset combobox
         if (p->combo_sla_print)
             p->combo_sla_print->update();
+        p->update_sla_preset_sidebar_buttons();
         break;
 
     case Preset::TYPE_SLA_MATERIAL:
         // Update SLA material preset combobox
         if (p->combo_sla_material)
             p->combo_sla_material->update();
+        p->update_sla_preset_sidebar_buttons();
         break;
 
     case Preset::TYPE_PRINTER:
@@ -1717,6 +1800,14 @@ void Sidebar::msw_rescale()
     p->m_bpButton_ams_filament->msw_rescale();
     p->m_bpButton_set_filament->msw_rescale();
     p->m_flushing_volume_btn->Rescale();
+    if (p->m_sla_print_save_btn)
+        p->m_sla_print_save_btn->msw_rescale();
+    if (p->m_sla_print_del_btn)
+        p->m_sla_print_del_btn->msw_rescale();
+    if (p->m_sla_material_save_btn)
+        p->m_sla_material_save_btn->msw_rescale();
+    if (p->m_sla_material_del_btn)
+        p->m_sla_material_del_btn->msw_rescale();
     //BBS
     m_bed_type_list->Rescale();
     m_bed_type_list->SetMinSize({-1, 3 * wxGetApp().em_unit()});
@@ -1788,6 +1879,14 @@ void Sidebar::sys_color_changed()
     p->m_bpButton_ams_filament->msw_rescale();
     p->m_bpButton_set_filament->msw_rescale();
     p->m_flushing_volume_btn->Rescale();
+    if (p->m_sla_print_save_btn)
+        p->m_sla_print_save_btn->msw_rescale();
+    if (p->m_sla_print_del_btn)
+        p->m_sla_print_del_btn->msw_rescale();
+    if (p->m_sla_material_save_btn)
+        p->m_sla_material_save_btn->msw_rescale();
+    if (p->m_sla_material_del_btn)
+        p->m_sla_material_del_btn->msw_rescale();
 
     // BBS
 #if 0

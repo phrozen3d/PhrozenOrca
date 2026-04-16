@@ -6680,97 +6680,72 @@ void PrintConfigDef::init_sla_params()
     def->max      = 5000.000;
     def->set_default_value(new ConfigOptionFloat(16.000));
 
-    // Distance
-    // Lift& Retract Distance (two values shown as "value1 + value2")
-    def                          = this->add("bottom_lift_distance", coFloats);
-    def->label                   = L("Bottom Lift Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Bottom Lift Distance for distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    // Distance — primary + second stage as separate coFloat keys (UI: one row with "+", like speed).
+    def           = this->add("bottom_lift_distance", coFloat);
+    def->label    = L("Bottom Lift Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Primary bottom lift distance (shown before \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(8.0));
 
-    def                          = this->add("bottom_lift_second_distance", coFloats);
-    def->label                   = L("Bottom Lift Second Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Second stage bottom lifting distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    def           = this->add("bottom_lift_second_distance", coFloat);
+    def->label    = L("Bottom Lift Second Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Second-stage bottom lift distance (shown after \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
-    def                          = this->add("lifting_distance", coFloats);
-    def->label                   = L("Lifting Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Lifting Distance for distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    def           = this->add("lifting_distance", coFloat);
+    def->label    = L("Lifting Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Primary lifting distance (shown before \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(8.0));
 
-    def                          = this->add("lift_second_distance", coFloats);
-    def->label                   = L("Lift Second Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Second stage lifting distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+    def           = this->add("lift_second_distance", coFloat);
+    def->label    = L("Lift Second Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Second-stage lifting distance (shown after \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
-    def                          = this->add("bottom_retract_distance", coFloats);
-    def->label                   = L("Bottom Retract Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Bottom Retract Distance for distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->readonly                = true;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    def           = this->add("bottom_retract_distance", coFloat);
+    def->label    = L("Bottom Retract Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Primary bottom retract distance (read-only): bottom lift (1st+2nd) minus bottom retract 2nd; not loaded from preset JSON, computed after load.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->readonly = true;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
-    def                          = this->add("bottom_retract_second_distance", coFloats);
-    def->label                   = L("Bottom Retract Second Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Second stage bottom retract distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    def           = this->add("bottom_retract_second_distance", coFloat);
+    def->label    = L("Bottom Retract Second Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Second-stage bottom retract distance (shown after \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
-    def                          = this->add("retract_distance", coFloats);
-    def->label                   = L("Retract Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Retract Distance for distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->readonly                = true;
-    def->set_default_value(new ConfigOptionFloats({8.0, 0.0}));
+    def           = this->add("retract_distance", coFloat);
+    def->label    = L("Retract Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Primary retract distance (read-only): lifting distance (1st+2nd) minus retract 2nd; not loaded from preset JSON, computed after load.");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->readonly = true;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
-    def                          = this->add("retract_second_distance", coFloats);
-    def->label                   = L("Retract Second Distance");
-    def->category                = L("Distance");
-    def->tooltip                 = L("Second stage retract distance.");
-    def->sidetext                = "mm";
-    def->min                     = 0;
-    def->gui_type                = ConfigOptionDef::GUIType::dual_float;
-    def->dual_float_width        = 5;
-    def->dual_float_width_second = 8;
-    def->set_default_value(new ConfigOptionFloats({7.0, 0.0}));
+    def           = this->add("retract_second_distance", coFloat);
+    def->label    = L("Retract Second Distance");
+    def->category = L("Distance");
+    def->tooltip  = L("Second-stage retract distance (shown after \"+\" in the UI).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->set_default_value(new ConfigOptionFloat(0.0));
 
     // Speed
     //  Lift & Retract Speed
@@ -6955,7 +6930,7 @@ void PrintConfigDef::init_sla_params()
     def->label    = L("Tolerance Compensation");
     def->category = L("Advanced");
     def->tooltip  = L("Tolerance Compensation for advanced");
-    def->set_default_value(new ConfigOptionBool(true));
+    def->set_default_value(new ConfigOptionBool(false));
 
     def           = this->add("tolerance_compensation_a", coFloat);
     def->label    = L("a");
@@ -6975,7 +6950,7 @@ void PrintConfigDef::init_sla_params()
     def->label    = L("Bottom Tolerance Compensation");
     def->category = L("Advanced");
     def->tooltip  = L("Bottom Tolerance Compensation for advanced");
-    def->set_default_value(new ConfigOptionBool(true));
+    def->set_default_value(new ConfigOptionBool(false));
 
     def           = this->add("bottom_tolerance_compensation_a", coFloat);
     def->label    = L("a");
@@ -8173,6 +8148,18 @@ double min_object_distance(const ConfigBase &cfg)
     return ret;
 }
 
+void update_sla_transition_layer_interval_time_difference(DynamicPrintConfig &config)
+{
+    if (!config.has("exposure_time") || !config.has("bottom_exposure_time") || !config.has("transition_layer_count"))
+        return;
+    const double exposure           = config.opt_float("exposure_time");
+    const double bottom_exposure    = config.opt_float("bottom_exposure_time");
+    const int    transition_layers  = config.opt_int("transition_layer_count");
+    const double denom              = static_cast<double>(transition_layers) + 1.0;
+    const double interval           = (denom != 0.0) ? (std::fabs(exposure - bottom_exposure) / denom) : 0.0;
+    config.set_key_value("transition_layer_interval_time_difference", new ConfigOptionFloat(interval));
+}
+
 void DynamicPrintConfig::normalize_fdm(int used_filaments)
 {
     if (this->has("extruder")) {
@@ -8344,6 +8331,38 @@ t_config_option_keys DynamicPrintConfig::normalize_fdm_2(int num_objects, int us
     return changed_keys;
 }
 
+void synchronize_sla_retract_distance_primary_from_lift(DynamicPrintConfig &config)
+{
+    if (!config.has("retract_distance") || !config.has("lifting_distance"))
+        return;
+    const double lh_sum = config.opt_float("lifting_distance") + config.opt_float("lift_second_distance");
+    const double rr2    = config.opt_float("retract_second_distance");
+    double       rr1    = lh_sum - rr2;
+    if (rr1 <= 0.0)
+        rr1 = lh_sum;
+    config.set_key_value("retract_distance", new ConfigOptionFloat(rr1));
+}
+
+namespace {
+void sync_sla_bottom_retract_primary_from_lift(DynamicPrintConfig &config)
+{
+    if (!config.has("bottom_retract_distance") || !config.has("bottom_lift_distance"))
+        return;
+    const double bl_sum = config.opt_float("bottom_lift_distance") + config.opt_float("bottom_lift_second_distance");
+    const double br2    = config.opt_float("bottom_retract_second_distance");
+    double       br1    = bl_sum - br2;
+    if (br1 <= 0.0)
+        br1 = bl_sum;
+    config.set_key_value("bottom_retract_distance", new ConfigOptionFloat(br1));
+}
+} // namespace
+
+void synchronize_sla_retract_primary_distances(DynamicPrintConfig &config)
+{
+    sync_sla_bottom_retract_primary_from_lift(config);
+    synchronize_sla_retract_distance_primary_from_lift(config);
+}
+
 void  handle_legacy_sla(DynamicPrintConfig &config)
 {
     for (std::string corr : {"relative_correction", "material_correction"}) {
@@ -8367,7 +8386,7 @@ void  handle_legacy_sla(DynamicPrintConfig &config)
 
     // Phrozen LCD: older presets stored primary+second in one ConfigOptionFloats (dual_float / "60, 45").
     // Split into two ConfigOptionFloat keys so JSON can keep separate fields.
-    auto split_sla_speed_if_dual_floats = [&](const char* primary_key, const char* second_key) {
+    auto split_sla_dual_float_pair = [&](const char* primary_key, const char* second_key) {
         auto* p = dynamic_cast<ConfigOptionFloats*>(config.option(primary_key, false));
         if (!p || p->values.size() < 2)
             return;
@@ -8377,10 +8396,17 @@ void  handle_legacy_sla(DynamicPrintConfig &config)
         config.opt<ConfigOptionFloat>(primary_key, true)->value = v0;
         config.opt<ConfigOptionFloat>(second_key, true)->value = v1;
     };
-    split_sla_speed_if_dual_floats("bottom_lift_speed", "bottom_lift_second_speed");
-    split_sla_speed_if_dual_floats("lifting_speed", "lift_second_speed");
-    split_sla_speed_if_dual_floats("bottom_retract_speed", "bottom_retract_second_speed");
-    split_sla_speed_if_dual_floats("retract_speed", "retract_second_speed");
+    split_sla_dual_float_pair("bottom_lift_speed", "bottom_lift_second_speed");
+    split_sla_dual_float_pair("lifting_speed", "lift_second_speed");
+    split_sla_dual_float_pair("bottom_retract_speed", "bottom_retract_second_speed");
+    split_sla_dual_float_pair("retract_speed", "retract_second_speed");
+    split_sla_dual_float_pair("bottom_lift_distance", "bottom_lift_second_distance");
+    split_sla_dual_float_pair("lifting_distance", "lift_second_distance");
+    split_sla_dual_float_pair("bottom_retract_distance", "bottom_retract_second_distance");
+    split_sla_dual_float_pair("retract_distance", "retract_second_distance");
+
+    // Primary retract distances are derived from lift + second-stage retract; ignore JSON values.
+    synchronize_sla_retract_primary_distances(config);
 }
 
 void DynamicPrintConfig::set_num_extruders(unsigned int num_extruders)

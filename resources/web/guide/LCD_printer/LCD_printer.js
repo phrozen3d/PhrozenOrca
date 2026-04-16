@@ -4,8 +4,21 @@ function OnInit()
 	//HandleStudio(strInput);
 	
 	TranslatePage();
-	
+	setupAcceptAreaForEntryMode();
 	RequestProfile();
+}
+
+// Sidebar "Printer" settings: OK/Cancel. Full setup wizard (page 12 → here): Back/Next → resin page.
+function setupAcceptAreaForEntryMode()
+{
+	var w = GetQueryString('wizard');
+	if (w === '1') {
+		$('#AcceptArea').html(
+			'<div class="GrayBtn trans" id="PreBtn" tid="t8" onclick="window.open(\'../12/index.html\',\'_self\')">Back</div>' +
+			'<div class="NormalBtn trans" id="AcceptBtn" tid="t9" onclick="GotoResinPage()">Next</div>'
+		);
+	}
+	TranslatePage();
 }
 
 
@@ -340,12 +353,37 @@ function SelectPrinterNone( sVendor )
 
 function GotoResinPage()
 {
-	let nChoose=OnExitFilter();
-	
-	if(nChoose>0)
-		window.open('../LCD_resin/index.html','_self');
+	let nChoose = OnExitFilter();
+
+	if (nChoose > 0)
+		window.open('../LCD_resin/index.html', '_self');
 	else
 		ShowNotice(1);
+}
+
+function CancelSelect()
+{
+	var tSend = {};
+	tSend['sequence_id'] = Math.round(new Date() / 1000);
+	tSend['command'] = 'user_guide_cancel';
+	tSend['data'] = {};
+	SendWXMessage(JSON.stringify(tSend));
+}
+
+function ConfirmSelect()
+{
+	let nChoose = OnExitFilter();
+
+	if (nChoose > 0) {
+		var tSend = {};
+		tSend['sequence_id'] = Math.round(new Date() / 1000);
+		tSend['command'] = 'user_guide_finish';
+		tSend['data'] = {};
+		tSend['data']['action'] = 'finish';
+		SendWXMessage(JSON.stringify(tSend));
+	} else {
+		ShowNotice(1);
+	}
 }
 
 function OnExitFilter() {

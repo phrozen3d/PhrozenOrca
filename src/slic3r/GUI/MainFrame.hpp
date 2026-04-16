@@ -143,7 +143,6 @@ class MainFrame : public DPIFrame
 
     // BBS
     wxBoxSizer* create_phrozen_mode_toolbar();
-    void        update_phrozen_mode_button_label();
     wxBoxSizer* create_side_tools();
 
     // MenuBar items changeable in respect to printer technology
@@ -212,6 +211,8 @@ public:
 
     /** Phrozen Filament/Resin toolbar (popup / UI entry; must stay public). */
     void phrozen_apply_work_mode(bool resin);
+    /** Refresh toolbar label/icon by current Phrozen work mode. */
+    void update_phrozen_mode_button_label();
 
     //BBS GUI refactor
     enum TabPosition

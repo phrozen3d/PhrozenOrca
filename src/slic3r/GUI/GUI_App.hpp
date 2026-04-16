@@ -522,6 +522,8 @@ public:
     Tab*            get_layer_tab();
     ConfigOptionMode get_mode();
     std::string     get_mode_str();
+    // Phrozen toolbar FDM/Resin: use with sidebar / preset UI when bundle and app_config may disagree briefly.
+    PrinterTechnology get_ui_printer_technology();
     void            save_mode(const /*ConfigOptionMode*/int mode) ;
     void            update_mode();
     void            update_internal_development();

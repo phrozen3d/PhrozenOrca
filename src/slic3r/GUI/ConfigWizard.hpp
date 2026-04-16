@@ -30,6 +30,7 @@ public:
     enum StartPage {
         SP_WELCOME,
         SP_PRINTERS,
+        SP_SLA_PRINTERS, ///< Guide: LCD_printer（樹脂選機），非 LCD_resin 材料頁
         SP_FILAMENTS,
         SP_MATERIALS,
         SP_CUSTOM,

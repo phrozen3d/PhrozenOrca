@@ -54,6 +54,50 @@ using Slic3r::GUI::format_wxstr;
 namespace Slic3r {
 namespace GUI {
 
+namespace {
+
+// SLA process collection keeps a placeholder default ("Default Setting"); it is not a real profile.
+// Suppress it in all comboboxes and move the bundle selection to the first real compatible preset.
+void ensure_sla_print_not_on_default_placeholder(PresetCollection *coll)
+{
+    if (!coll || coll->type() != Preset::TYPE_SLA_PRINT || coll->num_default_presets() == 0)
+        return;
+    const size_t sel = coll->get_selected_idx();
+    if (sel == size_t(-1) || sel >= coll->num_default_presets())
+        return;
+    const std::deque<Preset> &presets = coll->get_presets();
+    for (size_t i = coll->num_default_presets(); i < presets.size(); ++i) {
+        const Preset &p = presets[i];
+        if (p.is_visible && p.is_compatible) {
+            coll->select_preset(i);
+            return;
+        }
+    }
+}
+
+bool preset_combo_skip_sla_print_defaults(Preset::Type type)
+{
+    return type == Preset::TYPE_SLA_PRINT;
+}
+
+size_t preset_combo_loop_start(Preset::Type type, const std::deque<Preset> &presets, size_t num_default)
+{
+    if (preset_combo_skip_sla_print_defaults(type))
+        return num_default;
+    return presets.front().is_visible ? 0 : num_default;
+}
+
+bool preset_combo_leading_system_separator(Preset::Type type, const std::deque<Preset> &presets)
+{
+    if (presets.empty())
+        return false;
+    if (preset_combo_skip_sla_print_defaults(type))
+        return true;
+    return !presets.front().is_visible;
+}
+
+} // namespace
+
 #define BORDER_W 10
 
 // ---------------------------------
@@ -316,16 +360,20 @@ void PresetComboBox::update(std::string select_preset_name)
     Clear();
     invalidate_selection();
 
+    if (m_type == Preset::TYPE_SLA_PRINT)
+        ensure_sla_print_not_on_default_placeholder(m_collection);
+
     const std::deque<Preset>& presets = m_collection->get_presets();
 
     std::map<wxString, std::pair<wxBitmap*, bool>>  nonsys_presets;
     std::map<wxString, wxBitmap*>                   incomp_presets;
 
     wxString selected = "";
-    if (!presets.front().is_visible)
+    const size_t num_default = m_collection->num_default_presets();
+    if (preset_combo_leading_system_separator(m_type, presets))
         set_label_marker(Append(separator(L("System presets")), wxNullBitmap));
 
-    for (size_t i = presets.front().is_visible ? 0 : m_collection->num_default_presets(); i < presets.size(); ++i)
+    for (size_t i = preset_combo_loop_start(m_type, presets, num_default); i < presets.size(); ++i)
     {
         const Preset& preset = presets[i];
         if (!m_show_all && (!preset.is_visible || !preset.is_compatible))
@@ -958,6 +1006,9 @@ void PlaterPresetComboBox::update()
     this->Clear();
     invalidate_selection();
 
+    if (m_type == Preset::TYPE_SLA_PRINT)
+        ensure_sla_print_not_on_default_placeholder(m_collection);
+
     const Preset* selected_filament_preset = nullptr;
     std::string filament_color;
     if (m_type == Preset::TYPE_FILAMENT)
@@ -997,12 +1048,13 @@ void PlaterPresetComboBox::update()
     wxString selected_user_preset;
     wxString tooltip;
     const std::deque<Preset>& presets = m_collection->get_presets();
+    const size_t num_default = m_collection->num_default_presets();
 
     //BBS:  move system to the end
     /*if (!presets.front().is_visible)
         this->set_label_marker(this->Append(separator(L("System presets")), wxNullBitmap));*/
 
-    for (size_t i = presets.front().is_visible ? 0 : m_collection->num_default_presets(); i < presets.size(); ++i)
+    for (size_t i = preset_combo_loop_start(m_type, presets, num_default); i < presets.size(); ++i)
     {
         const Preset& preset = presets[i];
         bool is_selected =  m_type == Preset::TYPE_FILAMENT ?
@@ -1246,7 +1298,11 @@ void TabPresetComboBox::update()
     Clear();
     invalidate_selection();
 
+    if (m_type == Preset::TYPE_SLA_PRINT)
+        ensure_sla_print_not_on_default_placeholder(m_collection);
+
     const std::deque<Preset>& presets = m_collection->get_presets();
+    const size_t num_default = m_collection->num_default_presets();
 
     std::map<wxString, std::pair<wxBitmap*, bool>> nonsys_presets;
     //BBS: add project embedded presets logic
@@ -1268,7 +1324,7 @@ void TabPresetComboBox::update()
             m_preset_bundle->physical_printers.unselect_printer();
     }
 
-    for (size_t i = presets.front().is_visible ? 0 : m_collection->num_default_presets(); i < presets.size(); ++i)
+    for (size_t i = preset_combo_loop_start(m_type, presets, num_default); i < presets.size(); ++i)
     {
         const Preset& preset = presets[i];
         if (!preset.is_visible || (!show_incompatible && !preset.is_compatible && i != idx_selected))

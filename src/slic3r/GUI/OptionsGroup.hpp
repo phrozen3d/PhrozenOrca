@@ -58,17 +58,22 @@ public:
     bool        undo_to_sys{false}; // BBS: object config
     bool        toggle_visible{true}; // BBS: hide some line
 
-    size_t		full_width {0}; 
+    size_t		full_width {0};
+    /// If >= 0, OG_CustomCtrl uses this many em for the row label width instead of OptionsGroup::label_width (tighter label + field spacing).
+    int         label_width_em{ -1 };
     widget_t	widget {nullptr};
     std::function<wxWindow*(wxWindow*)>	near_label_widget{ nullptr };
+    /// If true, OG_CustomCtrl may grow the row height to fit a tall near_label (e.g. diagram). Keep false for width-only spacers.
+    bool        near_label_expand_row_height{ false };
 	wxWindow*	near_label_widget_win {nullptr};
     wxSizer*	widget_sizer {nullptr};
     wxSizer*	extra_widget_sizer {nullptr};
     //BBS: export the extra colume widget
     wxWindow*	extra_widget_win {nullptr};
     //BBS: add api to get the first option's key
-    std::string& get_first_option_key() {
-        return m_options[0].opt_id;
+    const std::string& get_first_option_key() const {
+        static const std::string s_empty;
+        return m_options.empty() ? s_empty : m_options[0].opt_id;
     }
 
     void append_option(const Option& option) {
@@ -159,14 +164,26 @@ public:
 
 	bool			set_value(const t_config_option_key& id, const boost::any& value, bool change_event = false) {
 							if (m_fields.find(id) == m_fields.end()) return false;
-							m_fields.at(id)->set_value(value, change_event);
+							Field* f = m_fields.at(id).get();
+							if (!f) return false;
+							// Mode switch / page rebuild: stale Field::window must not reach SpinCtrl/TextCtrl.
+							if (wxWindow* w = f->getWindow(); w && !wxwindow_safe_for_field_ops(w))
+								return false;
+							f->set_value(value, change_event);
 							return true;
     }
 	boost::any		get_value(const t_config_option_key& id) {
 							boost::any out; 
     						if (m_fields.find(id) == m_fields.end()) ;
-							else 
-								out = m_fields.at(id)->get_value();
+							else {
+								Field* f = m_fields.at(id).get();
+								if (f) {
+									if (wxWindow* w = f->getWindow(); w && !wxwindow_safe_for_field_ops(w))
+										;
+									else
+										out = f->get_value();
+								}
+							}
 							return out;
     }
 

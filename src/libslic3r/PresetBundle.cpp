@@ -1713,10 +1713,15 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     printers.select_preset_by_name(preferred_printer ? preferred_printer->name : initial_printer_profile_name, true);
     CNumericLocalesSetter locales_setter;
 
+    // Read print/filament (and multi-tool) settings from the *currently selected* printer's section.
+    // Using the old config key (initial_printer_profile_name) after a preferred_printer switch breaks
+    // FDM<->SLA swaps: e.g. SLA print preset name passed to prints.select_preset_by_name_strict corrupts selection.
+    const std::string printer_cfg_key = printers.get_selected_preset_name();
+
     // Orca: load from orca_presets
-    // const auto os_presets = config.get_machine_settings(initial_printer_profile_name);
-    std::string initial_print_profile_name        = config.get_printer_setting(initial_printer_profile_name, PRESET_PRINT_NAME);
-    std::string initial_filament_profile_name     = config.get_printer_setting(initial_printer_profile_name, PRESET_FILAMENT_NAME);
+    // const auto os_presets = config.get_machine_settings(printer_cfg_key);
+    std::string initial_print_profile_name        = config.get_printer_setting(printer_cfg_key, PRESET_PRINT_NAME);
+    std::string initial_filament_profile_name     = config.get_printer_setting(printer_cfg_key, PRESET_FILAMENT_NAME);
 
     //BBS: set default print/filament profiles to BBL's default setting
     if (preferred_printer)
@@ -1767,26 +1772,26 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     for (unsigned int i = 1; i < 1000; ++ i) {
         char name[64];
         sprintf(name, "filament_%02u", i);
-        auto f_name = config.get_printer_setting(initial_printer_profile_name, name);
+        auto f_name = config.get_printer_setting(printer_cfg_key, name);
         if (f_name.empty())
             break;
         this->filament_presets.emplace_back(remove_ini_suffix(f_name));
     }
     std::vector<std::string> filament_colors;
-    auto f_colors = config.get_printer_setting(initial_printer_profile_name, "filament_colors");
+    auto f_colors = config.get_printer_setting(printer_cfg_key, "filament_colors");
     if (!f_colors.empty()) {
         boost::algorithm::split(filament_colors, f_colors, boost::algorithm::is_any_of(","));
     }
     filament_colors.resize(filament_presets.size(), "#F05E20");
     project_config.option<ConfigOptionStrings>("filament_colour")->values = filament_colors;
     std::vector<std::string> matrix;
-    if (config.has_printer_setting(initial_printer_profile_name, "flush_volumes_matrix")) {
-        boost::algorithm::split(matrix, config.get_printer_setting(initial_printer_profile_name, "flush_volumes_matrix"), boost::algorithm::is_any_of("|"));
+    if (config.has_printer_setting(printer_cfg_key, "flush_volumes_matrix")) {
+        boost::algorithm::split(matrix, config.get_printer_setting(printer_cfg_key, "flush_volumes_matrix"), boost::algorithm::is_any_of("|"));
         auto flush_volumes_matrix = matrix | boost::adaptors::transformed(boost::lexical_cast<double, std::string>);
         project_config.option<ConfigOptionFloats>("flush_volumes_matrix")->values = std::vector<double>(flush_volumes_matrix.begin(), flush_volumes_matrix.end());
     }
-    if (config.has_printer_setting(initial_printer_profile_name, "flush_volumes_vector")) {
-        boost::algorithm::split(matrix, config.get_printer_setting(initial_printer_profile_name, "flush_volumes_vector"), boost::algorithm::is_any_of("|"));
+    if (config.has_printer_setting(printer_cfg_key, "flush_volumes_vector")) {
+        boost::algorithm::split(matrix, config.get_printer_setting(printer_cfg_key, "flush_volumes_vector"), boost::algorithm::is_any_of("|"));
         auto flush_volumes_vector = matrix | boost::adaptors::transformed(boost::lexical_cast<double, std::string>);
         project_config.option<ConfigOptionFloats>("flush_volumes_vector")->values = std::vector<double>(flush_volumes_vector.begin(), flush_volumes_vector.end());
     }
@@ -2421,6 +2426,8 @@ DynamicPrintConfig PresetBundle::full_sla_config() const
     add_if_some_non_empty(std::move(compatible_printers_condition), "compatible_machine_expression_group");
     add_if_some_non_empty(std::move(compatible_prints_condition),   "compatible_process_expression_group");
     add_if_some_non_empty(std::move(inherits),                      "inherits_group");
+
+    update_sla_transition_layer_interval_time_difference(out);
 
 	out.option<ConfigOptionEnumGeneric>("printer_technology", true)->value = ptSLA;
 	return out;

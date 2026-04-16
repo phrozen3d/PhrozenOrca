@@ -17,6 +17,7 @@
 #include <wx/listbook.h>
 #include <wx/tokenzr.h>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/any.hpp>
 #include "OG_CustomCtrl.hpp"
 #include "MsgDialog.hpp"
 #include "BitmapComboBox.hpp"
@@ -37,6 +38,25 @@
 #endif
 
 namespace Slic3r { namespace GUI {
+bool wxwindow_safe_for_field_ops(const wxWindow* w);
+}}
+
+namespace {
+// File-local: used by TextCtrl / SpinCtrl before any wx member call on possibly stale pointers.
+inline bool safe_wx_window_ok(const wxWindow* w)
+{
+	return Slic3r::GUI::wxwindow_safe_for_field_ops(w);
+}
+} // namespace
+
+namespace Slic3r { namespace GUI {
+
+bool wxwindow_safe_for_field_ops(const wxWindow* w)
+{
+	// Do not call wxWindow::IsBeingDeleted on possibly-freed pointers: MSVC often faults
+	// inside the virtual call (e.g. null vtable read at a small offset) without a catchable SEH frame here.
+	return w != nullptr && wxwindow_nonnull_ptr_plausible(w);
+}
 
 wxString double_to_string(double const value, const int max_precision /*= 4*/)
 {
@@ -646,30 +666,47 @@ struct myEvtHandler : wxEvtHandler
 {
     void UnbindAll()
     {
-        size_t cookie;
-        for (wxDynamicEventTableEntry *entry = GetFirstDynamicEntry(cookie);
-                entry;
-                entry = GetNextDynamicEntry(cookie)) {
-            // In Field, All Bind has id, but for TextInput, ComboBox, SpinInput, all not
-            if (entry->m_id != wxID_ANY && entry->m_lastId == wxID_ANY)
-                Unbind(entry->m_eventType,
-                    wxEventFunctorRef{entry->m_fn}, 
-                    entry->m_id, 
-                    entry->m_lastId, 
-                    entry->m_callbackUserData);
-            //DoUnbind(entry->m_id, entry->m_lastId, entry->m_eventType, *entry->m_fn, entry->m_callbackUserData);
+        // Unbind() mutates the dynamic event table. Calling it inside a
+        // GetFirstDynamicEntry / GetNextDynamicEntry loop corrupts the traversal
+        // (hang / crash inside wxEvtHandler::GetFirstDynamicEntry).
+        // Remove at most one binding per outer iteration, then rescan from the head.
+        for (;;) {
+            size_t cookie;
+            wxDynamicEventTableEntry *to_remove = nullptr;
+            for (wxDynamicEventTableEntry *entry = GetFirstDynamicEntry(cookie);
+                 entry;
+                 entry = GetNextDynamicEntry(cookie)) {
+                // In Field, All Bind has id, but for TextInput, ComboBox, SpinInput, all not
+                if (entry->m_id != wxID_ANY && entry->m_lastId == wxID_ANY) {
+                    to_remove = entry;
+                    break;
+                }
+            }
+            if (!to_remove)
+                break;
+            Unbind(to_remove->m_eventType,
+                wxEventFunctorRef{to_remove->m_fn},
+                to_remove->m_id,
+                to_remove->m_lastId,
+                to_remove->m_callbackUserData);
         }
     }
 };
 
 static void unbind_events(wxEvtHandler *h)
 {
+    if (!h)
+        return;
     static_cast<myEvtHandler *>(h)->UnbindAll();
 }
 
 void free_window(wxWindow *win)
 {
+    if (!win)
+        return;
 #if !defined(__WXGTK__)
+    if (win->IsBeingDeleted())
+        return;
     unbind_events(win);
     for (auto c : win->GetChildren())
         if (dynamic_cast<wxTextCtrl*>(c))
@@ -677,7 +714,8 @@ void free_window(wxWindow *win)
     win->Hide();
     if (auto sizer = win->GetContainingSizer())
         sizer->Clear();
-    win->Reparent(wxGetApp().mainframe);
+    if (wxGetApp().mainframe)
+        win->Reparent(wxGetApp().mainframe);
     if (win->GetClientData())
         reinterpret_cast<std::deque<wxWindow *>*>(win->GetClientData())->push_back(win);
 #else
@@ -838,8 +876,12 @@ bool TextCtrl::value_was_changed()
     if (m_value.empty())
         return true;
 
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return false;
+
     boost::any val = m_value;
-    wxString   ret_str = text_ctrl()->GetValue(); // BBS
+    wxString   ret_str = ctrl->GetValue(); // BBS
     // update m_value!
     // ret_str might be changed inside get_value_by_opt_type
     get_value_by_opt_type(ret_str);
@@ -867,7 +909,10 @@ bool TextCtrl::value_was_changed()
 
 void TextCtrl::propagate_value()
 {
-    if (!is_defined_input_value<wxTextCtrl>(text_ctrl(), m_opt.type)) { // BBS
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return;
+    if (!is_defined_input_value<wxTextCtrl>(ctrl, m_opt.type)) { // BBS
 		// on_kill_focus() cause a call of OptionsGroup::reload_config(),
 		// Thus, do it only when it's really needed (when undefined value was input)
         if (!m_value.empty()) // BBS: null value
@@ -877,19 +922,22 @@ void TextCtrl::propagate_value()
 }
 
 void TextCtrl::set_value(const boost::any& value, bool change_event/* = false*/) {
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return;
     m_disable_change_event = !change_event;
     if (m_opt.nullable) {
         if (boost::any_cast<wxString>(value) != _(L("N/A")))
             m_last_meaningful_value = value;
 
-        text_ctrl()->SetValue(boost::any_cast<wxString>(value)); // BBS
+        ctrl->SetValue(boost::any_cast<wxString>(value)); // BBS
     }
     else
-        text_ctrl()->SetValue(value.empty() ? "" : boost::any_cast<wxString>(value)); // BBS // BBS: null value
+        ctrl->SetValue(value.empty() ? "" : boost::any_cast<wxString>(value)); // BBS // BBS: null value
     m_disable_change_event = false;
 
     if (!change_event) {
-        wxString ret_str = text_ctrl()->GetValue();
+        wxString ret_str = ctrl->GetValue();
         /* Update m_value to correct work of next value_was_changed().
          * But after checking of entered value, don't fix the "incorrect" value and don't show a warning message,
          * just clear m_value in this case.
@@ -900,7 +948,10 @@ void TextCtrl::set_value(const boost::any& value, bool change_event/* = false*/)
 
 void TextCtrl::set_last_meaningful_value()
 {
-    text_ctrl()->SetValue(boost::any_cast<wxString>(m_last_meaningful_value)); // BBS
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return;
+    ctrl->SetValue(boost::any_cast<wxString>(m_last_meaningful_value)); // BBS
     propagate_value();
 }
 
@@ -911,13 +962,19 @@ void TextCtrl::update_na_value(const boost::any& value)
 
 void TextCtrl::set_na_value()
 {
-    text_ctrl()->SetValue(m_na_value); // BBS
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return;
+    ctrl->SetValue(m_na_value); // BBS
     propagate_value();
 }
 
 boost::any& TextCtrl::get_value()
 {
-    wxString ret_str = text_ctrl()->GetValue(); // BBS
+    wxTextCtrl *ctrl = text_ctrl();
+    if (!ctrl)
+        return m_value;
+    wxString ret_str = ctrl->GetValue(); // BBS
 	// update m_value
 	get_value_by_opt_type(ret_str);
 
@@ -938,35 +995,48 @@ void TextCtrl::msw_rescale()
     if (size != wxDefaultSize)
     {
         wxTextCtrl *field = text_ctrl(); // BBS
+        if (!field)
+            return;
         if (parent_is_custom_ctrl)
             field->SetSize(size);
         else
             field->SetMinSize(size);
-        if (field != window) {
+        if (field != window && safe_wx_window_ok(window)) {
             window->SetSize(size);
             window->SetMinSize(size);
-            dynamic_cast<::TextInput *>(window)->Rescale();
+            if (auto *ti = dynamic_cast<::TextInput *>(window))
+                ti->Rescale();
         }
     }
 }
 
 void TextCtrl::enable()
 {
+    if (!safe_wx_window_ok(window))
+        return;
     window->Enable();
-    text_ctrl()->SetEditable(true); // BBS
+    if (wxTextCtrl *ctrl = text_ctrl())
+        ctrl->SetEditable(true); // BBS
 }
 void TextCtrl::disable()
 {
+    if (!safe_wx_window_ok(window))
+        return;
     window->Disable();
-    text_ctrl()->SetEditable(false); // BBS
+    if (wxTextCtrl *ctrl = text_ctrl())
+        ctrl->SetEditable(false); // BBS
 }
 
  // BBS
 wxTextCtrl *TextCtrl::text_ctrl()
 {
+    if (!safe_wx_window_ok(window))
+        return nullptr;
     auto ctrl = dynamic_cast<wxTextCtrl *>(window);
-    if (ctrl == nullptr)
-        ctrl = dynamic_cast<::TextInput *>(window)->GetTextCtrl();
+    if (ctrl == nullptr) {
+        if (auto *ti = dynamic_cast<::TextInput *>(window))
+            ctrl = ti->GetTextCtrl();
+    }
     return ctrl;
 }
 
@@ -1193,6 +1263,73 @@ void SpinCtrl::BUILD() {
 	window = dynamic_cast<wxWindow*>(temp);
 }
 
+namespace {
+
+SpinInput* spin_ctrl_widget(wxWindow* w)
+{
+    if (!safe_wx_window_ok(w))
+        return nullptr;
+    // SpinCtrl::BUILD always assigns `window` from a SpinInput*. Do not use dynamic_cast here:
+    // on a freed wxWindow* it reads RTTI/vtable and can AV (0xFF..FF etc.) before any SEH help.
+    return static_cast<SpinInput*>(w);
+}
+
+// Presets / mode switches may deliver bool or unsigned for 0/1 coInt options.
+int any_to_int_for_spin(const boost::any& v)
+{
+    if (v.empty())
+        return 0;
+    try {
+        return boost::any_cast<int>(v);
+    } catch (const boost::bad_any_cast&) {
+    }
+    try {
+        return static_cast<int>(boost::any_cast<unsigned int>(v));
+    } catch (const boost::bad_any_cast&) {
+    }
+    try {
+        return boost::any_cast<bool>(v) ? 1 : 0;
+    } catch (const boost::bad_any_cast&) {
+    }
+    try {
+        return static_cast<int>(boost::any_cast<long>(v));
+    } catch (const boost::bad_any_cast&) {
+    }
+    return 0;
+}
+
+} // namespace
+
+void SpinCtrl::set_value(const std::string& value, bool change_event)
+{
+    SpinInput* s = spin_ctrl_widget(window);
+    if (!s)
+        return;
+    m_disable_change_event = !change_event;
+    s->SetValue(value);
+    m_disable_change_event = false;
+}
+
+boost::any& SpinCtrl::get_value()
+{
+    SpinInput* s = spin_ctrl_widget(window);
+    if (s)
+        m_value = s->GetValue();
+    return m_value;
+}
+
+void SpinCtrl::enable()
+{
+    if (SpinInput* s = spin_ctrl_widget(window))
+        s->Enable();
+}
+
+void SpinCtrl::disable()
+{
+    if (SpinInput* s = spin_ctrl_widget(window))
+        s->Disable();
+}
+
 void SpinCtrl::propagate_value()
 {
     if (suppress_propagation)
@@ -1203,25 +1340,33 @@ void SpinCtrl::propagate_value()
         if (!m_value.empty()) // BBS: null value
             on_kill_focus();
 	} else {
-        auto ctrl = dynamic_cast<SpinInput *>(window);
-        if (m_value.empty() 
+        SpinInput* ctrl = spin_ctrl_widget(window);
+        if (!ctrl) {
+            suppress_propagation = false;
+            return;
+        }
+        const int cfg_int = any_to_int_for_spin(m_value);
+        if (m_value.empty()
             ? !ctrl->GetTextCtrl()->GetLabel().IsEmpty()
-            : ctrl->GetValue() != boost::any_cast<int>(m_value))
+            : ctrl->GetValue() != cfg_int)
             on_change_field();
     }
     suppress_propagation = false;
 }
 
 void SpinCtrl::set_value(const boost::any& value, bool change_event) {
+    SpinInput* s = spin_ctrl_widget(window);
+    if (!s)
+        return;
     m_disable_change_event = !change_event;
     m_value = value;
     if (value.empty()) { // BBS: null value
-        dynamic_cast<SpinInput*>(window)->SetValue(m_opt.min);
-        dynamic_cast<SpinInput*>(window)->GetTextCtrl()->SetValue("");
+        s->SetValue(m_opt.min);
+        s->GetTextCtrl()->SetValue("");
     }
     else {
-        tmp_value = boost::any_cast<int>(value);
-        dynamic_cast<SpinInput*>(window)->SetValue(tmp_value);
+        tmp_value = any_to_int_for_spin(value);
+        s->SetValue(tmp_value);
     }
     m_disable_change_event = false;
 }
@@ -1230,7 +1375,9 @@ void SpinCtrl::msw_rescale()
 {
     Field::msw_rescale();
 
-    SpinInput* field = dynamic_cast<SpinInput*>(window);
+    SpinInput* field = spin_ctrl_widget(window);
+    if (!field)
+        return;
     if (parent_is_custom_ctrl) {
         field->GetTextCtrl()->SetSize(wxSize(def_width_wider() * m_em_unit, lround(opt_height * m_em_unit)));
     } else {

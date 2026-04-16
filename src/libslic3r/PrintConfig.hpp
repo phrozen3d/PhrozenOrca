@@ -585,6 +585,9 @@ class StaticPrintConfig;
 // Minimum object distance for arrangement, based on printer technology.
 double min_object_distance(const ConfigBase &cfg);
 
+// Derived SLA value: not stored in preset JSON; set from exposure times before slice/UI.
+void update_sla_transition_layer_interval_time_difference(DynamicPrintConfig &config);
+
 // Slic3r dynamic configuration, used to override the configuration
 // per object, per modification volume or per printing material.
 // The dynamic configuration is also used to store user modifications of the print global parameters,
@@ -646,6 +649,11 @@ public:
 };
 
 void handle_legacy_sla(DynamicPrintConfig &config);
+
+/// Normal-layer primary retract distance from lifting (1st+2nd) − retract 2nd (Phrozen LCD). Call after JSON load so file values are not used.
+void synchronize_sla_retract_distance_primary_from_lift(DynamicPrintConfig &config);
+/// Bottom + normal primary retract distances (for UI sync).
+void synchronize_sla_retract_primary_distances(DynamicPrintConfig &config);
 
 class StaticPrintConfig : public StaticConfig
 {
@@ -1103,6 +1111,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat, top_surface_speed))
     //BBS
     ((ConfigOptionBool,                 enable_overhang_speed))
+    ((ConfigOptionFloatOrPercent,       overhang_0_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_1_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_2_4_speed))
     ((ConfigOptionFloatOrPercent,       overhang_3_4_speed))
@@ -1503,14 +1512,14 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat, rest_time_before_lift))
     ((ConfigOptionFloat, rest_time_after_lift))
     ((ConfigOptionFloat, rest_time_after_retract))
-    ((ConfigOptionFloats, bottom_lift_distance))
-    ((ConfigOptionFloats, bottom_lift_second_distance))
-    ((ConfigOptionFloats, lifting_distance))
-    ((ConfigOptionFloats, lift_second_distance))
-    ((ConfigOptionFloats, bottom_retract_distance))
-    ((ConfigOptionFloats, bottom_retract_second_distance))
-    ((ConfigOptionFloats, retract_distance))
-    ((ConfigOptionFloats, retract_second_distance))
+    ((ConfigOptionFloat, bottom_lift_distance))
+    ((ConfigOptionFloat, bottom_lift_second_distance))
+    ((ConfigOptionFloat, lifting_distance))
+    ((ConfigOptionFloat, lift_second_distance))
+    ((ConfigOptionFloat, bottom_retract_distance))
+    ((ConfigOptionFloat, bottom_retract_second_distance))
+    ((ConfigOptionFloat, retract_distance))
+    ((ConfigOptionFloat, retract_second_distance))
     ((ConfigOptionFloat, bottom_lift_speed))
     ((ConfigOptionFloat, bottom_lift_second_speed))
     ((ConfigOptionFloat, lifting_speed))

@@ -158,7 +158,7 @@ GuideFrame::GuideFrame(GUI_App *pGUI, long style)
     Move(tmpPT);
 #ifdef __WXMSW__
     this->Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& e) {
-        if ((m_page == BBL_FILAMENT_ONLY || m_page == BBL_MODELS_ONLY) && e.GetKeyCode() == WXK_ESCAPE) {
+        if ((m_page == BBL_FILAMENT_ONLY || m_page == BBL_MODELS_ONLY || m_page == BBL_LCD_RESIN_ONLY || m_page == BBL_LCD_PRINTER_ONLY) && e.GetKeyCode() == WXK_ESCAPE) {
             if (this->IsModal())
                 this->EndModal(wxID_CANCEL);
             else
@@ -248,6 +248,12 @@ wxString GuideFrame::SetStartPage(GuidePage startpage, bool load)
     } else if (startpage == BBL_MODELS_ONLY) {
         SetTitle("");
         TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=24").make_preferred().string());
+    } else if (startpage == BBL_LCD_RESIN_ONLY) {
+        SetTitle("");
+        TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=LCD_resin").make_preferred().string());
+    } else if (startpage == BBL_LCD_PRINTER_ONLY) {
+        SetTitle("");
+        TargetUrl = from_u8((boost::filesystem::path(resources_dir()) / "web/guide/0/index.html?target=LCD_printer").make_preferred().string());
     }
     else {
         SetTitle(_L("Setup Wizard"));
@@ -818,10 +824,27 @@ int GuideFrame::SaveProfile()
         m_MainPtr->app_config->save();
     }
 
-    // set vendors: keep existing app_config vendors so e.g. PrusaResearchSLA stays visible; then add/update from guide selections (e.g. PhrozenSLA)
+    // set vendors: keep existing app_config vendors so unrelated bundles stay visible,
+    // but for vendors shown in this guide flow, rebuild variants from current selection
+    // (so unselected machines are really removed from System presets visibility).
     {
         Slic3r::AppConfig::VendorMap kept = m_MainPtr->app_config->vendors();
-        m_appconfig_new.set_vendors(kept);
+        std::set<std::string> touched_vendors;
+        if (m_ProfileJson.contains("model") && m_ProfileJson["model"].is_array()) {
+            for (auto it = m_ProfileJson["model"].begin(); it != m_ProfileJson["model"].end(); ++it) {
+                if (!it.value().is_object())
+                    continue;
+                const json& j = it.value();
+                if (j.contains("vendor") && j["vendor"].is_string()) {
+                    std::string v = j["vendor"].get<std::string>();
+                    if (!v.empty())
+                        touched_vendors.insert(v);
+                }
+            }
+        }
+        for (const std::string& v : touched_vendors)
+            kept[v].clear();
+        m_appconfig_new.set_vendors(std::move(kept));
     }
     std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
     // On resin path, only run fallback for a vendor when no model in that vendor has nozzle_selected set (so we don't add unselected PhrozenSLA models and have get_preferred pick the wrong one)
@@ -1161,8 +1184,28 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
         }
     }
 
+    // Apply newly selected "installed printers" to preset visibility immediately,
+    // so sidebar combobox lists reflect additions/removals without restart.
+    if (preset_bundle && app_config) {
+        preset_bundle->load_installed_printers(*app_config);
+        preset_bundle->update_compatible(PresetSelectCompatibleType::Never);
+        // If the currently selected printer got hidden, fall back to the first visible one.
+        if (!preset_bundle->printers.get_selected_preset().is_visible)
+            preset_bundle->printers.select_preset(preset_bundle->printers.first_visible_idx());
+    }
+
+    // Keep Phrozen toolbar mode in sync with wizard result on first launch.
+    // get_ui_printer_technology() prioritizes this key over edited preset technology.
+    if (preset_bundle && app_config && preset_bundle->is_phrozen_vendor())
+        app_config->set("phrozen_work_mode", printer_type == "resin" ? "resin" : "filament");
+
     // Sync Prepare sidebar / plater mode to the printer preset actually selected (avoids stuck SLA UI with FFF preset)
     wxGetApp().load_current_presets(false, true);
+    if (wxGetApp().mainframe) {
+        wxGetApp().mainframe->update_phrozen_mode_button_label();
+        // Keep Process panel/tab set aligned with current printer technology on first wizard entry.
+        wxGetApp().mainframe->update_side_preset_ui();
+    }
     // Force sidebar combobox refresh after wizard apply so Process list is immediately populated
     // without requiring user to toggle Global/Object or re-select printer manually.
     if (wxGetApp().plater()) {
@@ -1356,7 +1399,15 @@ int GuideFrame::LoadProfileData()
         m_ProfileJson["machine"]  = json::object();
         m_ProfileJson["filament"] = json::object();
         m_ProfileJson["process"]  = json::array();
-        m_ProfileJson["printer_type"] = "filament"; // Reset to default on each wizard start
+        // Printer Selection (sidebar settings) and filament-only shortcut: follow active printer technology so lists match FDM vs resin.
+        if (m_page == BBL_LCD_RESIN_ONLY || m_page == BBL_LCD_PRINTER_ONLY) {
+            m_ProfileJson["printer_type"] = "resin";
+        } else if (m_page == BBL_MODELS_ONLY || m_page == BBL_FILAMENT_ONLY) {
+            PrinterTechnology pt = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
+            m_ProfileJson["printer_type"] = (pt == ptSLA) ? "resin" : "filament";
+        } else {
+            m_ProfileJson["printer_type"] = "filament"; // full wizard / other entry points default to FDM until user picks type in UI
+        }
 
         vendor_dir      = (boost::filesystem::path(Slic3r::data_dir()) / PRESET_SYSTEM_DIR).make_preferred();
         rsrc_vendor_dir = (boost::filesystem::path(resources_dir()) / "profiles").make_preferred();
@@ -1517,8 +1568,7 @@ int GuideFrame::SaveProfileData()
         m_ProfileJson["stealth_mode"] = StealthMode;
 
         //----printer_type
-        // Always use default "filament" on wizard start, don't read from saved config
-        // If printer_type is already set in m_ProfileJson (from current session), keep it
+        // If not set earlier (e.g. BBL_MODELS_ONLY / BBL_FILAMENT_ONLY / BBL_LCD_RESIN_ONLY), default to filament
         if (!m_ProfileJson.contains("printer_type")) {
             m_ProfileJson["printer_type"] = "filament";
         }

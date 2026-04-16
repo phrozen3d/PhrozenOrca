@@ -452,38 +452,79 @@ void ParamsPanel::create_layout()
 
 void ParamsPanel::rebuild_panels()
 {
+    // Shared paged view (m_page_view / m_page_sizer): technology switch retargets m_tab_print and
+    // re-embeds tab rows, but wx controls from the previous tab can be destroyed while inactive
+    // Tab objects still hold non-null ConfigOptionsGroup::sizer/custom_ctrl -> AV in Page::refresh().
+    for (Tab* tab : wxGetApp().tabs_list)
+        if (tab && tab->GetParent() == this)
+            tab->clear_pages();
+
     refresh_tabs();
     free_sizers();
     create_layout();
+    sync_process_tabs_visibility(true);
+}
+
+void ParamsPanel::sync_process_tabs_visibility(bool after_rebuild_layout)
+{
+    const bool resin_objects_mode =
+        wxGetApp().get_ui_printer_technology() == ptSLA &&
+        m_mode_region && m_mode_region->GetValue();
+    // get_tab(TYPE_*) returns nullptr until tab->completed() — do not use it here.
+    const bool show_process_row = after_rebuild_layout
+        ? true
+        : (!m_current_tab || m_current_tab == m_tab_print);
+    for (Tab* t : wxGetApp().tabs_list) {
+        if (!t || t->GetParent() != this)
+            continue;
+        if (t->type() != Preset::TYPE_PRINT && t->type() != Preset::TYPE_SLA_PRINT)
+            continue;
+        t->Show(!resin_objects_mode && show_process_row && t == m_tab_print);
+    }
+    if (m_left_sizer)
+        m_left_sizer->Layout();
 }
 
 void ParamsPanel::refresh_tabs()
 {
     auto& tabs_list = wxGetApp().tabs_list;
-    auto print_tech = wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology();
-    for (auto tab : tabs_list)
-        if (tab->supports_printer_technology(print_tech))
-        {
-            if (tab->GetParent() != this) continue;
-            switch (tab->type())
-            {
-                case Preset::TYPE_PRINT:
-                case Preset::TYPE_SLA_PRINT:
-                    m_tab_print = tab;
-                    break;
+    // Keep in sync with sidebar / update_side_preset_ui (Phrozen work mode vs edited preset).
+    PrinterTechnology print_tech = wxGetApp().get_ui_printer_technology();
 
-                case Preset::TYPE_FILAMENT:
-                case Preset::TYPE_SLA_MATERIAL:
-                    m_tab_filament = tab;
-                    break;
+    // Clear stale pointers first. Otherwise if matching tab is not found in this pass,
+    // m_tab_print / m_tab_filament may still point to previous technology tabs.
+    m_tab_print    = nullptr;
+    m_tab_filament = nullptr;
+    m_tab_printer  = nullptr;
 
-                case Preset::TYPE_PRINTER:
-                    m_tab_printer = tab;
-                    break;
-                default:
-                    break;
-            }
+    // Do not rely on get_tab()/completed() or supports_printer_technology() during mode switch:
+    // we only need tabs already owned by this ParamsPanel.
+    Tab* fff_print   = nullptr;
+    Tab* sla_print   = nullptr;
+    Tab* fff_mat     = nullptr;
+    Tab* sla_mat     = nullptr;
+    for (auto tab : tabs_list) {
+        if (!tab || tab->GetParent() != this)
+            continue;
+        switch (tab->type()) {
+            case Preset::TYPE_PRINT:        fff_print = tab; break;
+            case Preset::TYPE_SLA_PRINT:    sla_print = tab; break;
+            case Preset::TYPE_FILAMENT:     fff_mat   = tab; break;
+            case Preset::TYPE_SLA_MATERIAL: sla_mat   = tab; break;
+            case Preset::TYPE_PRINTER:      m_tab_printer = tab; break;
+            default: break;
         }
+    }
+
+    m_tab_print    = (print_tech == ptSLA) ? sla_print : fff_print;
+    m_tab_filament = (print_tech == ptSLA) ? sla_mat   : fff_mat;
+
+    // Safety fallback: never leave Process slot empty if one side exists.
+    if (!m_tab_print)
+        m_tab_print = fff_print ? static_cast<wxPanel*>(fff_print) : static_cast<wxPanel*>(sla_print);
+    if (!m_tab_filament)
+        m_tab_filament = fff_mat ? static_cast<wxPanel*>(fff_mat) : static_cast<wxPanel*>(sla_mat);
+
     if (m_top_panel) {
         m_tab_print_plate = wxGetApp().get_plate_tab();
         m_tab_print_object = wxGetApp().get_model_tab();
@@ -554,6 +595,31 @@ void ParamsPanel::set_active_tab(wxPanel* tab)
     Tab* cur_tab = dynamic_cast<Tab *> (tab);
 
     if (cur_tab == nullptr) {
+        const bool resin_objects_mode =
+            wxGetApp().get_ui_printer_technology() == ptSLA &&
+            m_mode_region && m_mode_region->GetValue();
+        if (resin_objects_mode) {
+            m_current_tab = nullptr;
+            wxGetApp().sidebar().show_object_list(true);
+            for (auto t : std::vector<std::pair<wxPanel*, wxStaticLine*>>({
+                    {m_tab_print, m_staticline_print},
+                    {m_tab_print_object, m_staticline_print_object},
+                    {m_tab_print_part, m_staticline_print_part},
+                    {m_tab_print_layer, nullptr},
+                    {m_tab_print_plate, nullptr},
+                    {m_tab_filament, m_staticline_filament},
+                    {m_tab_printer, m_staticline_printer}})) {
+                if (t.first)  t.first->Show(false);
+                if (t.second) t.second->Show(false);
+            }
+            if (m_page_view)
+                m_page_view->Show(false);
+            if (m_left_sizer)
+                m_left_sizer->Layout();
+            if (wxWindow* parent = GetParent())
+                parent->Layout();
+            return;
+        }
         if (!m_mode_region->GetValue()) {
             cur_tab = (Tab*) m_tab_print;
         } else if (m_tab_print_part && ((TabPrintModel*) m_tab_print_part)->has_model_config()) {
@@ -567,16 +633,23 @@ void ParamsPanel::set_active_tab(wxPanel* tab)
         }
         Show(cur_tab != nullptr);
         wxGetApp().sidebar().show_object_list(m_mode_region->GetValue());
-        if (m_current_tab == cur_tab)
+        // Keep m_current_tab and visibility in sync when switching Global/Objects.
+        // Previous code only restored tree selection and returned, leaving stale active tab.
+        if (!cur_tab)
             return;
-        if (cur_tab)
+        if (m_current_tab == cur_tab) {
             cur_tab->restore_last_select_item();
+            return;
+        }
+        set_active_tab(cur_tab);
         return;
     }
 
     m_current_tab = tab;
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": set current to %1%, type=%2%") % cur_tab % cur_tab?cur_tab->type():-1;
     update_mode();
+    if (m_page_view)
+        m_page_view->Show(true);
 
     // BBS: open/close tab
     for (auto t : std::vector<std::pair<wxPanel*, wxStaticLine*>>({
@@ -594,6 +667,7 @@ void ParamsPanel::set_active_tab(wxPanel* tab)
         //m_left_sizer->GetItem(t)->SetProportion(tab == t ? 1 : 0);
     }
     m_left_sizer->Layout();
+    sync_process_tabs_visibility(false);
     if (auto dialog = dynamic_cast<wxDialog*>(GetParent())) {
         wxString title = cur_tab->type() == Preset::TYPE_FILAMENT ? _L("Material settings") : _L("Printer settings");
         dialog->SetTitle(title);
@@ -619,10 +693,49 @@ bool ParamsPanel::is_active_and_shown_tab(wxPanel* tab)
 
 void ParamsPanel::switch_process_tab_for_printer_technology()
 {
-    const bool was_on_process_tab = (m_current_tab == m_tab_print);
-    refresh_tabs();
-    if (was_on_process_tab && m_tab_print)
+    // refresh_tabs() alone updates pointers but leaves the old Tab panel in m_top_sizer (e.g. SLA row
+    // still embedded after switching to FDM). Rebuild the sidebar like startup (create_preset_tabs).
+    rebuild_panels();
+    update_advanced_visibility();
+
+    // Match manual fix path (Objects -> Global) exactly.
+    switch_to_global();
+
+    // Technology switch should always land on the process tab of that technology.
+    // This prevents stale FDM process tab (combo + categories) from remaining visible in SLA mode.
+    if (m_tab_print) {
         set_active_tab(m_tab_print);
+        // Ensure process combobox / page tree are fully activated after technology switch.
+        if (auto* t = dynamic_cast<Tab*>(m_tab_print)) {
+            t->OnActivate();
+            // rebuild_panels() clear_pages() leaves most pages without live sizers until OnActivate;
+            // a later update_visibility()/rebuild_page_tree (e.g. from load_current_presets) can see
+            // m_show false for every page and delete all tree items — refresh visibility + tree here.
+            t->update_visibility();
+        }
+    }
+
+    // Some synchronous callers execute load_current_presets() right after this method.
+    // That path may toggle panel selection/mode again. Re-assert Process+Global on the next UI turn.
+    wxTheApp->CallAfter([this]() {
+        if (!this || !m_tab_print)
+            return;
+        if (m_mode_region)
+            m_mode_region->SetValue(false);
+        wxGetApp().sidebar().show_object_list(false);
+        if (m_current_tab != m_tab_print)
+            set_active_tab(m_tab_print);
+        sync_process_tabs_visibility(false);
+        if (auto* t = dynamic_cast<Tab*>(m_tab_print))
+            t->OnActivate();
+        Layout();
+        if (wxWindow* parent = GetParent())
+            parent->Layout();
+    });
+
+    Layout();
+    if (wxWindow* parent = GetParent())
+        parent->Layout();
 }
 
 void ParamsPanel::update_mode()
@@ -655,8 +768,9 @@ void ParamsPanel::update_mode()
 // Simple/Advanced toggle, setting table btn, compare btn) and Print tab "Default Setting" row.
 void ParamsPanel::update_advanced_visibility()
 {
-    auto pt   = wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
-    bool show = (pt != ptSLA);
+    // Align with Phrozen work mode / sidebar (preset_bundle can lag briefly after mode switch).
+    const PrinterTechnology pt = wxGetApp().get_ui_printer_technology();
+    const bool              show = (pt != ptSLA);
     // Keep Process row visible; for SLA hide only the right-side controls: 進階 label, 進階 toggle, table btn, compare btn.
     if (m_top_panel) {
         if (m_title_view)  m_title_view->Show(show);

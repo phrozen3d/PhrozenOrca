@@ -24,16 +24,28 @@
             "sub_path": "process/sla_print_common.json"
         },
         {
-            "name": "0.025 UltraDetail",
-            "sub_path": "process/0.025 UltraDetail.json"
-        },
-        {
-            "name": "0.05 Normal",
-            "sub_path": "process/0.05 Normal.json"
-        },
-        {
             "name": "Tough ABS-like+@Phrozen Sonic Mighty Revo 16K",
             "sub_path": "process/Tough ABS-like+@Phrozen Sonic Mighty Revo 16K.json"
+        },
+        {
+            "name": "Tough ABS-like+@Phrozen Sonic Mega 8K V2",
+            "sub_path": "process/Tough ABS-like+@Phrozen Sonic Mega 8K V2.json"
+        },
+        {
+            "name": "Tough ABS-like+@Phrozen Sonic Mega 8K S",
+            "sub_path": "process/Tough ABS-like+@Phrozen Sonic Mega 8K S.json"
+        },
+        {
+            "name": "Speed Plus - Black@Phrozen Sonic Mega 8K V2",
+            "sub_path": "process/Speed Plus - Black@Phrozen Sonic Mega 8K V2.json"
+        },
+        {
+            "name": "Speed Plus - Black@Phrozen Sonic Mega 8K S",
+            "sub_path": "process/Speed Plus - Black@Phrozen Sonic Mega 8K S.json"
+        },
+        {
+            "name": "Speed Plus - Black@Phrozen Sonic Mighty Revo 16K",
+            "sub_path": "process/Speed Plus - Black@Phrozen Sonic Mighty Revo 16K.json"
         }
     ],
     "filament_list": [

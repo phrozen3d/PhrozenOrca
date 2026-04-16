@@ -5,7 +5,7 @@
     "name": "Phrozen Sonic Mega 8K S",
     "model_id": "Mega 8K S",
     "nozzle_diameter": "default",
-    "bed_model": "sl1_bed.stl",
+    "bed_model": "Phrozen_Sonic Mega 8K S_buildplate_model.stl",
     "bed_texture": "sl1.svg",
     "default_materials": "Phrozen Tough ABS-like+;Phrozen Speed Plus - Black"
 }

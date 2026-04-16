@@ -74,7 +74,7 @@ function GotoNextPage() {
     if (selectedPrinterType === 'filament') {
         window.location.href = "../21/index.html";
     } else {
-        window.location.href = "../LCD_printer/index.html";
+        window.location.href = "../LCD_printer/index.html?wizard=1";
     }
 }
 

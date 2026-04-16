@@ -31,6 +31,7 @@
 #include "wxExtensions.hpp"
 #include "PresetComboBoxes.hpp"
 #include <wx/wupdlock.h>
+#include <wx/statbmp.h>
 
 #include "GUI_App.hpp"
 #include "GUI_ObjectList.hpp"
@@ -52,6 +53,10 @@
 
 #include "BedShapeDialog.hpp"
 // #include "BonjourDialog.hpp"
+
+#include <cmath>
+#include <set>
+
 #ifdef WIN32
 	#include <commctrl.h>
 #endif // WIN32
@@ -750,6 +755,11 @@ void Tab::update_label_colours()
 
 void Tab::decorate()
 {
+    static const std::set<std::string> k_sla_derived_retract_primary_keys = {
+        "bottom_retract_distance",
+        "retract_distance"
+    };
+
     for (const auto& opt : m_options_list)
     {
         Field*      field = nullptr;
@@ -792,6 +802,17 @@ void Tab::decorate()
             is_modified_value = false;
             icon = &m_bmp_white_bullet;
             tt = &m_tt_white_bullet;
+        }
+
+        // Derived SLA fields: no reset/default semantics in UI.
+        if (k_sla_derived_retract_primary_keys.count(opt.first)) {
+            is_nonsys_value    = false;
+            is_modified_value  = false;
+            icon               = &m_bmp_white_bullet;
+            sys_icon           = &m_bmp_white_bullet;
+            tt                 = &m_tt_white_bullet;
+            sys_tt             = &m_tt_white_bullet;
+            color              = &m_default_text_clr;
         }
 
         if (opt.first == "compatible_prints" || opt.first == "compatible_printers") {
@@ -977,6 +998,18 @@ void TabSLAMaterial::init_options_list()
     }
 }
 
+void TabSLAPrint::init_options_list()
+{
+    if (!m_options_list.empty())
+        m_options_list.clear();
+
+    for (const std::string& opt_key : m_config->keys()) {
+        if (opt_key == "transition_layer_interval_time_difference")
+            continue;
+        m_options_list.emplace(opt_key, m_opt_status_value);
+    }
+}
+
 void Tab::get_sys_and_mod_flags(const std::string& opt_key, bool& sys_page, bool& modified_page)
 {
     auto opt = m_options_list.find(opt_key);
@@ -1124,7 +1157,12 @@ void Tab::on_roll_back_value(const bool to_sys /*= true*/)
         }
         for (const auto &kvp : group->opt_map()) {
             const std::string& opt_key = kvp.first;
-            if ((m_options_list[opt_key] & os) == 0)
+            if (opt_key == "transition_layer_interval_time_difference")
+                continue;
+            auto it_opt = m_options_list.find(opt_key);
+            if (it_opt == m_options_list.end())
+                continue;
+            if ((it_opt->second & os) == 0)
                 to_sys ? group->back_to_sys_value(opt_key) : group->back_to_initial_value(opt_key);
         }
     }
@@ -1266,9 +1304,24 @@ void Tab::msw_rescale()
     for (ScalableBitmap& bmp : m_scaled_icons_list)
         bmp.msw_rescale();
     // recreate and set new ImageList for tree_ctrl
-    m_icons->RemoveAll();
-    if ( !m_scaled_icons_list.empty() ) {
-        m_icons = new wxImageList(m_scaled_icons_list.front().bmp().GetWidth(), m_scaled_icons_list.front().bmp().GetHeight(), false);
+    if (m_icons)
+        m_icons->RemoveAll();
+    int icon_w = 0;
+    int icon_h = 0;
+    for (const ScalableBitmap& bmp : m_scaled_icons_list) {
+        const wxBitmap& b = bmp.bmp();
+        if (!b.IsOk())
+            continue;
+        icon_w = b.GetWidth();
+        icon_h = b.GetHeight();
+        break;
+    }
+    if (icon_w > 0 && icon_h > 0)
+        m_icons = new wxImageList(icon_w, icon_h, false);
+    else if (!m_icons) {
+        const float scale_factor = em_unit(this) * 0.1f;
+        const int img_sz = int(32 * scale_factor + 0.5f);
+        m_icons = new wxImageList(img_sz, img_sz, false, 1);
     }
     
     for (ScalableBitmap& bmp : m_scaled_icons_list)
@@ -1303,8 +1356,25 @@ void Tab::sys_color_changed()
     for (ScalableBitmap& bmp : m_scaled_icons_list)
         bmp.msw_rescale();
     // recreate and set new ImageList for tree_ctrl
-    m_icons->RemoveAll();
-    m_icons = new wxImageList(m_scaled_icons_list.front().bmp().GetWidth(), m_scaled_icons_list.front().bmp().GetHeight(), false);
+    if (m_icons)
+        m_icons->RemoveAll();
+    int icon_w = 0;
+    int icon_h = 0;
+    for (const ScalableBitmap& bmp : m_scaled_icons_list) {
+        const wxBitmap& b = bmp.bmp();
+        if (!b.IsOk())
+            continue;
+        icon_w = b.GetWidth();
+        icon_h = b.GetHeight();
+        break;
+    }
+    if (icon_w > 0 && icon_h > 0)
+        m_icons = new wxImageList(icon_w, icon_h, false);
+    else if (!m_icons) {
+        const float scale_factor = em_unit(this) * 0.1f;
+        const int img_sz = int(32 * scale_factor + 0.5f);
+        m_icons = new wxImageList(img_sz, img_sz, false, 1);
+    }
     for (ScalableBitmap& bmp : m_scaled_icons_list)
         //m_icons->Add(bmp.bmp());
     m_tabctrl->AssignImageList(m_icons);
@@ -1665,42 +1735,47 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
         }
     }
 
-    if(opt_key=="layer_height"){
-        auto min_layer_height_from_nozzle=wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("min_layer_height")->values;
-        auto max_layer_height_from_nozzle=wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("max_layer_height")->values;
-        auto layer_height_floor = *std::min_element(min_layer_height_from_nozzle.begin(), min_layer_height_from_nozzle.end());
-        auto layer_height_ceil  = *std::max_element(max_layer_height_from_nozzle.begin(), max_layer_height_from_nozzle.end());
-        const auto lh = m_config->opt_float("layer_height");
-        bool exceed_minimum_flag = lh < layer_height_floor;
-        bool exceed_maximum_flag = lh > layer_height_ceil;
+    if (opt_key == "layer_height" &&
+        wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptFFF) {
+        const auto *min_opt = wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("min_layer_height");
+        const auto *max_opt = wxGetApp().preset_bundle->full_config().option<ConfigOptionFloats>("max_layer_height");
+        if (min_opt && max_opt && !min_opt->values.empty() && !max_opt->values.empty()) {
+            const auto &min_layer_height_from_nozzle = min_opt->values;
+            const auto &max_layer_height_from_nozzle = max_opt->values;
+            auto        layer_height_floor = *std::min_element(min_layer_height_from_nozzle.begin(), min_layer_height_from_nozzle.end());
+            auto        layer_height_ceil  = *std::max_element(max_layer_height_from_nozzle.begin(), max_layer_height_from_nozzle.end());
+            const auto  lh                 = m_config->opt_float("layer_height");
+            bool        exceed_minimum_flag = lh < layer_height_floor;
+            bool        exceed_maximum_flag = lh > layer_height_ceil;
 
-        if (exceed_maximum_flag || exceed_minimum_flag) {
-            if (lh < EPSILON) {
-                auto          msg_text = _(L("Layer height is too small.\nIt will set to min_layer_height\n"));
-                MessageDialog dialog(wxGetApp().plater(), msg_text, "", wxICON_WARNING | wxOK);
-                dialog.SetButtonLabel(wxID_OK, _L("OK"));
-                dialog.ShowModal();
-                auto new_conf = *m_config;
-                new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_floor));
-                m_config_manipulation.apply(m_config, &new_conf);
-            } else {
-                wxString msg_text = _(L("Layer height exceeds the limit in Printer Settings -> Extruder -> Layer height limits, "
-                                        "this may cause printing quality issues."));
-                msg_text += "\n\n" + _(L("Adjust to the set range automatically?\n"));
-                MessageDialog dialog(wxGetApp().plater(), msg_text, "", wxICON_WARNING | wxYES | wxNO);
-                dialog.SetButtonLabel(wxID_YES, _L("Adjust"));
-                dialog.SetButtonLabel(wxID_NO, _L("Ignore"));
-                auto answer   = dialog.ShowModal();
-                auto new_conf = *m_config;
-                if (answer == wxID_YES) {
-                    if (exceed_maximum_flag)
-                        new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_ceil));
-                    if (exceed_minimum_flag)
-                        new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_floor));
+            if (exceed_maximum_flag || exceed_minimum_flag) {
+                if (lh < EPSILON) {
+                    auto          msg_text = _(L("Layer height is too small.\nIt will set to min_layer_height\n"));
+                    MessageDialog dialog(wxGetApp().plater(), msg_text, "", wxICON_WARNING | wxOK);
+                    dialog.SetButtonLabel(wxID_OK, _L("OK"));
+                    dialog.ShowModal();
+                    auto new_conf = *m_config;
+                    new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_floor));
                     m_config_manipulation.apply(m_config, &new_conf);
+                } else {
+                    wxString msg_text = _(L("Layer height exceeds the limit in Printer Settings -> Extruder -> Layer height limits, "
+                                            "this may cause printing quality issues."));
+                    msg_text += "\n\n" + _(L("Adjust to the set range automatically?\n"));
+                    MessageDialog dialog(wxGetApp().plater(), msg_text, "", wxICON_WARNING | wxYES | wxNO);
+                    dialog.SetButtonLabel(wxID_YES, _L("Adjust"));
+                    dialog.SetButtonLabel(wxID_NO, _L("Ignore"));
+                    auto answer   = dialog.ShowModal();
+                    auto new_conf = *m_config;
+                    if (answer == wxID_YES) {
+                        if (exceed_maximum_flag)
+                            new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_ceil));
+                        if (exceed_minimum_flag)
+                            new_conf.set_key_value("layer_height", new ConfigOptionFloat(layer_height_floor));
+                        m_config_manipulation.apply(m_config, &new_conf);
+                    }
                 }
+                wxGetApp().plater()->update();
             }
-            wxGetApp().plater()->update();
         }
     }
 
@@ -2566,10 +2641,19 @@ void TabPrint::update_description_lines()
 
 void TabPrint::toggle_options()
 {
-    if (!m_active_page) return;
+    if (!m_active_page || !m_config)
+        return;
 
     // TabPrint is FDM-only, skip for SLA printers
     if (m_preset_bundle && m_preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA)
+        return;
+
+    // During FDM/SLA technology switching, TabPrint may get called before a full FDM config
+    // is loaded, which would crash inside toggle_print_fff_options on missing keys.
+    if (!m_config->has("max_volumetric_extrusion_rate_slope") ||
+        !m_config->has("max_volumetric_extrusion_rate_slope_segment_length") ||
+        !m_config->has("wall_loops") ||
+        !m_config->has("sparse_infill_density"))
         return;
 
     // BBS: whether the preset is Bambu Lab printer
@@ -2589,6 +2673,8 @@ void TabPrint::toggle_options()
         auto &           set             = is_tree(support_type) ? enum_set_tree : enum_set_normal;
         auto &           opt             = const_cast<ConfigOptionDef &>(field->m_opt);
         auto             cb              = dynamic_cast<ComboBox *>(choice->window);
+        if (!cb)
+            return;
         auto             n               = cb->GetValue();
         opt.enum_values.clear();
         opt.enum_labels.clear();
@@ -2604,7 +2690,8 @@ void TabPrint::toggle_options()
 
 void TabPrint::update()
 {
-    if (m_preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA)
+    // Phrozen toolbar: edited/selected preset can lag work_mode; skip FDM tab logic in Resin UI.
+    if (wxGetApp().get_ui_printer_technology() == ptSLA)
         return; // ys_FIXME
 
     m_update_cnt++;
@@ -5792,7 +5879,7 @@ void Tab::save_preset(std::string name /*= ""*/, bool detach, bool save_to_proje
     }
 
     Preset* _current_printer = nullptr;
-    if (m_presets->type() == Preset::TYPE_FILAMENT) {
+    if (m_presets->type() == Preset::TYPE_FILAMENT || m_presets->type() == Preset::TYPE_SLA_PRINT) {
         _current_printer = const_cast<Preset*>(&wxGetApp().preset_bundle->printers.get_selected_preset_base());
     }
     // Save the preset into Slic3r::data_dir / presets / section_name / preset_name.json
@@ -6403,7 +6490,7 @@ void Page::activate(ConfigOptionMode mode, std::function<void()> throw_if_cancel
         m_vsizer->AddSpacer(20);
     }
 #else
-    //m_vsizer->AddSpacer(10);
+    m_vsizer->AddSpacer(10);
 #endif
 #if HIDE_FIRST_SPLIT_LINE
     // BBS: no line spliter for first group
@@ -6701,21 +6788,46 @@ void TabSLAPrint::build()
     optgroup->append_single_option_line("light_off_day", "123");
     optgroup->append_single_option_line("bottom_light_off_day", "123");
 
-    // Distance
+    // Distance — two JSON keys per row (primary + second_distance); UI: primary + " + " + second.
     page     = add_options_page(L("Distance"), "custom-gcode_strength"); // ORCA: icon only visible on placeholders
     optgroup = page->new_optgroup(L("Lift & Retract Distance"), L"PhrozenImages_Resin/param_distance");
-    optgroup->append_single_option_line("bottom_lift_distance", "123");
-    optgroup->append_single_option_line("bottom_lift_second_distance", "123");
-    optgroup->append_single_option_line("lifting_distance", "123");
-    optgroup->append_single_option_line("lift_second_distance", "123");
-    optgroup->append_single_option_line("bottom_retract_distance", "123");
-    optgroup->append_single_option_line("bottom_retract_second_distance", "123");
-    optgroup->append_single_option_line("retract_distance", "123");
-    optgroup->append_single_option_line("retract_second_distance", "123");
+    {
+        auto append_distance_pair = [optgroup](const wxString& row_label, const char* k_primary, const char* k_second, bool primary_readonly = false) {
+            Line line(row_label, wxString());
+            Option o1 = optgroup->get_option(k_primary);
+            Option o2 = optgroup->get_option(k_second);
+            o1.readonly = primary_readonly;
+            o1.opt.label = "";
+            o2.opt.label = "";
+            // Match speed-row visual style.
+            o1.opt.width = 5;
+            o2.opt.width = 8;
+            o1.opt.sidetext = "";
+            o2.opt.sidetext = "mm";
+            // Keep side_widget non-null so OG_CustomCtrl renders "+" between fields.
+            o1.side_widget = [](wxWindow* parent) {
+                wxSizer* s = new wxBoxSizer(wxHORIZONTAL);
+                wxStaticText* t = new wxStaticText(parent, wxID_ANY, "+");
+                t->SetFont(wxGetApp().normal_font());
+                t->SetBackgroundStyle(wxBG_STYLE_PAINT);
+                wxGetApp().UpdateDarkUI(t);
+                s->Add(t, 0, wxALIGN_CENTER_VERTICAL);
+                return s;
+            };
+            line.append_option(o1);
+            line.append_option(o2);
+            optgroup->append_line(line);
+        };
+        append_distance_pair(L("Bottom Lift Distance"), "bottom_lift_distance", "bottom_lift_second_distance");
+        append_distance_pair(L("Lifting Distance"), "lifting_distance", "lift_second_distance");
+        append_distance_pair(L("Bottom Retract Distance"), "bottom_retract_distance", "bottom_retract_second_distance", true);
+        append_distance_pair(L("Retract Distance"), "retract_distance", "retract_second_distance", true);
+    }
 
     // Speed — two JSON keys per row (primary + second_speed); UI: primary + " + " + second, unit on the right.
     page     = add_options_page(L("Speed"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
-    optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 15);
+    // Increase label column to push speed pair inputs right.
+    optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 19);
     {
         auto append_speed_pair = [optgroup](const wxString& row_label, const char* k_primary, const char* k_second) {
             Line line(row_label, wxString());
@@ -6723,15 +6835,22 @@ void TabSLAPrint::build()
             Option o2 = optgroup->get_option(k_second);
             o1.opt.label = "";
             o2.opt.label = "";
+            // Keep first field compact; make second field wider for easier editing.
+            o1.opt.width = 5;
+            o2.opt.width = 11;
+            // Show "+" as a standalone widget between fields.
             o1.opt.sidetext = "";
             o2.opt.sidetext = "mm/min";
             o1.side_widget = [](wxWindow* parent) {
                 wxSizer* s = new wxBoxSizer(wxHORIZONTAL);
-                wxStaticText* t = new wxStaticText(parent, wxID_ANY, " + ");
+                s->AddSpacer(2);
+                wxStaticText* t = new wxStaticText(parent, wxID_ANY, "+");
                 t->SetFont(wxGetApp().normal_font());
+                t->SetForegroundColour(wxGetApp().get_label_clr_default());
                 t->SetBackgroundStyle(wxBG_STYLE_PAINT);
                 wxGetApp().UpdateDarkUI(t);
                 s->Add(t, 0, wxALIGN_CENTER_VERTICAL);
+                s->AddSpacer(2);
                 return s;
             };
             line.append_option(o1);
@@ -6746,7 +6865,7 @@ void TabSLAPrint::build()
 
     // Advanced
     page     = add_options_page(L("Advanced"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
-    optgroup = page->new_optgroup(L("Advance"), L"PhrozenImages_Resin/param_advanced", 15);
+    optgroup = page->new_optgroup(L("Advance"), L"PhrozenImages_Resin/param_advanced", 26);
     optgroup->append_single_option_line("bottom_light_pwm", "123");
     optgroup->append_single_option_line("light_pwm", "123");
     optgroup->append_single_option_line("picture_grayscale", "123");
@@ -6759,12 +6878,69 @@ void TabSLAPrint::build()
     optgroup->append_single_option_line("shrinkage_compensation_x", "123");
     optgroup->append_single_option_line("shrinkage_compensation_y", "123");
     optgroup->append_single_option_line("shrinkage_compensation_z", "123");
+    auto append_tolerance_ab_with_diagram = [](ConfigOptionsGroupShp og, const std::string& svg_primary, const std::string& svg_fallback, const char* opt_key_a, const char* opt_key_b) {
+        const int label_em = 3;
+
+        Option opt_a = og->get_option(opt_key_a);
+        Option opt_b = og->get_option(opt_key_b);
+        // Force identical field width to keep a/b inputs vertically aligned.
+        opt_a.opt.width = Field::def_width_wider();
+        opt_b.opt.width = Field::def_width_wider();
+
+        // OG_CustomCtrl 用 near_label 控制項寬度來推欄位 h_pos；wxStaticBitmap 實際寬度常與空白 panel 不一致，
+        // 會讓 b 列輸入框偏左。兩列都用同像素大小的 wxPanel 當外框，圖只放在 a 列 panel 內。
+        // 左側占位寬度 = (群組 label 欄寬 em − a/b 標籤 em) * em_unit，使 a、b 輸入框與「僅開關列」的輸入區左緣對齊。
+        auto make_fixed_diagram_slot = [og, label_em](wxWindow* parent, const wxBitmap* bmp /* may be null */) -> wxWindow* {
+            const int em        = wxGetApp().em_unit();
+            const int img_side  = std::max(1, parent->FromDIP(90));
+            const int label_col = std::max(0, int(og->label_width) - label_em);
+            const int slot_w    = std::max(img_side, label_col * em);
+            // b 列僅需水平對齊 a，用一般行高即可，避免 a/b 兩列被各撐成 90dip 而隔太開
+            const int row_pad = static_cast<int>(lround(1.2 * static_cast<double>(em)));
+            const int slot_h  = (bmp && bmp->IsOk()) ? img_side : std::max(1, row_pad);
+            const wxSize slot(slot_w, slot_h);
+            wxPanel*     panel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, slot);
+            panel->SetMinSize(slot);
+            panel->SetMaxSize(slot);
+            panel->SetInitialSize(slot);
+            if (bmp && bmp->IsOk()) {
+                wxBoxSizer* sz = new wxBoxSizer(wxVERTICAL);
+                sz->Add(new wxStaticBitmap(panel, wxID_ANY, *bmp), 0, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL);
+                panel->SetSizer(sz);
+            }
+            return panel;
+        };
+
+        Line line_a = og->create_single_option_line(opt_a, "123");
+        line_a.label_width_em               = label_em;
+        line_a.near_label_expand_row_height = true;
+        line_a.near_label_widget = [svg_primary, svg_fallback, make_fixed_diagram_slot](wxWindow* parent) -> wxWindow* {
+            static BitmapCache s_cache;
+            const int         d   = std::max(1, parent->FromDIP(90));
+            const unsigned    dim = static_cast<unsigned>(d);
+            wxBitmap*         bp  = s_cache.load_svg(svg_primary, dim, dim);
+            if (!bp || !bp->IsOk())
+                bp = s_cache.load_svg(svg_fallback, dim, dim);
+            wxBitmap bmp;
+            if (bp && bp->IsOk())
+                bmp = *bp;
+            return make_fixed_diagram_slot(parent, bmp.IsOk() ? &bmp : nullptr);
+        };
+        og->append_line(line_a);
+
+        Line line_b = og->create_single_option_line(opt_b, "123");
+        line_b.label_width_em = label_em;
+        line_b.near_label_widget = [make_fixed_diagram_slot](wxWindow* parent) -> wxWindow* {
+            return make_fixed_diagram_slot(parent, nullptr);
+        };
+        og->append_line(line_b);
+    };
+
     optgroup->append_single_option_line("tolerance_compensation", "123");
-    optgroup->append_single_option_line("tolerance_compensation_a", "123");
-    optgroup->append_single_option_line("tolerance_compensation_b", "123");
+    append_tolerance_ab_with_diagram(optgroup, "Tolerance Compensation", "Tolerance Compensation", "tolerance_compensation_a", "tolerance_compensation_b");
+
     optgroup->append_single_option_line("bottom_tolerance_compensation", "123");
-    optgroup->append_single_option_line("bottom_tolerance_compensation_a", "123");
-    optgroup->append_single_option_line("bottom_tolerance_compensation_b", "123");
+    append_tolerance_ab_with_diagram(optgroup, "Bottom Tolerance Compensation", "Tolerance Compensation", "bottom_tolerance_compensation_a", "bottom_tolerance_compensation_b");
 
     // Support
     page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
@@ -6803,7 +6979,51 @@ void TabSLAPrint::build()
 void TabSLAPrint::reload_config()
 {
     this->compatible_widget_reload(m_compatible_printers);
+    if (m_config->has("bottom_retract_distance") && m_config->has("retract_distance"))
+        ConfigManipulation::sync_sla_retract_primary_distances(m_config);
     Tab::reload_config();
+}
+
+void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& value)
+{
+    // Distance page edits may trigger ConfigManipulation::apply() (reload_config + update),
+    // which can rebuild tree selection and fall back to first page ("Layer").
+    const int      prev_sel_index  = m_tabctrl ? m_tabctrl->GetSelection() : -1;
+    const wxString prev_sel_title  = (m_tabctrl && prev_sel_index >= 0) ? m_tabctrl->GetItemText(prev_sel_index) : wxString();
+
+    static const std::set<std::string> k_sla_retract_triggers = {
+        "bottom_lift_distance",
+        "bottom_lift_second_distance",
+        "bottom_retract_second_distance",
+        "lifting_distance",
+        "lift_second_distance",
+        "retract_second_distance",
+    };
+    if (k_sla_retract_triggers.count(opt_key)) {
+        DynamicPrintConfig patched = *m_config;
+        ConfigManipulation::sync_sla_retract_primary_distances(&patched);
+        if (std::fabs(patched.opt_float("bottom_retract_distance") - m_config->opt_float("bottom_retract_distance")) > 1e-6 ||
+            std::fabs(patched.opt_float("retract_distance") - m_config->opt_float("retract_distance")) > 1e-6) {
+            m_config_manipulation.apply(m_config, &patched);
+        }
+    }
+    Tab::on_value_change(opt_key, value);
+
+    if (!prev_sel_title.empty() && m_tabctrl && m_parent && m_parent->is_active_and_shown_tab(this)) {
+        const int cur_sel = m_tabctrl->GetSelection();
+        const bool moved_away = (cur_sel < 0) || (m_tabctrl->GetItemText(cur_sel) != prev_sel_title);
+        if (moved_away) {
+            int item = m_tabctrl->GetFirstVisibleItem();
+            while (item >= 0) {
+                if (m_tabctrl->GetItemText(item) == prev_sel_title) {
+                    m_tabctrl->SelectItem(item);
+                    m_last_select_item = item;
+                    break;
+                }
+                item = m_tabctrl->GetNextVisible(item);
+            }
+        }
+    }
 }
 
 void TabSLAPrint::update_description_lines()
@@ -6836,12 +7056,34 @@ void TabSLAPrint::toggle_options()
 
 void TabSLAPrint::update()
 {
-    if (m_preset_bundle->printers.get_selected_preset().printer_technology() == ptFFF)
+    if (wxGetApp().get_ui_printer_technology() == ptFFF)
         return;
 
     m_update_cnt++;
 
+    bool interval_changed = false;
+    double old_interval = 0.0;
+    if (m_config->has("transition_layer_interval_time_difference")) {
+        old_interval = m_config->opt_float("transition_layer_interval_time_difference");
+    }
+
     m_config_manipulation.update_print_sla_config(m_config, true);
+
+    if (m_config->has("transition_layer_interval_time_difference")) {
+        const double new_interval = m_config->opt_float("transition_layer_interval_time_difference");
+        interval_changed = fabs(new_interval - old_interval) > 0.000001;
+    }
+
+    // Defer: load_current_preset() always calls reload_config() after update(); syncing here too
+    // races with ParamsPanel rebuild and leaves Field::window dangling mid-set_value.
+    if (interval_changed)
+        wxTheApp->CallAfter([this]() {
+            if (!wxGetApp().checked_tab(this))
+                return;
+            if (wxGetApp().get_ui_printer_technology() == ptFFF)
+                return;
+            reload_config();
+        });
 
     update_description_lines();
     //BBS: GUI refactor

@@ -83,6 +83,8 @@ public:
     // SLA print
     void    update_print_sla_config(DynamicPrintConfig* config, const bool is_global_config = false);
     void    toggle_print_sla_options(DynamicPrintConfig* config);
+    /// Primary retract distance = lift (1st+2nd) − retract 2nd; clamp to lift sum if ≤0 (matches Phrozen PRZ).
+    static void sync_sla_retract_primary_distances(DynamicPrintConfig* config);
 
     bool    is_initialized_support_material_overhangs_queried() { return m_is_initialized_support_material_overhangs_queried; }
     void    initialize_support_material_overhangs_queried(bool queried)

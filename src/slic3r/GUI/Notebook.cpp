@@ -154,29 +154,39 @@ void ButtonsListCtrl::SetSelection(int sel)
         return;
     // BBS: change button color
     wxColour selected_btn_bg("#FF7C3F");    // Gradient #FF7C3F
-    if (m_selection >= 0) {
-        StateColor bg_color = StateColor(
-        std::pair{wxColour(107, 107, 107), (int) StateColor::Hovered},
-        std::pair{wxColour(59, 68, 70), (int) StateColor::Normal});
-        m_pageButtons[m_selection]->SetBackgroundColor(bg_color);
-        StateColor text_color = StateColor(
-        std::pair{wxColour(254,254, 254), (int) StateColor::Normal}
-        );
-        m_pageButtons[m_selection]->SetSelected(false);
-        m_pageButtons[m_selection]->SetTextColor(text_color);
+    if (m_selection >= 0 && m_selection < (int)m_pageButtons.size()) {
+        Button *prev = m_pageButtons[m_selection];
+        if (prev && !prev->IsBeingDeleted()) {
+            StateColor bg_color = StateColor(
+            std::pair{wxColour(107, 107, 107), (int) StateColor::Hovered},
+            std::pair{wxColour(59, 68, 70), (int) StateColor::Normal});
+            prev->SetBackgroundColor(bg_color);
+            StateColor text_color = StateColor(
+            std::pair{wxColour(254,254, 254), (int) StateColor::Normal}
+            );
+            prev->SetSelected(false);
+            prev->SetTextColor(text_color);
+        }
     }
     m_selection = sel;
+
+    if (m_selection < 0 || m_selection >= (int)m_pageButtons.size())
+        return;
+
+    Button *cur = m_pageButtons[m_selection];
+    if (!cur || cur->IsBeingDeleted())
+        return;
 
     StateColor bg_color = StateColor(
         std::pair{wxColour(255, 124, 63), (int) StateColor::Hovered},
         std::pair{wxColour(255, 124, 63), (int) StateColor::Normal});
-    m_pageButtons[m_selection]->SetBackgroundColor(bg_color);
+    cur->SetBackgroundColor(bg_color);
 
     StateColor text_color = StateColor(
         std::pair{wxColour(254, 254, 254), (int) StateColor::Normal}
         );
-    m_pageButtons[m_selection]->SetSelected(true);
-    m_pageButtons[m_selection]->SetTextColor(text_color);
+    cur->SetSelected(true);
+    cur->SetTextColor(text_color);
     
     Refresh();
 }
@@ -221,6 +231,15 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
 
 void ButtonsListCtrl::RemovePage(size_t n)
 {
+    // Keep m_selection in sync before erasing: DoRemovePage calls this before
+    // DoSetSelectionAfterRemoval -> SetSelection, which still reads m_selection first.
+    if (m_selection >= 0) {
+        if (m_selection == (int)n)
+            m_selection = -1;
+        else if (m_selection > (int)n)
+            --m_selection;
+    }
+
     Button* btn = m_pageButtons[n];
     m_pageButtons.erase(m_pageButtons.begin() + n);
     m_buttons_sizer->Remove(n);

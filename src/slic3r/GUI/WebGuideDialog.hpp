@@ -47,7 +47,9 @@ public:
         BBL_FILAMENTS,
         BBL_FILAMENT_ONLY,
         BBL_MODELS_ONLY,
-        BBL_PHROZEN_LCD
+        BBL_PHROZEN_LCD,
+        BBL_LCD_RESIN_ONLY,
+        BBL_LCD_PRINTER_ONLY ///< web/guide/LCD_printer — 樹脂選機（捷徑入口）
     }m_page;
 
     //Web Function

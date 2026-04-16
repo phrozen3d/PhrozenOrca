@@ -928,7 +928,6 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "bottom_exposure_time",
     "transition_layer_count",
     "transition_type",
-    "transition_layer_interval_time_difference",
     "waiting_mode_during_printing",
     "rest_time_before_lift",
     "rest_time_after_lift",
@@ -936,9 +935,13 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "light_off_day",
     "bottom_light_off_day",
     "bottom_lift_distance",
+    "bottom_lift_second_distance",
     "lifting_distance",
+    "lift_second_distance",
     "bottom_retract_distance",
+    "bottom_retract_second_distance",
     "retract_distance",
+    "retract_second_distance",
     "bottom_lift_speed",
     "bottom_lift_second_speed",
     "lifting_speed",
@@ -2411,11 +2414,12 @@ void PresetCollection::save_current_preset(const std::string &new_name, bool det
         } else if (is_base_preset(preset)) {
             inherits = old_name;
         }
-        // Orca: check if compatible_printers exists and is not empty, set it to the current printer if it is empty
-        if (nullptr != _current_printer && preset.is_system && m_type == Preset::TYPE_FILAMENT) {
+        // Ensure machine-scoped presets keep printer compatibility binding.
+        if (nullptr != _current_printer && (m_type == Preset::TYPE_FILAMENT || m_type == Preset::TYPE_SLA_PRINT)) {
             ConfigOptionStrings* compatible_printers = preset.config.option<ConfigOptionStrings>("compatible_printers");
-            if (compatible_printers && compatible_printers->values.empty()) {
-                compatible_printers->values.push_back(_current_printer->name);
+            if (compatible_printers && (m_type == Preset::TYPE_SLA_PRINT || compatible_printers->values.empty())) {
+                // SLA print user presets should always follow the currently selected printer.
+                compatible_printers->values.assign(1, _current_printer->name);
             }
         }
 
@@ -2967,7 +2971,7 @@ bool PresetCollection::select_preset_by_name_strict(const std::string &name)
         BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": %1%, select %2%, success")%Preset::get_type_string(m_type) %name;
         return true;
     }
-    m_idx_selected = idx;
+    // Never assign m_idx_selected = (size_t)-1; that corrupts the collection and crashes UI code.
     //BBS: add config related logs
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": %1%, select %2%, failed")%Preset::get_type_string(m_type) %name;
     return false;

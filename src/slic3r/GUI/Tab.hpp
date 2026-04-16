@@ -663,10 +663,12 @@ public:
 
     void		build() override;
 	void		reload_config() override;
-	void		update_description_lines() override;
-	void		toggle_options() override;
+    void		update_description_lines() override;
+    void		toggle_options() override;
     void		update() override;
 	void		clear_pages() override;
+    void		init_options_list() override;
+    void        on_value_change(const std::string& opt_key, const boost::any& value) override;
 	bool 		supports_printer_technology(const PrinterTechnology tech) const override { return tech == ptSLA; }
 };
 

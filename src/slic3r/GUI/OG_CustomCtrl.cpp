@@ -7,6 +7,7 @@
 #include "libslic3r/AppConfig.hpp"
 
 #include <wx/utils.h>
+#include <wx/dcclient.h>
 #include <boost/algorithm/string/split.hpp>
 #include "libslic3r/Utils.hpp"
 #include "I18N.hpp"
@@ -14,6 +15,29 @@
 #include <slic3r/GUI/Widgets/Label.hpp>
 
 namespace Slic3r { namespace GUI {
+
+namespace {
+
+static int line_main_label_width_em(const Line& line, const OptionsGroup* og)
+{
+    return line.label_width_em >= 0 ? line.label_width_em : int(og->label_width);
+}
+
+// Band between two input fields for Option::side_widget: total width and "+" glyph width (centered in band).
+static wxCoord mid_slot_for_plus_between_fields(wxDC& dc, const wxFont& font, int em_unit, wxCoord* out_tw /* = nullptr */)
+{
+    wxFont old = dc.GetFont();
+    dc.SetFont(font);
+    const wxCoord tw = dc.GetTextExtent(" +").x;
+    dc.SetFont(old);
+    // Keep no extra horizontal padding to avoid visible blank after '+'.
+    const wxCoord pad_each = 0;
+    if (out_tw)
+        *out_tw = tw;
+    return tw + 2 * pad_each;
+}
+
+} // namespace
 
  // BBS: modify param ui style
     constexpr int titleWidth = 20;
@@ -100,18 +124,25 @@ void OG_CustomCtrl::init_ctrl_lines()
         }
         else if (opt_group->label_width != 0 && (!line.label.IsEmpty() || option_set.front().opt.gui_type == ConfigOptionDef::GUIType::legend) )
         {
+            const int lw_em = line_main_label_width_em(line, opt_group);
             wxSize label_sz = GetTextExtent(line.label);
             if (opt_group->split_multi_line) {
                 if (option_set.size() > 1) // BBS
                     height = (label_sz.y + m_v_gap2) * option_set.size() + m_v_gap - m_v_gap2;
                 else
-                    height = label_sz.y * (label_sz.GetWidth() > int(opt_group->label_width * m_em_unit) ? 2 : 1) + m_v_gap;
+                    height = label_sz.y * (label_sz.GetWidth() > int(lw_em * m_em_unit) ? 2 : 1) + m_v_gap;
             } else {
-                height = label_sz.y * (label_sz.GetWidth() > int(opt_group->label_width * m_em_unit) ? 2 : 1) + m_v_gap;
+                height = label_sz.y * (label_sz.GetWidth() > int(lw_em * m_em_unit) ? 2 : 1) + m_v_gap;
             }
             // Grayscale range: parameter title above gradient bar (design: 參數標題在上、漸層條在下)
             if (option_set.size() == 1 && option_set.front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range)
                 height += m_v_gap + 85; // label row + gap + gradient bar + inputs + extra margin to avoid overlap with next line
+            // Tall near_label (e.g. SLA tolerance diagram): reserve full height so the next option row is not covered.
+            if (line.near_label_widget && line.near_label_expand_row_height) {
+                const wxCoord near_h = FromDIP(46);
+                if (height < near_h + m_v_gap)
+                    height = near_h + m_v_gap;
+            }
             ctrl_lines.emplace_back(CtrlLine(height, this, line, false, opt_group->staticbox));
         }
         else
@@ -184,6 +215,10 @@ wxPoint OG_CustomCtrl::get_pos(const Line& line, Field* field_in/* = nullptr*/)
             // h_pos = m_bmp_mode_sz.GetWidth() + m_h_gap;
             if (line.near_label_widget_win) {
                 wxSize near_label_widget_sz = line.near_label_widget_win->GetSize();
+                if (near_label_widget_sz.GetWidth() <= 0)
+                    near_label_widget_sz = line.near_label_widget_win->GetMinSize();
+                if (near_label_widget_sz.GetWidth() <= 0)
+                    near_label_widget_sz = line.near_label_widget_win->GetBestSize();
                 if (field_in)
                     h_pos += near_label_widget_sz.GetWidth() + m_h_gap;
                 else
@@ -192,7 +227,7 @@ wxPoint OG_CustomCtrl::get_pos(const Line& line, Field* field_in/* = nullptr*/)
 
             wxString label = line.label;
             if (opt_group->label_width != 0)
-                add_label_width(ctrl_line, label, opt_group->label_width * m_em_unit);
+                add_label_width(ctrl_line, label, line_main_label_width_em(line, opt_group) * m_em_unit);
 
             int blinking_button_width = m_bmp_blinking_sz.GetWidth() + m_h_gap;
 
@@ -224,7 +259,8 @@ wxPoint OG_CustomCtrl::get_pos(const Line& line, Field* field_in/* = nullptr*/)
             }
 
             bool is_multioption_line = option_set.size() > 1;
-            for (auto opt : option_set) {
+            for (size_t opt_idx = 0; opt_idx < option_set.size(); ++opt_idx) {
+                const Option& opt = option_set[opt_idx];
                 Field* field = opt_group->get_field(opt.opt_id);
                 correct_line_height(ctrl_line.height, field->getWindow());
 
@@ -260,8 +296,18 @@ wxPoint OG_CustomCtrl::get_pos(const Line& line, Field* field_in/* = nullptr*/)
                     if (!field->combine_side_text() && (!opt.opt.sidetext.empty() || opt_group->sidetext_width > 0))
                         h_pos += opt_group->sidetext_width * m_em_unit + m_h_gap;
 
-                    if (opt.opt_id != option_set.back().opt_id) //! istead of (opt != option_set.back())
-                        h_pos += lround(0.6 * m_em_unit);
+                    // Between dual fields (Option::side_widget), e.g. primary + second speed — must match CtrlLine::render
+                    if (opt.side_widget != nullptr) {
+                        wxClientDC dc(this);
+                        h_pos += mid_slot_for_plus_between_fields(dc, m_font, m_em_unit, nullptr);
+                    }
+
+                    if (opt.opt_id != option_set.back().opt_id) { //! istead of (opt != option_set.back())
+                        // For dual-field rows that render a centered '+' via side_widget,
+                        // do not add the generic inter-option spacer again.
+                        if (opt.side_widget == nullptr)
+                            h_pos += lround(0.6 * m_em_unit);
+                    }
                 }
             }
             break;
@@ -708,15 +754,21 @@ void OG_CustomCtrl::CtrlLine::msw_rescale()
         height = get_bitmap_size(create_scaled_bitmap("empty")).GetHeight();
 
     if (ctrl->opt_group->label_width != 0 && !og_line.label.IsEmpty()) {
+        const int lw_em = line_main_label_width_em(og_line, ctrl->opt_group);
         wxSize label_sz = ctrl->GetTextExtent(og_line.label);
         if (ctrl->opt_group->split_multi_line) { // BBS
             const std::vector<Option> &option_set = og_line.get_options();
             if (option_set.size() > 1)
                 height = (label_sz.y + ctrl->m_v_gap2) * option_set.size() + ctrl->m_v_gap - ctrl->m_v_gap2;
             else
-                height = label_sz.y * (label_sz.GetWidth() > int(ctrl->opt_group->label_width * ctrl->m_em_unit) ? 2 : 1) + ctrl->m_v_gap;
+                height = label_sz.y * (label_sz.GetWidth() > int(lw_em * ctrl->m_em_unit) ? 2 : 1) + ctrl->m_v_gap;
         } else {
-            height = label_sz.y * (label_sz.GetWidth() > int(ctrl->opt_group->label_width * ctrl->m_em_unit) ? 2 : 1) + ctrl->m_v_gap;
+            height = label_sz.y * (label_sz.GetWidth() > int(lw_em * ctrl->m_em_unit) ? 2 : 1) + ctrl->m_v_gap;
+        }
+        if (og_line.near_label_widget && og_line.near_label_expand_row_height) {
+            const wxCoord near_h = ctrl->FromDIP(20);
+            if (height < near_h + ctrl->m_v_gap)
+                height = near_h + ctrl->m_v_gap;
         }
     }
 
@@ -795,8 +847,14 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
         return;
     }
 
-    if (og_line.near_label_widget_win)
-        h_pos += og_line.near_label_widget_win->GetSize().x + ctrl->m_h_gap;
+    if (og_line.near_label_widget_win) {
+        wxSize near_label_widget_sz = og_line.near_label_widget_win->GetSize();
+        if (near_label_widget_sz.GetWidth() <= 0)
+            near_label_widget_sz = og_line.near_label_widget_win->GetMinSize();
+        if (near_label_widget_sz.GetWidth() <= 0)
+            near_label_widget_sz = og_line.near_label_widget_win->GetBestSize();
+        h_pos += near_label_widget_sz.GetWidth() + ctrl->m_h_gap;
+    }
 
     const std::vector<Option>& option_set = og_line.get_options();
 
@@ -804,6 +862,7 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
     wxColour blink_color = StateColor::darkModeColorFor("#FF7C3F");
     bool is_url_string = false;
     if (ctrl->opt_group->label_width != 0 && !label.IsEmpty()) {
+        const int lw_em = line_main_label_width_em(og_line, ctrl->opt_group);
         const wxColour* text_clr = field ? field->label_color() : og_line.label_color();
         for (const Option& opt : option_set) {
             Field* field = ctrl->opt_group->get_field(opt.opt_id);
@@ -814,7 +873,7 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
         }
         is_url_string = !suppress_hyperlinks && !og_line.label_path.empty();
         bool label_above = (option_set.size() == 1 && option_set.front().opt.gui_type == ConfigOptionDef::GUIType::grayscale_range);
-        h_pos = draw_text(dc, wxPoint(h_pos, v_pos), label /* + ":" */, text_clr, ctrl->opt_group->label_width * ctrl->m_em_unit, is_url_string, true, label_above);
+        h_pos = draw_text(dc, wxPoint(h_pos, v_pos), label /* + ":" */, text_clr, lw_em * ctrl->m_em_unit, is_url_string, true, label_above);
     }
 
     // If there's a widget, build it and set result to the correct position.
@@ -917,6 +976,16 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
             h_pos = draw_text(dc, wxPoint(h_pos, v_pos), _(option.sidetext), nullptr, ctrl->opt_group->sidetext_width * ctrl->m_em_unit);
             offset = h_pos - h_pos2;
         }
+        // Option::side_widget (custom sizer in non-custom_ctrl mode) — OG_CustomCtrl paints "+" centered in band between fields
+        if (opt.side_widget != nullptr) {
+            wxCoord tw = 0;
+            const wxCoord mid_total = mid_slot_for_plus_between_fields(dc, ctrl->m_font, ctrl->m_em_unit, &tw);
+            const wxCoord h_band_start = h_pos;
+            const wxCoord plus_x = h_band_start + (mid_total - tw) / 2;
+            wxColour plus_clr(134, 134, 134, 255);
+            draw_text(dc, wxPoint(plus_x + 10, v_pos), "+", &plus_clr, -1, false, false, false);
+            h_pos = h_band_start + mid_total;
+        }
         // BBS: new layout
         if (!ctrl->opt_group->option_label_at_right) {
             offset -= ctrl->m_h_gap; h_pos -= offset;
@@ -924,8 +993,12 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
             h_pos += offset;
         }
 
-        if (opt.opt_id != option_set.back().opt_id) //! istead of (opt != option_set.back())
-            h_pos += lround(0.6 * ctrl->m_em_unit);
+        if (opt.opt_id != option_set.back().opt_id) { //! istead of (opt != option_set.back())
+            // Keep '+' centered between fields: skip the extra generic spacer
+            // when this option already contributes a side_widget gap.
+            if (opt.side_widget == nullptr)
+                h_pos += lround(0.6 * ctrl->m_em_unit);
+        }
 
         if (ctrl->opt_group->split_multi_line) { // BBS
             v_pos += (height - ctrl->m_v_gap + ctrl->m_v_gap2) / option_set.size();

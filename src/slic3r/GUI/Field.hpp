@@ -44,6 +44,28 @@ wxString double_to_string(double const value, const int max_precision = 4);
 wxString get_thumbnail_string(const Vec2d& value);
 wxString get_thumbnails_string(const std::vector<Vec2d>& values);
 
+// Non-null wxWindow* must look like userspace (rejects 0xFF..FF and similar trash in Field::window during fast UI rebuild).
+inline bool wxwindow_nonnull_ptr_plausible(const wxWindow* w)
+{
+	const uintptr_t p = reinterpret_cast<uintptr_t>(w);
+	if (p < 0x10000)
+		return false;
+	if (p == (uintptr_t)-1 || p == (uintptr_t)-2 || p == (uintptr_t)-8)
+		return false;
+#if defined(_WIN64)
+	if (p > 0x00007FFFFFFFFFFFULL)
+		return false;
+#elif defined(_WIN32)
+	if (p > uintptr_t(0x7FFFFFFE))
+		return false;
+#endif
+	return true;
+}
+
+// Before touching a wx control during fast UI rebuild (FDM<->SLA). Uses address plausibility only:
+// IsBeingDeleted() can fault on freed wxWindow* and /EHsc does not reliably catch that inside the same TU.
+bool wxwindow_safe_for_field_ops(const wxWindow* w);
+
 class UndoValueUIManager
 {
     struct UndoValueUI {
@@ -382,22 +404,15 @@ public:
     /// Propagate value from field to the OptionGroupe and Config after kill_focus/ENTER
     void	        propagate_value() ;
 
-    void			set_value(const std::string& value, bool change_event = false) {
-		m_disable_change_event = !change_event;
-		dynamic_cast<SpinInput*>(window)->SetValue(value);
-		m_disable_change_event = false;
-    }
+    void			set_value(const std::string& value, bool change_event = false);
 	void			set_value(const boost::any& value, bool change_event = false) override;
 
-	boost::any&		get_value() override {
-		int value = static_cast<SpinInput*>(window)->GetValue();
-		return m_value = value;
-	}
+	boost::any&		get_value() override;
 
     void            msw_rescale() override;
 
-	void			enable() override { dynamic_cast<SpinInput*>(window)->Enable(); }
-	void			disable() override { dynamic_cast<SpinInput*>(window)->Disable(); }
+	void			enable() override;
+	void			disable() override;
 	wxWindow*		getWindow() override { return window; }
 };
 
