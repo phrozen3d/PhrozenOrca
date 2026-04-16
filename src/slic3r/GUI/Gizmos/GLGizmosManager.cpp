@@ -431,6 +431,40 @@ void GLGizmosManager::update_data()
         m_common_gizmos_data->update(get_current()
                                    ? get_current()->get_requirements()
                                    : CommonGizmosDataID(0));
+
+    // Gizmo slider mode: detect gizmo enter / exit and notify GLCanvas3D.
+    // On enter → switch right-side slider to object-bbox range + reset to default.
+    // On exit  → restore prepare-mode slider state.
+    if (m_common_gizmos_data && m_parent.get_printer_technology() == ptSLA) {
+        auto* oc       = m_common_gizmos_data->object_clipper();
+        bool  oc_valid = (oc != nullptr);
+        bool  just_entered = ( oc_valid && !m_oc_was_valid_last_frame);
+        bool  just_left    = (!oc_valid &&  m_oc_was_valid_last_frame);
+        m_oc_was_valid_last_frame = oc_valid;
+
+        if (just_entered) {
+            // Compute selected object's world-space Z extents (including SLA shift).
+            double obj_z_min = 0.0;
+            double obj_z_max = m_parent.get_prepare_scene_max_z();
+            auto* si = m_common_gizmos_data->selection_info();
+            if (si && si->model_object()) {
+                const double z_shift = si->get_sla_shift();
+                const BoundingBoxf3 bb =
+                    si->model_object()->instance_bounding_box(si->get_active_instance());
+                obj_z_min = bb.min.z() + z_shift;
+                obj_z_max = bb.max.z() + z_shift;
+            }
+            // Switch slider to gizmo mode and initialise ObjectClipper at top (no clipping).
+            m_parent.enter_gizmo_slider_mode(obj_z_min, obj_z_max);
+            oc->set_position_by_ratio(0.0, false);
+        }
+
+        if (just_left) {
+            // Restore prepare-mode slider.
+            m_parent.exit_gizmo_slider_mode();
+        }
+    }
+
     if (m_current != Undefined) m_gizmos[m_current]->data_changed(m_serializing);
 
     // Orca: hack: Fix issue that flatten gizmo faces not updated after reload from disk

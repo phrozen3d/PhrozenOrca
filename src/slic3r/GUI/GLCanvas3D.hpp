@@ -545,6 +545,16 @@ private:
     // Stage 1.5: DrawList slider drag state
     bool m_prepare_dragging_high = false; // true while user drags the High handle
     bool m_prepare_dragging_low  = false; // true while user drags the Low handle
+    // Stage 2: ObjectClipper sync re-entrancy guard
+    bool m_syncing_clipper = false;
+    // Gizmo slider mode: right-side slider controls ObjectClipper directly
+    bool   m_slider_in_gizmo_mode = false;  // true while SLA gizmo (Hollow/Drill/Supports) is active
+    double m_gizmo_obj_z_min      = 0.0;    // selected object bbox z_min in world coords
+    double m_gizmo_obj_z_max      = 50.0;   // selected object bbox z_max in world coords
+    double m_gizmo_clip_ratio     = 0.0;    // 0 = top (no clip), 1 = bottom (full clip)
+    // Saved prepare-mode slider state – restored when gizmo exits
+    double m_saved_clip_z_low     = 0.0;
+    double m_saved_clip_z_high    = -1.0;   // -1 = never saved
     std::string m_sidebar_field;
     // when true renders an extra frame by not resetting m_dirty to false
     // see request_extra_frame()
@@ -812,6 +822,13 @@ public:
     bool                                get_use_clipping_planes() const { return m_use_clipping_planes; }
     const std::array<ClippingPlane, 2> &get_clipping_planes() const { return m_clipping_planes; };
     double get_prepare_scene_max_z() const { return m_prepare_scene_max_z; }
+    double get_prepare_clip_z_high()  const { return m_prepare_clip_z_high; }
+    // Public wrapper used by GLGizmosManager for prepare-clip ObjectClipper sync
+    PrinterTechnology get_printer_technology() const { return current_printer_technology(); }
+    // Gizmo slider mode API – called by GLGizmosManager on gizmo enter/exit
+    void enter_gizmo_slider_mode(double obj_z_min, double obj_z_max);
+    void exit_gizmo_slider_mode();
+    bool get_slider_in_gizmo_mode() const { return m_slider_in_gizmo_mode; }
 
     void set_use_color_clip_plane(bool use) { m_volumes.set_use_color_clip_plane(use); }
     void set_color_clip_plane(const Vec3d& cp_normal, double offset) { m_volumes.set_color_clip_plane(cp_normal, offset); }

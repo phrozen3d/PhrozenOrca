@@ -225,11 +225,11 @@
 
 ### 2.1 新增同步 flag（GLCanvas3D）
 
-- [ ] 在 `GLCanvas3D.hpp` 新增 `bool m_syncing_clipper = false`
+- [x] 在 `GLCanvas3D.hpp` 新增 `bool m_syncing_clipper = false`
 
 ### 2.2 在 `_on_prepare_clip_changed` 中加入 ObjectClipper 同步
 
-- [ ] 在 `_on_prepare_clip_changed()` 末端加入：
+- [x] 在 `_on_prepare_clip_changed()` 末端加入：
   ```cpp
   if (!m_syncing_clipper) {
       m_syncing_clipper = true;
@@ -246,7 +246,49 @@
       m_syncing_clipper = false;
   }
   ```
-- [ ] 確認 `m_gizmos.get_common_gizmos_data()` 的 null 安全性（無物件選取時可能為 nullptr）
+- [x] 確認 `m_gizmos.m_common_gizmos_data.get()` 的 null 安全性（無物件選取時可能為 nullptr）
+
+---
+
+---
+
+## Stage 2.x：Gizmo Slider Mode（設計變更補充）
+
+> **背景**：Stage 2 原始設計為「prepare slider 驅動 ObjectClipper」。
+> 實作後發現兩套系統（prepare 全域截面 vs gizmo ObjectClipper）難以保持一致，
+> 改採「進入 gizmo 時，右側 slider 切換為 gizmo 專用模式」的設計。
+
+### 2.x.1 GLCanvas3D：Gizmo Slider Mode 狀態與方法
+
+- [x] `GLCanvas3D.hpp` 新增成員：
+  - `m_slider_in_gizmo_mode` — 是否處於 gizmo mode
+  - `m_gizmo_obj_z_min / z_max` — 被選物件的 bbox Z 範圍（world coords）
+  - `m_gizmo_clip_ratio` — 單一 handle 位置（0=頂端不裁切，1=底端全裁切）
+  - `m_saved_clip_z_low / z_high` — 儲存 prepare mode 的兩個 handle 位置（離開 gizmo 時還原）
+- [x] 新增 `enter_gizmo_slider_mode(obj_z_min, obj_z_max)`：儲存 prepare 狀態、設定 gizmo 模式、停用全域 clipping planes
+- [x] 新增 `exit_gizmo_slider_mode()`：還原 prepare 狀態（呼叫 `_on_prepare_clip_changed`）
+
+### 2.x.2 GLCanvas3D：`_render_prepare_clip_slider()` 雙模式
+
+- [x] 新增 `m_slider_in_gizmo_mode` 分支：
+  - **Gizmo mode**：單一 handle、物件 bbox Z 範圍、拖動時呼叫 `set_position_by_ratio(ratio, true)`
+  - **Prepare mode**：原有雙 handle 行為不變
+- [x] Label 在 gizmo mode 顯示 `obj_z_max - ratio × (obj_z_max - obj_z_min)` mm 值
+
+### 2.x.3 GLGizmosManager：Just-entered / Just-left 偵測
+
+- [x] `GLGizmosManager.hpp` 新增 `m_oc_was_valid_last_frame`
+- [x] `GLGizmosManager.cpp` `update_data()` 新增：
+  - `just_entered`：呼叫 `enter_gizmo_slider_mode(obj_z_min, obj_z_max)` + 初始化 ObjectClipper ratio=0
+  - `just_left`：呼叫 `exit_gizmo_slider_mode()`
+  - obj bbox 來源：`selection_info()->model_object()->instance_bounding_box(active_inst)` + z_shift
+
+### 2.x.4 ObjectClipper：修正 set_position_by_ratio 的 radius 計算
+
+- [x] `GLGizmosCommon.cpp`：在 `set_position_by_ratio` 中，
+  **改用被選物件 Z 高度的一半**（`z_half_h`）取代 3D 包圍球半徑（`m_active_inst_bb_radius`）
+- [x] 同時將 `dist` 改為 Z 中心值（`z_center`），確保平面掃描範圍對齊 bbox Z 範圍
+- [x] `GLGizmosCommon.hpp`：對應函式 signature 改為 `vertical_normal=true` 作為預設
 
 ---
 
@@ -256,14 +298,12 @@
 - [ ] C2：全專案編譯通過
 
 **請手動測試：**
-- [ ] M2-1：SLA 物件 → slider top bar 拖到中間（z = 50% max Z）→ 進入 Hollow Gizmo
-  → 截面保持在 50%（gizmo 視覺與 ObjectClipper 一致）
-- [ ] M2-2：SLA 物件（已 Hollow）→ slider top bar 拖到中間 → 進入 Drill Gizmo
-  → 點擊截面暴露的**內壁** → 鑽孔成功放置
-- [ ] M2-3：SLA 物件 → slider top bar 拖到中間 → 進入 SLA Support Tree Gizmo
-  → 點擊截面暴露的內壁 → 支撐點成功放置
-- [ ] M2-4：slider 回到端點（全顯示）→ 進入 Drill Gizmo → 點擊外壁 → 正常放置
-- [ ] M2-5：FDM 物件 → 切片 → Preview 截面正常，無副作用
+- [ ] M2-1：SLA 物件 → 進入 Hollow Gizmo → 右側 slider 切換為單 handle，range 為物件 bbox Z 範圍
+- [ ] M2-2：Gizmo mode 中拖動 handle → 截面從頂部往下掃描，label 顯示正確 Z mm 值
+- [ ] M2-3：離開 Hollow Gizmo → 右側 slider 還原為雙 handle + prepare mode range
+- [ ] M2-4：prepare mode 中 top/bottom handle 位置在 gizmo 進出後保持不變
+- [ ] M2-5：SLA 物件（已 Hollow）→ gizmo mode 拖動 handle → 截面正確顯示內壁截面
+- [ ] M2-6：FDM 物件 → 切片 → Preview 截面正常，無副作用
 
 ---
 

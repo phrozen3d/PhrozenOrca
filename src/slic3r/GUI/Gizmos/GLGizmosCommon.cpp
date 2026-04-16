@@ -451,7 +451,14 @@ void ObjectClipper::set_position_by_ratio(double pos, bool keep_normal, bool ver
 
     m_clp_ratio = pos;
 
-    m_clp.reset(new ClippingPlane(normal, (dist - (-m_active_inst_bb_radius) - m_clp_ratio * 2 * m_active_inst_bb_radius)));
+    if ( vertical_normal ) {
+        auto m_radius_by_z = ( mo->max_z() - mo->min_z() ) * 0.5f;
+        m_clp.reset(new ClippingPlane(normal, (dist - (-m_radius_by_z) - m_clp_ratio * 2 * m_radius_by_z)));
+    }
+    else {
+        m_clp.reset(new ClippingPlane(normal, (dist - (-m_active_inst_bb_radius) - m_clp_ratio * 2 * m_active_inst_bb_radius)));
+    }
+    
 
     get_pool()->get_canvas()->set_as_dirty();
 }

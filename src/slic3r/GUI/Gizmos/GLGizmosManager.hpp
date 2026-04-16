@@ -176,6 +176,9 @@ public:
         IC_NAME_COUNT,
     };
 
+    // Stage 2: expose common data pool for prepare-clip ObjectClipper sync
+    CommonGizmosDataPool* get_common_gizmos_data() const { return m_common_gizmos_data.get(); }
+
     explicit GLGizmosManager(GLCanvas3D& parent);
 
     void switch_gizmos_icon_filename();
@@ -308,6 +311,9 @@ public:
     bool get_uniform_scaling() const { return m_object_manipulation.get_uniform_scaling();}
 
 private:
+    // Stage 2: track ObjectClipper validity across frames to detect gizmo-enter moment
+    bool m_oc_was_valid_last_frame = false;
+
     bool gizmo_event(SLAGizmoEventType action,
                      const Vec2d &     mouse_position = Vec2d::Zero(),
                      bool              shift_down     = false,

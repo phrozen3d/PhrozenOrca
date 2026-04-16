@@ -8958,6 +8958,56 @@ void GLCanvas3D::_on_prepare_clip_changed(double z_low, double z_high)
     }
 
     set_as_dirty();
+
+    // Stage 2: Sync ObjectClipper when prepare-mode slider moves (not in gizmo mode).
+    // In gizmo mode the slider drives ObjectClipper directly; no sync needed here.
+    if (!m_syncing_clipper && m_use_clipping_planes && !m_slider_in_gizmo_mode) {
+        m_syncing_clipper = true;
+        auto* pool = m_gizmos.get_common_gizmos_data();
+        if (pool) {
+            auto* oc = pool->object_clipper();
+            if (oc) {
+                const double rough_ratio = std::clamp(
+                    1.0 - z_high / m_prepare_scene_max_z, 0.0, 1.0);
+                oc->set_range_and_pos(Vec3d(0., 0., -1.), z_high, rough_ratio);
+            }
+        }
+        m_syncing_clipper = false;
+    }
+}
+
+void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
+{
+    if (m_slider_in_gizmo_mode)
+        return;
+
+    // Save current prepare-mode slider positions for restore on exit.
+    m_saved_clip_z_low  = m_prepare_clip_z_low;
+    m_saved_clip_z_high = m_prepare_clip_z_high;
+
+    m_slider_in_gizmo_mode = true;
+    m_gizmo_obj_z_min      = obj_z_min;
+    m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
+    m_gizmo_clip_ratio     = 0.0;  // default: handle at top = no clipping
+
+    // Disable global prepare clipping planes while gizmo manages its own cross-section.
+    m_use_clipping_planes = false;
+    set_as_dirty();
+}
+
+void GLCanvas3D::exit_gizmo_slider_mode()
+{
+    if (!m_slider_in_gizmo_mode)
+        return;
+
+    m_slider_in_gizmo_mode = false;
+
+    // Restore prepare-mode slider state.
+    const double restore_high = (m_saved_clip_z_high < 0.0)
+                                ? m_prepare_scene_max_z
+                                : m_saved_clip_z_high;
+    _on_prepare_clip_changed(m_saved_clip_z_low, restore_high);
+    set_as_dirty();
 }
 
 void GLCanvas3D::_render_prepare_clip_slider()
@@ -9013,21 +9063,9 @@ void GLCanvas3D::_render_prepare_clip_slider()
     const ImU32 COL_LABEL_BG    = IM_COL32(255, 255, 255, 235); // white badge background
     const ImU32 COL_LABEL       = IM_COL32(  0,   0,   0, 220); // black text
 
-    // Z ↔ screen-Y mapping (Z=0 → bottom, Z=max → top)
-    const double max_z = m_prepare_scene_max_z;
-    auto z_to_y = [&](double z) -> float {
-        float t = (max_z > 0.0) ? (float)std::clamp(z / max_z, 0.0, 1.0) : 0.f;
-        return track_y1 - t * track_len;
-    };
-    auto y_to_z = [&](float y) -> double {
-        float t = (track_len > 0.f) ? std::clamp((track_y1 - y) / track_len, 0.f, 1.f) : 0.f;
-        return (double)t * max_z;
-    };
-
-    const float y_hi      = z_to_y(m_prepare_clip_z_high);
-    const float y_lo      = z_to_y(m_prepare_clip_z_low);
     const float handle_rs = HANDLE_R * sc;
     const float hit_r     = handle_rs + 4.f * sc;
+    constexpr float PAD_X = 4.f, PAD_Y = 2.f;   // badge padding (unscaled)
 
     // ---- ImGui window (transparent – provides DrawList clip rect + mouse capture) ----
     ImGui::SetNextWindowPos (ImVec2(win_l, panel_y), ImGuiCond_Always);
@@ -9040,7 +9078,7 @@ void GLCanvas3D::_render_prepare_clip_slider()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
     ImGui::Begin("##prepare_clip_slider", nullptr, win_flags);
 
-    // ---- Mouse interaction ----
+    // ---- Common mouse state ----
     ImVec2 mouse    = ImGui::GetIO().MousePos;
     bool   lmb_down = ImGui::IsMouseDown(ImGuiMouseButton_Left);
 
@@ -9048,88 +9086,174 @@ void GLCanvas3D::_render_prepare_clip_slider()
         float dx = a.x - b.x, dy = a.y - b.y;
         return dx * dx + dy * dy;
     };
-    bool near_hi = dist2(mouse, {track_x, y_hi}) <= hit_r * hit_r;
-    bool near_lo = dist2(mouse, {track_x, y_lo}) <= hit_r * hit_r;
 
-    // Start drag on click
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-        if (near_hi) { m_prepare_dragging_high = true;  m_prepare_dragging_low  = false; }
-        else if (near_lo) { m_prepare_dragging_low = true; m_prepare_dragging_high = false; }
-    }
-    // Release drag
-    if (!lmb_down) {
-        m_prepare_dragging_high = false;
-        m_prepare_dragging_low  = false;
-    }
-    // Apply drag (update clipping planes)
-    if (m_prepare_dragging_high && lmb_down) {
-        double nz = std::clamp(y_to_z(mouse.y), m_prepare_clip_z_low, max_z);
-        _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
-    }
-    if (m_prepare_dragging_low && lmb_down) {
-        double nz = std::clamp(y_to_z(mouse.y), 0.0, m_prepare_clip_z_high);
-        _on_prepare_clip_changed(nz, m_prepare_clip_z_high);
-    }
-
-    // Scroll wheel: fine-adjust High handle (0.1 mm per notch)
     bool over_panel = mouse.x >= win_l  && mouse.x <= panel_r
                    && mouse.y >= panel_y && mouse.y <= panel_b;
-    if (over_panel) {
-        float wheel = ImGui::GetIO().MouseWheel;
-        if (wheel != 0.f) {
-            double nz = std::clamp(m_prepare_clip_z_high + (double)wheel * 0.1,
-                                   m_prepare_clip_z_low, max_z);
-            _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
-        }
-    }
 
     // ---- Drawing ----
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    // Background panel (dark, rounded)
-    dl->AddRectFilled({panel_l, panel_y}, {panel_r, panel_b}, COL_BG, 6.f * sc);
-
-    // Full track
+    // Background panel (dark, rounded) — shared between both modes
     float tw = TRACK_W * sc * 0.5f;
-    dl->AddRectFilled({track_x - tw, track_y0}, {track_x + tw, track_y1},
-                      COL_TRACK, 2.f * sc);
+    dl->AddRectFilled({panel_l, panel_y}, {panel_r, panel_b}, COL_BG, 6.f * sc);
+    dl->AddRectFilled({track_x - tw, track_y0}, {track_x + tw, track_y1}, COL_TRACK, 2.f * sc);
 
-    // Highlighted range between High and Low handles
-    if (y_hi < y_lo - 1.f)
-        dl->AddRectFilled({track_x - tw, y_hi}, {track_x + tw, y_lo},
-                          COL_RANGE, 2.f * sc);
+    if (m_slider_in_gizmo_mode) {
+        // ================================================================
+        // GIZMO MODE: single handle, object bbox range, set_position_by_ratio
+        // ratio=0 → track_y0 (top, no clip)   ratio=1 → track_y1 (bottom, full clip)
+        // ================================================================
 
-    // High handle (top / lighter)
-    ImU32 col_hi = (near_hi || m_prepare_dragging_high) ? COL_HANDLE_HIOV : COL_HANDLE_HI;
-    dl->AddCircleFilled({track_x, y_hi}, handle_rs, col_hi, 16);
-    dl->AddCircle      ({track_x, y_hi}, handle_rs, COL_OUTLINE, 16, 1.5f);
+        auto ratio_to_y = [&](double r) -> float {
+            return track_y0 + (float)r * track_len;
+        };
+        auto y_to_ratio = [&](float y) -> double {
+            return (track_len > 0.f)
+                ? std::clamp((double)((y - track_y0) / track_len), 0.0, 1.0)
+                : 0.0;
+        };
 
-    // Low handle (bottom / darker)
-    ImU32 col_lo = (near_lo || m_prepare_dragging_low) ? COL_HANDLE_LOOV : COL_HANDLE_LO;
-    dl->AddCircleFilled({track_x, y_lo}, handle_rs, col_lo, 16);
-    dl->AddCircle      ({track_x, y_lo}, handle_rs, COL_OUTLINE, 16, 1.5f);
+        const float y_gizmo  = ratio_to_y(m_gizmo_clip_ratio);
+        bool near_gizmo = dist2(mouse, {track_x, y_gizmo}) <= hit_r * hit_r;
 
-    // Z-value labels (white badge, left of panel)
-    char buf_hi[24], buf_lo[24];
-    std::snprintf(buf_hi, sizeof(buf_hi), "%.1f mm", (float)m_prepare_clip_z_high);
-    std::snprintf(buf_lo, sizeof(buf_lo), "%.1f mm", (float)m_prepare_clip_z_low);
-    ImVec2 sz_hi = ImGui::CalcTextSize(buf_hi);
-    ImVec2 sz_lo = ImGui::CalcTextSize(buf_lo);
-    constexpr float PAD_X = 4.f, PAD_Y = 2.f;   // badge padding (unscaled)
-    float  lx_hi = panel_l - LABEL_GAP * sc - sz_hi.x - PAD_X * 2 * sc;
-    float  lx_lo = panel_l - LABEL_GAP * sc - sz_lo.x - PAD_X * 2 * sc;
-    float  ty_hi = y_hi - sz_hi.y * 0.5f;
-    float  ty_lo = y_lo - sz_lo.y * 0.5f;
-    // background rect
-    dl->AddRectFilled({lx_hi,            ty_hi - PAD_Y * sc},
-                      {lx_hi + sz_hi.x + PAD_X * 2 * sc, ty_hi + sz_hi.y + PAD_Y * sc},
-                      COL_LABEL_BG, 3.f * sc);
-    dl->AddRectFilled({lx_lo,            ty_lo - PAD_Y * sc},
-                      {lx_lo + sz_lo.x + PAD_X * 2 * sc, ty_lo + sz_lo.y + PAD_Y * sc},
-                      COL_LABEL_BG, 3.f * sc);
-    // text (offset by padding)
-    dl->AddText({lx_hi + PAD_X * sc, ty_hi}, COL_LABEL, buf_hi);
-    dl->AddText({lx_lo + PAD_X * sc, ty_lo}, COL_LABEL, buf_lo);
+        // Start / release drag
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && near_gizmo)
+            m_prepare_dragging_high = true;
+        if (!lmb_down)
+            m_prepare_dragging_high = false;
+
+        // Apply drag → set_position_by_ratio
+        if (m_prepare_dragging_high && lmb_down) {
+            double new_ratio = y_to_ratio(mouse.y);
+            if (new_ratio != m_gizmo_clip_ratio) {
+                m_gizmo_clip_ratio = new_ratio;
+                auto* pool = m_gizmos.get_common_gizmos_data();
+                if (pool) {
+                    auto* oc = pool->object_clipper();
+                    if (oc) oc->set_position_by_ratio(m_gizmo_clip_ratio, true);
+                }
+                set_as_dirty();
+            }
+        }
+
+        // Scroll wheel: fine-adjust (0.01 ratio per notch)
+        if (over_panel) {
+            float wheel = ImGui::GetIO().MouseWheel;
+            if (wheel != 0.f) {
+                m_gizmo_clip_ratio = std::clamp(m_gizmo_clip_ratio - (double)wheel * 0.01, 0.0, 1.0);
+                auto* pool = m_gizmos.get_common_gizmos_data();
+                if (pool) {
+                    auto* oc = pool->object_clipper();
+                    if (oc) oc->set_position_by_ratio(m_gizmo_clip_ratio, true);
+                }
+                set_as_dirty();
+            }
+        }
+
+        // Draw single handle
+        ImU32 col_h = (near_gizmo || m_prepare_dragging_high) ? COL_HANDLE_HIOV : COL_HANDLE_HI;
+        dl->AddCircleFilled({track_x, y_gizmo}, handle_rs, col_h, 16);
+        dl->AddCircle      ({track_x, y_gizmo}, handle_rs, COL_OUTLINE, 16, 1.5f);
+
+        // Label: Z position at current ratio
+        const double z_range = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
+        const double z_cur   = m_gizmo_obj_z_max - m_gizmo_clip_ratio * z_range;
+        char buf_g[24];
+        std::snprintf(buf_g, sizeof(buf_g), "%.1f mm", (float)z_cur);
+        ImVec2 sz_g = ImGui::CalcTextSize(buf_g);
+        float lx_g  = panel_l - LABEL_GAP * sc - sz_g.x - PAD_X * 2 * sc;
+        float ty_g  = y_gizmo - sz_g.y * 0.5f;
+        dl->AddRectFilled({lx_g,            ty_g - PAD_Y * sc},
+                          {lx_g + sz_g.x + PAD_X * 2 * sc, ty_g + sz_g.y + PAD_Y * sc},
+                          COL_LABEL_BG, 3.f * sc);
+        dl->AddText({lx_g + PAD_X * sc, ty_g}, COL_LABEL, buf_g);
+
+    } else {
+        // ================================================================
+        // PREPARE MODE: two handles, scene Z range, ClippingPlane
+        // ================================================================
+
+        // Z ↔ screen-Y mapping (Z=0 → bottom, Z=max → top)
+        const double max_z = m_prepare_scene_max_z;
+        auto z_to_y = [&](double z) -> float {
+            float t = (max_z > 0.0) ? (float)std::clamp(z / max_z, 0.0, 1.0) : 0.f;
+            return track_y1 - t * track_len;
+        };
+        auto y_to_z = [&](float y) -> double {
+            float t = (track_len > 0.f) ? std::clamp((track_y1 - y) / track_len, 0.f, 1.f) : 0.f;
+            return (double)t * max_z;
+        };
+
+        const float y_hi = z_to_y(m_prepare_clip_z_high);
+        const float y_lo = z_to_y(m_prepare_clip_z_low);
+
+        bool near_hi = dist2(mouse, {track_x, y_hi}) <= hit_r * hit_r;
+        bool near_lo = dist2(mouse, {track_x, y_lo}) <= hit_r * hit_r;
+
+        // Start drag on click
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            if (near_hi) { m_prepare_dragging_high = true;  m_prepare_dragging_low  = false; }
+            else if (near_lo) { m_prepare_dragging_low = true; m_prepare_dragging_high = false; }
+        }
+        // Release drag
+        if (!lmb_down) {
+            m_prepare_dragging_high = false;
+            m_prepare_dragging_low  = false;
+        }
+        // Apply drag
+        if (m_prepare_dragging_high && lmb_down) {
+            double nz = std::clamp(y_to_z(mouse.y), m_prepare_clip_z_low, max_z);
+            _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
+        }
+        if (m_prepare_dragging_low && lmb_down) {
+            double nz = std::clamp(y_to_z(mouse.y), 0.0, m_prepare_clip_z_high);
+            _on_prepare_clip_changed(nz, m_prepare_clip_z_high);
+        }
+
+        // Scroll wheel: fine-adjust High handle (0.1 mm per notch)
+        if (over_panel) {
+            float wheel = ImGui::GetIO().MouseWheel;
+            if (wheel != 0.f) {
+                double nz = std::clamp(m_prepare_clip_z_high + (double)wheel * 0.1,
+                                       m_prepare_clip_z_low, max_z);
+                _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
+            }
+        }
+
+        // Range highlight between two handles
+        if (y_hi < y_lo - 1.f)
+            dl->AddRectFilled({track_x - tw, y_hi}, {track_x + tw, y_lo},
+                              COL_RANGE, 2.f * sc);
+
+        // High handle (top / lighter)
+        ImU32 col_hi = (near_hi || m_prepare_dragging_high) ? COL_HANDLE_HIOV : COL_HANDLE_HI;
+        dl->AddCircleFilled({track_x, y_hi}, handle_rs, col_hi, 16);
+        dl->AddCircle      ({track_x, y_hi}, handle_rs, COL_OUTLINE, 16, 1.5f);
+
+        // Low handle (bottom / darker)
+        ImU32 col_lo = (near_lo || m_prepare_dragging_low) ? COL_HANDLE_LOOV : COL_HANDLE_LO;
+        dl->AddCircleFilled({track_x, y_lo}, handle_rs, col_lo, 16);
+        dl->AddCircle      ({track_x, y_lo}, handle_rs, COL_OUTLINE, 16, 1.5f);
+
+        // Z-value labels (white badge, left of panel)
+        char buf_hi[24], buf_lo[24];
+        std::snprintf(buf_hi, sizeof(buf_hi), "%.1f mm", (float)m_prepare_clip_z_high);
+        std::snprintf(buf_lo, sizeof(buf_lo), "%.1f mm", (float)m_prepare_clip_z_low);
+        ImVec2 sz_hi = ImGui::CalcTextSize(buf_hi);
+        ImVec2 sz_lo = ImGui::CalcTextSize(buf_lo);
+        float  lx_hi = panel_l - LABEL_GAP * sc - sz_hi.x - PAD_X * 2 * sc;
+        float  lx_lo = panel_l - LABEL_GAP * sc - sz_lo.x - PAD_X * 2 * sc;
+        float  ty_hi = y_hi - sz_hi.y * 0.5f;
+        float  ty_lo = y_lo - sz_lo.y * 0.5f;
+        dl->AddRectFilled({lx_hi,            ty_hi - PAD_Y * sc},
+                          {lx_hi + sz_hi.x + PAD_X * 2 * sc, ty_hi + sz_hi.y + PAD_Y * sc},
+                          COL_LABEL_BG, 3.f * sc);
+        dl->AddRectFilled({lx_lo,            ty_lo - PAD_Y * sc},
+                          {lx_lo + sz_lo.x + PAD_X * 2 * sc, ty_lo + sz_lo.y + PAD_Y * sc},
+                          COL_LABEL_BG, 3.f * sc);
+        dl->AddText({lx_hi + PAD_X * sc, ty_hi}, COL_LABEL, buf_hi);
+        dl->AddText({lx_lo + PAD_X * sc, ty_lo}, COL_LABEL, buf_lo);
+    }
 
     ImGui::End();
     ImGui::PopStyleVar();
