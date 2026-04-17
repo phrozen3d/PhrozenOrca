@@ -1858,6 +1858,11 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     if (!pb || !cfg || !m_plater)
         return;
 
+    // Keep Prepare/Preview notebook tab across preset reload (avoid jumping tab + spurious preview/slice).
+    int saved_plater_tab = -1;
+    if (m_tabpanel)
+        saved_plater_tab = m_tabpanel->GetSelection();
+
     // Select by vendor/profile source (resources/profiles/Phrozen*), not hardcoded model strings.
     // This allows adding new machine JSONs without touching code.
     const Preset* target = find_phrozen_work_mode_target(*pb, resin);
@@ -1892,6 +1897,12 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
 
     if (m_topbar)
         m_topbar->ShowCalibrationButton(!resin);
+
+    if (m_tabpanel && saved_plater_tab >= 0 && m_tabpanel->GetSelection() != saved_plater_tab) {
+        if (saved_plater_tab == TabPosition::tp3DEditor || saved_plater_tab == TabPosition::tpPreview)
+            m_tabpanel->SetSelection(saved_plater_tab);
+    }
+
     Layout();
 }
 
