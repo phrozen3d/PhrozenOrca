@@ -56,8 +56,8 @@ static void write_be(std::string &fh, T val)
 // ---------------------------------------------------------------------------
 // Calculate estimated print time in seconds from PRZ parameters
 // ---------------------------------------------------------------------------
-static int calculate_prz_print_time(const SLAPrint          &print,
-                                    const DynamicPrintConfig &cfg)
+int calculate_prz_print_time(int                       total_layers,
+                             const DynamicPrintConfig &cfg)
 {
     // speed == 0 → treat that motion segment as 0 s (avoid divide-by-zero)
     auto motion_s = [](float dist_mm, float speed_mm_min) -> float {
@@ -65,7 +65,7 @@ static int calculate_prz_print_time(const SLAPrint          &print,
         return dist_mm / speed_mm_min * 60.f;
     };
 
-    const int   total_layers     = static_cast<int>(print.layer_images().size());
+
     const int   bottom_count     = cfg_i(cfg, "bottom_layer_count");
     const int   transition_count = cfg_i(cfg, "transition_layer_count");
 
@@ -400,7 +400,7 @@ static void prz_header(std::string             &fh,
     // Advance_Mode (0 = normal, 1 byte)
     { fh += '\0'; layerContent_position_offset += 1; }
     // PrintTimes (estimated, seconds)
-    { int v = calculate_prz_print_time(print, cfg); write_be(fh, v); layerContent_position_offset += 4; }
+    { int v = calculate_prz_print_time(static_cast<int>(print.layer_images().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
     // TotalVolume / TotalWeight / TotalPrice (from print statistics)
     {
         const SLAPrintStatistics &stats = print.print_statistics();

@@ -19,6 +19,7 @@
 #include <libslic3r/ElephantFootCompensation.hpp>
 #include <libslic3r/SLA/ZCorrection.hpp>
 #include <libslic3r/Format/SLAArchiveWriter.hpp>
+#include <libslic3r/Format/PhrozenPRZ.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
 
@@ -1178,6 +1179,11 @@ void SLAPrint::Steps::merge_slices_and_eval_stats() {
 
     print_statistics.fast_layers_count = fast_layers;
     print_statistics.slow_layers_count = slow_layers;
+
+    print_statistics.prz_print_time_s = calculate_prz_print_time(
+        static_cast<int>(printer_input.size()),
+        m_print->full_print_config()
+    );
 
     report_status(-2, "", SlicingStatus::RELOAD_SLA_PREVIEW);
 }
