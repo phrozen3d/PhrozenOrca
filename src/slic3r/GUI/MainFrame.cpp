@@ -1858,7 +1858,7 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     if (!pb || !cfg || !m_plater)
         return;
 
-    // Keep Prepare/Preview notebook tab across preset reload (avoid jumping tab + spurious preview/slice).
+    // m_phrozen_mode_btn only: restore Prepare/Preview notebook tab after preset reload (do not change normal Preview-tab slice behavior).
     int saved_plater_tab = -1;
     if (m_tabpanel)
         saved_plater_tab = m_tabpanel->GetSelection();
