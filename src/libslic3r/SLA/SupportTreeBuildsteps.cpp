@@ -318,7 +318,7 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
     double bridge_distance = pillar_dist / std::cos(-m_cfg.bridge_slope);
     double zstep = pillar_dist * std::tan(-m_cfg.bridge_slope);
 
-    if(pillar_dist < 2 * m_cfg.head_back_radius_mm ||
+    if(pillar_dist < pillar.r_start + nextpillar.r_start ||
         pillar_dist > m_cfg.max_pillar_link_distance_mm) return false;
 
     if(supper(Z) < slower(Z)) supper.swap(slower);
@@ -655,8 +655,16 @@ void SupportTreeBuildsteps::filter()
     m_iheads.reserve(aliases.size());
     m_iheadless.reserve(aliases.size());
     for(auto& a : aliases) {
-        // Here we keep only the front point of the cluster.
-        filtered_indices.emplace_back(a.front());
+        // Keep the point with the highest SupportWeight so that a Heavy
+        // manual point is not discarded in favour of a nearby Light one.
+        unsigned best = a.front();
+        for (unsigned idx : a) {
+            if (size_t(idx) < m_support_pts.size() &&
+                size_t(best) < m_support_pts.size() &&
+                m_support_pts[idx].weight > m_support_pts[best].weight)
+                best = idx;
+        }
+        filtered_indices.emplace_back(best);
     }
 
     // calculate the normals to the triangles for filtered points
@@ -1162,6 +1170,12 @@ void SupportTreeBuildsteps::interconnect_pillars()
                       return distance(e1.first, qp) < distance(e2.first, qp);
                   });
 
+        // Track 2D positions and radii of all closer neighbors encountered so far
+        // (regardless of whether bridging succeeded). Used to detect and block bridges
+        // that would physically cross an intermediate pillar.
+        struct ConnectedNeighbor { Vec2d pos2d; double r; };
+        std::vector<ConnectedNeighbor> connected_closer;
+
         for(auto& re : qres) { // process the queried neighbors
 
             if(re.second == el.second) continue; // Skip self
@@ -1172,16 +1186,55 @@ void SupportTreeBuildsteps::interconnect_pillars()
             auto hashval = pairhash(a, b);
 
             // Search for the pair amongst the remembered pairs
-            if(pairs.find(hashval) != pairs.end()) continue;
+            if(pairs.find(hashval) != pairs.end()) {
+                // Already connected — record position so farther candidates
+                // can detect if their bridge would cross this pillar.
+                const Pillar& np = m_builder.pillar(re.second);
+                connected_closer.push_back({Vec2d{re.first(0), re.first(1)}, np.r_start});
+                continue;
+            }
 
             const Pillar& neighborpillar = m_builder.pillar(re.second);
+            Vec2d from2d{qp(0), qp(1)};
+            Vec2d to2d{re.first(0), re.first(1)};
 
-            // this neighbor is occupied, skip
-            if (neighborpillar.links >= neighbors) continue;
-            if (neighborpillar.r_start < pillar.r_start) continue;
+            // this neighbor is occupied, skip (but still record as obstacle
+            // so farther candidates cannot bridge through this pillar)
+            if (neighborpillar.links >= neighbors) {
+                connected_closer.push_back({to2d, neighborpillar.r_start});
+                continue;
+            }
+
+            // Skip if the bridge to this candidate would physically cross an
+            // already-connected closer pillar (prevents skip-bridge artifacts).
+            Vec2d AB = to2d - from2d;
+            double AB_sq = AB.squaredNorm();
+            double bridge_r = std::min(pillar.r_start, neighborpillar.r_start);
+            bool crosses_intermediate = false;
+            if (AB_sq > 1e-12) {
+                for (const auto& cn : connected_closer) {
+                    Vec2d AP = cn.pos2d - from2d;
+                    double t = std::max(0.0, std::min(1.0, AP.dot(AB) / AB_sq));
+                    double dist = (cn.pos2d - (from2d + t * AB)).norm();
+                    if (dist < bridge_r + cn.r) {
+                        crosses_intermediate = true;
+                        break;
+                    }
+                }
+            }
+            if (crosses_intermediate) {
+                connected_closer.push_back({to2d, neighborpillar.r_start});
+                continue;
+            }
 
             if(interconnect(pillar, neighborpillar)) {
                 pairs.insert(hashval);
+            }
+            // Record as physical obstacle regardless of interconnect result —
+            // this ensures overlapping pillars (interconnect fails) also block
+            // bridges to farther candidates.
+            connected_closer.push_back({to2d, neighborpillar.r_start});
+            if(pairs.count(hashval)) {
 
                 // If the interconnection length between the two pillars is
                 // less than 50% of the longer pillar's height, don't count
@@ -1238,7 +1291,7 @@ void SupportTreeBuildsteps::interconnect_pillars()
 
         bool   found    = false;
         double alpha    = 0; // goes to 2Pi
-        double r        = 2 * m_cfg.base_radius_mm;
+        double r        = std::max(2 * m_cfg.base_radius_mm, 2 * pillar().r_start);
         Vec3d  pillarsp = pillar().startpoint();
 
         // temp value for starting point detection
