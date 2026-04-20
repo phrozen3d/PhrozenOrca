@@ -349,56 +349,33 @@
 
 > **目標**：進出 Gizmo 時，截面位置保持一致（不跳動、不重置）。
 
-### 4.1 GLGizmoSlaBase.cpp - on_set_state(On)
+### 4.1 GLCanvas3D.cpp - enter_gizmo_slider_mode()
 
-- [ ] 在 `on_set_state(On)` 中加入進場同步：
-  ```cpp
-  // 從全域 prepare slider 同步 ObjectClipper
-  if (m_parent.get_use_clipping_planes()) {
-      double z_high = m_parent.get_clipping_planes()[1].get_data()[3];
-      double scene_max_z = m_parent.get_prepare_scene_max_z(); // 新增 getter
-      if (scene_max_z > 0) {
-          double ratio = std::clamp(z_high / scene_max_z, 0.0, 1.0);
-          if (ratio < 1.0)
-              m_c->object_clipper()->set_position_by_ratio(ratio, false);
-          else
-              m_c->object_clipper()->set_position_by_ratio(-1.0, false);
-      }
-  }
-  ```
-- [ ] 在 `GLCanvas3D.hpp` 新增 getter：`double get_prepare_scene_max_z() const { return m_prepare_scene_max_z; }`
+- [x] 在 `enter_gizmo_slider_mode()` 中以 `m_prepare_clip_z_high` 計算初始 `m_gizmo_clip_ratio`，
+  取代原本固定設為 `0.0`（不同步）
+- [x] 在 `GLCanvas3D.hpp` 新增 getter：`double get_gizmo_clip_ratio() const { return m_gizmo_clip_ratio; }`
+- [x] 在 `GLGizmosManager.cpp` 的 `just_entered` 區塊改用 `m_parent.get_gizmo_clip_ratio()` 初始化 ObjectClipper
 
-### 4.2 GLGizmoSlaBase.cpp - on_set_state(Off)
+### 4.2 GLCanvas3D.cpp - exit_gizmo_slider_mode()
 
-- [ ] 在 `on_set_state(Off)` 中加入離場同步：
-  ```cpp
-  // 從 ObjectClipper 回寫 m_clipping_planes（確保全域 slider 保持正確位置）
-  if (m_c && m_c->object_clipper()) {
-      double pos = m_c->object_clipper()->get_position();
-      if (pos > 0.0 && pos <= 1.0) {
-          double scene_max_z = m_parent.get_prepare_scene_max_z();
-          double z_high = pos * scene_max_z;
-          m_parent.set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z_high));
-          m_parent.set_use_clipping_planes(true);
-      }
-  }
-  ```
+- [x] 在 `exit_gizmo_slider_mode()` 中，離場前將 `m_gizmo_clip_ratio` 轉回絕對 Z 值，
+  更新 `m_saved_clip_z_high`，使全域 slider 還原後反映 gizmo 結束時的截面位置
 
 ---
 
 ### ✅ Checkpoint 4
 
 **請執行編譯：**
-- [ ] C4：全專案編譯通過
+- [x] C4：全專案編譯通過
 
 **請手動測試（逐一執行，任一失敗立即停止）：**
-- [ ] M4-1：全域 slider top bar 設 50% → 進入 Hollow Gizmo → 截面維持在 50%
-- [ ] M4-2：全域 slider top bar 設 50% → 進入 Hollow Gizmo → 離開 Gizmo → 截面維持在 50%
-- [ ] M4-3：全域 slider top bar 設 70% → 進入 Drill Gizmo → 離開 → 進入 SLA Support → 離開
+- [x] M4-1：全域 slider top bar 設 50% → 進入 Hollow Gizmo → 截面維持在 50%
+- [x] M4-2：全域 slider top bar 設 50% → 進入 Hollow Gizmo → 離開 Gizmo → 截面維持在 50%
+- [x] M4-3：全域 slider top bar 設 70% → 進入 Drill Gizmo → 離開 → 進入 SLA Support → 離開
   → 截面全程維持在 70%（不跳動）
-- [ ] M4-4：快速切換 Hollow → Drill → Support → 無 Gizmo（各停留約 1 秒）
+- [x] M4-4：快速切換 Hollow → Drill → Support → 無 Gizmo（各停留約 1 秒）
   → 截面位置一致，無閃爍或跳回 0
-- [ ] M4-5：全域 slider 設 100%（全顯示）→ 進入各 Gizmo → 截面無效（完整顯示）
+- [x] M4-5：全域 slider 設 100%（全顯示）→ 進入各 Gizmo → 截面無效（完整顯示）
 
 ---
 

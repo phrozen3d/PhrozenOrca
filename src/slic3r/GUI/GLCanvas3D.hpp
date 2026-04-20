@@ -828,7 +828,8 @@ public:
     // Gizmo slider mode API – called by GLGizmosManager on gizmo enter/exit
     void enter_gizmo_slider_mode(double obj_z_min, double obj_z_max);
     void exit_gizmo_slider_mode();
-    bool get_slider_in_gizmo_mode() const { return m_slider_in_gizmo_mode; }
+    bool   get_slider_in_gizmo_mode() const { return m_slider_in_gizmo_mode; }
+    double get_gizmo_clip_ratio()     const { return m_gizmo_clip_ratio; }
 
     void set_use_color_clip_plane(bool use) { m_volumes.set_use_color_clip_plane(use); }
     void set_color_clip_plane(const Vec3d& cp_normal, double offset) { m_volumes.set_color_clip_plane(cp_normal, offset); }

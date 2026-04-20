@@ -454,9 +454,9 @@ void GLGizmosManager::update_data()
                 obj_z_min = bb.min.z() + z_shift;
                 obj_z_max = bb.max.z() + z_shift;
             }
-            // Switch slider to gizmo mode and initialise ObjectClipper at top (no clipping).
+            // Switch slider to gizmo mode; initial ratio synced from global prepare slider.
             m_parent.enter_gizmo_slider_mode(obj_z_min, obj_z_max);
-            oc->set_position_by_ratio(0.0, false);
+            oc->set_position_by_ratio(m_parent.get_gizmo_clip_ratio(), false);
         }
 
         if (just_left) {

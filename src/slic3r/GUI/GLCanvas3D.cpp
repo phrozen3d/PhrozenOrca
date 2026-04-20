@@ -8988,7 +8988,16 @@ void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
     m_slider_in_gizmo_mode = true;
     m_gizmo_obj_z_min      = obj_z_min;
     m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
-    m_gizmo_clip_ratio     = 0.0;  // default: handle at top = no clipping
+
+    // Stage 4.1: Sync initial gizmo ratio from current global prepare slider Z.
+    // ratio=0 → top of object (no clip), ratio=1 → bottom (full clip).
+    const double z_range = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
+    if (z_range > 0.0 && m_prepare_clip_z_high < m_gizmo_obj_z_max) {
+        const double z_cur = std::clamp(m_prepare_clip_z_high, m_gizmo_obj_z_min, m_gizmo_obj_z_max);
+        m_gizmo_clip_ratio = (m_gizmo_obj_z_max - z_cur) / z_range;
+    } else {
+        m_gizmo_clip_ratio = 0.0;  // global slider at or above object top → no clipping
+    }
 
     // Disable global prepare clipping planes while gizmo manages its own cross-section.
     m_use_clipping_planes = false;
@@ -9002,7 +9011,12 @@ void GLCanvas3D::exit_gizmo_slider_mode()
 
     m_slider_in_gizmo_mode = false;
 
-    // Restore prepare-mode slider state.
+    // Stage 4.2: Convert gizmo ratio back to absolute Z for the prepare slider,
+    // so the global slider tracks wherever the user left the gizmo cross-section.
+    const double z_range   = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
+    const double z_cur_abs = m_gizmo_obj_z_max - m_gizmo_clip_ratio * z_range;
+    m_saved_clip_z_high = std::clamp(z_cur_abs, 0.0, m_prepare_scene_max_z);
+
     const double restore_high = (m_saved_clip_z_high < 0.0)
                                 ? m_prepare_scene_max_z
                                 : m_saved_clip_z_high;
