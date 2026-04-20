@@ -206,16 +206,16 @@
 ### ✅ Checkpoint 1.5
 
 **請執行編譯：**
-- [ ] C1.5：全專案編譯通過，無錯誤、無警告
+- [x] C1.5：全專案編譯通過，無錯誤、無警告
 
 **請手動測試：**
-- [ ] M1.5-1：SLA Prepare view → 右側出現**深色半透明面板** + 垂直軌道 + 兩個圓形把手
-- [ ] M1.5-2：High handle 旁顯示當前 Z 值（mm），Low handle 旁同樣顯示
-- [ ] M1.5-3：拖曳 High handle 向下 → 高亮區間隨之縮短，模型頂部截面隨動
-- [ ] M1.5-4：拖曳 Low handle 向上 → 高亮區間隨之縮短，模型底部截面隨動
-- [ ] M1.5-5：兩 handle 回到端點 → 模型完整顯示，高亮區間佔滿整條軌道
-- [ ] M1.5-6：Preview tab 的 layer slider **外觀與行為完全不受影響**
-- [ ] M1.5-7：FDM 模式 → 自訂 slider **不顯示**
+- [x] M1.5-1：SLA Prepare view → 右側出現**深色半透明面板** + 垂直軌道 + 兩個圓形把手
+- [x] M1.5-2：High handle 旁顯示當前 Z 值（mm），Low handle 旁同樣顯示
+- [x] M1.5-3：拖曳 High handle 向下 → 高亮區間隨之縮短，模型頂部截面隨動
+- [x] M1.5-4：拖曳 Low handle 向上 → 高亮區間隨之縮短，模型底部截面隨動
+- [x] M1.5-5：兩 handle 回到端點 → 模型完整顯示，高亮區間佔滿整條軌道
+- [x] M1.5-6：Preview tab 的 layer slider **外觀與行為完全不受影響**
+- [x] M1.5-7：FDM 模式 → 自訂 slider **不顯示**
 
 ---
 
@@ -295,15 +295,15 @@
 ### ✅ Checkpoint 2
 
 **請執行編譯：**
-- [ ] C2：全專案編譯通過
+- [x] C2：全專案編譯通過
 
 **請手動測試：**
-- [ ] M2-1：SLA 物件 → 進入 Hollow Gizmo → 右側 slider 切換為單 handle，range 為物件 bbox Z 範圍
-- [ ] M2-2：Gizmo mode 中拖動 handle → 截面從頂部往下掃描，label 顯示正確 Z mm 值
-- [ ] M2-3：離開 Hollow Gizmo → 右側 slider 還原為雙 handle + prepare mode range
-- [ ] M2-4：prepare mode 中 top/bottom handle 位置在 gizmo 進出後保持不變
-- [ ] M2-5：SLA 物件（已 Hollow）→ gizmo mode 拖動 handle → 截面正確顯示內壁截面
-- [ ] M2-6：FDM 物件 → 切片 → Preview 截面正常，無副作用
+- [x] M2-1：SLA 物件 → 進入 Hollow Gizmo → 右側 slider 切換為單 handle，range 為物件 bbox Z 範圍
+- [x] M2-2：Gizmo mode 中拖動 handle → 截面從頂部往下掃描，label 顯示正確 Z mm 值
+- [x] M2-3：離開 Hollow Gizmo → 右側 slider 還原為雙 handle + prepare mode range
+- [x] M2-4：prepare mode 中 top/bottom handle 位置在 gizmo 進出後保持不變
+- [x] M2-5：SLA 物件（已 Hollow）→ gizmo mode 拖動 handle → 截面正確顯示內壁截面
+- [x] M2-6：FDM 物件 → 切片 → Preview 截面正常，無副作用
 
 ---
 
@@ -313,20 +313,20 @@
 
 ### 3.1 GLGizmoHollow.cpp
 
-- [ ] 找到 `on_render_input_window()` 中 "view_clipping" 相關渲染區塊（約 line 480–492）
-- [ ] 移除整個 "View clipping" row 的渲染程式碼（保留 ObjectClipper 基礎設施和滾輪事件處理）
-- [ ] 確認 `m_desc["view_clipping"]` 初始化可移除（若僅用於 UI 顯示）
+- [x] 找到 `on_render_input_window()` 中 "view_clipping" 相關渲染區塊（約 line 480–492）
+- [x] 移除整個 "View clipping" row 的渲染程式碼（保留 ObjectClipper 基礎設施和滾輪事件處理）
+- [x] 確認 `m_desc["view_clipping"]` 初始化可移除（若僅用於 UI 顯示）
 
 ### 3.2 GLGizmoDrill.cpp
 
-- [ ] 找到 `on_render_input_window()` 中 "view_clipping" 相關渲染區塊（約 line 670–682）
-- [ ] 移除整個 "View clipping" row 的渲染程式碼
-- [ ] 確認 `m_desc["view_clipping"]` 初始化可移除
+- [x] 找到 `on_render_input_window()` 中 "view_clipping" 相關渲染區塊（約 line 670–682）
+- [x] 移除整個 "View clipping" row 的渲染程式碼
+- [x] 確認 `m_desc["view_clipping"]` 初始化可移除
 
 ### 3.3 GLGizmoSlaSupports.cpp
 
-- [ ] 確認是否有 "View clipping" slider（grep 確認：約 line 576–588 的 set_position_by_ratio 是否有對應 UI）
-- [ ] 若有，同樣移除 UI 渲染程式碼
+- [x] 確認是否有 "View clipping" slider（grep 確認：約 line 576–588 的 set_position_by_ratio 是否有對應 UI）
+- [x] 若有，同樣移除 UI 渲染程式碼
 
 ---
 

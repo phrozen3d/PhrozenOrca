@@ -36,10 +36,8 @@ bool GLGizmoDrill::on_init()
     m_desc["preview"]          = _(L("Preview"));
     m_desc["diameter"]         = _(L("Diameter"));
     m_desc["depth"]            = _(L("Depth"));
-    m_desc["view_clipping"]    = _(L("View clipping"));
     m_desc["remove_selected"]  = _(L("Remove selected"));
     m_desc["remove_all"]       = _(L("Remove all"));
-    m_desc["reset_direction"]  = _(L("Reset direction"));
 
     m_desc["left_click"]       = _(L("Left click:"));
     m_desc["right_click"]      = _(L("Right click:"));
@@ -564,9 +562,8 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
 
     // Layout metrics — use translated strings so widths remain correct after locale switch
     const float label_col_w = std::max(
-        std::max(m_imgui->calc_text_size(m_desc.at("diameter")).x,
-                 m_imgui->calc_text_size(m_desc.at("depth")).x),
-        m_imgui->calc_text_size(m_desc.at("view_clipping")).x
+        m_imgui->calc_text_size(m_desc.at("diameter")).x,
+        m_imgui->calc_text_size(m_desc.at("depth")).x
     ) + m_imgui->scaled(1.5f);
 
     const float value_box_w   = m_imgui->scaled(4.f);  // value box width — adjustable
@@ -576,8 +573,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     const float btn_w = std::max(
         std::max(m_imgui->calc_text_size(m_desc.at("remove_selected")).x,
                  m_imgui->calc_text_size(m_desc.at("remove_all")).x),
-        std::max(m_imgui->calc_text_size(m_desc.at("preview")).x,
-                 m_imgui->calc_text_size(m_desc.at("reset_direction")).x)
+        m_imgui->calc_text_size(m_desc.at("preview")).x
     ) + fp + m_imgui->scaled(1.f);
 
     // push_toolbar_style before set_next_window_pos/begin so WindowRounding etc. take effect.
@@ -663,25 +659,6 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     }
     ImGui::PopItemWidth();
 
-    ImGui::Separator();
-
-    // Row 3: View Clipping
-    // Source: m_c->object_clipper()->get_position(); range [0,1]
-    // Commit calls set_position_by_ratio (same as old UI slider, false = non-dragging)
-    ImGui::AlignTextToFramePadding();
-    m_imgui->text(m_desc.at("view_clipping"));
-    ImGui::SameLine(label_col_w);
-    // slider range == value range [0, 1]: no separation needed for clipping.
-    float display_clip = m_c->object_clipper()->get_position(); // shared by slider and InputFloat below
-    if (draw_custom_slider("##sl_clip", display_clip, 0.f, 1.f, 0.f, 1.f, slider_w, is_input_enabled()))
-        m_c->object_clipper()->set_position_by_ratio(std::clamp(display_clip, 0.f, 1.f), false);
-    ImGui::SameLine();
-    ImGui::PushItemWidth(value_box_w);
-    ImGui::InputFloat("##ph_clip", &display_clip, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
-    if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled())
-        m_c->object_clipper()->set_position_by_ratio(std::clamp(display_clip, 0.f, 1.f), false);
-    ImGui::PopItemWidth();
-
     // Button section: tighter spacing (overrides push_toolbar_style's ItemSpacing=(10,10)*scale)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f)); // +1 var
 
@@ -741,11 +718,6 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
         ImGui::SameLine();
         if (ImGui::Button((m_desc.at("preview") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             reslice_until_step(slaposDrillHoles); // same call as old UI
-        ImGui::SameLine();
-        if (ImGui::Button((m_desc.at("reset_direction") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
-            wxGetApp().CallAfter([this](){
-                m_c->object_clipper()->set_position_by_ratio(-1., false); // same lambda as old UI
-            });
     } // end Row 4-5 help icon block
 
     ImGui::PopStyleVar(1);       // end ItemSpacing override (+1 var popped, net var stack balanced)

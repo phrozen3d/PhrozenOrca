@@ -52,9 +52,7 @@ bool GLGizmoHollow::on_init()
 {
     m_shortcut_key = WXK_CONTROL_H;
     // offset / quality / closing_distance labels are set from config defs inside render_hollow_panel
-    m_desc["reset_direction"] = _(L("Reset direction"));
     m_desc["hp_preview"]      = _(L("Preview"));
-    m_desc["view_clipping"]   = _(L("View clipping"));
 
     return true;
 }
@@ -330,18 +328,14 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
     const float label_col_w = std::max({
         m_imgui->calc_text_size(m_desc.at("offset")).x,
         m_imgui->calc_text_size(m_desc.at("quality")).x,
-        m_imgui->calc_text_size(m_desc.at("closing_distance")).x,
-        m_imgui->calc_text_size(m_desc.at("view_clipping")).x
+        m_imgui->calc_text_size(m_desc.at("closing_distance")).x
     }) + m_imgui->scaled(1.5f);
 
     // Total slider-row content width — used to right-align the header checkbox
     const float row_w = label_col_w + slider_w + spacing_x + value_box_w;
 
     const float fp    = ImGui::GetStyle().FramePadding.x * 2.f;
-    const float btn_w = std::max(
-        m_imgui->calc_text_size(m_desc.at("hp_preview")).x,
-        m_imgui->calc_text_size(m_desc.at("reset_direction")).x
-    ) + fp + m_imgui->scaled(1.f);
+    const float btn_w = m_imgui->calc_text_size(m_desc.at("hp_preview")).x + fp + m_imgui->scaled(1.f);
 
     ImGuiWrapper::push_toolbar_style(scale);
 
@@ -475,25 +469,7 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
 
     m_imgui->disabled_end();
 
-    ImGui::Separator();
-
-    // View clipping row — always enabled (not tied to hollow enable)
-    m_imgui->disabled_begin(!is_input_enabled());
-    ImGui::AlignTextToFramePadding();
-    m_imgui->text(m_desc.at("view_clipping"));
-    ImGui::SameLine(label_col_w);
-    float clp_dist = m_c->object_clipper()->get_position();
-    if (hp_draw_custom_slider("##hp_sl_clp", clp_dist, 0.f, 1.f, 0.f, 1.f, slider_w, is_input_enabled()))
-        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
-    ImGui::SameLine();
-    ImGui::PushItemWidth(value_box_w);
-    ImGui::InputFloat("##hp_v_clp", &clp_dist, 0.f, 0.f, "%.2f");
-    if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled())
-        m_c->object_clipper()->set_position_by_ratio(std::clamp(clp_dist, 0.f, 1.f), false);
-    ImGui::PopItemWidth();
-    m_imgui->disabled_end();
-
-    // Button row: [?] | Preview | Reset direction — tighter item spacing
+    // Button row: [?] | Preview — tighter item spacing
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f));
     {
         ImTextureID normal_id = m_parent.get_gizmos_manager().get_icon_texture_id(
@@ -517,11 +493,6 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
         ImGui::SameLine();
         if (ImGui::Button((m_desc.at("hp_preview") + "##hp").ToUTF8().data(), ImVec2(btn_w, 0.f)))
             reslice_until_step(slaposDrillHoles);
-        ImGui::SameLine();
-        if (ImGui::Button((m_desc.at("reset_direction") + "##hp").ToUTF8().data(), ImVec2(btn_w, 0.f)))
-            wxGetApp().CallAfter([this](){
-                m_c->object_clipper()->set_position_by_ratio(-1., false);
-            });
         m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(1);

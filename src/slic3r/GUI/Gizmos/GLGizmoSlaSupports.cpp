@@ -127,9 +127,6 @@ bool GLGizmoSlaSupports::on_init()
     m_desc["points_density"]   = _L("Support points density") + ": ";
     m_desc["auto_generate"]    = _L("Auto-generate points");
     m_desc["manual_editing"]   = _L("Manual editing");
-    m_desc["clipping_of_view"] = _L("Clipping of view")+ ": ";
-    m_desc["reset_direction"]  = _L("Reset direction");
-
     return true;
 }
 
@@ -755,13 +752,12 @@ RENDER_AGAIN:
     // First calculate width of all the texts that are could possibly be shown. We will decide set the dialog width based on that:
 
     const float settings_sliders_left = m_imgui->calc_text_size(m_desc.at("points_density")).x + m_imgui->scaled(1.f);
-    const float clipping_slider_left = std::max(m_imgui->calc_text_size(m_desc.at("clipping_of_view")).x, m_imgui->calc_text_size(m_desc.at("reset_direction")).x) + m_imgui->scaled(1.5f);
     const float diameter_slider_left = m_imgui->calc_text_size(m_desc.at("head_diameter")).x + m_imgui->scaled(1.f);
     const float minimal_slider_width = m_imgui->scaled(4.f);
     const float buttons_width_approx = m_imgui->calc_text_size(m_desc.at("apply_changes")).x + m_imgui->calc_text_size(m_desc.at("discard_changes")).x + m_imgui->scaled(1.5f);
     const float lock_supports_width_approx = m_imgui->calc_text_size(m_desc.at("lock_supports")).x + m_imgui->scaled(2.f);
 
-    float window_width = minimal_slider_width + std::max(std::max(settings_sliders_left, clipping_slider_left), diameter_slider_left);
+    float window_width = minimal_slider_width + std::max(settings_sliders_left, diameter_slider_left);
     window_width = std::max(std::max(window_width, buttons_width_approx), lock_supports_width_approx);
 
     bool force_refresh = false;
@@ -928,27 +924,6 @@ RENDER_AGAIN:
 
         m_imgui->disabled_end(); // close !is_input_enabled()
     }
-
-
-    // Following is rendered in both editing and non-editing mode:
-    ImGui::Separator();
-    if (m_c->object_clipper()->get_position() == 0.f) {
-        ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc.at("clipping_of_view"));
-    }
-    else {
-        if (m_imgui->button(m_desc.at("reset_direction"))) {
-            wxGetApp().CallAfter([this](){
-                    m_c->object_clipper()->set_position_by_ratio(-1., false);
-                });
-        }
-    }
-
-    ImGui::SameLine(clipping_slider_left);
-    ImGui::PushItemWidth(window_width - clipping_slider_left);
-    float clp_dist = m_c->object_clipper()->get_position();
-    if (m_imgui->slider_float("##clp_dist", &clp_dist, 0.f, 1.f, "%.2f"))
-        m_c->object_clipper()->set_position_by_ratio(clp_dist, true);
 
 
     if (m_imgui->button("?")) {
