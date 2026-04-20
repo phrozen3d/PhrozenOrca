@@ -333,15 +333,15 @@
 ### ✅ Checkpoint 3
 
 **請執行編譯：**
-- [ ] C3：全專案編譯通過，確認無因移除 m_desc 使用而造成的未宣告變數錯誤
+- [x] C3：全專案編譯通過，確認無因移除 m_desc 使用而造成的未宣告變數錯誤
 
 **請手動測試：**
-- [ ] M3-1：進入 Hollow Gizmo → 面板中**沒有** "View clipping" 行
-- [ ] M3-2：進入 Drill Gizmo → 面板中**沒有** "View clipping" 行
-- [ ] M3-3：進入 SLA Support Tree Gizmo → 面板中**沒有** "View clipping" 行（若原有）
-- [ ] M3-4：Hollow 的 Enable hollow、Offset 等功能正常（確認只移除 clipping slider，其他功能不受影響）
-- [ ] M3-5：Drill 的鑽孔放置、刪除功能正常
-- [ ] M3-6：Support Tree 的支撐點新增、刪除功能正常
+- [x] M3-1：進入 Hollow Gizmo → 面板中**沒有** "View clipping" 行
+- [x] M3-2：進入 Drill Gizmo → 面板中**沒有** "View clipping" 行
+- [x] M3-3：進入 SLA Support Tree Gizmo → 面板中**沒有** "View clipping" 行（若原有）
+- [x] M3-4：Hollow 的 Enable hollow、Offset 等功能正常（確認只移除 clipping slider，其他功能不受影響）
+- [x] M3-5：Drill 的鑽孔放置、刪除功能正常
+- [x] M3-6：Support Tree 的支撐點新增、刪除功能正常
 
 ---
 
