@@ -6,6 +6,7 @@
 #include "Geometry.hpp"
 #include "MTUtils.hpp"
 #include "Thread.hpp"
+#include "CSGMesh/CSGMeshCopy.hpp"
 
 #include <unordered_set>
 #include <numeric>
@@ -823,7 +824,7 @@ void SLAPrint::process(long long *time_cost_with_cache, bool use_cache)
 
     // We want to first process all objects...
     std::vector<SLAPrintObjectStep> level1_obj_steps = {
-        slaposHollowing, slaposDrillHoles, slaposObjectSlice, slaposSupportPoints, slaposSupportTree, slaposPad
+        slaposAssembly, slaposHollowing, slaposDrillHoles, slaposObjectSlice, slaposSupportPoints, slaposSupportTree, slaposPad
     };
 
     // and then slice all supports to allow preview to be displayed ASAP
@@ -1329,6 +1330,34 @@ sla::DrainHoles SLAPrintObject::transformed_drainhole_points() const
     }
 
     return pts;
+}
+
+std::vector<csg::CSGPart> SLAPrintObject::get_parts_to_slice() const
+{
+    return get_parts_to_slice(slaposCount);
+}
+
+std::vector<csg::CSGPart> SLAPrintObject::get_parts_to_slice(SLAPrintObjectStep untilstep) const
+{
+    // Find the last completed step
+    int s = int(slaposCount) - 1;
+    while (s >= 0 && !is_step_done(SLAPrintObjectStep(s)))
+        --s;
+
+    if (s < 0)
+        return {};
+
+    SLAPrintObjectStep laststep = SLAPrintObjectStep(s);
+    SLAPrintObjectStep endstep  = std::min(untilstep, laststep);
+
+    std::vector<csg::CSGPart> ret;
+    for (unsigned int step = 0; step <= unsigned(endstep); ++step) {
+        CSGPartForStep dummy{SLAPrintObjectStep(step)};
+        auto r = m_mesh_to_slice.equal_range(dummy);
+        csg::copy_csgrange_shallow(Range{r.first, r.second}, std::back_inserter(ret));
+    }
+
+    return ret;
 }
 
 DynamicConfig SLAPrintStatistics::config() const

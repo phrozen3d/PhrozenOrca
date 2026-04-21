@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <set>
 #include <opencv2/core.hpp>
 #include "PrintBase.hpp"
 #include "SLA/RasterBase.hpp"
@@ -12,6 +13,8 @@
 #include "Point.hpp"
 #include "MTUtils.hpp"
 #include "Zipper.hpp"
+#include "CSGMesh/CSGMesh.hpp"
+#include "CSGMesh/CSGMeshCopy.hpp"
 namespace Slic3r {
 
 // Forward declaration - full definition in Format/SLAArchiveWriter.hpp
@@ -24,6 +27,7 @@ enum SLAPrintStep : unsigned int {
 };
 
 enum SLAPrintObjectStep : unsigned int {
+    slaposAssembly,       // Assembles CSG parts from model volumes (must be first)
     slaposHollowing,
     slaposDrillHoles,
 	slaposObjectSlice,
@@ -32,6 +36,27 @@ enum SLAPrintObjectStep : unsigned int {
 	slaposPad,
     slaposSliceSupports,
 	slaposCount
+};
+
+// Each SLA object step can hold CSG operations on the model to be sliced.
+// Steps are processed in enum order. The multiset key is the step, so
+// iterating over the container maintains the correct order of CSG operations.
+struct CSGPartForStep : public csg::CSGPart
+{
+    SLAPrintObjectStep key;
+
+    CSGPartForStep(SLAPrintObjectStep k, csg::CSGPart &&p = {})
+        : key{k}, csg::CSGPart{std::move(p)}
+    {}
+
+    CSGPartForStep &operator=(csg::CSGPart &&part)
+    {
+        this->its_ptr  = std::move(part.its_ptr);
+        this->operation = part.operation;
+        return *this;
+    }
+
+    bool operator<(const CSGPartForStep &other) const { return key < other.key; }
 };
 
 class SLAPrint;
@@ -95,6 +120,12 @@ public:
     const TriangleMesh & get_mesh_to_slice() const {
         return (m_hollowing_data && is_step_done(slaposDrillHoles)) ? m_hollowing_data->hollow_mesh_with_holes : transformed_mesh();
     }
+
+    // Get a shallow copy of CSG parts accumulated up to the last completed step.
+    std::vector<csg::CSGPart> get_parts_to_slice() const;
+
+    // Get a shallow copy of CSG parts accumulated up to the given step (exclusive).
+    std::vector<csg::CSGPart> get_parts_to_slice(SLAPrintObjectStep untilstep) const;
 
     // This will return the transformed mesh which is cached
     const TriangleMesh&     transformed_mesh() const;
@@ -291,6 +322,21 @@ protected:
     std::vector<bool>                       m_stepmask;
 
 private:
+    using CSGContainer = std::multiset<CSGPartForStep>;
+
+    // Returns a Range over the CSG parts belonging to the given step.
+    auto mesh_to_slice(SLAPrintObjectStep s) const
+    {
+        auto r = m_mesh_to_slice.equal_range(CSGPartForStep{s});
+        return Range{r.first, r.second};
+    }
+
+    // All CSG parts for the print object, ordered by SLAPrintObjectStep.
+    CSGContainer m_mesh_to_slice;
+
+    // Per-step preview mesh (approximation of the printed object after each step).
+    std::array<std::shared_ptr<const indexed_triangle_set>, slaposCount + 1> m_preview_meshes;
+
     // Object specific configuration, pulled from the configuration layer.
     SLAPrintObjectConfig                    m_config;
 

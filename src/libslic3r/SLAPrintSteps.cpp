@@ -4,6 +4,9 @@
 #include <libslic3r/Exception.hpp>
 #include <libslic3r/SLAPrintSteps.hpp>
 #include <libslic3r/MeshBoolean.hpp>
+#include <libslic3r/CSGMesh/ModelToCSGMesh.hpp>
+#include <libslic3r/CSGMesh/SliceCSGMesh.hpp>
+#include <libslic3r/CSGMesh/PerformCSGMeshBooleans.hpp>
 #include <libslic3r/TriangleMeshSlicer.hpp>
 
 // Need the cylinder method for the the drainholes in hollowing step
@@ -38,6 +41,7 @@ namespace Slic3r {
 namespace {
 
 const std::array<unsigned, slaposCount> OBJ_STEP_LEVELS = {
+    13, // slaposAssembly,
     10, // slaposHollowing,
     10, // slaposDrillHoles
     10, // slaposObjectSlice,
@@ -50,6 +54,7 @@ const std::array<unsigned, slaposCount> OBJ_STEP_LEVELS = {
 std::string OBJ_STEP_LABELS(size_t idx)
 {
     switch (idx) {
+    case slaposAssembly:             return L("Assembling model from parts");
     case slaposHollowing:            return L("Hollowing model");
     case slaposDrillHoles:           return L("Drilling holes into model.");
     case slaposObjectSlice:          return L("Slicing model");
@@ -78,6 +83,92 @@ std::string PRINT_STEP_LABELS(size_t idx)
     assert(false); return "Out of bounds!";
 }
 
+} // anonymous namespace
+
+static void clear_csg(std::multiset<CSGPartForStep> &s, SLAPrintObjectStep step)
+{
+    CSGPartForStep dummy{step};
+    auto r = s.equal_range(dummy);
+    s.erase(r.first, r.second);
+}
+
+struct csg_inserter {
+    std::multiset<CSGPartForStep> &m;
+    SLAPrintObjectStep key;
+
+    csg_inserter &operator*() { return *this; }
+    void operator=(csg::CSGPart &&part)
+    {
+        part.its_ptr.convert_unique_to_shared();
+        m.emplace(key, std::move(part));
+    }
+    csg_inserter &operator++() { return *this; }
+};
+
+indexed_triangle_set SLAPrint::Steps::generate_preview_vdb(SLAPrintObject & /*po*/,
+                                                            SLAPrintObjectStep /*step*/)
+{
+    // VDB voxelization fallback is not available in this build.
+    // Returns empty mesh; the preview will be missing but slicing is unaffected.
+    return {};
+}
+
+void SLAPrint::Steps::generate_preview(SLAPrintObject &po, SLAPrintObjectStep step)
+{
+    auto r = range(po.m_mesh_to_slice);
+    indexed_triangle_set m;
+    bool handled = false;
+
+    if (csg::is_all_positive(r)) {
+        m       = csg::csgmesh_merge_positive_parts(r);
+        handled = true;
+    } else {
+        auto [reason, msg, it] = csg::check_csgmesh_booleans(r);
+        if (it == r.end()) { // all parts passed boolean eligibility check
+            MeshBoolean::cgal::CGALMeshPtr cgalmeshptr;
+            try {
+                cgalmeshptr = csg::perform_csgmesh_booleans(r);
+            } catch (...) {}
+
+            if (cgalmeshptr) {
+                m       = MeshBoolean::cgal::cgal_to_indexed_triangle_set(*cgalmeshptr);
+                handled = true;
+            }
+        }
+    }
+
+    if (!handled) {
+        po.active_step_add_warning(
+            PrintStateBase::WarningLevel::NON_CRITICAL,
+            L("Some parts of the print will be previewed with approximated meshes. "
+              "This does not affect the quality of slices or the physical print in any way."));
+        m = generate_preview_vdb(po, step);
+    }
+
+    po.m_preview_meshes[step] =
+        std::make_shared<const indexed_triangle_set>(std::move(m));
+
+    for (size_t i = size_t(step) + 1; i < slaposCount; ++i)
+        po.m_preview_meshes[i] = {};
+
+    using namespace std::string_literals;
+    report_status(-2, "Reload preview from step "s + std::to_string(int(step)),
+                  SlicingStatus::RELOAD_SLA_PREVIEW);
+}
+
+void SLAPrint::Steps::mesh_assembly(SLAPrintObject &po)
+{
+    po.m_mesh_to_slice.clear();
+    po.m_supportdata.reset();
+    po.m_hollowing_data.reset();
+
+    csg::model_to_csgmesh(*po.model_object(), po.trafo(),
+                          csg_inserter{po.m_mesh_to_slice, slaposAssembly},
+                          csg::mpartsPositive | csg::mpartsNegative | csg::mpartsDoSplits);
+
+    BOOST_LOG_TRIVIAL(info) << "CSG assembly: " << po.m_mesh_to_slice.size() << " parts";
+
+    generate_preview(po, slaposAssembly);
 }
 
 SLAPrint::Steps::Steps(SLAPrint *print)
@@ -1384,12 +1475,13 @@ double SLAPrint::Steps::progressrange(SLAPrintStep step) const
 void SLAPrint::Steps::execute(SLAPrintObjectStep step, SLAPrintObject &obj)
 {
     switch(step) {
-    case slaposHollowing: hollow_model(obj); break;
-    case slaposDrillHoles: drill_holes(obj); break;
-    case slaposObjectSlice: slice_model(obj); break;
-    case slaposSupportPoints:  support_points(obj); break;
-    case slaposSupportTree: support_tree(obj); break;
-    case slaposPad: generate_pad(obj); break;
+    case slaposAssembly:      mesh_assembly(obj); break;
+    case slaposHollowing:     hollow_model(obj); break;
+    case slaposDrillHoles:    drill_holes(obj); break;
+    case slaposObjectSlice:   slice_model(obj); break;
+    case slaposSupportPoints: support_points(obj); break;
+    case slaposSupportTree:   support_tree(obj); break;
+    case slaposPad:           generate_pad(obj); break;
     case slaposSliceSupports: slice_supports(obj); break;
     case slaposCount: assert(false);
     }

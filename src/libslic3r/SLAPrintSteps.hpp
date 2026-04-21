@@ -49,9 +49,14 @@ private:
     // Stores result in po.m_support_point_generator_data for reuse in support_points step.
     void prepare_for_generate_supports(SLAPrintObject &po);
 
+    // Build the per-step preview mesh (used by Gizmos and UI).
+    void generate_preview(SLAPrintObject &po, SLAPrintObjectStep step);
+    indexed_triangle_set generate_preview_vdb(SLAPrintObject &po, SLAPrintObjectStep step);
+
 public:
     explicit Steps(SLAPrint *print);
     
+    void mesh_assembly(SLAPrintObject &po);
     void hollow_model(SLAPrintObject &po);
     void drill_holes (SLAPrintObject &po);
     void slice_model(SLAPrintObject& po);

@@ -1,15 +1,15 @@
 ## 1. Phase A — CSG 基礎架構建立
 
-- [ ] 1.1 在 `src/libslic3r/SLAPrint.hpp` 的 `SLAPrintObjectStep` enum 插入 `slaposAssembly`（值 0），其餘步驟值各 +1
-- [ ] 1.2 在 `SLAPrintObject` class 新增 `std::multimap<SLAPrintObjectStep, csg::CSGPart> m_mesh_to_slice`
-- [ ] 1.3 在 `SLAPrintObject` class 新增 `std::map<SLAPrintObjectStep, std::shared_ptr<const indexed_triangle_set>> m_preview_meshes`
-- [ ] 1.4 在 `SLAPrint.hpp` 宣告 `get_parts_to_slice()`、`get_parts_to_slice(SLAPrintObjectStep)` 方法
-- [ ] 1.5 在 `SLAPrintSteps.cpp` 實作 `mesh_assembly(SLAPrintObject&)`：呼叫 `csg::model_to_csgmesh()` 填充 `m_mesh_to_slice[slaposAssembly]`
-- [ ] 1.6 在 `SLAPrint.cpp` 實作 `get_parts_to_slice()`：以 shallow copy 回傳 multimap range
-- [ ] 1.7 在 `SLAPrintSteps.cpp` 的 `Steps::execute()` switch-case 加入 `slaposAssembly` → `mesh_assembly()` 分支
-- [ ] 1.8 同步更新 `OBJ_STEP_LEVELS` 與 `OBJ_STEP_LABELS` 陣列，加入 `slaposAssembly` entry
-- [ ] 1.9 加入 `csg_inserter` helper struct（參考 PrusaSlicer 實作）
-- [ ] 1.10 **驗證**：編譯通過；開啟 SLA 模型執行切片，確認 `slaposAssembly` 執行，日誌輸出 CSG parts 數量正確
+- [x] 1.1 在 `src/libslic3r/SLAPrint.hpp` 的 `SLAPrintObjectStep` enum 插入 `slaposAssembly`（值 0），其餘步驟值各 +1
+- [x] 1.2 在 `SLAPrintObject` class 新增 `std::multiset<CSGPartForStep> m_mesh_to_slice`（PrusaSlicer 實作採 multiset，key 為 step）
+- [x] 1.3 在 `SLAPrintObject` class 新增 `std::array<std::shared_ptr<const indexed_triangle_set>, slaposCount+1> m_preview_meshes`
+- [x] 1.4 在 `SLAPrint.hpp` 宣告 `get_parts_to_slice()`、`get_parts_to_slice(SLAPrintObjectStep)` 方法
+- [x] 1.5 在 `SLAPrintSteps.cpp` 實作 `mesh_assembly(SLAPrintObject&)`：呼叫 `csg::model_to_csgmesh()` 填充 `m_mesh_to_slice[slaposAssembly]`
+- [x] 1.6 在 `SLAPrint.cpp` 實作 `get_parts_to_slice()`：以 shallow copy 回傳 multimap range
+- [x] 1.7 在 `SLAPrintSteps.cpp` 的 `Steps::execute()` switch-case 加入 `slaposAssembly` → `mesh_assembly()` 分支
+- [x] 1.8 同步更新 `OBJ_STEP_LEVELS` 與 `OBJ_STEP_LABELS` 陣列，加入 `slaposAssembly` entry
+- [x] 1.9 加入 `csg_inserter` helper struct（參考 PrusaSlicer 實作）
+- [x] 1.10 **驗證**：編譯通過；開啟 SLA 模型執行切片，確認 `slaposAssembly` 執行，日誌輸出 CSG parts 數量正確
 
 ## 2. Phase B — Drill Holes 移植
 
