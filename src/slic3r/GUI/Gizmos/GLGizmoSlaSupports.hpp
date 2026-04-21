@@ -141,6 +141,10 @@ private:
     void ask_about_changes_call_after(std::function<void()> on_yes, std::function<void()> on_no);
     void apply_weight_preset(sla::SupportWeight w);
 
+    // New Support UI panels — rendered below the legacy panel as a preview skeleton.
+    void render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);
+    void render_manual_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);
+
 protected:
     void on_set_state() override;
     void on_set_hover_id() override

@@ -1194,12 +1194,13 @@ void GLVolumeCollection::update_colors_by_extruder(const DynamicPrintConfig *con
     std::vector<ColorItem> colors;
 
     if (static_cast<PrinterTechnology>(config->opt_int("printer_technology")) == ptSLA) {
-        const std::string& txt_color = config->opt_string("material_colour").empty() ?
+        /* const std::string& txt_color = config->opt_string("material_colour").empty() ?
                                        print_config_def.get("material_colour")->get_default_value<ConfigOptionString>()->value :
                                        config->opt_string("material_colour");
         ColorRGBA rgba;
         if (decode_color(txt_color, rgba))
-            colors.push_back({ txt_color, rgba });
+            colors.push_back({ txt_color, rgba });*/
+        colors.push_back({"#D1D1D1", ColorRGBA{0.81960784f, 0.81960784f, 0.81960784f, 1.0f}});
     }
     else {
         const ConfigOptionStrings* filamemts_opt = dynamic_cast<const ConfigOptionStrings*>(config->option("filament_colour"));

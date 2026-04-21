@@ -47,8 +47,8 @@ static constexpr SupportWeightPreset k_weight_presets[3] = {
 namespace Slic3r {
 namespace GUI {
 
-// Step 4.5+: Icon support for the display-mode toggle (support points vs support structure).
-// Ported from PrusaSlicer's GLGizmoSlaSupports with PhrozenOrca path adjustment (/images/ not /icons/).
+// Icon loading for the support view-mode toggle (support points vs support structure).
+// Resource path is /images/, not /icons/.
 namespace {
 
 enum class IconType : unsigned {
@@ -64,7 +64,6 @@ enum class IconType : unsigned {
 IconManager::Icons init_support_icons(IconManager &mng, ImVec2 size = ImVec2{50, 50})
 {
     mng.release();
-    // PhrozenOrca: icon path is /images/, not /icons/ (PrusaSlicer convention)
     const std::string path = resources_dir() + "/images/";
     IconManager::InitTypes init_types {
         {path + "support_structure_invisible.svg", size, IconManager::RasterType::color},          // show_support_points_selected
@@ -76,43 +75,6 @@ IconManager::Icons init_support_icons(IconManager &mng, ImVec2 size = ImVec2{50,
     };
     assert(init_types.size() == static_cast<size_t>(IconType::_count));
     return mng.init(init_types);
-}
-
-const IconManager::Icon &get_support_icon(const IconManager::Icons &icons, IconType type) {
-    return *icons[static_cast<unsigned>(type)];
-}
-
-/// Draw icon buttons to swap between showing support points only vs support structure with pad.
-/// Returns true when the view mode was changed.
-bool draw_support_view_mode(bool &show_support_structure, const IconManager::Icons &icons)
-{
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 8.f);
-    bool result = false;
-    if (show_support_structure) {
-        draw(get_support_icon(icons, IconType::show_support_structure_selected));
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", _u8L("Visible support structure").c_str());
-        ImGui::SameLine();
-        if (clickable(get_support_icon(icons, IconType::show_support_points_unselected),
-                      get_support_icon(icons, IconType::show_support_points_hovered))) {
-            show_support_structure = false;
-            result = true;
-        } else if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", _u8L("Click to show support points without support structure").c_str());
-    } else {
-        if (clickable(get_support_icon(icons, IconType::show_support_structure_unselected),
-                      get_support_icon(icons, IconType::show_support_structure_hovered))) {
-            show_support_structure = true;
-            result = true;
-        } else if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", _u8L("Click to show support structure with pad").c_str());
-        ImGui::SameLine();
-        draw(get_support_icon(icons, IconType::show_support_points_selected));
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", _u8L("Visible support points without support structure").c_str());
-    }
-    ImGui::PopStyleVar();
-    return result;
 }
 
 } // anonymous namespace
@@ -720,7 +682,7 @@ void GLGizmoSlaSupports::make_line_segments() const
 
 void GLGizmoSlaSupports::on_render_input_window(float x, float y, float bottom_limit)
 {
-    // Step 4.5+: Lazy-init / re-init icons when resolution changes (same pattern as PrusaSlicer).
+    // Re-init icons when scale or line height changes.
     static float rendered_line_height = 0.f;
     if (float line_height = ImGui::GetTextLineHeightWithSpacing();
         m_icons.empty() || rendered_line_height != line_height) {
@@ -729,254 +691,596 @@ void GLGizmoSlaSupports::on_render_input_window(float x, float y, float bottom_l
         m_icons = init_support_icons(m_icon_manager, ImVec2{width, width});
     }
 
-    static float last_y = 0.0f;
-    static float last_h = 0.0f;
-
     ModelObject* mo = m_c->selection_info()->model_object();
 
     if (! mo)
         return;
 
-    bool first_run = true; // This is a hack to redraw the button when all points are removed,
-                           // so it is not delayed until the background process finishes.
-RENDER_AGAIN:
-    //m_imgui->set_next_window_pos(x, y, ImGuiCond_Always);
-    //const ImVec2 window_size(m_imgui->scaled(18.f, 16.f));
-    //ImGui::SetNextWindowPos(ImVec2(x, y - std::max(0.f, y+window_size.y-bottom_limit) ));
-    //ImGui::SetNextWindowSize(ImVec2(window_size));
+    (void)bottom_limit;
 
-    m_imgui->begin(get_name(), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+    if (m_editing_mode)
+        render_manual_support_panel(x, y, 0.f, mo);
+    else
+        render_auto_support_panel(x, y, 0.f, mo);
+}
 
-    // adjust window position to avoid overlap the view toolbar
-    float win_h = ImGui::GetWindowHeight();
-    y = std::min(y, bottom_limit - win_h);
-    ImGui::SetWindowPos(ImVec2(x, y), ImGuiCond_Always);
-    if ((last_h != win_h) || (last_y != y))
-    {
-        // ask canvas for another frame to render the window in the correct position
-#if ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
-        m_imgui->set_requires_extra_frame();
-#else
-        m_parent.request_extra_frame();
-#endif // ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
-        if (last_h != win_h)
-            last_h = win_h;
-        if (last_y != y)
-            last_y = y;
+// ─────────────────────────────────────────────────────────────────────────────
+// sp_draw_custom_slider — orange/gray triangle-pointer drag slider.
+// s_min/s_max: visual drag range.  v_min/v_max: final value clamp (keyboard input).
+// Returns true when the value changed this frame via mouse drag.
+static bool sp_draw_custom_slider(const char* id, float& v,
+                                   float s_min, float s_max,
+                                   float v_min, float v_max,
+                                   float bar_w, bool enabled = true)
+{
+    ImDrawList*  dl  = ImGui::GetWindowDrawList();
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    const float  fh  = ImGui::GetFrameHeight();
+
+    constexpr float kBarH     = 3.f;
+    constexpr float kGap      = 2.f;
+    constexpr float kTriH     = 7.f;
+    constexpr float kTriW     = 10.f;
+    constexpr float kRounding = 1.5f;
+
+    const float block_h = kBarH + kGap + kTriH;
+    const float v_off   = std::floor((fh - block_h) * 0.5f);
+    const float bar_y0  = pos.y + v_off;
+    const float bar_y1  = bar_y0 + kBarH;
+    const float tri_ay  = bar_y1 + kGap;
+    const float tri_by  = tri_ay + kTriH;
+
+    ImGui::InvisibleButton(id, ImVec2(bar_w, fh));
+    const bool active  = ImGui::IsItemActive();
+    bool       changed = false;
+
+    if (active && enabled) {
+        const float t  = std::clamp((ImGui::GetIO().MousePos.x - pos.x) / bar_w, 0.f, 1.f);
+        float       nv = s_min + t * (s_max - s_min);
+        nv = std::clamp(nv, v_min, v_max);
+        if (nv != v) { v = nv; changed = true; }
     }
 
-    // First calculate width of all the texts that are could possibly be shown. We will decide set the dialog width based on that:
+    const float t_draw = (s_max > s_min)
+        ? std::clamp((v - s_min) / (s_max - s_min), 0.f, 1.f) : 0.f;
+    const float hx = pos.x + t_draw * bar_w;
 
-    const float settings_sliders_left = m_imgui->calc_text_size(m_desc.at("points_density")).x + m_imgui->scaled(1.f);
-    const float diameter_slider_left = m_imgui->calc_text_size(m_desc.at("head_diameter")).x + m_imgui->scaled(1.f);
-    const float minimal_slider_width = m_imgui->scaled(4.f);
-    const float buttons_width_approx = m_imgui->calc_text_size(m_desc.at("apply_changes")).x + m_imgui->calc_text_size(m_desc.at("discard_changes")).x + m_imgui->scaled(1.5f);
-    const float lock_supports_width_approx = m_imgui->calc_text_size(m_desc.at("lock_supports")).x + m_imgui->scaled(2.f);
+    constexpr ImU32 kOrangeU32 = IM_COL32(232, 107, 32, 255);
+    constexpr ImU32 kGrayU32   = IM_COL32(190, 190, 190, 255);
 
-    float window_width = minimal_slider_width + std::max(settings_sliders_left, diameter_slider_left);
-    window_width = std::max(std::max(window_width, buttons_width_approx), lock_supports_width_approx);
+    if (hx > pos.x)
+        dl->AddRectFilled(ImVec2(pos.x, bar_y0), ImVec2(hx,          bar_y1), kOrangeU32, kRounding);
+    if (hx < pos.x + bar_w)
+        dl->AddRectFilled(ImVec2(hx,    bar_y0), ImVec2(pos.x+bar_w, bar_y1), kGrayU32,   kRounding);
 
-    bool force_refresh = false;
-    bool remove_selected = false;
-    bool remove_all = false;
+    dl->AddTriangleFilled(
+        ImVec2(hx,               tri_ay),
+        ImVec2(hx - kTriW * .5f, tri_by),
+        ImVec2(hx + kTriW * .5f, tri_by),
+        kOrangeU32);
 
-    if (m_editing_mode) {
+    return changed;
+}
 
-        float diameter_upper_cap = static_cast<ConfigOptionFloat*>(wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option("support_pillar_diameter"))->value;
-        if (m_new_point_head_diameter > diameter_upper_cap)
-            m_new_point_head_diameter = diameter_upper_cap;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// render_auto_support_panel — Auto Support UI panel
+// ─────────────────────────────────────────────────────────────────────────────
+void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo)
+{
+    const float scale       = m_parent.get_scale();
+    const float gap         = 8.f * scale;
+    const float value_box_w = m_imgui->scaled(4.f);
+    const float slider_w    = m_imgui->scaled(8.f);
+    const float spacing_x   = m_imgui->get_item_spacing().x;
+    const float fp          = ImGui::GetStyle().FramePadding.x * 2.f;
+
+    // label_col_w uses "Head Diameter" width to match Manual panel — keeps content_w identical.
+    const float label_col_w = m_imgui->calc_text_size(_L("Head Diameter")).x + m_imgui->scaled(1.5f);
+    const float content_w   = label_col_w + slider_w + spacing_x + value_box_w;
+    const float preset_w    = (content_w - spacing_x * 2.f) / 3.f;
+    const float view_btn_w  = (content_w - spacing_x) * 0.5f;
+    const float btn_rem_w   = m_imgui->calc_text_size(_L("Remove all")).x + fp + m_imgui->scaled(1.f);
+    const float btn_apply_w = m_imgui->calc_text_size(_L("Apply")).x      + fp + m_imgui->scaled(1.f);
+
+    // Color palette
+    const ImVec4 kOrange = {0.91f, 0.42f, 0.13f, 1.f};
+    const ImVec4 kWhite  = {1.f,   1.f,   1.f,   1.f};
+
+    ImGuiWrapper::push_toolbar_style(scale);
+    const ImVec4 kWindowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+    const bool   is_dark   = (kWindowBg.x < 0.5f);
+
+    // Preserve x padding from style push; zero y so tabs flush to window top.
+    const float win_pad_x = ImGui::GetStyle().WindowPadding.x;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(win_pad_x, 0.f));
+
+    // min_panel_w: sized to fit Manual panel's wider 5-button bottom row.
+    const float btn_sp         = 6.f * scale;
+    const float icon_sz_btm    = 25.f * scale;
+    const float btn_rem_sel_w2 = m_imgui->calc_text_size(_L("Remove selected")).x + fp + m_imgui->scaled(1.f);
+    const float btn_rem_all_w2 = m_imgui->calc_text_size(_L("Remove all")).x      + fp + m_imgui->scaled(1.f);
+    const float btn_apply_w2   = m_imgui->calc_text_size(_L("Apply")).x           + fp + m_imgui->scaled(1.f);
+    const float btn_discard_w2 = m_imgui->calc_text_size(_L("Discard")).x         + fp + m_imgui->scaled(1.f);
+    const float min_panel_w    = 2.f * win_pad_x + icon_sz_btm + btn_sp
+        + btn_rem_sel_w2 + btn_sp + btn_rem_all_w2 + btn_sp + btn_apply_w2 + btn_sp + btn_discard_w2;
+    ImGui::SetNextWindowSizeConstraints(ImVec2(min_panel_w, 0.f), ImVec2(FLT_MAX, FLT_MAX));
+
+    static float panel_w = 0.f;
+    float panel_x = x;
+    GizmoImguiSetNextWIndowPos(panel_x, y + legacy_panel_h + gap, panel_w, 0.f, ImGuiCond_Always);
+    m_imgui->begin(wxString("SupportNewUI_Auto"),
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+
+    // ── Row 1: Tab header — Auto (active) | Manual (inactive) ───────────────
+    {
+        ImDrawList*  dl       = ImGui::GetWindowDrawList();
+        const ImVec2 win_pos  = ImGui::GetWindowPos();
+        const float  full_w   = ImGui::GetWindowWidth();
+        const float  half_w   = full_w * 0.5f;
+        const float  font_h   = ImGui::GetTextLineHeight();
+        const float  tab_h    = font_h + 8.f * scale;
+        const float  rounding = 4.f * scale;
+
+        const ImVec4 bg_vec    = kWindowBg;
+        const ImVec4 act_bg    = is_dark ? ImVec4{0.30f, 0.20f, 0.08f, 1.f} : ImVec4{1.0f, 0.9216f, 0.8863f, 1.0f};
+        const ImVec4 act_txt   = kOrange;
+        const ImVec4 inact_txt = is_dark ? ImVec4{0.72f, 0.72f, 0.72f, 1.f} : ImVec4{0.35f, 0.35f,  0.35f,   1.f};
+        const ImVec4 sep_col   = is_dark ? ImVec4{0.35f, 0.35f, 0.35f, 1.f} : ImVec4{0.80f, 0.80f,  0.80f,   1.f};
+
+        auto to_u32 = [](const ImVec4& c) { return ImGui::ColorConvertFloat4ToU32(c); };
+
+        const ImVec2 l0 = {win_pos.x,         win_pos.y};
+        const ImVec2 l1 = {win_pos.x + half_w, win_pos.y + tab_h};
+        const ImVec2 r0 = {win_pos.x + half_w, win_pos.y};
+        const ImVec2 r1 = {win_pos.x + full_w, win_pos.y + tab_h};
+
+        // Widen clip to full window width so rects are not trimmed by window padding
+        dl->PushClipRect({win_pos.x, win_pos.y}, {win_pos.x + full_w, win_pos.y + tab_h}, false);
+
+        // Left (Auto) — active: flush left→midline, rounded top-left outer corner
+        dl->AddRectFilled(l0, l1, to_u32(act_bg), rounding, ImDrawFlags_RoundCornersTopLeft);
+        // Right (Manual) — inactive: window bg, no rounding needed
+        dl->AddRectFilled(r0, r1, to_u32(bg_vec));
+
+        const std::string auto_str   = _u8L("Auto Support");
+        const std::string manual_str = _u8L("Manual Support");
+        const ImVec2 auto_sz   = ImGui::CalcTextSize(auto_str.c_str());
+        const ImVec2 manual_sz = ImGui::CalcTextSize(manual_str.c_str());
+
+        dl->AddText({l0.x + (half_w - auto_sz.x)  * 0.5f, l0.y + (tab_h - auto_sz.y)  * 0.5f},
+                    to_u32(act_txt),   auto_str.c_str());
+        dl->AddText({r0.x + (half_w - manual_sz.x) * 0.5f, r0.y + (tab_h - manual_sz.y) * 0.5f},
+                    to_u32(inact_txt), manual_str.c_str());
+
+        dl->AddLine({l0.x, l1.y}, {r1.x, r1.y}, to_u32(sep_col), 1.f);
+
+        dl->PopClipRect();
+
+        // InvisibleButton click detection positioned at content start
+        ImGui::SetCursorScreenPos({win_pos.x + win_pad_x, win_pos.y});
+        ImGui::InvisibleButton("##sp_auto_tab_l", {half_w - win_pad_x,          tab_h});
+        // Left tab = already active, no click action needed
+
+        ImGui::SameLine(0.f, 0.f);
+        ImGui::InvisibleButton("##sp_auto_tab_r", {full_w - half_w - win_pad_x, tab_h});
+        if (ImGui::IsItemClicked())
+            switch_to_editing_mode();
+
+        // Restore cursor below the tab band with one ItemSpacing.y gap
+        ImGui::SetCursorScreenPos({win_pos.x + win_pad_x, win_pos.y + tab_h + ImGui::GetStyle().ItemSpacing.y});
+    }
+
+    // ── Row 2: Preset buttons — Light / Middle / Heavy ───────────────────
+    {
+        auto draw_preset_btn = [&](const char* label, sla::SupportWeight w) {
+            const bool active = (m_new_point_weight == w);
+            if (active) {
+                const ImVec4 pbg = is_dark ? ImVec4{0.30f, 0.20f, 0.08f, 1.f} : kWhite;
+                const ImVec4 phv = is_dark ? ImVec4{0.38f, 0.26f, 0.12f, 1.f} : ImVec4{0.98f, 0.95f, 0.92f, 1.f};
+                ImGui::PushStyleColor(ImGuiCol_Button,        pbg);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, phv);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  pbg);
+                ImGui::PushStyleColor(ImGuiCol_Text,          kOrange);
+                ImGui::PushStyleColor(ImGuiCol_Border,        kOrange);
+            }
+            if (ImGui::Button(label, ImVec2(preset_w, 0.f))) {
+                m_new_point_weight = w;
+                apply_weight_preset(w);
+            }
+            if (active) ImGui::PopStyleColor(5);
+        };
+        draw_preset_btn(_u8L("Light").c_str(),  sla::SupportWeight::Light);
+        ImGui::SameLine();
+        draw_preset_btn(_u8L("Middle").c_str(), sla::SupportWeight::Medium);
+        ImGui::SameLine();
+        draw_preset_btn(_u8L("Heavy").c_str(),  sla::SupportWeight::Heavy);
+    }
+
+    // ── Row 3: Structure / Points view-mode toggle ────────────────────────
+    {
+        auto draw_view_btn = [&](const char* label, bool is_active, auto on_click) {
+            if (is_active) {
+                const ImVec4 vbg = is_dark ? ImVec4{0.30f, 0.20f, 0.08f, 1.f} : kWhite;
+                const ImVec4 vhv = is_dark ? ImVec4{0.38f, 0.26f, 0.12f, 1.f} : ImVec4{0.98f, 0.95f, 0.92f, 1.f};
+                ImGui::PushStyleColor(ImGuiCol_Button,        vbg);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, vhv);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  vbg);
+                ImGui::PushStyleColor(ImGuiCol_Text,          kOrange);
+                ImGui::PushStyleColor(ImGuiCol_Border,        kOrange);
+            }
+            const bool clicked = ImGui::Button(label, ImVec2(view_btn_w, 0.f));
+            if (is_active) ImGui::PopStyleColor(5);
+            if (clicked && !is_active) on_click();
+        };
+
+        draw_view_btn(_u8L("Structure").c_str(), m_show_support_structure, [&](){
+            m_show_support_structure = true;
+            show_sla_supports(true);
+            if (m_normal_cache.empty()) auto_generate();
+            else                        reslice_until_step(slaposPad);
+        });
+        ImGui::SameLine();
+        draw_view_btn(_u8L("Points").c_str(), !m_show_support_structure, [&](){
+            m_show_support_structure = false;
+            show_sla_supports(false);
+        });
+    }
+
+    // ── Row 4: Density — custom slider + InputFloat ───────────────────────
+    {
+        const char* density_key = "support_points_density_relative";
+        float density = static_cast<float>(
+            static_cast<const ConfigOptionInt*>(get_config_options({density_key})[0])->value);
+
+        static bool  sp_density_dragging = false;
+        static float sp_density_stash    = 100.f;
+
         ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc.at("head_diameter"));
-        ImGui::SameLine(diameter_slider_left);
-        ImGui::PushItemWidth(window_width - diameter_slider_left);
+        m_imgui->text(_L("Density"));
+        ImGui::SameLine(label_col_w);
 
-        // Following is a nasty way to:
-        //  - save the initial value of the slider before one starts messing with it
-        //  - keep updating the head radius during sliding so it is continuosly refreshed in 3D scene
-        //  - take correct undo/redo snapshot after the user is done with moving the slider
-        float initial_value = m_new_point_head_diameter;
-        m_imgui->slider_float("##head_diameter", &m_new_point_head_diameter, 0.1f, diameter_upper_cap, "%.1f");
-        if (m_imgui->get_last_slider_status().clicked) {
-            if (m_old_point_head_diameter == 0.f)
-                m_old_point_head_diameter = initial_value;
+        const bool sl_ch  = sp_draw_custom_slider("##sp_density", density,
+                                                   50.f, 200.f, 50.f, 200.f,
+                                                   slider_w, is_input_enabled());
+        if (ImGui::IsItemActivated())  { sp_density_stash = density; sp_density_dragging = false; }
+        if (sl_ch)                     { sp_density_dragging = true; mo->config.set(density_key, (int)density); }
+        if (ImGui::IsItemDeactivated() && sp_density_dragging) {
+            mo->config.set(density_key, (int)sp_density_stash);
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support density change");
+            mo->config.set(density_key, (int)density);
+            wxGetApp().obj_list()->update_and_show_object_settings_item();
+            auto_generate();
+            sp_density_dragging = false;
         }
-        if (m_imgui->get_last_slider_status().edited) {
-            for (auto& cache_entry : m_editing_cache)
-                if (cache_entry.selected)
-                    cache_entry.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
+
+        ImGui::SameLine();
+        ImGui::PushItemWidth(value_box_w);
+        float display_density = density;
+        ImGui::InputFloat("##sp_density_in", &display_density, 0.f, 0.f, "%.f%%");
+        if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
+            density = std::clamp(display_density, 50.f, 200.f);
+            mo->config.set(density_key, (int)density);
+            wxGetApp().obj_list()->update_and_show_object_settings_item();
+            auto_generate();
         }
-        if (m_imgui->get_last_slider_status().deactivated_after_edit) {
-            // momentarily restore the old value to take snapshot
-            for (auto& cache_entry : m_editing_cache)
-                if (cache_entry.selected)
-                    cache_entry.support_point.head_front_radius = m_old_point_head_diameter / 2.f;
+        ImGui::PopItemWidth();
+    }
+
+    // ── Row 5: [?] | Remove all | Apply ──────────────────────────────────
+    ImGui::Separator();
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f * scale, 4.f * scale));
+    {
+        ImTextureID nid = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP);
+        ImTextureID hid = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP_HOVER);
+        const float icon_sz = 25.f * scale;
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {0.f, 0.f});
+        ImGui::ImageButton3(nid, hid, ImVec2(icon_sz, icon_sz));
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            m_imgui->text(_L("Auto-generate support points based on density setting."));
+            ImGui::EndTooltip();
+        }
+        ImGui::PopStyleVar(2);
+
+        ImGui::SameLine();
+        m_imgui->disabled_begin(m_normal_cache.empty());
+        if (ImGui::Button((_u8L("Remove all") + "##sp_auto_rem").c_str(), ImVec2(btn_rem_w, 0.f))) {
+            bool was_editing = m_editing_mode;
+            if (!was_editing) switch_to_editing_mode();
+            select_point(AllPoints);
+            delete_selected_points(true);
+            if (!was_editing) editing_mode_apply_changes();
+        }
+        m_imgui->disabled_end();
+
+        ImGui::SameLine();
+        if (ImGui::Button((_u8L("Apply") + "##sp_auto_apply").c_str(), ImVec2(btn_apply_w, 0.f)))
+            auto_generate();
+    }
+    ImGui::PopStyleVar(); // ItemSpacing
+
+    panel_w = ImGui::GetWindowWidth();
+    m_imgui->end();
+    ImGui::PopStyleVar(); // WindowPadding (y=0 override)
+    ImGuiWrapper::pop_toolbar_style();
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// render_manual_support_panel — Manual Support UI panel
+// ─────────────────────────────────────────────────────────────────────────────
+void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo)
+{
+    const float scale       = m_parent.get_scale();
+    const float gap         = 8.f * scale;
+    const float value_box_w = m_imgui->scaled(4.f);
+    const float slider_w    = m_imgui->scaled(8.f);
+    const float spacing_x   = m_imgui->get_item_spacing().x;
+    const float fp          = ImGui::GetStyle().FramePadding.x * 2.f;
+
+    // Slider row defines the base content width (same formula as Auto panel).
+    const float label_col_w  = m_imgui->calc_text_size(_L("Head Diameter")).x + m_imgui->scaled(1.5f);
+    const float content_w    = label_col_w + slider_w + spacing_x + value_box_w;
+    const float preset_w     = (content_w - spacing_x * 2.f) / 3.f;
+    const float btn_rem_sel_w = m_imgui->calc_text_size(_L("Remove selected")).x + fp + m_imgui->scaled(1.f);
+    const float btn_rem_all_w = m_imgui->calc_text_size(_L("Remove all")).x      + fp + m_imgui->scaled(1.f);
+    const float btn_apply_w   = m_imgui->calc_text_size(_L("Apply")).x           + fp + m_imgui->scaled(1.f);
+    const float btn_discard_w = m_imgui->calc_text_size(_L("Discard")).x         + fp + m_imgui->scaled(1.f);
+
+    float diameter_upper_cap = static_cast<ConfigOptionFloat*>(
+        wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option("support_pillar_diameter"))->value;
+    if (m_new_point_head_diameter > diameter_upper_cap)
+        m_new_point_head_diameter = diameter_upper_cap;
+
+    const ImVec4 kOrange = {0.91f, 0.42f, 0.13f, 1.f};
+    const ImVec4 kWhite  = {1.f,   1.f,   1.f,   1.f};
+
+    ImGuiWrapper::push_toolbar_style(scale);
+    const ImVec4 kWindowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+    const bool   is_dark   = (kWindowBg.x < 0.5f);
+
+    // Preserve x padding from style push; zero y so tabs flush to window top.
+    const float win_pad_x = ImGui::GetStyle().WindowPadding.x;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(win_pad_x, 0.f));
+
+    // min_panel_w: sized to fit Manual panel's own 5-button bottom row.
+    const float btn_sp      = 6.f * scale;
+    const float icon_sz_btm = 25.f * scale;
+    const float min_panel_w = 2.f * win_pad_x + icon_sz_btm + btn_sp
+        + btn_rem_sel_w + btn_sp + btn_rem_all_w + btn_sp + btn_apply_w + btn_sp + btn_discard_w;
+    ImGui::SetNextWindowSizeConstraints(ImVec2(min_panel_w, 0.f), ImVec2(FLT_MAX, FLT_MAX));
+
+    static float panel_w = 0.f;
+    float panel_x = x;
+    GizmoImguiSetNextWIndowPos(panel_x, y + legacy_panel_h + gap, panel_w, 0.f, ImGuiCond_Always);
+    m_imgui->begin(wxString("SupportNewUI_Manual"),
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+
+    // ── Row 1: Tab header — Auto (inactive) | Manual (active) ───────────────
+    {
+        ImDrawList*  dl       = ImGui::GetWindowDrawList();
+        const ImVec2 win_pos  = ImGui::GetWindowPos();
+        const float  full_w   = ImGui::GetWindowWidth();
+        const float  half_w   = full_w * 0.5f;
+        const float  font_h   = ImGui::GetTextLineHeight();
+        const float  tab_h    = font_h + 8.f * scale;
+        const float  rounding = 4.f * scale;
+
+        const ImVec4 bg_vec    = kWindowBg;
+        const ImVec4 act_bg    = is_dark ? ImVec4{0.30f, 0.20f, 0.08f, 1.f} : ImVec4{1.0f, 0.9216f, 0.8863f, 1.0f};
+        const ImVec4 act_txt   = kOrange;
+        const ImVec4 inact_txt = is_dark ? ImVec4{0.72f, 0.72f, 0.72f, 1.f} : ImVec4{0.35f, 0.35f,  0.35f,   1.f};
+        const ImVec4 sep_col   = is_dark ? ImVec4{0.35f, 0.35f, 0.35f, 1.f} : ImVec4{0.80f, 0.80f,  0.80f,   1.f};
+
+        auto to_u32 = [](const ImVec4& c) { return ImGui::ColorConvertFloat4ToU32(c); };
+
+        const ImVec2 l0 = {win_pos.x,         win_pos.y};
+        const ImVec2 l1 = {win_pos.x + half_w, win_pos.y + tab_h};
+        const ImVec2 r0 = {win_pos.x + half_w, win_pos.y};
+        const ImVec2 r1 = {win_pos.x + full_w, win_pos.y + tab_h};
+
+        // Widen clip to full window width so rects are not trimmed by window padding
+        dl->PushClipRect({win_pos.x, win_pos.y}, {win_pos.x + full_w, win_pos.y + tab_h}, false);
+
+        // Left (Auto) — inactive: window bg, no rounding needed
+        dl->AddRectFilled(l0, l1, to_u32(bg_vec));
+        // Right (Manual) — active: flush midline→right edge, rounded top-right outer corner
+        dl->AddRectFilled(r0, r1, to_u32(act_bg), rounding, ImDrawFlags_RoundCornersTopRight);
+
+        const std::string auto_str   = _u8L("Auto Support");
+        const std::string manual_str = _u8L("Manual Support");
+        const ImVec2 auto_sz   = ImGui::CalcTextSize(auto_str.c_str());
+        const ImVec2 manual_sz = ImGui::CalcTextSize(manual_str.c_str());
+
+        dl->AddText({l0.x + (half_w - auto_sz.x)  * 0.5f, l0.y + (tab_h - auto_sz.y)  * 0.5f},
+                    to_u32(inact_txt), auto_str.c_str());
+        dl->AddText({r0.x + (half_w - manual_sz.x) * 0.5f, r0.y + (tab_h - manual_sz.y) * 0.5f},
+                    to_u32(act_txt),   manual_str.c_str());
+
+        dl->AddLine({l0.x, l1.y}, {r1.x, r1.y}, to_u32(sep_col), 1.f);
+
+        dl->PopClipRect();
+
+        // InvisibleButton click detection positioned at content start
+        ImGui::SetCursorScreenPos({win_pos.x + win_pad_x, win_pos.y});
+        ImGui::InvisibleButton("##sp_man_tab_l", {half_w - win_pad_x,          tab_h});
+        if (ImGui::IsItemClicked())
+            disable_editing_mode();
+
+        ImGui::SameLine(0.f, 0.f);
+        ImGui::InvisibleButton("##sp_man_tab_r", {full_w - half_w - win_pad_x, tab_h});
+        // Right tab = already active, no click action needed
+
+        // Restore cursor below the tab band with one ItemSpacing.y gap
+        ImGui::SetCursorScreenPos({win_pos.x + win_pad_x, win_pos.y + tab_h + ImGui::GetStyle().ItemSpacing.y});
+    }
+
+    // ── Row 2: Preset buttons — Light / Middle / Heavy ───────────────────
+    {
+        auto draw_preset_btn = [&](const char* label, sla::SupportWeight w) {
+            const bool active = (m_new_point_weight == w);
+            if (active) {
+                const ImVec4 pbg = is_dark ? ImVec4{0.30f, 0.20f, 0.08f, 1.f} : kWhite;
+                const ImVec4 phv = is_dark ? ImVec4{0.38f, 0.26f, 0.12f, 1.f} : ImVec4{0.98f, 0.95f, 0.92f, 1.f};
+                ImGui::PushStyleColor(ImGuiCol_Button,        pbg);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, phv);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  pbg);
+                ImGui::PushStyleColor(ImGuiCol_Text,          kOrange);
+                ImGui::PushStyleColor(ImGuiCol_Border,        kOrange);
+            }
+            if (ImGui::Button(label, ImVec2(preset_w, 0.f))) {
+                m_new_point_weight = w;
+                apply_weight_preset(w);
+            }
+            if (active) ImGui::PopStyleColor(5);
+        };
+        draw_preset_btn(_u8L("Light").c_str(),  sla::SupportWeight::Light);
+        ImGui::SameLine();
+        draw_preset_btn(_u8L("Middle").c_str(), sla::SupportWeight::Medium);
+        ImGui::SameLine();
+        draw_preset_btn(_u8L("Heavy").c_str(),  sla::SupportWeight::Heavy);
+    }
+
+    // ── Row 3: Head Diameter — custom slider + InputFloat ─────────────────
+    // Three-phase undo/redo: stash on activate, live-update while dragging, snapshot on deactivate.
+    ImGui::AlignTextToFramePadding();
+    m_imgui->text(_L("Head Diameter"));
+    ImGui::SameLine(label_col_w);
+    {
+        const float initial_value = m_new_point_head_diameter;
+        const bool sl_ch  = sp_draw_custom_slider("##sp_head_diam", m_new_point_head_diameter,
+                                                   0.1f, diameter_upper_cap,
+                                                   0.1f, diameter_upper_cap,
+                                                   slider_w, is_input_enabled());
+        if (ImGui::IsItemActivated() && m_old_point_head_diameter == 0.f)
+            m_old_point_head_diameter = initial_value;
+        if (sl_ch) {
+            for (auto& e : m_editing_cache)
+                if (e.selected)
+                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
+        }
+        if (ImGui::IsItemDeactivated() && m_old_point_head_diameter != 0.f) {
+            for (auto& e : m_editing_cache)
+                if (e.selected)
+                    e.support_point.head_front_radius = m_old_point_head_diameter / 2.f;
             float backup = m_new_point_head_diameter;
             m_new_point_head_diameter = m_old_point_head_diameter;
             Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Change point head diameter");
             m_new_point_head_diameter = backup;
-            for (auto& cache_entry : m_editing_cache)
-                if (cache_entry.selected)
-                    cache_entry.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
+            for (auto& e : m_editing_cache)
+                if (e.selected)
+                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
             m_old_point_head_diameter = 0.f;
         }
 
-        // Task 4.2: Weight selector — controls pillar thickness of next manually placed point.
-        ImGui::AlignTextToFramePadding();
-        m_imgui->text(_L("Support weight"));
-        ImGui::SameLine(diameter_slider_left);
-        {
-            int weight_int = static_cast<int>(m_new_point_weight);
-            bool changed_w = false;
-            if (ImGui::RadioButton(_u8L("Light").c_str(),  &weight_int, static_cast<int>(sla::SupportWeight::Light)))  changed_w = true;
-            ImGui::SameLine();
-            if (ImGui::RadioButton(_u8L("Medium").c_str(), &weight_int, static_cast<int>(sla::SupportWeight::Medium))) changed_w = true;
-            ImGui::SameLine();
-            if (ImGui::RadioButton(_u8L("Heavy").c_str(),  &weight_int, static_cast<int>(sla::SupportWeight::Heavy)))  changed_w = true;
-            if (changed_w) {
-                m_new_point_weight = static_cast<sla::SupportWeight>(weight_int);
-                apply_weight_preset(m_new_point_weight);
-            }
-        }
-
-        bool changed = m_lock_unique_islands;
-        m_imgui->checkbox(m_desc.at("lock_supports"), m_lock_unique_islands);
-        force_refresh |= changed != m_lock_unique_islands;
-
-        m_imgui->disabled_begin(m_selection_empty);
-        remove_selected = m_imgui->button(m_desc.at("remove_selected"));
-        m_imgui->disabled_end();
-
-        m_imgui->disabled_begin(m_editing_cache.empty());
-        remove_all = m_imgui->button(m_desc.at("remove_all"));
-        m_imgui->disabled_end();
-
-        m_imgui->text(" "); // vertical gap
-
-        if (m_imgui->button(m_desc.at("apply_changes"))) {
-            editing_mode_apply_changes();
-            force_refresh = true;
-        }
         ImGui::SameLine();
-        bool discard_changes = m_imgui->button(m_desc.at("discard_changes"));
-        if (discard_changes) {
-            editing_mode_discard_changes();
-            force_refresh = true;
+        ImGui::PushItemWidth(value_box_w);
+        ImGui::InputFloat("##sp_head_diam_in", &m_new_point_head_diameter,
+                          0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+        if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
+            m_new_point_head_diameter = std::clamp(m_new_point_head_diameter, 0.1f, diameter_upper_cap);
+            for (auto& e : m_editing_cache)
+                if (e.selected)
+                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
         }
+        ImGui::PopItemWidth();
     }
-    else { // not in editing mode:
-        m_imgui->disabled_begin(!is_input_enabled()); // Step 4.5+: disable UI when SLA not ready (matches PrusaSlicer)
 
-        // Step 4.5+: Icon buttons to toggle between show-points and show-support-structure views.
-        if (!m_icons.empty()) {
-            if (draw_support_view_mode(m_show_support_structure, m_icons)) {
-                show_sla_supports(m_show_support_structure);
-                if (m_show_support_structure) {
-                    if (m_normal_cache.empty())
-                        auto_generate();
-                    else
-                        reslice_until_step(slaposPad);
-                }
-            }
-        }
-
-        const char *support_points_density = "support_points_density_relative";
-        float density = static_cast<const ConfigOptionInt*>(get_config_options({support_points_density})[0])->value;
-        float old_density = density;
-        wxString tooltip = _L("Change amount of generated support points.");
-
+    // ── Row 4: Lock — label on left, checkbox pushed to right edge ──────────
+    {
+        const bool was_locked = m_lock_unique_islands;
         ImGui::AlignTextToFramePadding();
-        m_imgui->text(m_desc.at("points_density"));
-        ImGui::SameLine(settings_sliders_left);
-        ImGui::PushItemWidth(window_width - settings_sliders_left);
-
-        if (m_imgui->slider_float("##density", &density, 50.f, 200.f, "%.f %%", 1.f, false, tooltip)) {
-            if (density < 10.f) // lower value seems pointless; zero causes issues inside algorithms
-                density = 10.f;
-            mo->config.set(support_points_density, (int)density);
+        m_imgui->text(_L("Lock supports under new islands"));
+        ImGui::SameLine(content_w - ImGui::GetFrameHeight());
+        if (was_locked) {
+            ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.91f, 0.42f, 0.13f, 1.f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.91f, 0.42f, 0.13f, 1.f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  ImVec4(0.91f, 0.42f, 0.13f, 1.f));
+            ImGui::PushStyleColor(ImGuiCol_CheckMark,      ImVec4(1.f,   1.f,   1.f,   1.f));
         }
+        bool lock_val = m_lock_unique_islands;
+        if (ImGui::BBLCheckbox("##sp_lock", &lock_val))
+            m_lock_unique_islands = lock_val;
+        if (was_locked) ImGui::PopStyleColor(4);
+    }
 
-        const ImGuiWrapper::LastSliderStatus &density_status = m_imgui->get_last_slider_status();
-        static std::optional<int> density_stash; // value for undo/redo stack is written on stop dragging
-        if (!density_stash.has_value() && !is_approx(density, old_density))
-            density_stash = (int)old_density;
-        if (density_status.deactivated_after_edit && density_stash.has_value()) { // slider released
-            // restore value before slide so the undo/redo snapshot captures the original
-            mo->config.set(support_points_density, *density_stash);
-            density_stash.reset();
-            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support parameter change");
-            mo->config.set(support_points_density, (int)density);
-            wxGetApp().obj_list()->update_and_show_object_settings_item();
-            auto_generate();
+    // ── Row 5: [?] | Remove selected | Remove all | Apply | Discard ──────
+    ImGui::Separator();
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f * scale, 4.f * scale));
+    {
+        ImTextureID nid = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP);
+        ImTextureID hid = m_parent.get_gizmos_manager().get_icon_texture_id(
+            GLGizmosManager::MENU_ICON_NAME::IC_TOOLBAR_TOOLTIP_HOVER);
+        const float icon_sz = 25.f * scale;
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,    {0.f, 0.f});
+        ImGui::ImageButton3(nid, hid, ImVec2(icon_sz, icon_sz));
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            m_imgui->text(_L("Left-click: add support point\nRight-click: remove point"));
+            ImGui::EndTooltip();
         }
+        ImGui::PopStyleVar(2);
 
-        // Support point statistics by SupportPointType
-        {
-            int count_manual = 0, count_island = 0;
-            for (const sla::SupportPoint &sp : m_normal_cache) {
-                if (sp.type == sla::SupportPointType::manual_add) ++count_manual;
-                else if (sp.is_island())                          ++count_island;
-            }
-            std::string stats;
-            if (m_normal_cache.empty())
-                stats = "No support points generated yet.";
-            else if (count_manual > 0)
-                stats = GUI::format("%d(%d manual) support points (%d on islands)",
-                    (int)m_normal_cache.size(), count_manual, count_island);
-            else
-                stats = GUI::format("%d support points (%d on islands)",
-                    (int)m_normal_cache.size(), count_island);
-            ImVec4 light_gray{0.4f, 0.4f, 0.4f, 1.0f};
-            ImGui::TextColored(light_gray, "%s", stats.c_str());
-        }
-
-        if (m_imgui->button(m_desc.at("auto_generate")))
-            auto_generate();
-
-        ImGui::Separator();
-        if (m_imgui->button(m_desc.at("manual_editing")))
-            switch_to_editing_mode();
-
-        m_imgui->disabled_begin(m_normal_cache.empty());
-        remove_all = m_imgui->button(m_desc.at("remove_all"));
+        ImGui::SameLine();
+        m_imgui->disabled_begin(m_selection_empty);
+        if (ImGui::Button((_u8L("Remove selected") + "##sp_man_rem_sel").c_str(), ImVec2(btn_rem_sel_w, 0.f)))
+            delete_selected_points(false);
         m_imgui->disabled_end();
 
-        m_imgui->disabled_end(); // close !is_input_enabled()
-    }
-
-
-    if (m_imgui->button("?")) {
-        wxGetApp().CallAfter([]() {
-            SlaGizmoHelpDialog help_dlg;
-            help_dlg.ShowModal();
-        });
-    }
-
-    m_imgui->end();
-
-    if (remove_selected || remove_all) {
-        force_refresh = false;
-        m_parent.set_as_dirty();
-        bool was_in_editing = m_editing_mode;
-        if (! was_in_editing)
-            switch_to_editing_mode();
-        if (remove_all) {
+        ImGui::SameLine();
+        m_imgui->disabled_begin(m_editing_cache.empty());
+        if (ImGui::Button((_u8L("Remove all") + "##sp_man_rem_all").c_str(), ImVec2(btn_rem_all_w, 0.f))) {
             select_point(AllPoints);
-            delete_selected_points(true); // true - delete regardless of locked status
+            delete_selected_points(true);
         }
-        if (remove_selected)
-            delete_selected_points(false); // leave locked points
-        if (! was_in_editing)
-            editing_mode_apply_changes();
+        m_imgui->disabled_end();
 
-        if (first_run) {
-            first_run = false;
-            goto RENDER_AGAIN;
+        ImGui::SameLine();
+        if (ImGui::Button((_u8L("Apply") + "##sp_man_apply").c_str(), ImVec2(btn_apply_w, 0.f))) {
+            // Save changes without exiting Manual mode. Does not call editing_mode_apply_changes()
+            // because that also calls disable_editing_mode(), which would switch to Auto mode.
+            if (unsaved_changes()) {
+                Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
+                m_normal_cache.clear();
+                for (const CacheEntry& ce : m_editing_cache)
+                    m_normal_cache.push_back(ce.support_point);
+                ModelObject* mo_apply = m_c->selection_info()->model_object();
+                mo_apply->sla_points_status = sla::PointsStatus::UserModified;
+                mo_apply->sla_support_points.clear();
+                mo_apply->sla_support_points = m_normal_cache;
+                reslice_until_step(slaposSupportPoints);
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button((_u8L("Discard") + "##sp_man_discard").c_str(), ImVec2(btn_discard_w, 0.f))) {
+            // Revert editing cache to normal cache without exiting Manual mode. Does not call
+            // editing_mode_discard_changes() because that also calls disable_editing_mode().
+            select_point(NoPoints);
+            m_editing_cache.clear();
+            for (const sla::SupportPoint& sp : m_normal_cache)
+                m_editing_cache.emplace_back(sp);
+            unregister_point_raycasters_for_picking();
+            register_point_raycasters_for_picking();
+            m_parent.set_as_dirty();
         }
     }
+    ImGui::PopStyleVar(); // ItemSpacing
 
-    if (force_refresh)
-        m_parent.set_as_dirty();
+    panel_w = ImGui::GetWindowWidth();
+    m_imgui->end();
+    ImGui::PopStyleVar(); // WindowPadding (y=0 override)
+    ImGuiWrapper::pop_toolbar_style();
 }
+
 
 bool GLGizmoSlaSupports::on_is_activable() const
 {
