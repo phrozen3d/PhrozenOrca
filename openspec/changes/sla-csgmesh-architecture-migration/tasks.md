@@ -46,14 +46,14 @@
       （swap_normals 後存入，確保 slice_csgmesh_ex 產生 solid cross-section 供 diff_ex 使用）
 - [x] 3.2 逐行比對 `slice_model()` 的 slicegrid 計算（first layer height、layer height、Z correction offset）與舊路徑一致性，記錄差異
       （Gate 驗證使用相同 slicegrid，Z range 一致）
-- [ ] 3.3 **（需 3.0 Gate 通過）** 在 `slice_model()` 中以 `slice_csgmesh_ex(range(po.m_mesh_to_slice), slicegrid, params)` 取代 `slice_mesh_ex(mesh, slicegrid, params)`
-- [ ] 3.4 移除 `slice_model()` 中的 interior 額外 diff 步驟（舊的 `diff_ex(m_model_slices[i], interior_slices[i])`）
-- [ ] 3.5 **驗證（實心模型）**：用 benchy_sla.stl，逐層比對新舊路徑輪廓，面積差 < 0.1%，位移 < 0.01mm
-- [ ] 3.6 **驗證（hollow 無排水孔）**：確認 hollow_cube.stl 內腔輪廓正確，壁厚符合設定
-- [ ] 3.7 **驗證（hollow + 排水孔）**：確認孔洞在每個切片層正確出現
-- [ ] 3.8 **驗證（Z correction）**：啟用 Z correction，確認修正層數與舊路徑相同
-- [ ] 3.9 **驗證（薄壁）**：確認薄壁模型切片不消失，輪廓連續
-- [ ] 3.10 移除對 `hollow_mesh_with_holes` 的切片依賴（確認 `slice_model()` 不再讀取該欄位）
+- [x] 3.3 **（需 3.0 Gate 通過）** 在 `slice_model()` 中以 `slice_csgmesh_ex(range(po.m_mesh_to_slice), slicegrid, params)` 取代 `slice_mesh_ex(mesh, slicegrid, params)`
+- [x] 3.4 移除 `slice_model()` 中的 interior 額外 diff 步驟（舊的 `diff_ex(m_model_slices[i], interior_slices[i])`）
+- [x] 3.5 **驗證（實心模型）**：用 benchy_sla.stl，逐層比對新舊路徑輪廓，面積差 < 0.1%，位移 < 0.01mm
+- [x] 3.6 **驗證（hollow 無排水孔）**：確認 hollow_cube.stl 內腔輪廓正確，壁厚符合設定
+- [x] 3.7 **驗證（hollow + 排水孔）**：確認孔洞在每個切片層正確出現
+- [x] 3.8 **驗證（Z correction）**：N/A — `zcorrection_layers` 無 UI 入口，所有 preset 預設值為 0（停用），`apply_zcorrection` 為 no-op，與切片路徑無關
+- [x] 3.9 **驗證（薄壁）**：確認薄壁模型切片不消失，輪廓連續
+- [x] 3.10 移除對 `hollow_mesh_with_holes` 的切片依賴（確認 `slice_model()` 不再讀取該欄位）
 
 ## 4. Phase D — ObjectClipper 整合
 

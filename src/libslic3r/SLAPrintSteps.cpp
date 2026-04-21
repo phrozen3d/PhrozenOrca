@@ -678,14 +678,14 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
 // same imaginary grid (the height vector argument to TriangleMeshSlicer).
 void SLAPrint::Steps::slice_model(SLAPrintObject &po)
 {
-    const TriangleMesh &mesh = po.get_mesh_to_slice();
+    // Task 3.3: bounding box from base model (hollowing/drilling don't extend the Z range).
+    auto && bb3d = po.transformed_mesh().bounding_box();
 
     // We need to prepare the slice index...
 
     double  lhd  = m_print->m_objects.front()->m_config.layer_height.getFloat();
     float   lh   = float(lhd);
     coord_t lhs  = scaled(lhd);
-    auto && bb3d = mesh.bounding_box();
     double  minZ = bb3d.min(Z) - po.get_elevation();
     double  maxZ = bb3d.max(Z);
     auto    minZf = float(minZ);
@@ -720,74 +720,14 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
     po.m_model_slices.clear();
     MeshSlicingParamsEx params;
     params.closing_radius = float(po.config().slice_closing_radius.value);
-    //BBS: always regular mode
-    //switch (po.config().slicing_mode.value) {
-    //case SlicingMode::Regular:    params.mode = MeshSlicingParams::SlicingMode::Regular; break;
-    //case SlicingMode::EvenOdd:    params.mode = MeshSlicingParams::SlicingMode::EvenOdd; break;
-    //case SlicingMode::CloseHoles: params.mode = MeshSlicingParams::SlicingMode::Positive; break;
-    //}
     params.mode = MeshSlicingParams::SlicingMode::Regular;
     auto  thr        = [this]() { m_print->throw_if_canceled(); };
     auto &slice_grid = po.m_model_height_levels;
-    po.m_model_slices = slice_mesh_ex(mesh.its, slice_grid, params, thr);
 
-    sla::Interior *interior = po.m_hollowing_data ?
-                                  po.m_hollowing_data->interior.get() :
-                                  nullptr;
-
-    if (interior && ! sla::get_mesh(*interior).empty()) {
-        indexed_triangle_set interiormesh = sla::get_mesh(*interior);
-        sla::swap_normals(interiormesh);
-        params.mode = MeshSlicingParams::SlicingMode::Regular;
-
-        std::vector<ExPolygons> interior_slices = slice_mesh_ex(interiormesh, slice_grid, params, thr);
-
-        sla::ccr::for_each(size_t(0), interior_slices.size(),
-                           [&po, &interior_slices] (size_t i) {
-                              const ExPolygons &slice = interior_slices[i];
-                              po.m_model_slices[i] =
-                                  diff_ex(po.m_model_slices[i], slice);
-                           });
-    }
-
-    // Task 3.0: Gate — run CSG path in parallel, compare with old path.
-    // Both run; old path result is kept. Remove this block after Gate passes.
-    if (!po.m_mesh_to_slice.empty()) {
-        MeshSlicingParamsEx csg_params;
-        csg_params.closing_radius = params.closing_radius;
-        csg_params.mode           = MeshSlicingParams::SlicingMode::Regular;
-
-        auto csg_range = Range{po.m_mesh_to_slice.cbegin(), po.m_mesh_to_slice.cend()};
-        std::vector<ExPolygons> csg_slices =
-            csg::slice_csgmesh_ex(csg_range, slice_grid, csg_params, thr);
-
-        size_t layer_count    = std::min(po.m_model_slices.size(), csg_slices.size());
-        double max_diff_pct   = 0.0;
-        size_t layers_failing = 0;
-
-        for (size_t i = 0; i < layer_count; ++i) {
-            double a_old = area(po.m_model_slices[i]);
-            double a_csg = area(csg_slices[i]);
-            double diff_pct = (std::abs(a_old) > 1e-6) ?
-                std::abs(a_csg - a_old) / std::abs(a_old) * 100.0 :
-                std::abs(a_csg) * 100.0;
-            max_diff_pct = std::max(max_diff_pct, diff_pct);
-            if (diff_pct > 0.1) ++layers_failing;
-        }
-
-        BOOST_LOG_TRIVIAL(info)
-            << "[CSG Gate 3.0] layers=" << layer_count
-            << " max_area_diff=" << max_diff_pct << "%"
-            << " layers_exceeding_0.1pct=" << layers_failing;
-
-        if (layers_failing > 0)
-            BOOST_LOG_TRIVIAL(warning)
-                << "[CSG Gate 3.0] FAIL: " << layers_failing
-                << " layers exceed 0.1% area threshold — CSG path not yet equivalent";
-        else
-            BOOST_LOG_TRIVIAL(info)
-                << "[CSG Gate 3.0] PASS: CSG path matches old path within 0.1%";
-    }
+    // Task 3.3/3.4: CSG path — assembly + hollowing + drill holes combined in 2D.
+    // Replaces: slice_mesh_ex(hollow_mesh_with_holes) + manual interior diff_ex.
+    auto csg_range = Range{po.m_mesh_to_slice.cbegin(), po.m_mesh_to_slice.cend()};
+    po.m_model_slices = csg::slice_csgmesh_ex(csg_range, slice_grid, params, thr);
 
     auto mit = slindex_it;
     for (size_t id = 0;

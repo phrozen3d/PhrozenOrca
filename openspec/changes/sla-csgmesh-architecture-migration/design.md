@@ -171,4 +171,43 @@ PrusaSlicer 在 2021–2023 年間已完成架構遷移，改用 `m_mesh_to_slic
 
 3. **Phase E 暫緩條件**：Phase A–D 完成後，若 support raycasting 出現精度問題（support 點落在 hollow interior 內），則 Phase E 需提前執行。
 
-4. **Phase C 3.0 雙軌驗證方法**：`slice_csgmesh_ex` 在 drain hole world-space mesh + Identity transform 與 model local-space mesh + instance transform 並存時，Z grid 對齊是否正確？需在 3.0 逐層比對時確認。
+4. ~~**Phase C 3.0 雙軌驗證方法**~~：**已解答**。drain hole（world-space + Identity）與 model parts（local-space + instance trafo）在 `slice_csgmesh_ex` 內均正確還原為 world-space，Z grid 對齊正確；三類測試（實心、hollow 無孔、hollow + 排水孔）均通過。
+
+---
+
+## Known Limitations
+
+### `zcorrection_layers` 無 UI 入口
+
+**狀態**：後端邏輯存在（`apply_zcorrection()` 在 `apply_printer_corrections()` 中呼叫），
+但 UI 未串接：
+- `PrintConfig.cpp` 的 label / tooltip / category 全部 comment out
+- 沒有任何 SLA 材料 preset 檔案設定此參數
+- 所有 preset 值為預設值 0（= 停用）
+
+**影響**：使用者目前無法從 UI 啟用 Z correction；`apply_zcorrection` 永遠是 no-op。
+
+#### Z Correction 參數的作用
+
+**問題根源**：SLA UV 光固化時，光線會穿透當前層往下滲入樹脂（cross-layer bleed），
+導致下方幾層也被部分固化，使模型在 Z 方向尺寸偏大，尤其 overhang 區域誤差明顯。
+
+**修正原理**：切片完成後，對每一層取「本層與往下 N 層」的 2D 交集（intersection）：
+
+```
+Layer[i] = intersect(Layer[i], Layer[i-1], ..., Layer[i-N])
+```
+
+實作為 `intersect_layers(slices, layer_from, layers_down)`（ZCorrection.cpp:117）。
+交集後每層只保留「連續 N+1 層都存在的輪廓」，有效縮小曝光面積，補償滲光。
+
+**`zcorrection_layers = N` 的效果**：
+- `N = 0`：停用，輸出原始切片（目前所有 preset 的狀態）
+- `N = 1`：每層取與下一層的交集，移除單層懸空輪廓
+- `N = 2`：每層取與下兩層的交集，效果更強，適合高滲光樹脂
+- N 越大 → overhang 尺寸補償越激進，但薄壁細節可能消失
+
+**副作用**：不改變層數，但縮小每層輪廓面積；薄壁（thickness < N 層高度）可能因交集結果為空而消失。
+
+**後續動作**：若需開放給使用者，需在 PrintConfig.cpp 恢復 label/tooltip，
+並在 SLA 材料設定 tab 加入對應的 UI 控制項。此工作與 CSGMesh 移植無關，可獨立排期。
