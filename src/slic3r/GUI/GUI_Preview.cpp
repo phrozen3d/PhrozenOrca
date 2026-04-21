@@ -29,6 +29,7 @@
 #include "libslic3r/Print.hpp"
 #include "libslic3r/SLAPrint.hpp"
 #include "NotificationManager.hpp"
+#include "SLASlice2DCanvas.hpp"
 
 #ifdef _WIN32
 #include "BitmapComboBox.hpp"
@@ -36,6 +37,16 @@
 
 namespace Slic3r {
 namespace GUI {
+
+namespace {
+
+wxColour sla_preview_splitter_line_colour()
+{
+    return wxGetApp().dark_mode() ? wxColour(78, 78, 84)
+                                  : wxColour(200, 202, 208); // slightly darker than gutter for contrast
+}
+
+} // namespace
 
 View3D::View3D(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)
     : m_canvas_widget(nullptr)
@@ -257,6 +268,16 @@ bool Preview::init(wxWindow* parent, Bed3D& bed, Model* model)
     if (m_canvas_widget == nullptr)
         return false;
 
+    m_sla_2d_canvas = new SLASlice2DCanvas(this);
+    m_sla_preview_splitter = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    m_sla_preview_splitter->SetBackgroundStyle(wxBG_STYLE_COLOUR);
+    m_sla_preview_splitter->SetBackgroundColour(sla_preview_splitter_line_colour());
+    {
+        const int split_w = this->FromDIP(3); // must use wxWindow context (not file-scope helper)
+        m_sla_preview_splitter->SetMinSize(wxSize(split_w, -1));
+        m_sla_preview_splitter->SetMaxSize(wxSize(split_w, -1));
+    }
+
     m_canvas = new GLCanvas3D(m_canvas_widget, bed);
     m_canvas->set_context(wxGetApp().init_glcontext(*m_canvas_widget));
     m_canvas->allow_multisample(OpenGLManager::can_multisample());
@@ -275,8 +296,12 @@ bool Preview::init(wxWindow* parent, Bed3D& bed, Model* model)
     // sizer, m_canvas_widget
     m_canvas_widget->Bind(wxEVT_KEY_DOWN, &Preview::update_layers_slider_from_canvas, this);
 
-    wxBoxSizer *main_sizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer *main_sizer = new wxBoxSizer(wxHORIZONTAL);
     main_sizer->Add(m_canvas_widget, 1, wxALL | wxEXPAND, 0);
+    main_sizer->Add(m_sla_preview_splitter, 0, wxEXPAND | wxTOP | wxBOTTOM, 0);
+    main_sizer->Add(m_sla_2d_canvas, 1, wxALL | wxEXPAND, 0);
+    m_sla_2d_canvas->Hide();
+    m_sla_preview_splitter->Hide();
 
     SetSizer(main_sizer);
     SetMinSize(GetSize());
@@ -296,12 +321,40 @@ Preview::~Preview()
 
     if (m_canvas_widget != nullptr)
         delete m_canvas_widget;
+
+    if (m_sla_preview_splitter != nullptr)
+        delete m_sla_preview_splitter;
+
+    if (m_sla_2d_canvas != nullptr)
+        delete m_sla_2d_canvas;
 }
 
 void Preview::set_as_dirty()
 {
     if (m_canvas != nullptr)
         m_canvas->set_as_dirty();
+    if (m_sla_2d_canvas != nullptr && m_sla_2d_canvas->IsShown())
+        m_sla_2d_canvas->Refresh();
+}
+
+void Preview::set_sla_preview_pane_visible(bool sla_mode)
+{
+    if (m_sla_2d_canvas == nullptr)
+        return;
+    m_sla_2d_canvas->Show(sla_mode);
+    if (m_sla_preview_splitter != nullptr)
+        m_sla_preview_splitter->Show(sla_mode);
+    Layout();
+}
+
+void Preview::sync_sla_2d_layer_from_slider()
+{
+    if (m_sla_2d_canvas == nullptr || m_canvas == nullptr)
+        return;
+    IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
+    if (slider == nullptr)
+        return;
+    m_sla_2d_canvas->set_view_layer_index(slider->GetHigherValue());
 }
 
 void Preview::bed_shape_changed()
@@ -397,12 +450,20 @@ void Preview::msw_rescale()
     // rescale warning legend on the canvas
     get_canvas3d()->msw_rescale();
 
+    if (m_sla_preview_splitter != nullptr) {
+        const int split_w = this->FromDIP(3);
+        m_sla_preview_splitter->SetMinSize(wxSize(split_w, -1));
+        m_sla_preview_splitter->SetMaxSize(wxSize(split_w, -1));
+    }
+
     // rescale legend
     refresh_print();
 }
 
 void Preview::sys_color_changed()
 {
+    if (m_sla_preview_splitter != nullptr)
+        m_sla_preview_splitter->SetBackgroundColour(sla_preview_splitter_line_colour());
     //TODO
     // m_layers_slider->sys_color_changed();
 }
@@ -681,6 +742,9 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
         if (moves_slider != nullptr)
             moves_slider->Show(true);                       // restore FFF moves slider
     }
+    set_sla_preview_pane_visible(false);
+    if (m_sla_2d_canvas != nullptr)
+        m_sla_2d_canvas->reset_print();
 
     //BBS: add m_loaded_print logic
     const Print *print = m_process->fff_print();
@@ -859,9 +923,18 @@ void Preview::load_print_as_sla()
             slider->set_on_change_callback([this]() { on_sla_layer_slider_changed(); });
 
             show_layers_sliders(true);
+            set_sla_preview_pane_visible(true);
+            if (m_sla_2d_canvas != nullptr) {
+                m_sla_2d_canvas->attach_layers_slider(slider);
+                m_sla_2d_canvas->set_sla_print(print);
+                sync_sla_2d_layer_from_slider();
+            }
         } else {
             // Slicing not yet complete — hide slider.
             show_layers_sliders(false);
+            set_sla_preview_pane_visible(false);
+            if (m_sla_2d_canvas != nullptr)
+                m_sla_2d_canvas->reset_print();
         }
 
         m_loaded_print = print;
@@ -904,11 +977,21 @@ void Preview::on_sla_layer_slider_changed()
     else
         m_canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z_high));
 
-    // Do not call m_canvas->render() here — this callback fires inside an ImGui render frame,
-    // so render() hits the m_in_render re-entrancy guard (sets m_dirty=true, returns early).
-    // Instead: mark dirty + post wxEVT_PAINT so the next frame picks up the new clipping planes.
+    // Do not call m_canvas->render() synchronously when this callback runs from the *left* preview
+    // ImGui (inside GLCanvas3D::render): that would re-enter render() while m_in_render is set.
+    // When the slider is driven from the *right* SLA 2D ImGui, we are not inside GLCanvas3D::render;
+    // wx Refresh/idle alone often applies clipping one frame late — queue render after the current 2D frame finishes.
     m_canvas->set_as_dirty();
     m_canvas_widget->Refresh();
+    if (!m_canvas->is_in_render()) {
+        wxGetApp().CallAfter([this]() {
+            if (m_canvas != nullptr)
+                m_canvas->render();
+        });
+    }
+    sync_sla_2d_layer_from_slider();
+    if (m_sla_2d_canvas != nullptr)
+        m_sla_2d_canvas->Refresh();
 }
 
 AssembleView::AssembleView(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)

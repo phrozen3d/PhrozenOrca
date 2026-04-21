@@ -97,6 +97,8 @@ public:
 
     void new_frame();
     void render();
+    // ImGui draw list for an alternate context (e.g. SLA 2D canvas); delegates to internal OpenGL imgui pass.
+    void render_imgui_draw_data(ImDrawData* draw_data);
 
     float scaled(float x) const { return x * m_font_size; }
     ImVec2 scaled(float x, float y) const { return ImVec2(x * m_font_size, y * m_font_size); }

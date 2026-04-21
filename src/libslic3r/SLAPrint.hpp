@@ -436,6 +436,8 @@ public:
     void                finalize() override;
     // Returns true if an object step is done on all objects and there's at least one object.
     bool                is_step_done(SLAPrintObjectStep step) const;
+    // Without this, the overload above hides PrintBaseWithState::is_step_done(SLAPrintStep).
+    using Inherited::is_step_done;
     // Returns true if the last step was finished with success.
     bool                finished() const override { return this->is_step_done(slaposSliceSupports) && this->Inherited::is_step_done(slapsRasterize); }
 

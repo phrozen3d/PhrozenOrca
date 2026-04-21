@@ -201,6 +201,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/GUI_Init.hpp
     GUI/GUI_Preview.cpp
     GUI/GUI_Preview.hpp
+    GUI/SLASlice2DCanvas.cpp
+    GUI/SLASlice2DCanvas.hpp
     GUI/GUI_App.cpp
     GUI/GUI_App.hpp
     GUI/GUI_Utils.cpp

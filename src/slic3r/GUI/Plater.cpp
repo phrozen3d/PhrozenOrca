@@ -6724,6 +6724,14 @@ void Plater::priv::set_current_panel(wxPanel* panel, bool no_slice)
     if (panel == view3D || panel == preview) {
         this->enable_sidebar(!q->only_gcode_mode());
     }
+    // Resin (SLA): maximize preview canvas by collapsing the left sidebar when entering Preview.
+    if (panel == preview && this->printer_technology == ptSLA) {
+        this->collapse_sidebar(true);
+    }
+    // Resin (SLA): restore left sidebar when returning to Prepare (3D editor).
+    if (panel == view3D && this->printer_technology == ptSLA) {
+        this->collapse_sidebar(false);
+    }
     if (panel == preview) {
         if (q->only_gcode_mode()) {
             preview->get_canvas3d()->enable_select_plate_toolbar(false);
@@ -7501,6 +7509,9 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(":finished, reload print soon");
         m_is_slicing = false;
         this->preview->reload_print(false);
+        // Resin (SLA): collapse left sidebar after a successful slice (user often stays on 3D until done).
+        if (this->printer_technology == ptSLA && !evt.cancelled() && !has_error)
+            this->collapse_sidebar(true);
         /* BBS if in publishing progress */
         if (m_is_publishing) {
             if (m_publish_dlg && !m_publish_dlg->was_cancelled()) {

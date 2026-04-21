@@ -898,6 +898,8 @@ public:
     bool is_dragging() const { return m_gizmos.is_dragging() || m_moving; }
 
     void render(bool only_init = false);
+    /// True while inside render(); used to avoid re-entrant render when layer slider callback runs from main-window ImGui.
+    bool is_in_render() const { return m_in_render; }
     bool is_rendering_enabled()
     {
         return m_enable_render;

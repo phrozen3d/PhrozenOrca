@@ -535,6 +535,11 @@ void ImGuiWrapper::render()
     m_new_frame_open = false;
 }
 
+void ImGuiWrapper::render_imgui_draw_data(ImDrawData* draw_data)
+{
+    render_draw_data(draw_data);
+}
+
 ImVec2 ImGuiWrapper::calc_text_size(std::string_view text,
                                     bool  hide_text_after_double_hash,
                                     float wrap_width)

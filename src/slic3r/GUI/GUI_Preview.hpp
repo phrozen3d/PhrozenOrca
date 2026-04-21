@@ -32,6 +32,7 @@ namespace GUI {
 class GLCanvas3D;
 class GLToolbar;
 class Bed3D;
+class SLASlice2DCanvas;
 struct Camera;
 class Plater;
 #ifdef _WIN32
@@ -86,6 +87,9 @@ private:
 
 class Preview : public wxPanel
 {
+    SLASlice2DCanvas* m_sla_2d_canvas{ nullptr };
+    wxPanel*            m_sla_preview_splitter{ nullptr };
+
     wxGLCanvas* m_canvas_widget { nullptr };
     GLCanvas3D* m_canvas { nullptr };
     DynamicPrintConfig* m_config;
@@ -186,6 +190,9 @@ private:
     // Step 2.5: SLA layer slider (drives IMSlider via callback → clipping planes).
     std::vector<double> m_sla_layers_z; // SLA layer z-coordinates in mm
     void on_sla_layer_slider_changed(); // Updates clipping planes on IMSlider value change
+
+    void set_sla_preview_pane_visible(bool sla_mode);
+    void sync_sla_2d_layer_from_slider();
 };
 
 
