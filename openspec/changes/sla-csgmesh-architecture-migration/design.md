@@ -88,13 +88,57 @@ PrusaSlicer 在 2021–2023 年間已完成架構遷移，改用 `m_mesh_to_slic
 
 **理由**：preview mesh 可以是近似（voxelization），切片精度由 `slice_csgmesh_ex()` 保證，兩者分離。
 
+## Implementation Findings (Phase B/C 實作紀錄)
+
+### Finding 1：`mpartsDrillHoles` 在 PhrozenOrca 不可用
+
+`ModelToCSGMesh.hpp` 的排水孔區段（drain holes section）已被 comment out，
+原因是依賴 PrusaSlicer 的 free function `sla::transformed_drainhole_points(mo, trafo)`，
+此函式在 PhrozenOrca 不存在（PhrozenOrca 使用 member method `po.transformed_drainhole_points()`）。
+
+**修訂**：不使用 `model_to_csgmesh(..., mpartsDrillHoles)`，改為在 `drill_holes()` 中
+手動迭代 `po.transformed_drainhole_points()`，以 `dhole.to_mesh()` 建立圓柱 mesh，
+再用 `csg_inserter{po.m_mesh_to_slice, slaposDrillHoles}` 逐一加入。
+
+---
+
+### Finding 2：移除 CGAL 後排水孔消失（Phase B/C 兩次失敗）
+
+**第一次嘗試（Phase B）**：移除 CGAL drilling，`hollow_mesh_with_holes` 只含 hollow
+（無孔洞），`slice_model()` 仍用 `slice_mesh_ex(hollow_mesh_with_holes)` → 孔洞不出現。
+原因明確：`slice_mesh_ex` 切的 mesh 本身就沒有孔洞。
+
+**第二次嘗試（Phase C）**：同時改 `slice_model()` 為 `slice_csgmesh_ex`（含
+`csgmesh_positive_bb` + `bounding_box(its, transform)` 新增多載），但孔洞仍不出現。
+根本原因尚未完全確認，候選原因：
+- Model CSG parts 儲存格式：**local-space mesh + instance transform**（via `model_to_csgmesh`）
+- Drain hole CSG parts 儲存格式：**world-space mesh + Identity transform**（via `to_mesh()` after `transformed_drainhole_points()`）
+- 兩者在 `slice_csgmesh_ex` 的 Z grid 對齊需要進一步驗證
+
+---
+
+### D4 修訂：雙軌並行策略（Dual-Path）
+
+**原計畫（D4）**：直接移除 CGAL，由 `slice_csgmesh_ex` 接管排水孔的 2D 差集。
+
+**修訂後執行策略**：
+1. `drill_holes()` **保留 CGAL** 繼續產生 `hollow_mesh_with_holes`（確保切片完全正確）
+2. `drill_holes()` **同時**將排水孔 mesh 以 CSG Difference parts 注冊到 `m_mesh_to_slice`
+3. `slice_model()` 維持 `slice_mesh_ex(hollow_mesh_with_holes)`，不動
+4. Phase C 升級為：先在**雙軌並行狀態**（3.0）驗證 `slice_csgmesh_ex` 路徑輸出與
+   CGAL 路徑數值等價，確認後才切換並移除 CGAL
+
+**理由**：零回退風險；先驗證 CSG 路徑幾何正確性，再移除 CGAL 舊路徑。
+
+---
+
 ## Risks / Trade-offs
 
 **[Risk] `slicegrid` Z 計算與舊版不一致，導致層數差異**
 → Phase C 前逐行對齊 slicegrid 計算邏輯（first layer height、layer height、Z correction offset）；Phase B 後先量測差異作為 baseline。
 
 **[Risk] `csg::mpartsDrillHoles` 無法正確讀取 PhrozenOrca 的 `sla_drain_holes`**
-→ Phase B 前置確認步驟強制執行：用一個測試模型驗證 CSG parts 數量 = 排水孔數量。
+→ **已確認發生**：見 Implementation Findings，已改為手動迭代。
 
 **[Risk] `slaposAssembly` enum 插入造成已儲存 project 的 step 狀態失效**
 → SLA print state 在每次開啟 project 時重新計算，不持久化 step 索引值；風險低。
@@ -112,7 +156,7 @@ PrusaSlicer 在 2021–2023 年間已完成架構遷移，改用 `m_mesh_to_slic
 | Phase | 主要工作 | 可回退點 |
 |-------|---------|---------|
 | A | 加入 CSG 資料結構 + `mesh_assembly()` | 舊路徑完全保留 |
-| B | `drill_holes()` 改 CSG path | Phase B 失敗可還原 drill_holes() |
+| B | `drill_holes()` 雙軌並行（保留 CGAL + 注冊 CSG parts） | Phase B 不動 CGAL，零回退風險 |
 | C | `slice_model()` 改 `slice_csgmesh_ex()` | 切片結果數值驗證通過才合併 |
 | D | `ObjectClipper` 改 CSG range | 只影響 GUI，不影響切片結果 |
 | E | Support 介面調整（可暫緩） | 獨立 Phase，不阻塞 A–D |
@@ -121,8 +165,10 @@ PrusaSlicer 在 2021–2023 年間已完成架構遷移，改用 `m_mesh_to_slic
 
 ## Open Questions
 
-1. **`model_to_csgmesh` 的 `mpartsDrillHoles` flag 在 PhrozenOrca 是否已實作**？需在 Phase B 開始前確認 `ModelToCSGMesh.hpp` 中對應的 volume filter 邏輯。
+1. ~~**`model_to_csgmesh` 的 `mpartsDrillHoles` flag 在 PhrozenOrca 是否已實作**？~~ **已解答**：不可用，改為手動迭代（見 Implementation Findings Finding 1）。
 
 2. **`generate_preview()` 的 VDB voxelization** 在 PhrozenOrca 是否有 OpenVDB dependency？若無，需替代方案（直接用 CGAL boolean 合併 positive parts 作為 preview mesh）。
 
 3. **Phase E 暫緩條件**：Phase A–D 完成後，若 support raycasting 出現精度問題（support 點落在 hollow interior 內），則 Phase E 需提前執行。
+
+4. **Phase C 3.0 雙軌驗證方法**：`slice_csgmesh_ex` 在 drain hole world-space mesh + Identity transform 與 model local-space mesh + instance transform 並存時，Z grid 對齊是否正確？需在 3.0 逐層比對時確認。

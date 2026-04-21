@@ -11,23 +11,39 @@
 - [x] 1.9 加入 `csg_inserter` helper struct（參考 PrusaSlicer 實作）
 - [x] 1.10 **驗證**：編譯通過；開啟 SLA 模型執行切片，確認 `slaposAssembly` 執行，日誌輸出 CSG parts 數量正確
 
-## 2. Phase B — Drill Holes 移植
+## 2. Phase B — Drill Holes CSG 雙軌並行
 
-- [ ] 2.1 **前置確認**：閱讀 `libslic3r/CSGMesh/ModelToCSGMesh.hpp`，確認 `mpartsDrillHoles` flag 能讀取 `sla_drain_holes`；若不相容，記錄需要的適配工作
-- [ ] 2.2 在 `SLAPrintSteps.cpp` 的 `drill_holes()` 開頭加入 `clear_csg(po.m_mesh_to_slice, slaposDrillHoles)`
-- [ ] 2.3 以 `csg::model_to_csgmesh(*po.model_object(), po.trafo(), csg_inserter{po.m_mesh_to_slice, slaposDrillHoles}, csg::mpartsDrillHoles)` 加入排水孔 CSG parts
-- [ ] 2.4 移除 `hollow_mesh_and_drill()` 的 CGAL 3D Boolean 呼叫（保留 `hollow_mesh_with_holes` 欄位供 Phase C 前過渡使用）
-- [ ] 2.5 加入 `generate_preview(po, slaposDrillHoles)` 呼叫
-- [ ] 2.6 **驗證（無排水孔）**：切片結果層數與修改前相同（允許差 ≤ 1 層）
-- [ ] 2.7 **驗證（單個排水孔）**：確認排水孔 CSGPart 正確加入，孔洞在預覽中位置正確
-- [ ] 2.8 **驗證（多個排水孔 > 5）**：確認所有排水孔 CSGPart 加入，無遺漏
-- [ ] 2.9 **驗證（邊界案例）**：使用兩個幾乎相交的排水孔模型，確認不崩潰
+> **策略修訂（D4 修訂後）**：保留 CGAL 路徑確保切片正確，同時注冊 CSG parts 供 Phase C/D 使用。
+> 原計畫直接移除 CGAL 的兩次嘗試均導致孔洞消失（見 design.md Implementation Findings）。
+
+- [x] 2.1 **前置確認（已完成）**：`mpartsDrillHoles` 在 PhrozenOrca **不可用**；
+      `ModelToCSGMesh.hpp` drain holes 區段已 comment out（依賴 PrusaSlicer 專屬 free function）；
+      改為手動迭代 `po.transformed_drainhole_points()` + `dhole.to_mesh()`
+- [x] 2.2 在 `drill_holes()` 開頭加入 `clear_csg(po.m_mesh_to_slice, slaposDrillHoles)`
+- [x] 2.3 在 CGAL Boolean 執行結束後，遍歷 `po.transformed_drainhole_points()`，
+      以 `csg_inserter{po.m_mesh_to_slice, slaposDrillHoles}` 逐一加入 CSG Difference parts
+      （**不移除** CGAL 程式碼，兩路並行）
+- [x] 2.4 加入 `generate_preview(po, slaposDrillHoles)` 呼叫（含所有 early return 路徑）
+- [x] 2.5 **驗證（回歸）**：切片結果與修改前**完全相同**（CGAL 路徑不動，層數/輪廓應 100% 一致）
+- [x] 2.6 **驗證（CSG parts 數量）**：log 確認 `m_mesh_to_slice` 中 slaposDrillHoles entries
+      數量正確（0 個排水孔 → 0 個 entry；N 個排水孔 → N 個 entry）
+- [x] 2.7 **驗證（多個排水孔 > 5）**：確認所有排水孔 CSGPart 加入，無遺漏
+- [x] 2.8 **驗證（邊界案例）**：兩個幾乎相交的排水孔模型，確認不崩潰
 
 ## 3. Phase C — Slice Model 移植
 
+> **前置條件（Gate）**：3.0 雙軌驗證通過後，才能執行 3.3（切換 slice 路徑）。
+> 3.3 之前 CGAL 路徑與 CSG 路徑並行，確認等價後再移除舊路徑。
+
+- [ ] 3.0 **雙軌驗證（新增 Gate）**：在 `slice_model()` 中**暫時同時執行**兩條路徑
+      （`slice_mesh_ex(hollow_mesh_with_holes)` 舊路徑 + `slice_csgmesh_ex(m_mesh_to_slice)` 新路徑），
+      逐層比對輸出輪廓，確認面積差 < 0.1%、位移 < 0.01mm；
+      **特別檢查**：drain hole 圓柱（world-space mesh + Identity trafo）與
+      model parts（local-space mesh + instance trafo）在同一 Z grid 的對齊正確性；
+      **Gate 通過後才繼續 3.3**
 - [ ] 3.1 在 `hollow_model()` 中，interior mesh 計算完成後加入 `m_mesh_to_slice[slaposHollowing]` 作為 `CSGType::Difference` part
 - [ ] 3.2 逐行比對 `slice_model()` 的 slicegrid 計算（first layer height、layer height、Z correction offset）與舊路徑一致性，記錄差異
-- [ ] 3.3 在 `slice_model()` 中以 `slice_csgmesh_ex(range(po.m_mesh_to_slice), slicegrid, params)` 取代 `slice_mesh_ex(mesh, slicegrid, params)`
+- [ ] 3.3 **（需 3.0 Gate 通過）** 在 `slice_model()` 中以 `slice_csgmesh_ex(range(po.m_mesh_to_slice), slicegrid, params)` 取代 `slice_mesh_ex(mesh, slicegrid, params)`
 - [ ] 3.4 移除 `slice_model()` 中的 interior 額外 diff 步驟（舊的 `diff_ex(m_model_slices[i], interior_slices[i])`）
 - [ ] 3.5 **驗證（實心模型）**：用 benchy_sla.stl，逐層比對新舊路徑輪廓，面積差 < 0.1%，位移 < 0.01mm
 - [ ] 3.6 **驗證（hollow 無排水孔）**：確認 hollow_cube.stl 內腔輪廓正確，壁厚符合設定

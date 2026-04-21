@@ -490,6 +490,10 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
     // Step 4.8: Restored from BBS block comment. drill_holes() was a no-op stub:
     // hollow_mesh_with_holes was never populated → get_mesh_to_slice() returned empty mesh
     // when hollowing was enabled → slice_model() threw "Inconsistent slice index".
+
+    // Phase B Task 2.2: clear stale CSG parts from any previous run of this step.
+    clear_csg(po.m_mesh_to_slice, slaposDrillHoles);
+
     bool needs_drilling = ! po.m_model_object->sla_drain_holes.empty();
     bool is_hollowed =
         (po.m_hollowing_data && po.m_hollowing_data->interior &&
@@ -499,6 +503,7 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
         // In this case we can dump any data that might have been
         // generated on previous runs.
         po.m_hollowing_data.reset();
+        generate_preview(po, slaposDrillHoles);
         return;
     }
 
@@ -524,6 +529,7 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
                              sla::hfRemoveInsideTriangles);
 
         BOOST_LOG_TRIVIAL(info) << "Drilling skipped (no holes).";
+        generate_preview(po, slaposDrillHoles);
         return;
     }
 
@@ -625,6 +631,27 @@ void SLAPrint::Steps::drill_holes(SLAPrintObject &po)
     if (hole_fail)
         po.active_step_add_warning(PrintStateBase::WarningLevel::NON_CRITICAL,
                                    L("Failed to drill some holes into the model"));
+
+    // Phase B Task 2.3: Register drain holes as CSG Difference parts in m_mesh_to_slice.
+    // CGAL path above still produces hollow_mesh_with_holes (slice_model uses it until Phase C).
+    // These CSG parts are registered for Phase C (slice_csgmesh_ex) and Phase D (ObjectClipper).
+    {
+        auto inserter = csg_inserter{po.m_mesh_to_slice, slaposDrillHoles};
+        sla::DrainHoles clean_holes = po.transformed_drainhole_points();
+        for (const sla::DrainHole &dhole : clean_holes) {
+            csg::CSGPart part{
+                std::make_unique<indexed_triangle_set>(dhole.to_mesh()),
+                csg::CSGType::Difference
+            };
+            *inserter = std::move(part);
+            ++inserter;
+        }
+        BOOST_LOG_TRIVIAL(info) << "DrillHoles CSG: " << clean_holes.size()
+                                << " Difference parts registered in m_mesh_to_slice.";
+    }
+
+    // Phase B Task 2.4: update preview mesh to reflect drill holes.
+    generate_preview(po, slaposDrillHoles);
 }
 
 // The slicing will be performed on an imaginary 1D grid which starts from
