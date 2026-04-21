@@ -271,6 +271,9 @@ void SLAPrint::Steps::apply_printer_corrections(SLAPrintObject &po, SliceOrigin 
 
 void SLAPrint::Steps::hollow_model(SLAPrintObject &po)
 {
+    // Task 3.1: clear stale CSG parts so incremental re-runs stay correct.
+    clear_csg(po.m_mesh_to_slice, slaposHollowing);
+
     po.m_hollowing_data.reset();
 
     if (! po.m_config.hollowing_enable.getBool()) {
@@ -287,11 +290,22 @@ void SLAPrint::Steps::hollow_model(SLAPrintObject &po)
 
     sla::InteriorPtr interior = generate_interior(po.transformed_mesh(), hlwcfg);
 
-    if (!interior || sla::get_mesh(*interior).empty())
+    if (!interior || sla::get_mesh(*interior).empty()) {
         BOOST_LOG_TRIVIAL(warning) << "Hollowed interior is empty!";
-    else {
+    } else {
         po.m_hollowing_data.reset(new SLAPrintObject::HollowingData());
         po.m_hollowing_data->interior = std::move(interior);
+
+        // Task 3.1: register interior as CSG Difference part for Phase C/D.
+        // swap_normals converts the inward-facing interior normals to outward-facing
+        // so that slice_csgmesh_ex produces solid cross-sections for correct diff_ex.
+        indexed_triangle_set its = sla::get_mesh(*po.m_hollowing_data->interior);
+        sla::swap_normals(its);
+        csg::CSGPart hpart{std::make_unique<indexed_triangle_set>(std::move(its)),
+                           csg::CSGType::Difference};
+        po.m_mesh_to_slice.emplace(CSGPartForStep{slaposHollowing, std::move(hpart)});
+
+        BOOST_LOG_TRIVIAL(info) << "Hollowing CSG: interior registered as Difference part.";
     }
 }
 
@@ -734,6 +748,45 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
                               po.m_model_slices[i] =
                                   diff_ex(po.m_model_slices[i], slice);
                            });
+    }
+
+    // Task 3.0: Gate — run CSG path in parallel, compare with old path.
+    // Both run; old path result is kept. Remove this block after Gate passes.
+    if (!po.m_mesh_to_slice.empty()) {
+        MeshSlicingParamsEx csg_params;
+        csg_params.closing_radius = params.closing_radius;
+        csg_params.mode           = MeshSlicingParams::SlicingMode::Regular;
+
+        auto csg_range = Range{po.m_mesh_to_slice.cbegin(), po.m_mesh_to_slice.cend()};
+        std::vector<ExPolygons> csg_slices =
+            csg::slice_csgmesh_ex(csg_range, slice_grid, csg_params, thr);
+
+        size_t layer_count    = std::min(po.m_model_slices.size(), csg_slices.size());
+        double max_diff_pct   = 0.0;
+        size_t layers_failing = 0;
+
+        for (size_t i = 0; i < layer_count; ++i) {
+            double a_old = area(po.m_model_slices[i]);
+            double a_csg = area(csg_slices[i]);
+            double diff_pct = (std::abs(a_old) > 1e-6) ?
+                std::abs(a_csg - a_old) / std::abs(a_old) * 100.0 :
+                std::abs(a_csg) * 100.0;
+            max_diff_pct = std::max(max_diff_pct, diff_pct);
+            if (diff_pct > 0.1) ++layers_failing;
+        }
+
+        BOOST_LOG_TRIVIAL(info)
+            << "[CSG Gate 3.0] layers=" << layer_count
+            << " max_area_diff=" << max_diff_pct << "%"
+            << " layers_exceeding_0.1pct=" << layers_failing;
+
+        if (layers_failing > 0)
+            BOOST_LOG_TRIVIAL(warning)
+                << "[CSG Gate 3.0] FAIL: " << layers_failing
+                << " layers exceed 0.1% area threshold — CSG path not yet equivalent";
+        else
+            BOOST_LOG_TRIVIAL(info)
+                << "[CSG Gate 3.0] PASS: CSG path matches old path within 0.1%";
     }
 
     auto mit = slindex_it;

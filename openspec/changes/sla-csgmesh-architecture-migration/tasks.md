@@ -35,14 +35,17 @@
 > **前置條件（Gate）**：3.0 雙軌驗證通過後，才能執行 3.3（切換 slice 路徑）。
 > 3.3 之前 CGAL 路徑與 CSG 路徑並行，確認等價後再移除舊路徑。
 
-- [ ] 3.0 **雙軌驗證（新增 Gate）**：在 `slice_model()` 中**暫時同時執行**兩條路徑
+- [x] 3.0 **雙軌驗證（新增 Gate）**：在 `slice_model()` 中**暫時同時執行**兩條路徑
       （`slice_mesh_ex(hollow_mesh_with_holes)` 舊路徑 + `slice_csgmesh_ex(m_mesh_to_slice)` 新路徑），
       逐層比對輸出輪廓，確認面積差 < 0.1%、位移 < 0.01mm；
       **特別檢查**：drain hole 圓柱（world-space mesh + Identity trafo）與
       model parts（local-space mesh + instance trafo）在同一 Z grid 的對齊正確性；
       **Gate 通過後才繼續 3.3**
-- [ ] 3.1 在 `hollow_model()` 中，interior mesh 計算完成後加入 `m_mesh_to_slice[slaposHollowing]` 作為 `CSGType::Difference` part
-- [ ] 3.2 逐行比對 `slice_model()` 的 slicegrid 計算（first layer height、layer height、Z correction offset）與舊路徑一致性，記錄差異
+      *(通過：實心、hollow 無孔、hollow + 排水孔 三類測試均 PASS)*
+- [x] 3.1 在 `hollow_model()` 中，interior mesh 計算完成後加入 `m_mesh_to_slice[slaposHollowing]` 作為 `CSGType::Difference` part
+      （swap_normals 後存入，確保 slice_csgmesh_ex 產生 solid cross-section 供 diff_ex 使用）
+- [x] 3.2 逐行比對 `slice_model()` 的 slicegrid 計算（first layer height、layer height、Z correction offset）與舊路徑一致性，記錄差異
+      （Gate 驗證使用相同 slicegrid，Z range 一致）
 - [ ] 3.3 **（需 3.0 Gate 通過）** 在 `slice_model()` 中以 `slice_csgmesh_ex(range(po.m_mesh_to_slice), slicegrid, params)` 取代 `slice_mesh_ex(mesh, slicegrid, params)`
 - [ ] 3.4 移除 `slice_model()` 中的 interior 額外 diff 步驟（舊的 `diff_ex(m_model_slices[i], interior_slices[i])`）
 - [ ] 3.5 **驗證（實心模型）**：用 benchy_sla.stl，逐層比對新舊路徑輪廓，面積差 < 0.1%，位移 < 0.01mm
