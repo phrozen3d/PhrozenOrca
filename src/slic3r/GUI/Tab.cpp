@@ -6967,8 +6967,8 @@ void TabSLAPrint::build()
     optgroup->append_single_option_line("max_merge_distance_sla", "123");
     optgroup->append_single_option_line("pad_wall_slope_sla", "123");
 
-    optgroup = page->new_optgroup(L("Automatic Generation"), L"PhrozenImages_Resin/toolbar_support", 15);
-    optgroup->append_single_option_line("support_points_density", "123");
+    optgroup = page->new_optgroup(L("Bridge"), L"PhrozenImages_Resin/toolbar_support", 15);
+    //optgroup->append_single_option_line("support_points_density", "123");
     optgroup->append_single_option_line("max_bridge_length_sla", "123");
     optgroup->append_single_option_line("max_pillar_linking_distance", "123");
 
