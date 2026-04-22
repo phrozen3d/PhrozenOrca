@@ -1,64 +1,52 @@
-## 新增需求
+## ADDED Requirements
 
-### 需求：自動生成完成後提取 Island 輪廓
-`generate_support_points()` 完成後，系統應從 `SupportPointGeneratorData.layers` 中提取所有 `prev_parts.empty()` 部件的 2D island 輪廓（含 Z 座標的 ExPolygons）。
+### Requirement: Island contours extracted after auto-generate
+After `slaposSupportPoints` completes, the system SHALL extract all `LayerPart` entries where `prev_parts.empty() == true` from `SupportPointGeneratorData.layers`, pair each with its `print_z`, and store them as an `IslandContourSet` in `SLAPrintObject`. Island contours with area below the configured minimum threshold SHALL be excluded.
 
-#### 情境：生成完成後可取得 Island 輪廓
-- **當** 自動支撐生成成功完成時
-- **則** 應有一組 (Z, ExPolygons) 配對清單可用，代表所有偵測到的 island 區域
+#### Scenario: Contours available after auto-generate
+- **WHEN** the user runs auto-generate support points and `slaposSupportPoints` completes successfully
+- **THEN** `SLAPrintObject::island_contours().valid` SHALL be `true`
+- **THEN** `island_contours().islands` SHALL contain one entry per detected island with `print_z` and `contour` fields populated
 
-#### 情境：未執行生成時無輪廓
-- **當** 尚未執行自動生成（僅有手動點）時
-- **則** island 輪廓清單應為空
+#### Scenario: No contours before auto-generate
+- **WHEN** the Gizmo is opened but auto-generate has not been run (only manual points exist)
+- **THEN** `SLAPrintObject::island_contours().valid` SHALL be `false`
+- **THEN** no island overlay SHALL be rendered
 
----
+#### Scenario: Micro-islands excluded
+- **WHEN** an island contour has area below the minimum threshold (`minimal_bounding_sphere_radius² × π`)
+- **THEN** that island SHALL NOT appear in `island_contours().islands`
 
-### 需求：Island 輪廓在 Gizmo 中渲染為表面覆蓋層
-當 gizmo 啟用時，`GLGizmoSlaSupports` gizmo 應將 island 輪廓渲染為模型表面上的半透明彩色多邊形。
+#### Scenario: Contours cleared on step invalidation
+- **WHEN** the user modifies model geometry or support settings causing `slaposSupportPoints` to be invalidated
+- **THEN** `SLAPrintObject::clear_island_contours()` SHALL be called
+- **THEN** `island_contours().valid` SHALL be `false` until auto-generate is re-run
 
-#### 情境：Gizmo 啟用時覆蓋層可見
-- **當** SLA 支撐 gizmo 啟用且 island 輪廓可用時
-- **則** 模型表面的 island 區域上應出現彩色多邊形覆蓋層
+### Requirement: Island overlay rendered in 3D view
+When the SLA Support Gizmo is active and island contour data is valid, `GLGizmoSlaSupports` SHALL render a semi-transparent colored polygon overlay on the model surface at each island location.
 
-#### 情境：覆蓋層使用帶透明度的 Island 顏色
-- **當** island 輪廓多邊形渲染時
-- **則** 應使用與 island 類型支撐點相同的 `island_color`，alpha 值約 40%
+#### Scenario: Overlay visible with valid data
+- **WHEN** the SLA Support Gizmo is active AND `island_contours().valid == true`
+- **THEN** colored semi-transparent polygons SHALL appear on the model surface covering each island region
 
-#### 情境：Gizmo 未啟用時無覆蓋層
-- **當** SLA 支撐 gizmo 未啟用時
-- **則** 不應渲染任何 island 輪廓覆蓋層
+#### Scenario: Overlay uses island color at 40% alpha
+- **WHEN** island contour polygons are rendered
+- **THEN** the color SHALL be `ColorRGBA(1.0f, 0.85f, 0.2f, 0.4f)` (bright yellow-orange, alpha 40%)
+- **THEN** `GL_DEPTH_TEST` SHALL be disabled so the overlay is always visible regardless of viewing angle
 
----
+#### Scenario: Overlay uses Z offset to avoid Z-fighting
+- **WHEN** island contour meshes are built via `triangulate_expolygon_3d()`
+- **THEN** each polygon SHALL be placed at `print_z + 0.05f` mm above the layer surface
 
-### 需求：Island 覆蓋層可見性可切換
-Gizmo 面板應提供一個核取方塊來顯示或隱藏 island 輪廓覆蓋層。
+#### Scenario: Overlay absent when Gizmo is inactive
+- **WHEN** the user exits the SLA Support Gizmo
+- **THEN** no island overlay polygons SHALL be rendered
 
-#### 情境：取消勾選隱藏覆蓋層
-- **當** 使用者取消勾選 island 覆蓋層核取方塊時
-- **則** island 輪廓多邊形應不再渲染
+### Requirement: Overlay updates on re-generate
+When auto-generate is re-run, the island overlay SHALL reflect the new result.
 
-#### 情境：勾選顯示覆蓋層
-- **當** 使用者勾選 island 覆蓋層核取方塊時
-- **則** island 輪廓多邊形應渲染在模型表面上
-
----
-
-### 需求：重新生成時更新 Island 輪廓
-重新執行自動支撐生成時（例如更改密度後），island 輪廓覆蓋層應更新以反映新的生成結果。
-
-#### 情境：重新生成後輪廓更新
-- **當** 重新執行自動支撐生成時
-- **則** island 輪廓覆蓋層應反映新生成的輪廓
-
----
-
-### 需求：低於閾值的小 Island 不渲染
-小於最小面積閾值的 island 區域應從輪廓覆蓋層中排除，以避免視覺雜亂。
-
-#### 情境：微小 Island 不顯示
-- **當** island 區域面積小於設定的最小閾值時
-- **則** 不應出現在輪廓覆蓋層中
-
-#### 情境：顯著 Island 顯示
-- **當** island 區域面積超過最小閾值時
-- **則** 應出現在輪廓覆蓋層中
+#### Scenario: Overlay refreshes after re-generate
+- **WHEN** the user modifies support density and re-runs auto-generate
+- **THEN** the previous island overlay SHALL be cleared
+- **THEN** a new overlay SHALL be built from the updated `IslandContourSet`
+- **THEN** the overlay SHALL update without requiring the Gizmo to be closed and re-opened

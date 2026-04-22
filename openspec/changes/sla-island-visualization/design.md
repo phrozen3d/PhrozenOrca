@@ -1,216 +1,119 @@
-# Design：SLA 孤島偵測視覺化與局部支撐生成
+## Context
 
-## UI 設計
+SLA 切片流程在 `slaposObjectSlice` 末尾的 `prepare_for_generate_supports()` 中，已透過跨層幾何交集計算建立 `LayerPart.prev_parts` 連結。`prev_parts.empty() == true` 即代表該輪廓與下層任何幾何無交集——這就是 island。
 
-### 入口：GLGizmoLcdOverhangDetection 面板
+這份資訊在 `slaposSupportPoints` 的 `generate_support_points()` 中被消費，但從未對外暴露給 UI 層。現有 `GLGizmoSlaSupports` 只顯示支撐點球，使用者無法看到哪些區域觸發了 island 判斷。
 
-面板佈局（由上至下）：
+入口：擴充現有 `GLGizmoSlaSupports`（非 `GLGizmoLcdOverhangDetection`），因為 SLA 支撐操作的主要工作流程在此。
 
-```
-┌─────────────────────────────────────┐
-│  偵測精度:  ○ Low  ● Middle  ○ High │
-├─────────────────────────────────────┤
-│  模型:  ◀  [ModelObject Name]  ▶   │
-│  孤島數量:  12 個  （未偵測：--）   │
-├─────────────────────────────────────┤
-│  [Detect All]  [Detect Selected]    │
-├─────────────────────────────────────┤
-│  [Add Overhang Support]             │
-└─────────────────────────────────────┘
-```
+## Goals / Non-Goals
 
-### 控制項行為
+**Goals:**
+- 在 `slaposSupportPoints` 完成後提取 island 輪廓並存入 `SLAPrintObject`，對外暴露給 UI 層
+- 在 `GLGizmoSlaSupports` 的 `on_render()` 中渲染半透明 island 輪廓疊加層
+- 提供 Checkbox 切換 overlay 顯示、可點擊 island 清單、Camera Focus 至選中 island
+- 允許為選定 island 一鍵生成支撐點並觸發支撐樹重建
+- 不破壞現有 `slaposSupportPoints` / `slaposSupportTree` 演算法
 
-#### 偵測精度（Detection Accuracy）
-- 選項：`Low` / `Middle` / `High`
-- 對應 `PrepareSupportConfig::discretize_overhang_step`：
-  - Low → 4.0mm（快速，粗略）
-  - Middle → 2.0mm（預設）
-  - High → 0.8mm（精確，較慢）
-- 變更後不自動重新偵測，需使用者手動觸發
+**Non-Goals:**
+- 保留舊版 pixel rasterization island 偵測（`Island_Detector.hpp/.cpp`）——完整移除
+- 修改 `SupportPointGenerator` 的演算法邏輯
+- 持久化 island 支撐點至 3mf 或專案檔案（session-only）
+- FDM 機種支援
+- 非同步偵測（island 資料在 step 完成時已同步可得）
 
-#### 模型選擇器（Model Selector）
-- 預設顯示進入 gizmo 時選中的 `ModelObject`
-- `◀` / `▶` 切換場景中的其他 `ModelObject`
-- 切換後顯示該模型的偵測結果（若有），否則顯示空狀態（`--`）
+## Decisions
 
-#### 孤島數量（Overhang Indicator）
-- 來源：`IslandDetectionService` 完成後回傳的 `IslandResult.total_island_count`
-- 尚未偵測：顯示 `--`
-- 偵測完成：顯示整數（各層孤島數量總和）
+### D0：完整移除舊版 pixel rasterization island 偵測
 
-#### Detect All
-- 對場景中所有 `ModelObject` 依序執行 `IslandDetectionService::detect()`
-- 偵測在背景執行（`std::async` 或 worker thread），完成後更新 UI 與渲染
-- 執行中顯示進度提示
+舊版 `Island_Detection()`（位於 `GLGizmoLcdOverhangDetection`）透過將切片圖像轉換為 bitmap，再執行影像處理偵測孤島。新版直接讀取 `LayerPart.prev_parts.empty()`，速度更快、精度更高且不依賴 rasterization 步驟。
 
-#### Detect Selected
-- 僅對目前選中的 `ModelObject` 執行 `IslandDetectionService::detect()`
-- 完成後立即更新 island 輪廓渲染
+兩套機制完全平行，保留舊版只會造成混淆。移除 `GLGizmoLcdOverhangDetection` 中的三個 island 方法及成員，並刪除 `libslic3r/IslandDetection/` 整個目錄。`GLGizmoLcdOverhangDetection` 其餘的 overhang 偵測功能不受影響。
 
-#### Add Overhang Support
-- 若目前模型已有偵測結果：
-  1. 呼叫 `IslandSupportGenerator::generate()`，僅對 island 區域生成支撐點
-  2. 呼叫 `TreeSupportBuilder::build()`，建構支撐樹 mesh
-  3. 渲染支撐 mesh（疊加在 island 輪廓上）
-- 若目前模型**尚未偵測**：
-  1. 自動先執行 `IslandDetectionService::detect()`
-  2. 完成後接續執行步驟 1–3
+### D1：提取位置選擇 `support_points()` 而非獨立模組
 
----
+island 判斷在 `slaposObjectSlice` 已完成，`generate_support_points()` 只是消費結果。在 `support_points()` 末段直接讀取 `generator_data.layers` 提取 island 輪廓，零額外計算。
 
-## 系統架構
+替代方案：建立獨立 `IslandDetectionService` 重新執行偵測 → 放棄，會造成重複計算且需要獨立觸發時機。
 
-### 模組職責
+### D2：資料儲存在 `SLAPrintObject` 而非 `SupportPointGeneratorData`
 
-```
-GLGizmoLcdOverhangDetection
-    │
-    ├── IslandDetectionService          （libslic3r/SLA/）
-    │     職責：從 ModelObject 切片資料建構跨層連通性，識別 island
-    │     輸入：ModelObject*, PrepareSupportConfig（精度設定）
-    │     輸出：IslandResult（每層 ExPolygon 輪廓 + island 數量）
-    │     複用：prepare_generator_data() → SupportPointGeneratorData
-    │
-    ├── IslandVisualizationRenderer     （GLGizmoLcdOverhangDetection 內部）
-    │     職責：將 IslandResult 轉換為 GLModel mesh，管理渲染生命週期
-    │     輸入：IslandResult
-    │     輸出：GLModel（填滿三角網格，Z+0.05mm 偏移）
-    │     複用：triangulate_expolygon_3d()、GLModel::init_from()
-    │
-    ├── IslandSupportGenerator          （libslic3r/SLA/）
-    │     職責：對 island ExPolygon 生成支撐點（不調用完整自動支撐管線）
-    │     輸入：IslandResult, SupportPointGeneratorConfig（密度）
-    │     輸出：sla::SupportPoints
-    │     複用：uniform_support_island()、move_on_mesh_surface()
-    │
-    └── TreeSupportBuilder              （GLGizmoLcdOverhangDetection 內部）
-          職責：對支撐點建構支撐樹 mesh，管理渲染生命週期
-          輸入：sla::SupportPoints, SLASupportTreeConfig
-          輸出：TriangleMesh（支撐結構 3D mesh）
-          複用：SupportTreeBuildsteps（直接實例化）
-```
+`SupportPointGeneratorData` 是 step 內部物件，生命週期短且對 GUI 不可見。將 `IslandContourSet` 作為 `SLAPrintObject` 的成員，Gizmo 可直接存取，且 step invalidate 時可同步清除。
 
-### 關鍵資料結構
+### D3：Targeted Support 注入手動支撐點而非觸發 `slaposSupportPoints` 重跑
 
-```cpp
-// IslandDetectionService 輸出
-struct IslandResult {
-    // 每層的 island ExPolygon，key = print_z（mm）
-    std::vector<std::pair<float, ExPolygons>> layers;
-    int total_island_count = 0;
-};
+直接呼叫 `uniform_support_island()` 取得支撐點位置，以 `SupportPointType::island` 加入 `sla_support_points`，再觸發 `slaposSupportTree` 重建。這樣不重跑全部自動生成，保留使用者現有的手動支撐點設定。
 
-// Gizmo 內部狀態（per-ModelObject）
-struct ModelIslandState {
-    std::optional<IslandResult>  detection_result;
-    GLModel                      contour_mesh;       // 視覺化網格
-    sla::SupportPoints           support_points;     // 局部支撐點
-    TriangleMesh                 support_mesh;       // 支撐樹 mesh
-    GLModel                      support_gl_model;   // support mesh 的 GL 表示
-};
+替代方案：重跑 `slaposSupportPoints` → 放棄，會清除使用者的手動調整。
 
-// Gizmo 成員
-std::unordered_map<ObjectID, ModelIslandState> m_island_states;
-int                                             m_selected_object_idx = 0;
-DetectionAccuracy                               m_accuracy = DetectionAccuracy::Middle;
-```
+### D4：Camera Focus 整合至現有 Overhang Area 導覽 UI，不新建 UI 元件
 
----
+`GLGizmoLcdOverhangDetection` 已有 `< [current / total] >` 導覽列（標籤 "Overhang Area"，成員 `m_current_overhang_area_index` / `m_total_overhang_areas`）。整合策略：
+- `sync_island_data()` 在進入 Gizmo 或收到 `RELOAD_SLA_SUPPORT_POINTS` 時，將 `m_total_overhang_areas` 更新為 `IslandContourSet.islands.size()`
+- `<##overhang` / `>##overhang` 按鈕 handler 在更新 index 後立即呼叫 `focus_camera_on_island()`
+- `focus_camera_on_island()` 計算選中 island ExPolygon 的 AABB（`unscale()` + Z ±2mm + `po->trafo()`），呼叫 `m_parent.zoom_to_box()`
 
-## 資料流
+不另建 `ImGui::BeginChild()` 清單。現有 `"%d/%d"` 顯示格式不變，只是資料來源從舊的 hardcode / pixel 偵測改為 `IslandContourSet`。
 
-### 偵測流程
+### D5：Island overlay 的可見性由 Gizmo 狀態控制，不提供 Checkbox 開關
+
+overlay 的顯示與否完全由 `on_set_state(On/Off)` 決定：進入 Gizmo 且有偵測資料時自動顯示，離開 Gizmo 時立即隱藏並釋放 GL 資源。
+
+不提供 Checkbox 的理由：island 輪廓是偵測結果的直接呈現，進入 Gizmo 就代表使用者在操作支撐工作流程，overlay 應始終可見；額外的開關只增加操作步驟，不帶來明確收益。
+
+`on_render()` 本身僅在 Gizmo active 時被 framework 呼叫，因此 `render_island_overlay()` 不需要任何可見性守衛，只需判斷 `m_island_data.valid` 是否有資料可渲染。
+
+GL 渲染方面：island 輪廓疊加在模型表面（Z +0.05mm offset），`glDisable(GL_DEPTH_TEST)` 確保輪廓在任何視角下不被模型幾何遮蔽。高亮選中 island 使用額外 +0.05mm（總計 +0.10mm）避免 Z-fighting。
+
+## Risks / Trade-offs
+
+- **`generator_data` 的 scope**：`support_points()` 內 `generate_support_points()` 之後，`generator_data.layers` 是否仍在 scope 內有效，需確認局部變數生命週期。→ 在 `generate_support_points()` 回傳前讀取，確認 `layers` 為 value 而非 dangling reference。
+- **座標單位轉換**：`ExPolygon::Point` 為 scaled 整數座標，渲染和 AABB 計算前必須 `unscale()`，否則幾何位置錯誤。→ 所有從 `LayerPart.shape` 讀取後立即轉換。
+- **Targeted Support 重複點**：重複點擊「Add Support」會累積重複的支撐點。→ 生成前先移除 `SupportPointType::island` 且 Z 值對應目標 island 的既有點。
+- **Step invalidate 時序**：模型修改觸發 `slaposSupportPoints` invalidate 後，若 Gizmo 仍開啟，`m_island_data` 需同步清除。→ Task 1.3 在 invalidate 路徑上呼叫 `clear_island_contours()`，Gizmo 在下次 `sync_island_data()` 時讀到 `valid == false`。
+- **多 ModelObject 場景**：初期僅處理當前選中的單一 ModelObject，不跨物件混用 island 資料。→ 後續可擴充為 per-object state。
+
+##架構總覽
 
 ```
-使用者點擊 "Detect Selected"
-    │
-    ▼
-GLGizmoLcdOverhangDetection::run_detection(ModelObject*)
-    │
-    ▼
-IslandDetectionService::detect(ModelObject*, PrepareSupportConfig)
-    │
-    ├─ 取得 ModelObject 的切片資料（slaposObjectSlice 必須已完成）
-    ├─ 呼叫 prepare_generator_data()  ← 複用現有函式
-    │       → 建立 LayerParts + prev_parts 跨層連結
-    │
-    ├─ 迭代所有層：收集 prev_parts.empty() 的 part.shape
-    │       → 填入 IslandResult.layers
-    │
-    └─ 回傳 IslandResult
-    │
-    ▼
-IslandVisualizationRenderer::build_mesh(IslandResult)
-    │
-    ├─ 對每層每個 ExPolygon 呼叫 triangulate_expolygon_3d(shape, z + 0.05f)
-    └─ 合併為單一 indexed_triangle_set → GLModel::init_from()
-    │
-    ▼
-GLGizmoLcdOverhangDetection::on_render() → 渲染 contour_mesh
+SLAPrintSteps.cpp (per SLAPrintObject)
+  support_points()
+    generate_support_points()              ← 現有，不修改
+    [NEW] extract island contours          ← 讀取 layers，過濾微小 island
+    po.set_island_contours()               ← 存入各自的 SLAPrintObject
+
+GLGizmoLcdOverhangDetection.cpp           （所有 island UI 功能均在此）
+
+  on_set_state(On)
+    sync_all_objects_names()               ← m_model_names 填入所有場景 SLA 物件名稱
+    m_current_model_index = selected_obj   ← 對應進入前選取的物件
+    若有資料 → focus_camera_on_island(0)
+
+  on_render()
+    render_island_contours()               ← overlay(所有可見islands) + highlight(當前)
+
+  on_render_input_window()
+    < [ModelName] > (model nav)            ← 切換 m_current_model_index
+                                             → rebuild_overhang_area_index_map(false)
+    < [N/Total] > (overhang nav)           ← 切換 m_current_overhang_area_index
+                                             → focus_camera_on_island()
+                                             → rebuild_island_highlight_mesh()
+    [Detect Selected]                      ← sync_island_data_for_object(current)
+                                             → rebuild_overhang_area_index_map(false)
+    [Detect All]                           ← sync_island_data_for_all()
+                                             → rebuild_overhang_area_index_map(true)
+    [Add Overhang Supports]                ← generate_island_support_points()
+                                             （對 m_overhang_area_index_map 內所有 islands）
+
+  Key data structures:
+    m_island_data_per_object               ← map<obj_idx, IslandContourSet>
+    m_overhang_area_index_map              ← vec<(obj_idx, island_idx)> flat index
+    m_total_overhang_areas                 ← = m_overhang_area_index_map.size()
 ```
-
-### 支撐生成流程
-
-```
-使用者點擊 "Add Overhang Support"
-    │
-    ├─ 若無偵測結果 → 先執行偵測流程（同上）
-    │
-    ▼
-IslandSupportGenerator::generate(IslandResult, ModelObject*, config)
-    │
-    ├─ 對每層每個 island ExPolygon：
-    │       呼叫 uniform_support_island(*shape, {}, island_config)
-    │       → 收集 SupportIslandPoints
-    │
-    ├─ 呼叫 move_on_mesh_surface(layer_pts, emesh, allowed_move)
-    │       → 將點投影到實際 mesh 表面
-    │
-    └─ 輸出 sla::SupportPoints（type = SupportPointType::island）
-    │
-    ▼
-TreeSupportBuilder::build(SupportPoints, ModelObject*, SLASupportTreeConfig)
-    │
-    ├─ 建立 SupportData（emesh）
-    ├─ 實例化 SupportTreeBuildsteps  ← 直接複用
-    ├─ 執行 make_pillar_only_heads() + create_ground_pillar()
-    └─ 輸出 TriangleMesh（支撐結構）→ GLModel
-    │
-    ▼
-GLGizmoLcdOverhangDetection::on_render() → 渲染 support_gl_model
-```
-
----
-
-## 舊版偵測實作保留策略
-
-commit `9a07fe61b9` 的實作：
-- **保留原始程式碼**，不刪除
-- 以 `#ifdef LEGACY_ISLAND_DETECTION` 或獨立函式名稱區隔
-- 新流程（`IslandDetectionService`）與舊流程可在面板中透過隱藏的 debug 開關切換
-- 目的：對照新舊偵測結果的差異，確認新流程的覆蓋率與正確性
-
----
-
-## 邊界條件與錯誤處理
-
-| 情境 | 處理方式 |
-|------|---------|
-| `slaposObjectSlice` 尚未完成 | 停用 Detect 按鈕，顯示提示「請先切片」 |
-| 模型沒有 island | `total_island_count = 0`，顯示「無孤島」，Add Overhang Support 停用 |
-| 偵測執行中再次觸發 | 忽略新請求或取消舊任務（視實作難度決定） |
-| 支撐點為空（全被過濾） | 不呼叫 TreeSupportBuilder，顯示警告 |
-| FDM 機種 | 整個 GLGizmoLcdOverhangDetection 不啟動 |
-
----
 
 ## 渲染規格
 
-| 物件 | 顏色 | Alpha | Z 偏移 |
-|------|------|-------|--------|
-| Island 輪廓網格 | 亮黃 `(1.0, 0.95, 0.0)` | 0.45 | +0.05mm |
-| 支撐樹 mesh | 半透明藍灰 `(0.5, 0.7, 1.0)` | 0.6 | 0（實際幾何） |
-
-- Island 輪廓：`glDisable(GL_DEPTH_TEST)` 確保永遠可見
-- 支撐樹 mesh：正常深度測試，與模型互動
+| 物件 | 顏色 RGBA | Z Offset | GL 狀態 |
+|------|-----------|----------|---------|
+| Island overlay（非選中）| `(1.0, 0.85, 0.2, 0.4)` | +0.05 mm | depth test off |
+| Island overlay（選中高亮）| `(1.0, 0.5, 0.0, 0.75)` | +0.10 mm | depth test off |
