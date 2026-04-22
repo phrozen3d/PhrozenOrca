@@ -7413,38 +7413,59 @@ void PrintConfigDef::init_sla_params()
     def->cli = ConfigOptionDef::nocli;
 
     def = this->add("support_head_front_diameter", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Upper Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Upper Diameter for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(0.4));
 
     def = this->add("support_head_penetration", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Contact Depth");
+    def->category = L("Support");
+    def->tooltip  = L("Contact Depth for support.");
+    def->sidetext = "mm";
     def->mode = comAdvanced;
     def->min = 0;
     def->set_default_value(new ConfigOptionFloat(0.2));
 
+    def                = this->add("support_contact_type", coEnum);
+    def->label         = L("Contact Type");
+    def->category      = L("Supports");
+    def->tooltip       = L("Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at the tip to increase contact area.");
+    def->enum_keys_map = &ConfigOptionEnum<ContactType>::get_enum_values();
+    def->enum_values.push_back("none");
+    def->enum_values.push_back("sphere");
+    def->enum_labels.push_back(L("None"));
+    def->enum_labels.push_back(L("Sphere"));
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionEnum<ContactType>(spNone2));
+
+    def           = this->add("support_contact_diameter", coFloat);
+    def->label    = L("Support Point Diameter");
+    def->category = L("Supports");
+    def->tooltip  = L("Diameter of the contact sphere at the pinhead tip (used when Contact Type is Sphere).");
+    def->sidetext = "mm";
+    def->min      = 0;
+    def->mode     = comSimple;
+    def->set_default_value(new ConfigOptionFloat(0.8));
+
     def = this->add("support_head_width", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Head Connection Length");
+    def->category = L("Support");
+    def->tooltip  = L("Width from the back sphere center to the front sphere center.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 20;
-    def->mode = comAdvanced;
+    def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(1.0));
 
     def = this->add("support_pillar_diameter", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Pillar Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Pillar Diameter for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 15;
     def->mode = comSimple;
@@ -7513,20 +7534,20 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0.0));
 
     def = this->add("support_base_diameter", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Support Bottom Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Support Bottom Diameter for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 30;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(4.0));
 
     def = this->add("support_base_height", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Support Boss Height");
+    def->category = L("Support");
+    def->tooltip  = L("Support Boss Height for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(1.0));
@@ -7542,10 +7563,10 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(1));
 
     def = this->add("support_critical_angle", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Support Angle");
+    def->category = L("Support");
+    def->tooltip  = L("Surfaces whose slope angle from horizontal is below this value will not receive supports. Set to 90 to support all overhangs.");
+    def->sidetext = "°";
     def->min = 0;
     def->max = 90;
     def->mode = comAdvanced;
@@ -7608,10 +7629,10 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionBool(true));
 
     def = this->add("pad_wall_thickness", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Raft Thickness");
+    def->category = L("Support");
+    def->tooltip  = L("Raft Thickness for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 30;
     def->mode = comSimple;
@@ -7628,29 +7649,29 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0.));
 
     def = this->add("pad_brim_size", coFloat);
-    //def->label = L("");
-    //def->tooltip = L("");
-    //def->category = L("");
-    //def->sidetext = "";
+    def->label    = L("Bottom Contact Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Bottom Contact Diameter for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 30;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(1.6));
 
     def = this->add("pad_max_merge_distance", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Raft Max Merge Distance");
+    def->category = L("Support");
+    def->tooltip  = L("Raft Max Merge Distance for support.");
+    def->sidetext = "mm";
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(50.0));
 
     def = this->add("pad_wall_slope", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Pad Wall Slope");
+    def->category = L("Support");
+    def->tooltip  = L("The slope angle of the raft/pad walls.");
+    def->sidetext = "°";
     def->min = 45;
     def->max = 90;
     def->mode = comAdvanced;

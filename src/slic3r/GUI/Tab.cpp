@@ -6946,29 +6946,29 @@ void TabSLAPrint::build()
     page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
 
     optgroup = page->new_optgroup(L("Top"), L"PhrozenImages_Resin/param_top", 15);
-    optgroup->append_single_option_line("contact_type", "123");
-    optgroup->append_single_option_line("support_point_diameter", "123");
-    optgroup->append_single_option_line("top_upper_diameter", "123");
-    optgroup->append_single_option_line("top_contact_depth", "123");
-    optgroup->append_single_option_line("pinhead_width", "123");
+    optgroup->append_single_option_line("support_contact_type", "123");
+    optgroup->append_single_option_line("support_contact_diameter", "123");
+    optgroup->append_single_option_line("support_head_front_diameter", "123");
+    optgroup->append_single_option_line("support_head_penetration", "123");
+    optgroup->append_single_option_line("support_head_width", "123");
 
     optgroup = page->new_optgroup(L("Main"), L"PhrozenImages_Resin/param_main", 15);
-    optgroup->append_single_option_line("pillar_diameter", "123");
+    optgroup->append_single_option_line("support_pillar_diameter", "123");
     optgroup->append_single_option_line("support_bracing_angle", "123");
 
     optgroup = page->new_optgroup(L("Bottom"), L"PhrozenImages_Resin/param_bottom", 15);
-    optgroup->append_single_option_line("support_bottom_diameter", "123");
-    optgroup->append_single_option_line("support_boss_height", "123");
+    optgroup->append_single_option_line("support_base_diameter", "123");
+    optgroup->append_single_option_line("support_base_height", "123");
 
 
     optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_raft_setting", 15);
-    optgroup->append_single_option_line("pad_thickness_sla", "123");
-    optgroup->append_single_option_line("pad_brim_size_sla", "123");
-    optgroup->append_single_option_line("max_merge_distance_sla", "123");
-    optgroup->append_single_option_line("pad_wall_slope_sla", "123");
+    optgroup->append_single_option_line("pad_wall_thickness", "123");
+    optgroup->append_single_option_line("pad_brim_size", "123");
+    optgroup->append_single_option_line("pad_max_merge_distance", "123");
+    optgroup->append_single_option_line("pad_wall_slope", "123");
 
     optgroup = page->new_optgroup(L("Bridge"), L"PhrozenImages_Resin/toolbar_support", 15);
-    //optgroup->append_single_option_line("support_points_density", "123");
+    optgroup->append_single_option_line("support_critical_angle", "123");
     optgroup->append_single_option_line("max_bridge_length_sla", "123");
     optgroup->append_single_option_line("max_pillar_linking_distance", "123");
 

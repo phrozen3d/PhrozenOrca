@@ -15,6 +15,7 @@
 #include <wx/stattext.h>
 
 #include "slic3r/GUI/GUI_App.hpp"
+#include "slic3r/GUI/Tab.hpp"
 #include "slic3r/GUI/GUI.hpp"
 #include "slic3r/GUI/GUI_ObjectSettings.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
@@ -27,6 +28,21 @@
 
 static const double CONE_RADIUS = 0.25;
 static const double CONE_HEIGHT = 0.75;
+
+struct SupportWeightPreset {
+    float pillar_diameter;
+    float head_front_diameter;
+    float contact_diameter;
+    float base_diameter;
+    float base_height;
+    float head_width;
+};
+
+static constexpr SupportWeightPreset k_weight_presets[3] = {
+    { 0.6f, 0.3f, 0.4f, 2.0f, 0.5f, 0.5f },  // Light
+    { 1.0f, 0.4f, 0.6f, 3.0f, 1.0f, 1.0f },  // Medium
+    { 1.5f, 0.6f, 0.8f, 4.0f, 1.5f, 1.5f },  // Heavy
+};
 
 namespace Slic3r {
 namespace GUI {
@@ -816,8 +832,10 @@ RENDER_AGAIN:
             if (ImGui::RadioButton(_u8L("Medium").c_str(), &weight_int, static_cast<int>(sla::SupportWeight::Medium))) changed_w = true;
             ImGui::SameLine();
             if (ImGui::RadioButton(_u8L("Heavy").c_str(),  &weight_int, static_cast<int>(sla::SupportWeight::Heavy)))  changed_w = true;
-            if (changed_w)
+            if (changed_w) {
                 m_new_point_weight = static_cast<sla::SupportWeight>(weight_int);
+                apply_weight_preset(m_new_point_weight);
+            }
         }
 
         bool changed = m_lock_unique_islands;
@@ -1009,6 +1027,25 @@ void GLGizmoSlaSupports::ask_about_changes_call_after(std::function<void()> on_y
 }
 
 
+void GLGizmoSlaSupports::apply_weight_preset(sla::SupportWeight w)
+{
+    const auto &p = k_weight_presets[static_cast<int>(w)];
+    auto &cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
+    cfg.set("support_pillar_diameter",     (double)p.pillar_diameter,     true);
+    cfg.set("support_head_front_diameter", (double)p.head_front_diameter, true);
+    cfg.set("support_contact_diameter",    (double)p.contact_diameter,    true);
+    cfg.set("support_base_diameter",       (double)p.base_diameter,       true);
+    cfg.set("support_base_height",         (double)p.base_height,         true);
+    cfg.set("support_head_width",          (double)p.head_width,          true);
+    m_new_point_head_diameter = p.head_front_diameter;
+    wxTheApp->CallAfter([]() {
+        auto *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT);
+        if (!tab) return;
+        tab->update();
+        tab->reload_config();
+    });
+}
+
 void GLGizmoSlaSupports::on_set_state()
 {
     if (m_state == m_old_state)
@@ -1017,7 +1054,21 @@ void GLGizmoSlaSupports::on_set_state()
     if (m_state == On && m_old_state != On) { // the gizmo was just turned on
         // Set default head diameter from config.
         const DynamicPrintConfig& cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
-        m_new_point_head_diameter = static_cast<const ConfigOptionFloat*>(cfg.option("support_head_front_diameter"))->value;
+        const auto *opt_hfd = cfg.option<ConfigOptionFloat>("support_head_front_diameter");
+        m_new_point_head_diameter = opt_hfd ? opt_hfd->value : k_weight_presets[1].head_front_diameter;
+        // Match current pillar diameter against weight presets to restore radio state.
+        const auto *opt_pd = cfg.option<ConfigOptionFloat>("support_pillar_diameter");
+        float cur_pillar = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
+        int matched = -1;
+        for (int i = 0; i < 3; ++i) {
+            if (std::abs(k_weight_presets[i].pillar_diameter - cur_pillar) < 1e-4f) {
+                matched = i;
+                break;
+            }
+        }
+        m_new_point_weight = (matched >= 0)
+            ? static_cast<sla::SupportWeight>(matched)
+            : sla::SupportWeight::Medium;
     }
     if (m_state == Off && m_old_state != Off) { // the gizmo was just turned Off
         bool will_ask = m_editing_mode && unsaved_changes() && on_is_activable();

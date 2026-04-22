@@ -47,6 +47,15 @@ inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
 
     for (auto& p : mesh.vertices) p.z() -= (h.fullwidth() - h.r_back_mm);
 
+    if (h.r_contact_mm > h.r_pin_mm) {
+        // Concentric with pin sphere: center at penetration_mm - r_pin_mm so the
+        // contact sphere protrudes above the pin sphere by (r_contact - r_pin) mm.
+        float center_z = float(h.penetration_mm - h.r_pin_mm);
+        auto contact = sphere(h.r_contact_mm, make_portion(0, PI), 2 * PI / steps);
+        for (auto &p : contact.vertices) p.z() += center_z;
+        its_merge(mesh, contact);
+    }
+
     using Quaternion = Eigen::Quaternion<float>;
 
     // We rotate the head to the specified direction. The head's pointing

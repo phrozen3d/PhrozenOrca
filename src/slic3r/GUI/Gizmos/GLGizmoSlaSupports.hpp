@@ -139,6 +139,7 @@ private:
     void switch_to_editing_mode();
     void disable_editing_mode();
     void ask_about_changes_call_after(std::function<void()> on_yes, std::function<void()> on_no);
+    void apply_weight_preset(sla::SupportWeight w);
 
 protected:
     void on_set_state() override;

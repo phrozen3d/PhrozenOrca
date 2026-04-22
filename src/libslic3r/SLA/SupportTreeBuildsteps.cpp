@@ -497,11 +497,20 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 
     eval_limits();
 
-    // Force base cone for manually-placed support points regardless of pillar radius.
-    if (head_id >= 0 && !can_add_base) {
-        long sp_id = m_builder.head(head_id).id;
-        if (sp_id >= 0 && size_t(sp_id) < m_support_pts.size() &&
-            m_support_pts[size_t(sp_id)].type == SupportPointType::manual_add) {
+    // Force base for manually-placed support points regardless of pillar radius.
+    // Case A: pillar directly from head (head_id >= 0) — look up support point type.
+    // Case B: bridge path via connect_to_ground (head_id = ID_UNSET) — infer manual from
+    //         allow_widening=false, which is only set for Light/Medium manual points.
+    if (!can_add_base) {
+        bool is_manual = false;
+        if (head_id >= 0) {
+            long sp_id = m_builder.head(head_id).id;
+            is_manual = sp_id >= 0 && size_t(sp_id) < m_support_pts.size() &&
+                        m_support_pts[size_t(sp_id)].type == SupportPointType::manual_add;
+        } else {
+            is_manual = !allow_widening;
+        }
+        if (is_manual) {
             can_add_base = true;
             gndlvl       = m_builder.ground_level;
             jp_gnd       = gndlvl;
@@ -655,16 +664,7 @@ void SupportTreeBuildsteps::filter()
     m_iheads.reserve(aliases.size());
     m_iheadless.reserve(aliases.size());
     for(auto& a : aliases) {
-        // Keep the point with the highest SupportWeight so that a Heavy
-        // manual point is not discarded in favour of a nearby Light one.
-        unsigned best = a.front();
-        for (unsigned idx : a) {
-            if (size_t(idx) < m_support_pts.size() &&
-                size_t(best) < m_support_pts.size() &&
-                m_support_pts[idx].weight > m_support_pts[best].weight)
-                best = idx;
-        }
-        filtered_indices.emplace_back(best);
+        filtered_indices.emplace_back(a.front());
     }
 
     // calculate the normals to the triangles for filtered points
@@ -773,6 +773,7 @@ void SupportTreeBuildsteps::filter()
         if (t.distance() > w && hp(Z) + w * nn(Z) >= m_builder.ground_level) {
             Head &h = heads[fidx];
             h.id = fidx; h.dir = nn; h.width_mm = lmin; h.r_back_mm = back_r;
+            h.r_contact_mm = m_cfg.contact_sphere_radius_mm;
         } else if (back_r > m_cfg.head_fallback_radius_mm) {
             filterfn(fidx, i, m_cfg.head_fallback_radius_mm);
         }
@@ -781,18 +782,7 @@ void SupportTreeBuildsteps::filter()
     ccr::for_each(size_t(0), filtered_indices.size(),
                   [this, &filterfn, &filtered_indices] (size_t i) {
                       unsigned fidx = filtered_indices[i];
-                      double back_r = m_cfg.head_back_radius_mm;
-                      // Apply per-point weight scaling for manually-placed points only.
-                      // Auto-generated (island/slope) points always use the global value.
-                      const SupportPoint &sp = m_support_pts[fidx];
-                      if (sp.type == SupportPointType::manual_add) {
-                          switch (sp.weight) {
-                          case SupportWeight::Light:  back_r *= 0.5; break;
-                          case SupportWeight::Heavy:  back_r *= 2.0; break;
-                          default: /* Medium: no scale */ break;
-                          }
-                      }
-                      filterfn(fidx, i, back_r);
+                      filterfn(fidx, i, m_cfg.head_back_radius_mm);
                   });
 
     for (size_t i = 0; i < heads.size(); ++i)
@@ -904,8 +894,7 @@ void SupportTreeBuildsteps::routing_to_ground()
 
         Head &h = m_builder.head(hid);
 
-        bool widen = !(h.id >= 0 && size_t(h.id) < m_support_pts.size() &&
-                       m_support_pts[size_t(h.id)].weight == SupportWeight::Light);
+        bool widen = true;
         if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id, widen)) {
             BOOST_LOG_TRIVIAL(warning)
                 << "Pillar cannot be created for support point id: " << hid;
@@ -932,16 +921,17 @@ void SupportTreeBuildsteps::routing_to_ground()
 
                 auto &sidehead = m_builder.head(c);
 
-                if (!connect_to_nearpillar(sidehead, centerpillarID) &&
-                    !search_pillar_and_connect(sidehead)) {
+                // Manually-placed points always get their own independent pillar;
+                // only auto-generated points participate in cluster bridge optimization.
+                bool is_manual_sidehead = (c < m_support_pts.size() &&
+                                           m_support_pts[c].type == sla::SupportPointType::manual_add);
+
+                if (is_manual_sidehead ||
+                    (!connect_to_nearpillar(sidehead, centerpillarID) &&
+                     !search_pillar_and_connect(sidehead))) {
                     Vec3d pstart = sidehead.junction_point();
-                    // Vec3d pend = Vec3d{pstart(X), pstart(Y), gndlvl};
-                    // Could not find a pillar, create one
-                    {
-                        bool sw = !(sidehead.id >= 0 && size_t(sidehead.id) < m_support_pts.size() &&
-                                    m_support_pts[size_t(sidehead.id)].weight == SupportWeight::Light);
-                        create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id, sw);
-                    }
+                    bool sw = true;
+                    create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id, sw);
                 }
             }
         }
@@ -964,8 +954,7 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     Vec3d endp = hjp + d * dir;
     bool ret = false;
 
-    bool widen_ctg = !(head.id >= 0 && size_t(head.id) < m_support_pts.size() &&
-                       m_support_pts[size_t(head.id)].weight == SupportWeight::Light);
+    bool widen_ctg = true;
     if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, SupportTreeNode::ID_UNSET, widen_ctg))) {
         m_builder.add_bridge(head.id, endp);
         m_builder.add_junction(endp, head.r_back_mm);
@@ -1104,8 +1093,13 @@ void SupportTreeBuildsteps::routing_to_model()
 
         auto& head = m_builder.head(idx);
 
-        // Search nearby pillar
-        if (search_pillar_and_connect(head)) { return; }
+        // Manually-placed points must not bridge to a neighbor's pillar;
+        // they get their own route to ground or model body.
+        bool is_manual = (idx < m_support_pts.size() &&
+                          m_support_pts[idx].type == sla::SupportPointType::manual_add);
+
+        // Search nearby pillar (auto-generated points only)
+        if (!is_manual && search_pillar_and_connect(head)) { return; }
 
         // Cannot connect to nearby pillar. We will try to search for
         // a route to the ground.

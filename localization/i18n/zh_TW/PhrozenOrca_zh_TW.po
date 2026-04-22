@@ -18773,3 +18773,9 @@ msgstr "接觸類型"
 
 msgid "Support Point Diameter"
 msgstr "支撐點直徑"
+
+msgid "Head Connection Length"
+msgstr "頂部連接長度"
+
+msgid "Pad Wall Slope"
+msgstr "底筏壁坡度"

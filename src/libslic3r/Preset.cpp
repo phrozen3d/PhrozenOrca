@@ -970,6 +970,8 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "bottom_tolerance_compensation_b",
     "contact_type",
     "support_point_diameter",
+    "support_contact_type",
+    "support_contact_diameter",
     "top_upper_diameter",
     "top_contact_depth",
     "pinhead_width",

@@ -1757,6 +1757,12 @@ PRINT_CONFIG_CLASS_DEFINE(
 
     // Indirectly controls the minimum size of created cavities.
     ((ConfigOptionFloat, hollowing_closing_distance))
+
+    // Phrozen: Contact sphere type (None / Sphere)
+    ((ConfigOptionEnum<ContactType>, support_contact_type))
+
+    // Phrozen: Diameter of the contact sphere in mm
+    ((ConfigOptionFloat, support_contact_diameter))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(

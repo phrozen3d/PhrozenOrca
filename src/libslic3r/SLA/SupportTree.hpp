@@ -44,6 +44,9 @@ struct SupportTreeConfig
     // How much the pinhead has to penetrate the model surface
     double head_penetration_mm = 0.5;
 
+    // Radius of the contact sphere (0 = no contact sphere, >head_front_radius_mm = add sphere)
+    double contact_sphere_radius_mm = 0.0;
+
     // Radius of the back side of the 3d arrow.
     double head_back_radius_mm = 0.5;
 

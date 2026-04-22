@@ -94,6 +94,8 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
                 scfg.safety_distance_mm : c.support_base_safety_distance.getFloat();
         scfg.max_bridges_on_pillar = unsigned(c.support_max_bridges_on_pillar.getInt());
         scfg.max_weight_on_model_support = c.support_max_weight_on_model.getFloat();
+        scfg.contact_sphere_radius_mm = (c.support_contact_type == ContactType::spSphere)
+            ? 0.5 * c.support_contact_diameter.getFloat() : 0.0;
         break;
     }
     case sla::SupportTreeType::Branching:
@@ -1063,7 +1065,9 @@ bool SLAPrintObject::invalidate_state_by_config_options(const std::vector<t_conf
             || opt_key == "support_points_minimal_distance") {
             steps.emplace_back(slaposSupportPoints);
         } else if (
-               opt_key == "support_head_front_diameter"
+               opt_key == "support_contact_type"
+            || opt_key == "support_contact_diameter"
+            || opt_key == "support_head_front_diameter"
             || opt_key == "support_head_penetration"
             || opt_key == "support_head_width"
             || opt_key == "support_pillar_diameter"

@@ -77,6 +77,7 @@ struct Head: public SupportTreeNode {
     double r_pin_mm = 0.5;
     double width_mm = 2;
     double penetration_mm = 0.5;
+    double r_contact_mm = 0.0; // 0 = no contact sphere; >r_pin_mm = append sphere at tip
 
     
     // If there is a pillar connecting to this head, then the id will be set.
