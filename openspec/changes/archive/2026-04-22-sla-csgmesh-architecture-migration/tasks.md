@@ -81,4 +81,4 @@
 - [x] 6.2 確認 FDM 模式切片流程不受影響（選擇 FDM printer，執行完整切片）
 - [x] 6.3 確認 PhrozenOrca 客製化功能正常（PartPlateList、PhrozenConnect 介面等）
 - [x] 6.4 移除所有過渡期保留的舊路徑程式碼（`hollow_mesh_with_holes` 在 drill_holes() 中保留，供 get_mesh_to_print() 與 HollowedMesh gizmo 使用，非多餘依賴）
-- [ ] 6.5 更新 `MEMORY.md`，記錄 CSGMesh 架構移植完成狀態與 Phase E 暫緩決定
+- [x] 6.5 更新 `MEMORY.md`，記錄 CSGMesh 架構移植完成狀態與 Phase E 暫緩決定
