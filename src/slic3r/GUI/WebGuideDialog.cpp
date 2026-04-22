@@ -824,6 +824,10 @@ int GuideFrame::SaveProfile()
         m_MainPtr->app_config->save();
     }
 
+    // FDM vs resin guide pages share one ProfileJson model list; only rebuild the vendor map
+    // for the technology being saved so the other mode's Printer Selection is preserved.
+    const std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
+
     // set vendors: keep existing app_config vendors so unrelated bundles stay visible,
     // but for vendors shown in this guide flow, rebuild variants from current selection
     // (so unselected machines are really removed from System presets visibility).
@@ -842,11 +846,18 @@ int GuideFrame::SaveProfile()
                 }
             }
         }
-        for (const std::string& v : touched_vendors)
+        for (const std::string& v : touched_vendors) {
+            if (printer_type == "filament") {
+                if (boost::iequals(v, "PhrozenSLA"))
+                    continue;
+            } else if (printer_type == "resin") {
+                if (!boost::iequals(v, "PhrozenSLA"))
+                    continue;
+            }
             kept[v].clear();
+        }
         m_appconfig_new.set_vendors(std::move(kept));
     }
-    std::string printer_type = m_ProfileJson.contains("printer_type") ? m_ProfileJson["printer_type"].get<std::string>() : "filament";
     // On resin path, only run fallback for a vendor when no model in that vendor has nozzle_selected set (so we don't add unselected PhrozenSLA models and have get_preferred pick the wrong one)
     std::set<std::string> resin_vendors_with_selection;
     if (printer_type == "resin") {
@@ -866,6 +877,10 @@ int GuideFrame::SaveProfile()
             json temp_model = it.value();
             std::string model_name = temp_model["model"];
             std::string vendor_name = temp_model["vendor"];
+            if (printer_type == "filament" && boost::iequals(vendor_name, "PhrozenSLA"))
+                continue;
+            if (printer_type == "resin" && !boost::iequals(vendor_name, "PhrozenSLA"))
+                continue;
             std::string selected = temp_model["nozzle_selected"];
             boost::trim(selected);
             std::string nozzle;

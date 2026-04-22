@@ -147,6 +147,26 @@ static const Preset* find_phrozen_work_mode_target(const PresetBundle& pb, bool 
     return nullptr;
 }
 
+// Remember last Phrozen FDM / SLA *printer preset* names so mode toggle can restore the user's machine
+// instead of always picking the first system preset from find_phrozen_work_mode_target.
+static const Preset* find_saved_phrozen_printer_preset(PresetBundle& pb, AppConfig& cfg, bool resin)
+{
+    const std::string key   = resin ? "phrozen_last_resin_printer" : "phrozen_last_filament_printer";
+    const std::string pname = cfg.get(key);
+    if (pname.empty())
+        return nullptr;
+    Preset* p = pb.printers.find_preset(pname, false, true);
+    if (!p || !p->is_system)
+        return nullptr;
+    if (p->printer_technology() != (resin ? ptSLA : ptFFF))
+        return nullptr;
+    if (!preset_from_phrozen_profile_dir(*p, resin))
+        return nullptr;
+    if (!p->is_visible)
+        return nullptr;
+    return p;
+}
+
 class PhrozenModeMenuRow : public wxPanel
 {
     ScalableBitmap    m_icon;
@@ -1865,7 +1885,9 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
 
     // Select by vendor/profile source (resources/profiles/Phrozen*), not hardcoded model strings.
     // This allows adding new machine JSONs without touching code.
-    const Preset* target = find_phrozen_work_mode_target(*pb, resin);
+    const Preset* target = find_saved_phrozen_printer_preset(*pb, *cfg, resin);
+    if (!target)
+        target = find_phrozen_work_mode_target(*pb, resin);
 
     if (!target) {
         MessageDialog d(this,

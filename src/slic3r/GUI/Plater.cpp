@@ -4330,6 +4330,37 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                     }
 
                     // BBS:: project embedded presets
+                    // Keep only the printer preset actually referenced by the project config
+                    // to avoid exposing unrelated machine presets during import.
+                    if (load_config) {
+                        const auto* selected_printer_opt = config_loaded.option<ConfigOptionString>("printer_settings_id");
+                        if (selected_printer_opt != nullptr && !selected_printer_opt->value.empty()) {
+                            const std::string selected_printer_name = selected_printer_opt->value;
+                            bool has_selected_printer = false;
+                            for (const Preset* project_preset : project_presets) {
+                                if (project_preset != nullptr &&
+                                    project_preset->type == Preset::TYPE_PRINTER &&
+                                    project_preset->name == selected_printer_name) {
+                                    has_selected_printer = true;
+                                    break;
+                                }
+                            }
+                            if (has_selected_printer) {
+                                for (auto it = project_presets.begin(); it != project_presets.end();) {
+                                    Preset* project_preset = *it;
+                                    if (project_preset != nullptr &&
+                                        project_preset->type == Preset::TYPE_PRINTER &&
+                                        project_preset->name != selected_printer_name) {
+                                        delete project_preset;
+                                        it = project_presets.erase(it);
+                                        continue;
+                                    }
+                                    ++it;
+                                }
+                            }
+                        }
+                    }
+
                     if ((project_presets.size() > 0) && load_config) {
                         // load project embedded presets
                         PresetsConfigSubstitutions preset_substitutions;
@@ -4351,8 +4382,45 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                             return empty_result;
                         }
 
-                        // Based on the printer technology field found in the loaded config, select the base for the config,
+                        // Based on the printer technology field found in the loaded config, select the base for the config.
+                        const auto* loaded_printer_technology = config_loaded.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+                        if (loaded_printer_technology == nullptr) {
+                            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ":" << __LINE__
+                                << " missing printer_technology in 3mf config, fallback to ptFFF";
+                        }
                         PrinterTechnology printer_technology = Preset::printer_technology(config_loaded);
+
+                        // For full project loads, align current UI mode with the project technology before
+                        // applying project settings so tabs / controls / preset collections stay in sync.
+                        if (load_model && load_config) {
+                            const PrinterTechnology current_ui_technology = wxGetApp().get_ui_printer_technology();
+                            MainFrame* mainframe = wxGetApp().mainframe;
+                            PresetBundle* preset_bundle = wxGetApp().preset_bundle;
+                            AppConfig* app_config = wxGetApp().app_config;
+                            const bool is_phrozen_vendor = preset_bundle && preset_bundle->is_phrozen_vendor();
+
+                            if (current_ui_technology != printer_technology) {
+                                if (is_phrozen_vendor && mainframe) {
+                                    // Keep Phrozen toolbar mode / app_config / side UI coherent in one place.
+                                    mainframe->phrozen_apply_work_mode(printer_technology == ptSLA);
+                                } else {
+                                    q->set_printer_technology(printer_technology);
+                                    if (mainframe)
+                                        mainframe->update_side_preset_ui();
+                                }
+                            }
+
+                            // Ensure app mode metadata tracks the file technology for Phrozen UI.
+                            if (is_phrozen_vendor && app_config) {
+                                const std::string expected_mode = printer_technology == ptSLA ? "resin" : "filament";
+                                if (app_config->get("phrozen_work_mode") != expected_mode) {
+                                    app_config->set("phrozen_work_mode", expected_mode);
+                                    app_config->save();
+                                }
+                                if (mainframe)
+                                    mainframe->update_phrozen_mode_button_label();
+                            }
+                        }
 
                         config.apply(static_cast<const ConfigBase &>(FullPrintConfig::defaults()));
                         // and place the loaded config over the base.
@@ -4439,6 +4507,44 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
 
                             preset_bundle->load_config_model(filename.string(), std::move(config), file_version);
 
+                            // Force preset selections to follow project_settings ids from 3mf so
+                            // custom process/material values are actually reflected in UI and slicing config.
+                            auto ensure_visible_and_select = [](PresetCollection& presets, const std::string& preset_name) {
+                                if (preset_name.empty())
+                                    return;
+                                Preset* preset = presets.find_preset(preset_name, false, true);
+                                if (preset == nullptr)
+                                    return;
+                                if (!preset->is_visible)
+                                    preset->is_visible = true;
+                                presets.select_preset_by_name(preset_name, true);
+                            };
+
+                            if (const auto* printer_opt = dynamic_cast<const ConfigOptionString*>(preset_bundle->project_config.option("printer_settings_id"))) {
+                                ensure_visible_and_select(preset_bundle->printers, printer_opt->value);
+                            }
+                            if (printer_technology == ptSLA) {
+                                if (const auto* sla_print_opt = dynamic_cast<const ConfigOptionString*>(preset_bundle->project_config.option("sla_print_settings_id"))) {
+                                    ensure_visible_and_select(preset_bundle->sla_prints, sla_print_opt->value);
+                                } else if (const auto* print_opt = dynamic_cast<const ConfigOptionString*>(preset_bundle->project_config.option("print_settings_id"))) {
+                                    ensure_visible_and_select(preset_bundle->sla_prints, print_opt->value);
+                                }
+                                if (const auto* sla_material_opt = dynamic_cast<const ConfigOptionString*>(preset_bundle->project_config.option("sla_material_settings_id"))) {
+                                    ensure_visible_and_select(preset_bundle->sla_materials, sla_material_opt->value);
+                                } else if (const auto* material_opt = dynamic_cast<const ConfigOptionStrings*>(preset_bundle->project_config.option("filament_settings_id"))) {
+                                    if (!material_opt->values.empty())
+                                        ensure_visible_and_select(preset_bundle->sla_materials, material_opt->values.front());
+                                }
+                            } else {
+                                if (const auto* print_opt = dynamic_cast<const ConfigOptionString*>(preset_bundle->project_config.option("print_settings_id"))) {
+                                    ensure_visible_and_select(preset_bundle->prints, print_opt->value);
+                                }
+                                if (const auto* filament_opt = dynamic_cast<const ConfigOptionStrings*>(preset_bundle->project_config.option("filament_settings_id"))) {
+                                    if (!filament_opt->values.empty())
+                                        ensure_visible_and_select(preset_bundle->filaments, filament_opt->values.front());
+                                }
+                            }
+
                             ConfigOption* bed_type_opt = preset_bundle->project_config.option("curr_bed_type");
                             if (bed_type_opt != nullptr) {
                                 BedType bed_type = (BedType)bed_type_opt->getInt();
@@ -4507,6 +4613,17 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
                             // BBS: add preset combo box re-active logic
                             // currently found only needs re-active here
                             wxGetApp().load_current_presets(false, false);
+                            // Keep Phrozen mode badge consistent with the loaded project technology even when
+                            // load_current_presets() reselects presets afterwards.
+                            if (AppConfig* app_config = wxGetApp().app_config) {
+                                const std::string expected_mode = printer_technology == ptSLA ? "resin" : "filament";
+                                if (app_config->get("phrozen_work_mode") != expected_mode) {
+                                    app_config->set("phrozen_work_mode", expected_mode);
+                                    app_config->save();
+                                }
+                            }
+                            if (MainFrame* mainframe = wxGetApp().mainframe)
+                                mainframe->update_phrozen_mode_button_label();
                             // Update filament colors for the MM-printer profile in the full config
                             // to avoid black (default) colors for Extruders in the ObjectList,
                             // when for extruder colors are used filament colors
@@ -12711,6 +12828,15 @@ void Plater::export_stl(bool extended, bool selection_only, bool multi_stls)
     wxBusyCursor wait;
     bool export_config = true;
     DynamicPrintConfig cfg = wxGetApp().preset_bundle->full_config_secure();
+    // Keep project mode explicit in exported config for robust round-trips and legacy fallback.
+    auto* cfg_printer_technology = cfg.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
+    if (cfg_printer_technology == nullptr) {
+        BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << ":" << __LINE__
+            << " printer_technology missing before export, injecting current plater technology";
+        cfg.option<ConfigOptionEnumGeneric>("printer_technology", true)->value = p->printer_technology;
+    } else {
+        cfg_printer_technology->value = p->printer_technology;
+    }
     bool full_pathnames = false;
     if (Slic3r::store_amf(path_u8.c_str(), &p->model, export_config ? &cfg : nullptr, full_pathnames)) {
         ; //store success

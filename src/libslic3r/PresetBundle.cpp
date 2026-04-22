@@ -408,7 +408,17 @@ PresetsConfigSubstitutions PresetBundle::load_project_embedded_presets(std::vect
         errors_cummulative += err.what();
     }
     try {
+        this->sla_prints.load_project_embedded_presets(project_presets, PRESET_SLA_PRINT_NAME, substitutions, substitution_rule);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
+    try {
         this->filaments.load_project_embedded_presets(project_presets, PRESET_FILAMENT_NAME, substitutions, substitution_rule);
+    } catch (const std::runtime_error &err) {
+        errors_cummulative += err.what();
+    }
+    try {
+        this->sla_materials.load_project_embedded_presets(project_presets, PRESET_SLA_MATERIALS_NAME, substitutions, substitution_rule);
     } catch (const std::runtime_error &err) {
         errors_cummulative += err.what();
     }
@@ -1882,6 +1892,17 @@ void PresetBundle::export_selections(AppConfig &config)
 
     auto flush_multi_opt = project_config.option<ConfigOptionFloat>("flush_multiplier");
     config.set("flush_multiplier", std::to_string(flush_multi_opt ? flush_multi_opt->getFloat() : 1.0f));
+    // Phrozen Orca: remember last FDM vs SLA printer preset so phrozen_work_mode can restore the user's machine.
+    {
+        const Preset& spr = printers.get_selected_preset();
+        const PrinterTechnology tech = spr.printer_technology();
+        if (spr.vendor) {
+            if (tech == ptFFF && boost::iequals(spr.vendor->id, "Phrozen"))
+                config.set("phrozen_last_filament_printer", printer_name);
+            if (tech == ptSLA && boost::iequals(spr.vendor->id, "PhrozenSLA"))
+                config.set("phrozen_last_resin_printer", printer_name);
+        }
+    }
     // BBS
     //config.set("presets", "sla_print",    sla_prints.get_selected_preset_name());
     //config.set("presets", "sla_material", sla_materials.get_selected_preset_name());
@@ -2685,10 +2706,36 @@ void PresetBundle::load_config_file_config(const std::string &name_or_path, bool
     }
     case ptSLA:
     {
-        /*std::set<std::string> different_keys_set;
-        load_preset(this->sla_prints, 0, "sla_print_settings_id", different_keys_set);
-        load_preset(this->sla_materials, 1, "sla_material_settings_id", different_keys_set);
-        load_preset(this->printers, 2, "printer_settings_id", different_keys_set);*/
+        // Keep backward compatibility with projects that only have FDM-style ids.
+        if (!config.has("sla_print_settings_id") && config.has("print_settings_id"))
+            config.option<ConfigOptionString>("sla_print_settings_id", true)->value = config.opt_string("print_settings_id");
+        if (!config.has("sla_material_settings_id")) {
+            if (config.has("filament_settings_id")) {
+                if (const auto* filament_ids = config.option<ConfigOptionStrings>("filament_settings_id");
+                    filament_ids != nullptr && !filament_ids->values.empty()) {
+                    config.option<ConfigOptionString>("sla_material_settings_id", true)->value = filament_ids->values.front();
+                }
+            } else if (config.has("sla_material_settings_id")) {
+                // no-op, kept for completeness
+            }
+        }
+
+        auto idx_or_last = [](size_t preferred, const std::vector<std::string>& values) -> size_t {
+            if (values.empty())
+                return 0;
+            return preferred < values.size() ? preferred : (values.size() - 1);
+        };
+        const std::set<std::string> no_different_keys;
+
+        // For SLA projects, load SLA process/material + printer from project ids.
+        // Important: do not force "different_settings" backfill here; SLA projects must keep the exact
+        // values persisted in 3mf (for example layer_height), even when preset names match system profiles.
+        load_preset(this->sla_prints, idx_or_last(0, inherits_values), "sla_print_settings_id", no_different_keys, std::string());
+        load_preset(this->sla_materials, idx_or_last(1, inherits_values), "sla_material_settings_id", no_different_keys, std::string());
+        load_preset(this->printers, idx_or_last(2, inherits_values), "printer_settings_id", no_different_keys, std::string());
+
+        // Apply project-level options for SLA as well.
+        this->project_config.apply_only(config, s_project_options);
         break;
     }
     default:

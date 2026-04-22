@@ -2537,23 +2537,38 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             ConfigOptionString* print_name;
             ConfigOptionStrings* filament_names;
             std::string preset_name;
+            Preset::Type preset_type = type;
             if (type == Preset::TYPE_PRINT) {
-                print_name = dynamic_cast < ConfigOptionString* > (config.option("print_settings_id"));
-                if (!print_name) {
-                    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", can not found print_settings_id from  %1%\n") % dest_file;
-                    //skip this file
-                    return;
+                // Resin process settings are stored with sla_print_settings_id.
+                if (ConfigOptionString* sla_print_name = dynamic_cast<ConfigOptionString*>(config.option("sla_print_settings_id"));
+                    sla_print_name && !sla_print_name->value.empty()) {
+                    preset_name = sla_print_name->value;
+                    preset_type = Preset::TYPE_SLA_PRINT;
+                } else {
+                    print_name = dynamic_cast < ConfigOptionString* > (config.option("print_settings_id"));
+                    if (!print_name) {
+                        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", can not found print_settings_id from  %1%\n") % dest_file;
+                        //skip this file
+                        return;
+                    }
+                    preset_name = print_name->value;
                 }
-                preset_name = print_name->value;
             }
             else if (type == Preset::TYPE_FILAMENT) {
-                filament_names = dynamic_cast < ConfigOptionStrings* > (config.option("filament_settings_id"));
-                if (!filament_names) {
-                    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", can not found filament_settings_id from  %1%\n") % dest_file;
-                    //skip this file
-                    return;
+                // Resin material settings are stored with sla_material_settings_id.
+                if (ConfigOptionString* sla_material_name = dynamic_cast<ConfigOptionString*>(config.option("sla_material_settings_id"));
+                    sla_material_name && !sla_material_name->value.empty()) {
+                    preset_name = sla_material_name->value;
+                    preset_type = Preset::TYPE_SLA_MATERIAL;
+                } else {
+                    filament_names = dynamic_cast < ConfigOptionStrings* > (config.option("filament_settings_id"));
+                    if (!filament_names || filament_names->values.empty()) {
+                        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", can not found filament_settings_id from  %1%\n") % dest_file;
+                        //skip this file
+                        return;
+                    }
+                    preset_name = filament_names->values[0];
                 }
-                preset_name = filament_names->values[0];
             }
             else if (type == Preset::TYPE_PRINTER) {
                 print_name = dynamic_cast < ConfigOptionString* > (config.option("printer_settings_id"));
@@ -2570,7 +2585,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 return;
             }
 
-            Preset *preset = new Preset(type, preset_name, false);
+            Preset *preset = new Preset(preset_type, preset_name, false);
             preset->file = dest_file;
             preset->config = std::move(config);
             preset->loaded = true;
@@ -2599,7 +2614,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
             }
 
             project_presets.push_back(preset);
-            BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(", create one project embedded preset: %1% from %2%, type %3%\n") % preset_name % dest_file %Preset::get_type_string(type);
+            BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(", create one project embedded preset: %1% from %2%, type %3%\n") % preset_name % dest_file %Preset::get_type_string(preset_type);
         }
     }
 
