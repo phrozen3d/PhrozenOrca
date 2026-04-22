@@ -290,20 +290,19 @@ void ObjectClipper::on_update()
     if (! mo)
         return;
 
-    // For SLA printers, prefer the backend-processed mesh (includes hollowing + drill holes).
-    // This ensures the cross-section fill correctly shows the hollow interior instead of a solid cap.
-    // Mirrors PrusaSlicer's ObjectClipper::on_update() SLA branch.
+    // Phase D Task 4.2/4.3: For SLA printers, use CSG parts range instead of the
+    // pre-merged hollow_mesh_with_holes. Each CSGPart carries its own world transform,
+    // so MeshClipper uses Identity trafo and slice_csgmesh_ex handles each part separately.
+    // This avoids a full O(triangle_count) recalculate on one large mesh every frame.
     std::unique_ptr<MeshClipper> sla_mc;
-    Geometry::Transformation     sla_mc_tr;
     if (wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology() == ptSLA) {
         const SLAPrintObject* po = get_pool()->selection_info()->print_object();
-        if (po && po->is_step_done(slaposDrillHoles)) {
-            const TriangleMesh& hollow_mesh = po->get_mesh_to_print();
-            if (!hollow_mesh.empty()) {
+        if (po && po->is_step_done(slaposAssembly)) {
+            std::vector<csg::CSGPart> parts = po->get_parts_to_slice();
+            if (!parts.empty()) {
                 sla_mc = std::make_unique<MeshClipper>();
-                sla_mc->set_mesh(hollow_mesh.its);
-                // The mesh is already in world space (transformed_mesh), so cancel the instance trafo.
-                sla_mc_tr = Geometry::Transformation{po->trafo().inverse().cast<double>()};
+                sla_mc->set_mesh(range(parts));
+                // Identity trafo: world transforms are embedded in each CSGPart.
             }
         }
     }
@@ -326,8 +325,15 @@ void ObjectClipper::on_update()
         }
         m_old_meshes = std::move(meshes);
 
-        if (sla_mc)
-            m_clippers.emplace_back(std::move(sla_mc), sla_mc_tr);
+        if (sla_mc) {
+            // CSG parts carry world transforms; cancel inst_trafo applied by render_cut()
+            // so the effective MeshClipper m_trafo = Identity (plane stays in world space).
+            const SLAPrintObject* po2 = get_pool()->selection_info()->print_object();
+            Geometry::Transformation sla_tr = po2 ?
+                Geometry::Transformation{po2->trafo().inverse()} :
+                Geometry::Transformation{};
+            m_clippers.emplace_back(std::move(sla_mc), sla_tr);
+        }
 
         m_active_inst_bb_radius =
             mo->instance_bounding_box(get_pool()->selection_info()->get_active_instance()).radius();

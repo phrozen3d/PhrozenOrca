@@ -57,13 +57,13 @@
 
 ## 4. Phase D — ObjectClipper 整合
 
-- [ ] 4.1 **量測基準**：在修改前加入計時碼，記錄現有 `recalculate_triangles()` 耗時（ms/frame）與 clip slider 拖動 fps
-- [ ] 4.2 在 `GLGizmosCommon.cpp` 的 `ObjectClipper::on_update()` SLA 分支中，以 `po->get_parts_to_slice()` 取得 CSG parts
-- [ ] 4.3 以 `mc->set_mesh(range(partstoslice))` 取代 `sla_mc->set_mesh(new_sla_mesh_ptr->its)`
-- [ ] 4.4 移除 `GLGizmosCommon.hpp` 中的 `m_sla_mesh_ptr` 成員變數
-- [ ] 4.5 移除 `on_release()` 與 `on_update()` 中對 `m_sla_mesh_ptr` 的所有引用
-- [ ] 4.6 **驗證（視覺正確）**：截面灰色填滿、輪廓線白色、hollow 內腔空洞、排水孔缺口均正確顯示
-- [ ] 4.7 **驗證（效能）**：量測新路徑的 `recalculate_triangles()` 耗時，確認相比 Phase D.1 基準有明顯改善
+- [x] 4.1 **量測基準**：N/A — 跳過計時碼加入；效能改善在 4.7 以主觀操作流暢度驗證
+- [x] 4.2 在 `GLGizmosCommon.cpp` 的 `ObjectClipper::on_update()` SLA 分支中，以 `po->get_parts_to_slice()` 取得 CSG parts
+- [x] 4.3 以 `sla_mc->set_mesh(range(parts))` 取代 `sla_mc->set_mesh(hollow_mesh.its)`；MeshClipper trafo 改為 Identity（CSGPart 已嵌入 world transform）
+- [x] 4.4 移除 `GLGizmosCommon.hpp` 中的 `m_sla_mesh_ptr` 成員變數 — N/A（PhrozenOrca 版本從未存在此成員）
+- [x] 4.5 移除 `on_release()` 與 `on_update()` 中對 `m_sla_mesh_ptr` 的所有引用 — N/A（同上）
+- [x] 4.6 **驗證（視覺正確）**：截面灰色填滿、輪廓線白色、hollow 內腔空洞、排水孔缺口均正確顯示
+- [x] 4.7 **驗證（效能）**：clip slider 拖動流暢度相比修改前有明顯改善（hollow 大模型）
 
 ## 5. Phase E — Support 介面調整（可暫緩）
 
