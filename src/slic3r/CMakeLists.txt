@@ -444,6 +444,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/BonjourDialog.hpp
     GUI/BindDialog.cpp
     GUI/BindDialog.hpp
+    GUI/MeshyDialog.cpp
+    GUI/MeshyDialog.hpp
     GUI/ModelMall.hpp
     GUI/ModelMall.cpp
     GUI/SelectMachine.hpp

@@ -29,6 +29,7 @@
 #include "3DScene.hpp"
 #include "ParamsDialog.hpp"
 #include "PrintHostDialogs.hpp"
+#include "MeshyDialog.hpp"
 #include "wxExtensions.hpp"
 #include "GUI_ObjectList.hpp"
 #include "Mouse3DController.hpp"
@@ -2420,6 +2421,12 @@ void MainFrame::init_menubar_as_editor()
         append_menu_item(import_menu, wxID_ANY, _L("Import Configs") + dots /*+ "\t" + ctrl + "I"*/, _L("Load configs"),
             [this](wxCommandEvent&) { load_config_file(); }, "menu_import", nullptr,
             [this](){return true; }, this);
+
+        import_menu->AppendSeparator();
+        append_menu_item(import_menu, wxID_ANY, _L("Generate from Meshy (Image to 3D)") + dots,
+            _L("Generate a 3D model from an image using the Meshy API"),
+            [this](wxCommandEvent&) { MeshyDialog dlg(this); dlg.ShowModal(); }, "menu_import", nullptr,
+            [this](){ return can_add_models(); }, this);
 
         append_submenu(fileMenu, import_menu, wxID_ANY, _L("Import"), "");
 
