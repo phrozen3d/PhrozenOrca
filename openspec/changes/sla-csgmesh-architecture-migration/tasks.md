@@ -67,7 +67,8 @@
 
 ## 5. Phase E — Support 介面調整（可暫緩）
 
-- [ ] 5.1 **評估條件**：Phase A–D 完成後，測試 auto support 與 manual support raycasting；若正常則暫緩 Phase E
+- [x] 5.1 **評估條件**：Phase A–D 完成後，測試 auto support 與 manual support raycasting；若正常則暫緩 Phase E
+      **結果：暫緩** — auto support 分布正常、manual support raycasting 點擊位置正確，hollow 內腔不干擾。Phase E 無需執行。
 - [ ] 5.2 實作 `get_mesh_to_print()`：從 CSG parts 以 boolean 合併（或 VDB voxelization）產生 `std::shared_ptr<const indexed_triangle_set>`
 - [ ] 5.3 確認 `SupportData` 建構子接受 `const indexed_triangle_set&`；若需要，新增相容建構子
 - [ ] 5.4 修改 `support_points()` 中的 `SupportData` 初始化，改用 `get_mesh_to_print()` 回傳值
@@ -76,8 +77,8 @@
 
 ## 6. 整合驗證與收尾
 
-- [ ] 6.1 執行標準測試模型集完整切片流程（benchy_sla + hollow_cube + drain_test），確認所有結果通過數值驗證
-- [ ] 6.2 確認 FDM 模式切片流程不受影響（選擇 FDM printer，執行完整切片）
-- [ ] 6.3 確認 PhrozenOrca 客製化功能正常（PartPlateList、PhrozenConnect 介面等）
-- [ ] 6.4 移除所有過渡期保留的舊路徑程式碼（`hollow_mesh_with_holes` 等不再需要的欄位）
+- [x] 6.1 執行標準測試模型集完整切片流程（benchy_sla + hollow_cube + drain_test），確認所有結果通過數值驗證
+- [x] 6.2 確認 FDM 模式切片流程不受影響（選擇 FDM printer，執行完整切片）
+- [x] 6.3 確認 PhrozenOrca 客製化功能正常（PartPlateList、PhrozenConnect 介面等）
+- [x] 6.4 移除所有過渡期保留的舊路徑程式碼（`hollow_mesh_with_holes` 在 drill_holes() 中保留，供 get_mesh_to_print() 與 HollowedMesh gizmo 使用，非多餘依賴）
 - [ ] 6.5 更新 `MEMORY.md`，記錄 CSGMesh 架構移植完成狀態與 Phase E 暫緩決定
