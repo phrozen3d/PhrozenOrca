@@ -96,6 +96,11 @@ private:
     void sync_island_data_for_all();
     void rebuild_overhang_area_index_map(bool all_objects);
 
+    // Island GL visualization
+    void rebuild_island_overlay_mesh();
+    void rebuild_island_highlight_mesh(int flat_idx);
+    void render_island_contours();
+
     //BBS: add support preview logic
     void init_print_instance();
     void update_support_volumes();

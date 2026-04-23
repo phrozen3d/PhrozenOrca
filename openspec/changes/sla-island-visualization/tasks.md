@@ -68,11 +68,11 @@
 
 ## 4. GL 視覺化：Island 輪廓 Overlay
 
-- [ ] 4.1 實作 `rebuild_island_overlay_mesh()`：迭代 `m_overhang_area_index_map` 中所有 entry，取對應 object 的 `IslandContour.contour`，呼叫 `triangulate_expolygon_3d(shape, z + 0.05f)`，合併為單一 `indexed_triangle_set`，透過 `GLModel::init_from()` 建立 GPU buffer，顏色 `ColorRGBA(1.0f, 0.85f, 0.2f, 0.4f)`；需套用各 object 的 `po->trafo()` 轉換至世界座標
+- [x] 4.1 實作 `rebuild_island_overlay_mesh()`：迭代 `m_overhang_area_index_map` 中所有 entry，取對應 object 的 `IslandContour.contour`，呼叫 `triangulate_expolygon_3d(shape, z + 0.05f)`，合併為單一 `indexed_triangle_set`，透過 `GLModel::init_from()` 建立 GPU buffer，顏色 `ColorRGBA(1.0f, 0.85f, 0.2f, 0.4f)`；需套用各 object 的 `po->trafo()` 轉換至世界座標
 
-- [ ] 4.2 實作新版 `render_island_contours()`（取代舊版同名方法）：若 `m_island_data_dirty` 先呼叫 `rebuild_island_overlay_mesh()`；`glDisable(GL_DEPTH_TEST/CULL_FACE)` + `glEnable(GL_BLEND)` → 渲染 overlay model → 若 `m_current_overhang_area_index >= 0 && !m_overhang_area_index_map.empty()` 渲染 highlight model → 還原 GL 狀態
+- [x] 4.2 實作新版 `render_island_contours()`（取代舊版同名方法）：若 `m_island_data_dirty` 先呼叫 `rebuild_island_overlay_mesh()`；`glDisable(GL_DEPTH_TEST/CULL_FACE)` + `glEnable(GL_BLEND)` → 渲染 overlay model → 若 `m_current_overhang_area_index >= 0 && !m_overhang_area_index_map.empty()` 渲染 highlight model → 還原 GL 狀態
 
-- [ ] 4.3 在 `on_render()` 中恢復 `render_island_contours()` 呼叫（Phase 0 移除了舊版呼叫，此處加回新版）
+- [x] 4.3 在 `on_render()` 中恢復 `render_island_contours()` 呼叫（Phase 0 移除了舊版呼叫，此處加回新版）
 
 **Phase 4 驗收**：「Detect All」後所有物件的 island 都出現亮黃橙半透明 overlay；「Detect Selected」後只有當前 model 的 island 顯示；退出 Gizmo 後無殘留渲染。
 
