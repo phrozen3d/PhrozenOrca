@@ -273,10 +273,6 @@ private:
     const std::vector<ExPolygons>& get_model_slices() const { return m_model_slices; }
     const std::vector<ExPolygons>& get_support_slices() const;
 
-    const sla::IslandContourSet& island_contours() const { return m_island_contours; }
-    void set_island_contours(sla::IslandContourSet s) { m_island_contours = std::move(s); }
-    void clear_island_contours() { m_island_contours = {}; }
-
 public:
 
     // /////////////////////////////////////////////////////////////////////////
@@ -287,6 +283,10 @@ public:
     // it is safe to call them during and/or after slapsRasterize.
     //
     // /////////////////////////////////////////////////////////////////////////
+
+    const sla::IslandContourSet& island_contours() const { return m_island_contours; }
+    void set_island_contours(sla::IslandContourSet s) { m_island_contours = std::move(s); }
+    void clear_island_contours() { m_island_contours = {}; }
 
     // Retrieve the slice index.
     const std::vector<SliceRecord>& get_slice_index() const {

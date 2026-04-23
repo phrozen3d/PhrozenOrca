@@ -5,10 +5,12 @@
 #include "GLGizmoPainterBase.hpp"
 //BBS
 #include "libslic3r/Print.hpp"
+#include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/ObjectID.hpp"
 #include "slic3r/GUI/3DScene.hpp"
 #include "slic3r/GUI/GLModel.hpp"
 
+#include <map>
 #include <boost/thread.hpp>
 
 namespace Slic3r::GUI {
@@ -61,6 +63,14 @@ protected:
     int m_total_overhang_areas = 8;
     std::vector<std::string> m_model_names;
 
+    // Island data per SLAPrintObject index
+    std::map<int, sla::IslandContourSet> m_island_data_per_object;
+    // Flat index: [flat_idx] -> (obj_idx, island_idx)
+    std::vector<std::pair<int,int>> m_overhang_area_index_map;
+    GLModel m_island_overlay_model;
+    GLModel m_island_highlight_model;
+    bool m_island_data_dirty{false};
+
 private:
     bool on_init() override;
 
@@ -79,6 +89,12 @@ private:
     int get_selection_support_threshold_angle();
 
     int m_support_threshold_angle = -1;
+
+    // Island data layer
+    void sync_all_objects_names();
+    void sync_island_data_for_object(int obj_idx);
+    void sync_island_data_for_all();
+    void rebuild_overhang_area_index_map(bool all_objects);
 
     //BBS: add support preview logic
     void init_print_instance();

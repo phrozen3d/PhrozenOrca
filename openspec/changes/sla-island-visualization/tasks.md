@@ -26,7 +26,7 @@
 
 `GLGizmoLcdOverhangDetection` 需要能追蹤場景中所有 `SLAPrintObject` 的 island 資料，並維護一份扁平化的 overhang area 索引表以供導覽使用。
 
-- [ ] 2.1 在 `GLGizmoLcdOverhangDetection.hpp` 中新增成員：
+- [x] 2.1 在 `GLGizmoLcdOverhangDetection.hpp` 中新增成員：
   ```cpp
   // per-object island data
   std::map<int, sla::IslandContourSet> m_island_data_per_object;
@@ -39,13 +39,13 @@
   ```
   及方法宣告（`sync_all_objects_names()`、`sync_island_data_for_object(int obj_idx)`、`sync_island_data_for_all()`、`rebuild_overhang_area_index_map(bool all_objects)`、`rebuild_island_overlay_mesh()`、`render_island_contours()`、`rebuild_island_highlight_mesh(int flat_idx)`、`focus_camera_on_island(int flat_idx)`、`generate_island_support_points()`）
 
-- [ ] 2.2 實作 `sync_all_objects_names()`：迭代場景中所有 `SLAPrintObject`（透過 `wxGetApp().plater()->sla_print()->objects()`），將每個 `po->model_object()->name` 填入 `m_model_names`；取代舊版的 `mo->volumes` 填法（舊版在 `update_from_model_object()` 中，需移除舊邏輯）
+- [x] 2.2 實作 `sync_all_objects_names()`：迭代場景中所有 `SLAPrintObject`（透過 `wxGetApp().plater()->sla_print()->objects()`），將每個 `po->model_object()->name` 填入 `m_model_names`；取代舊版的 `mo->volumes` 填法（舊版在 `update_from_model_object()` 中，需移除舊邏輯）
 
-- [ ] 2.3 實作 `sync_island_data_for_object(int obj_idx)`：取第 `obj_idx` 個 `SLAPrintObject` 的 `island_contours()`，存入 `m_island_data_per_object[obj_idx]`；若 `valid == false` 亦同樣存入（保留空狀態）
+- [x] 2.3 實作 `sync_island_data_for_object(int obj_idx)`：取第 `obj_idx` 個 `SLAPrintObject` 的 `island_contours()`，存入 `m_island_data_per_object[obj_idx]`；若 `valid == false` 亦同樣存入（保留空狀態）
 
-- [ ] 2.4 實作 `sync_island_data_for_all()`：對所有 SLAPrintObject 依序呼叫 `sync_island_data_for_object(i)`
+- [x] 2.4 實作 `sync_island_data_for_all()`：對所有 SLAPrintObject 依序呼叫 `sync_island_data_for_object(i)`
 
-- [ ] 2.5 實作 `rebuild_overhang_area_index_map(bool all_objects)`：
+- [x] 2.5 實作 `rebuild_overhang_area_index_map(bool all_objects)`：
   - `all_objects == false`：只收集 `m_island_data_per_object[m_current_model_index]` 的 islands，填入 `m_overhang_area_index_map`
   - `all_objects == true`：收集所有 object 的 islands，依 object 順序填入
   - 更新 `m_total_overhang_areas = m_overhang_area_index_map.size()`；重設 `m_current_overhang_area_index = 0`；設 `m_island_data_dirty = true`

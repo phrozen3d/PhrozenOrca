@@ -600,8 +600,11 @@ void GLGizmoLcdOverhangDetection::update_from_model_object(bool first_update)
     //BBS: add timestamp logic
     m_volume_timestamps.clear();
 
-    // Phrozen LCD: 初始化模型名稱陣列
-    m_model_names.clear();
+    // 從場景 SLAPrintObject 重建 model names（Task 2.2）
+    sync_all_objects_names();
+    if (m_current_model_index >= static_cast<int>(m_model_names.size()))
+        m_current_model_index = m_model_names.empty() ? 0 : static_cast<int>(m_model_names.size()) - 1;
+
     int volume_id = -1;
     std::vector<ColorRGBA> ebt_colors;
     ebt_colors.push_back(GLVolume::NEUTRAL_COLOR);
@@ -613,23 +616,14 @@ void GLGizmoLcdOverhangDetection::update_from_model_object(bool first_update)
 
         ++volume_id;
 
-        // Phrozen LCD: 儲存模型名稱
-        m_model_names.push_back(mv->name);
-
         // This mesh does not account for the possible Z up SLA offset.
         const TriangleMesh* mesh = &mv->mesh();
         m_triangle_selectors.emplace_back(std::make_unique<TriangleSelectorPatch>(*mesh, ebt_colors));
-        // Reset of TriangleSelector is done inside TriangleSelectorGUI's constructor, so we don't need it to perform it again in deserialize().
         m_triangle_selectors.back()->deserialize(mv->supported_facets.get_data(), false);
         m_triangle_selectors.back()->request_update_render_data();
 
         //BBS: add timestamp logic
         m_volume_timestamps.emplace_back(mv->supported_facets.timestamp());
-    }
-
-    // Phrozen LCD: 確保索引不超出範圍
-    if (m_current_model_index >= static_cast<int>(m_model_names.size())) {
-        m_current_model_index = m_model_names.empty() ? 0 : static_cast<int>(m_model_names.size()) - 1;
     }
 
     //BBS: invalid volume_support status
@@ -910,7 +904,63 @@ void GLGizmoLcdOverhangDetection::generate_support_volume()
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ",finished finalize_geometry";
 }
 
+// ── Island data layer ──────────────────────────────────────────────────────
 
+void GLGizmoLcdOverhangDetection::sync_all_objects_names()
+{
+    m_model_names.clear();
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print)
+        return;
+    for (const SLAPrintObject* po : sla_print->objects()) {
+        if (po && po->model_object())
+            m_model_names.push_back(po->model_object()->name);
+    }
+}
+
+void GLGizmoLcdOverhangDetection::sync_island_data_for_object(int obj_idx)
+{
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print)
+        return;
+    const auto& objs = sla_print->objects();
+    if (obj_idx < 0 || obj_idx >= (int)objs.size())
+        return;
+    m_island_data_per_object[obj_idx] = objs[obj_idx]->island_contours();
+}
+
+void GLGizmoLcdOverhangDetection::sync_island_data_for_all()
+{
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print)
+        return;
+    const auto& objs = sla_print->objects();
+    for (int i = 0; i < (int)objs.size(); ++i)
+        sync_island_data_for_object(i);
+}
+
+void GLGizmoLcdOverhangDetection::rebuild_overhang_area_index_map(bool all_objects)
+{
+    m_overhang_area_index_map.clear();
+
+    if (all_objects) {
+        for (const auto& kv : m_island_data_per_object) {
+            int obj_idx = kv.first;
+            for (int i = 0; i < (int)kv.second.islands.size(); ++i)
+                m_overhang_area_index_map.emplace_back(obj_idx, i);
+        }
+    } else {
+        auto it = m_island_data_per_object.find(m_current_model_index);
+        if (it != m_island_data_per_object.end()) {
+            for (int i = 0; i < (int)it->second.islands.size(); ++i)
+                m_overhang_area_index_map.emplace_back(m_current_model_index, i);
+        }
+    }
+
+    m_total_overhang_areas       = (int)m_overhang_area_index_map.size();
+    m_current_overhang_area_index = 0;
+    m_island_data_dirty           = true;
+}
 
 } // namespace Slic3r::GUI
 #pragma endregion
