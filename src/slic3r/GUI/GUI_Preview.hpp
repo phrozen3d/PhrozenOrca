@@ -2,6 +2,7 @@
 #define slic3r_GUI_Preview_hpp_
 
 #include <wx/panel.h>
+#include <wx/timer.h>
 
 #include "libslic3r/Point.hpp"
 #include "libslic3r/CustomGCode.hpp"
@@ -189,6 +190,9 @@ private:
 
     // Step 2.5: SLA layer slider (drives IMSlider via callback → clipping planes).
     std::vector<double> m_sla_layers_z; // SLA layer z-coordinates in mm
+    wxTimer m_sla_3d_clip_refresh_timer;
+    wxLongLong m_sla_last_3d_clip_paint_ms{ 0 };
+    void on_sla_3d_clip_refresh_timer(wxTimerEvent& evt);
     void on_sla_layer_slider_changed(); // Updates clipping planes on IMSlider value change
 
     void set_sla_preview_pane_visible(bool sla_mode);

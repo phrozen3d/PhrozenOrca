@@ -1,6 +1,7 @@
 #include "PresetUpdater.hpp"
 
 #include <algorithm>
+#include <ctime>
 #include <boost/filesystem/operations.hpp>
 #include <boost/nowide/fstream.hpp>
 #include <functional>
@@ -174,6 +175,32 @@ struct Updates
 	std::vector<Update> updates;
 };
 
+// Newest mtime of vendor_name.json + all regular files under vendor_name/ (recursive).
+static std::time_t max_vendor_profile_tree_mtime(const fs::path &base, const std::string &vendor_name)
+{
+	std::time_t max_t = 0;
+	auto bump = [&max_t](const fs::path &p) {
+		boost::system::error_code ec;
+		if (!fs::exists(p, ec) || ec || !fs::is_regular_file(p, ec) || ec)
+			return;
+		std::time_t t = fs::last_write_time(p, ec);
+		if (!ec && t > max_t)
+			max_t = t;
+	};
+	bump(base / (vendor_name + ".json"));
+	const fs::path subdir = base / vendor_name;
+	boost::system::error_code ec;
+	if (!fs::exists(subdir, ec) || ec || !fs::is_directory(subdir, ec) || ec)
+		return max_t;
+	try {
+		for (fs::recursive_directory_iterator it(subdir), end; it != end; ++it) {
+			boost::system::error_code ec2;
+			if (fs::is_regular_file(it->path(), ec2) && !ec2)
+				bump(it->path());
+		}
+	} catch (const fs::filesystem_error &) {}
+	return max_t;
+}
 
 wxDEFINE_EVENT(EVT_SLIC3R_VERSION_ONLINE, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SLIC3R_EXPERIMENTAL_VERSION_ONLINE, wxCommandEvent);
@@ -1144,6 +1171,21 @@ void PresetUpdater::priv::check_installed_vendor_profiles() const
             }
         }
     }
+
+	// Phrozen{SLA,}: when sub-json changed but vendor semver did not, still sync if resources tree is newer.
+	for (const char *vn_c : {"PhrozenSLA", "Phrozen"}) {
+		const std::string vn(vn_c);
+		if (enabled_vendors.find(vn) == enabled_vendors.end())
+			continue;
+		boost::system::error_code ec;
+		const fs::path rjson = rsrc_path / (vn + ".json"), sjson = vendor_path / (vn + ".json");
+		if (!fs::exists(rjson, ec) || ec || !fs::exists(sjson, ec) || ec)
+			continue;
+		if (max_vendor_profile_tree_mtime(rsrc_path, vn) > max_vendor_profile_tree_mtime(vendor_path, vn)) {
+			BOOST_LOG_TRIVIAL(info) << "[Orca Updater]: " << vn << " resources newer than system; syncing";
+			bundles.insert(vn);
+		}
+	}
 
     if (bundles.size() > 0) {
         install_bundles_rsrc(std::vector(bundles.begin(), bundles.end()), false);

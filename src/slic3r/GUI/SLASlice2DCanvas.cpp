@@ -28,6 +28,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <boost/log/trivial.hpp>
+
 namespace Slic3r::GUI {
 
 namespace {
@@ -49,6 +51,29 @@ static wxColour gutter_wx_colour()
         (unsigned char)std::clamp(int(g.x * 255.f + 0.5f), 0, 255),
         (unsigned char)std::clamp(int(g.y * 255.f + 0.5f), 0, 255),
         (unsigned char)std::clamp(int(g.z * 255.f + 0.5f), 0, 255));
+}
+
+// Large CV_8UC1 masks: full countNonZero is slow; sample grid + image borders.
+static bool sla_layer_mat_has_visible_ink(const cv::Mat& m)
+{
+    if (m.empty() || m.type() != CV_8UC1)
+        return false;
+    const int rows = m.rows, cols = m.cols;
+    const size_t pixels = size_t(rows) * size_t(cols);
+    constexpr size_t k_full_scan_max = size_t(1600) * size_t(1200);
+    if (pixels <= k_full_scan_max)
+        return cv::countNonZero(m) > 0;
+    const int sy = std::max(1, rows / 128), sx = std::max(1, cols / 128);
+    for (int y = 0; y < rows; y += sy) {
+        const unsigned char* row = m.ptr<unsigned char>(y);
+        for (int x = 0; x < cols; x += sx)
+            if (row[x]) return true;
+    }
+    for (int x = 0; x < cols; x += sx)
+        if (m.ptr<unsigned char>(0)[x] || m.ptr<unsigned char>(rows - 1)[x]) return true;
+    for (int y = 0; y < rows; y += sy)
+        if (m.ptr<unsigned char>(y)[0] || m.ptr<unsigned char>(y)[cols - 1]) return true;
+    return false;
 }
 
 Transform3d ortho_2d(double left, double right, double bottom, double top)
@@ -481,9 +506,20 @@ void SLASlice2DCanvas::upload_grayscale_texture(const unsigned char* data, int w
     if (w <= 0 || h <= 0 || data == nullptr)
         return;
 
-    std::vector<unsigned char> rgba(size_t(w) * size_t(h) * 4);
-    const size_t n = size_t(w) * size_t(h);
-    for (size_t i = 0; i < n; ++i) {
+    GLint gl_max_tex = 8192;
+    glsafe(::glGetIntegerv(GL_MAX_TEXTURE_SIZE, &gl_max_tex));
+    if (gl_max_tex < 512)
+        gl_max_tex = 8192;
+    const int max_tex_dim = std::min(gl_max_tex, 8192);
+    constexpr size_t k_max_rgba_pixels = size_t(4096) * size_t(4096);
+    const size_t pix = size_t(w) * size_t(h);
+    if (w > max_tex_dim || h > max_tex_dim || pix > k_max_rgba_pixels) {
+        BOOST_LOG_TRIVIAL(warning) << "SLASlice2DCanvas: texture " << w << 'x' << h << " over cap; vector preview";
+        return;
+    }
+
+    std::vector<unsigned char> rgba(pix * 4);
+    for (size_t i = 0; i < pix; ++i) {
         const unsigned char v = data[i];
         rgba[4 * i + 0] = v;
         rgba[4 * i + 1] = v;
@@ -717,8 +753,7 @@ void SLASlice2DCanvas::render()
                 if (m_cached_layer != m_layer_idx) {
                     destroy_texture();
                     m_cached_layer = m_layer_idx;
-                    // countNonZero scans every pixel — only when the layer changes, not every wxPaint.
-                    if (cv::countNonZero(m) > 0)
+                    if (sla_layer_mat_has_visible_ink(m))
                         upload_grayscale_texture(m.ptr<unsigned char>(), m.cols, m.rows);
                 }
                 if (m_tex_id != 0) {

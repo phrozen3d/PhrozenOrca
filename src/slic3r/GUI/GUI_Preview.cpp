@@ -15,6 +15,7 @@
 #include "MainFrame.hpp"
 #include "format.hpp"
 
+#include <wx/app.h>
 #include <wx/listbook.h>
 #include <wx/notebook.h>
 #include <wx/glcanvas.h>
@@ -309,11 +310,15 @@ bool Preview::init(wxWindow* parent, Bed3D& bed, Model* model)
 
     bind_event_handlers();
 
+    m_sla_3d_clip_refresh_timer.SetOwner(this);
+    Bind(wxEVT_TIMER, &Preview::on_sla_3d_clip_refresh_timer, this, m_sla_3d_clip_refresh_timer.GetId());
+
     return true;
 }
 
 Preview::~Preview()
 {
+    m_sla_3d_clip_refresh_timer.Stop();
     unbind_event_handlers();
 
     if (m_canvas != nullptr)
@@ -485,6 +490,7 @@ void Preview::bind_event_handlers()
 void Preview::unbind_event_handlers()
 {
     this->Unbind(wxEVT_SIZE, &Preview::on_size, this);
+    this->Unbind(wxEVT_TIMER, &Preview::on_sla_3d_clip_refresh_timer, this, m_sla_3d_clip_refresh_timer.GetId());
 }
 
 void Preview::show_sliders(bool show)
@@ -738,6 +744,7 @@ void Preview::load_print_as_fff(bool keep_z_range, bool only_gcode)
             layers_slider->set_on_change_callback(nullptr); // clear SLA callback
             layers_slider->Show(true);                      // restore FFF layers slider
         }
+        m_sla_3d_clip_refresh_timer.Stop();
         IMSlider* moves_slider = m_canvas->get_gcode_viewer().get_moves_slider();
         if (moves_slider != nullptr)
             moves_slider->Show(true);                       // restore FFF moves slider
@@ -977,21 +984,34 @@ void Preview::on_sla_layer_slider_changed()
     else
         m_canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), z_high));
 
-    // Do not call m_canvas->render() synchronously when this callback runs from the *left* preview
-    // ImGui (inside GLCanvas3D::render): that would re-enter render() while m_in_render is set.
-    // When the slider is driven from the *right* SLA 2D ImGui, we are not inside GLCanvas3D::render;
-    // wx Refresh/idle alone often applies clipping one frame late — queue render after the current 2D frame finishes.
-    m_canvas->set_as_dirty();
-    m_canvas_widget->Refresh();
-    if (!m_canvas->is_in_render()) {
-        wxGetApp().CallAfter([this]() {
-            if (m_canvas != nullptr)
-                m_canvas->render();
-        });
-    }
+    // 2D first so the right pane tracks the thumb immediately.
     sync_sla_2d_layer_from_slider();
     if (m_sla_2d_canvas != nullptr)
         m_sla_2d_canvas->Refresh();
+
+    // 3D: clip state is current; throttle Refresh (~60Hz) + one-shot timer catches the last scrub position.
+    m_canvas->set_as_dirty();
+    const wxLongLong now = wxGetLocalTimeMillis();
+    if ((now - m_sla_last_3d_clip_paint_ms).ToLong() >= 16) {
+        m_sla_last_3d_clip_paint_ms = now;
+        m_sla_3d_clip_refresh_timer.Stop();
+        m_canvas_widget->Refresh(false);
+        wxWakeUpIdle();
+    } else {
+        m_sla_3d_clip_refresh_timer.Stop();
+        m_sla_3d_clip_refresh_timer.Start(16, wxTIMER_ONE_SHOT);
+    }
+}
+
+void Preview::on_sla_3d_clip_refresh_timer(wxTimerEvent& evt)
+{
+    (void)evt;
+    if (m_canvas != nullptr)
+        m_canvas->set_as_dirty();
+    if (m_canvas_widget != nullptr)
+        m_canvas_widget->Refresh(false);
+    m_sla_last_3d_clip_paint_ms = wxGetLocalTimeMillis();
+    wxWakeUpIdle();
 }
 
 AssembleView::AssembleView(wxWindow* parent, Bed3D& bed, Model* model, DynamicPrintConfig* config, BackgroundSlicingProcess* process)
