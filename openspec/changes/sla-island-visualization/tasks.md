@@ -2,10 +2,10 @@
 
 舊版使用 pixel rasterization 方式（將切片圖像轉換為 bitmap 後執行影像偵測），位於 `GLGizmoLcdOverhangDetection` 及 `libslic3r/IslandDetection/`，與新版的 `LayerPart.prev_parts` 幾何分析方式完全不同。移除舊流程，消除維護負擔與概念混淆。
 
-- [ ] 0.1 在 `GLGizmoLcdOverhangDetection.hpp` 中移除：`#include "libslic3r/IslandDetection/Island_Detector.hpp"`、`Island_Detection()` / `rebuild_island_models()` / `render_island_contours()` 方法宣告、`m_detected_islands`（`std::vector<Slic3r::island::Island>`）及 `m_island_models`（`std::vector<GLModel>`）成員
-- [ ] 0.2 在 `GLGizmoLcdOverhangDetection.cpp` 中移除：`render_island_contours()` 呼叫（約 line 189）、`Island_Detection()` 呼叫（約 line 437）、`m_detected_islands.clear()` / `m_island_models.clear()` 的清除邏輯（約 lines 102–103）、`write_json()` static 函式（約 line 923）、`Island_Detection()` / `rebuild_island_models()` / `render_island_contours()` 三個方法完整實作（約 lines 944–1181）
-- [ ] 0.3 刪除整個 `src/libslic3r/IslandDetection/` 目錄（含 `Island_Detector.hpp`、`Island_Detector.cpp`、`main.cpp`）
-- [ ] 0.4 在 `src/libslic3r/CMakeLists.txt` 中移除 `IslandDetection/Island_Detector.hpp` 和 `IslandDetection/Island_Detector.cpp` 兩個編譯項目（約 lines 510–511）
+- [x] 0.1 在 `GLGizmoLcdOverhangDetection.hpp` 中移除：`#include "libslic3r/IslandDetection/Island_Detector.hpp"`、`Island_Detection()` / `rebuild_island_models()` / `render_island_contours()` 方法宣告、`m_detected_islands`（`std::vector<Slic3r::island::Island>`）及 `m_island_models`（`std::vector<GLModel>`）成員
+- [x] 0.2 在 `GLGizmoLcdOverhangDetection.cpp` 中移除：`render_island_contours()` 呼叫（約 line 189）、`Island_Detection()` 呼叫（約 line 437）、`m_detected_islands.clear()` / `m_island_models.clear()` 的清除邏輯（約 lines 102–103）、`write_json()` static 函式（約 line 923）、`Island_Detection()` / `rebuild_island_models()` / `render_island_contours()` 三個方法完整實作（約 lines 944–1181）
+- [x] 0.3 刪除整個 `src/libslic3r/IslandDetection/` 目錄（含 `Island_Detector.hpp`、`Island_Detector.cpp`、`main.cpp`）
+- [x] 0.4 在 `src/libslic3r/CMakeLists.txt` 中移除 `IslandDetection/Island_Detector.hpp` 和 `IslandDetection/Island_Detector.cpp` 兩個編譯項目（約 lines 510–511）
 
 **Phase 0 驗收**：編譯無錯誤，`GLGizmoLcdOverhangDetection` 的其餘功能（overhang 角度偵測、面板 UI）正常運作；「Detect Selected」按鈕點擊後無 crash（handler 暫時為空）。
 

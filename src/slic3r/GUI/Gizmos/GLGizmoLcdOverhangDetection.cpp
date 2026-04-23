@@ -8,9 +8,6 @@
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/PresetBundle.hpp"
 
-#include <opencv2/imgproc.hpp>
-#include "libslic3r/SLA/RasterToCvMat.hpp"
-
 #include <boost/log/trivial.hpp>
 
 //#include "slic3r/GUI/3DScene.hpp"
@@ -98,10 +95,6 @@ void GLGizmoLcdOverhangDetection::on_opening()
     m_volume_ready = false;
     m_volume_valid = false;
 
-    // Clear island detection results from previous session
-    m_detected_islands.clear();
-    m_island_models.clear();
-
     // Phrozen LCD: Set default values
     m_current_tool = ImGui::SphereButtonIcon;
     m_paint_on_overhangs_only = true;
@@ -184,9 +177,6 @@ void GLGizmoLcdOverhangDetection::render_painter_gizmo()
 
 void GLGizmoLcdOverhangDetection::on_render()
 {
-    // Called after ALL volumes (including transparent) are rendered.
-    // Island contours must be drawn here so they are never buried under the model.
-    render_island_contours();
 }
 
 // BBS
@@ -434,7 +424,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::SameLine();
 
     if (m_imgui->button(m_desc.at("detect_selected"))) {
-        Island_Detection();
+        // TODO Phase 5
     }
     const float detect_selected_w = ImGui::GetItemRectSize().x;
 
@@ -920,263 +910,7 @@ void GLGizmoLcdOverhangDetection::generate_support_volume()
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ",finished finalize_geometry";
 }
 
-static void write_json(const std::vector<island::Island>& islands, const std::string& path) {
-  std::ofstream out(path);
-  out << std::fixed << std::setprecision(4);
-  out << "[\n";
-  for (size_t i = 0; i < islands.size(); ++i) {
-    const auto& isl = islands[i];
-    out << "  {\"label\": " << isl.label
-        << ", \"z\": " << isl.z
-        << ", \"contour\": [";
-    for (size_t j = 0; j < isl.contour.size(); ++j) {
-      if (j > 0) out << ", ";
-      out << "[" << isl.contour[j].x << ", " << isl.contour[j].y << "]";
-    }
-    out << "]}";
-    if (i + 1 < islands.size()) out << ",";
-    out << "\n";
-  }
-  out << "]\n";
-  std::cerr << "Wrote " << islands.size() << " islands to " << path << std::endl;
-}
 
-void GLGizmoLcdOverhangDetection::Island_Detection()
-{
-    // 1. Get the SLAPrintObject for the selected model.
-    const SLAPrintObject* po = m_c->selection_info() ? m_c->selection_info()->print_object() : nullptr;
-    if (!po) {
-        BOOST_LOG_TRIVIAL(warning) << "Island_Detection: no SLAPrintObject available";
-        return;
-    }
-
-    // 2. Get printer config to replicate the exact same rasterization as SLAPrintSteps.
-    const SLAPrint*         print = po->print();
-    const SLAPrinterConfig& cfg   = print->printer_config();
-
-    double w  = cfg.display_width.getFloat();
-    double h  = cfg.display_height.getFloat();
-    size_t pw = (size_t)cfg.display_pixels_x.getInt();
-    size_t ph = (size_t)cfg.display_pixels_y.getInt();
-
-    if (w <= 0 || h <= 0 || pw == 0 || ph == 0) {
-        BOOST_LOG_TRIVIAL(error) << "Island_Detection: invalid display dimensions";
-        return;
-    }
-
-    const bool portrait = (cfg.display_orientation.value == sladoPortrait);
-    if (portrait) { std::swap(w, h); std::swap(pw, ph); }
-
-    sla::Resolution res{pw, ph};
-    sla::PixelDim   pxdim{w / (double)pw, h / (double)ph};
-    sla::RasterBase::Trafo trafo{
-        portrait ? sla::RasterBase::roPortrait : sla::RasterBase::roLandscape,
-        {cfg.display_mirror_x.getBool(), cfg.display_mirror_y.getBool()}
-    };
-
-    // Physical dimensions after orientation swap (used for contour_to_world inversion).
-    const float img_phys_w = (float)w;
-    const float img_phys_h = (float)h;
-
-    // 3. Compute bed center and shift (identical to SLAPrintSteps).
-    Points bed_pts;
-    for (const Vec2d& v : cfg.printable_area.values)
-        bed_pts.emplace_back(scaled(v.x()), scaled(v.y()));
-    BoundingBox bed_bb(bed_pts);
-    const Point  bed_c         = bed_bb.center();
-    const double display_cx    = cfg.display_width.getFloat()  / 2.0;
-    const double display_cy    = cfg.display_height.getFloat() / 2.0;
-    const Point  display_center{scaled(display_cx), scaled(display_cy)};
-    const Point  shift = display_center - bed_c;
-    const float  bed_cx = (float)unscale<double>(bed_c.x());
-    const float  bed_cy = (float)unscale<double>(bed_c.y());
-
-    // 4. Get layer height from active SLA print preset.
-    const DynamicPrintConfig& print_cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
-    const float layer_h = (float)print_cfg.opt<ConfigOptionFloat>("layer_height")->value;
-
-    // 5. Get Z of first printed layer.
-    const std::vector<SLAPrintObject::SliceRecord>& slice_index = po->get_slice_index();
-    const float min_z = slice_index.empty() ? 0.0f : slice_index.front().slice_level();
-
-    // 6. Build layer polygon data with shift applied (same as SLAPrintSteps rasterize step).
-    const std::vector<SLAPrint::PrintLayer>& print_layers = print->print_layers();
-    if (print_layers.empty()) {
-        BOOST_LOG_TRIVIAL(warning) << "Island_Detection: model not sliced yet, run slicing first";
-        return;
-    }
-    std::vector<ExPolygons> all_layers;
-    all_layers.reserve(print_layers.size());
-    for (const SLAPrint::PrintLayer& layer : print_layers) {
-        ExPolygons polys = layer.transformed_slices();
-        for (ExPolygon& ep : polys)
-            ep.translate(shift);
-        all_layers.push_back(std::move(polys));
-    }
-
-    // 7. Rasterize using the same AGGRaster path as SLAPrintSteps — orientation +
-    //    mirror are handled automatically, result matches .sl1 output exactly.
-    std::vector<cv::Mat> layer_images =
-        sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, /*gamma=*/1.0);
-
-    // Debug: dump each layer image as PGM to verify they match .sl1 output.
-    for (size_t li = 0; li < layer_images.size(); ++li) {
-        const cv::Mat& m = layer_images[li];
-        std::string path = "D:\\DetectTest\\layer_" + std::to_string(li) + ".pgm";
-        std::ofstream f(path, std::ios::binary);
-        f << "P5\n" << m.cols << " " << m.rows << "\n255\n";
-        for (int r = 0; r < m.rows; ++r)
-            f.write(reinterpret_cast<const char*>(m.ptr(r)), m.cols);
-    }
-
-    // 8. Build DetectionConfig — display_w/h are post-swap image physical dimensions
-    //    so contour_to_world() correctly inverts the AGGRaster transform.
-    //    model_bbox center = bed_cx/bed_cy so contours reconstruct into world space.
-    island::DetectionConfig config;
-    config.display_width  = img_phys_w;
-    config.display_height = img_phys_h;
-    config.layer_height   = layer_h;
-    config.model_bbox     = {
-        bed_cx - img_phys_w / 2.0f, bed_cy - img_phys_h / 2.0f, min_z,
-        bed_cx + img_phys_w / 2.0f, bed_cy + img_phys_h / 2.0f,
-        min_z + layer_h * (float)layer_images.size()
-    };
-    config.offset_mm = 0.0f;
-
-    // 9. Run island detection.
-    m_detected_islands = island::detect_islands(layer_images, config);
-
-    // 10. Update UI counters.
-    m_total_overhang_areas        = (int)m_detected_islands.size();
-    m_current_overhang_area_index = 0;
-
-    BOOST_LOG_TRIVIAL(info) << "Island_Detection: detected " << m_detected_islands.size()
-                            << " islands across " << layer_images.size() << " layers";
-
-    write_json(m_detected_islands, "D:\\testDetector.json");
-
-    // 11. Build GLModels for rendering.
-    rebuild_island_models();
-
-    m_parent.set_as_dirty();
-}
-
-void GLGizmoLcdOverhangDetection::rebuild_island_models()
-{
-    m_island_models.clear();
-    m_island_models.resize(m_detected_islands.size());
-
-    for (size_t i = 0; i < m_detected_islands.size(); ++i) {
-        const island::Island& isl = m_detected_islands[i];
-        const size_t n = isl.contour.size();
-        if (n < 3)
-            continue;
-
-        // Compute centroid for triangle fan
-        float cx = 0.f, cy = 0.f;
-        for (const auto& p : isl.contour) { cx += p.x; cy += p.y; }
-        cx /= (float)n; cy /= (float)n;
-
-        // Inflate contour so small islands remain visible.
-        // Each vertex is pushed outward from the centroid to at least min_radius.
-        constexpr float k_min_radius = 1.0f; // mm; minimum guaranteed display size
-        std::vector<std::pair<float,float>> inflated(n);
-        for (size_t j = 0; j < n; ++j) {
-            float dx = isl.contour[j].x - cx;
-            float dy = isl.contour[j].y - cy;
-            float dist = std::sqrt(dx * dx + dy * dy);
-            float scale = (dist < 1e-6f) ? 1.0f : std::max(1.0f, k_min_radius / dist);
-            inflated[j] = { cx + dx * scale, cy + dy * scale };
-        }
-
-        // Build filled polygon as triangle fan: (centroid, contour[j], contour[j+1])
-        // This renders as a solid semi-transparent fill — visible from any camera angle.
-        GLModel::Geometry geo;
-        geo.format = {
-            GLModel::Geometry::EPrimitiveType::Triangles,
-            GLModel::Geometry::EVertexLayout::P3
-        };
-        // 1 centroid + n contour vertices; n triangles × 3 indices
-        geo.reserve_vertices(1 + n);
-        geo.reserve_indices(n * 3);
-
-        // Offset z slightly below the island layer so the polygon sits just above
-        // the previous layer surface rather than inside the model geometry.
-        constexpr float k_z_offset = -0.2f; // mm; tweak if still buried or floating
-        const float render_z = isl.z + k_z_offset;
-
-        geo.add_vertex(Vec3f(cx, cy, render_z));                           // index 0: centroid
-        for (unsigned int j = 0; j < (unsigned int)n; ++j)
-            geo.add_vertex(Vec3f(inflated[j].first, inflated[j].second, render_z)); // index 1..n
-
-        for (unsigned int j = 0; j < (unsigned int)n; ++j) {
-            geo.add_index(0);                          // centroid
-            geo.add_index(1 + j);                     // contour[j]
-            geo.add_index(1 + (j + 1) % (unsigned int)n); // contour[j+1]
-        }
-
-        m_island_models[i].init_from(std::move(geo));
-        // Semi-transparent orange — visible as filled area, alpha=0.55 for see-through
-        m_island_models[i].set_color(ColorRGBA(1.0f, 0.95f, 0.0f, 1.0f));
-
-        BOOST_LOG_TRIVIAL(info) << "[IslandDebug] Island[" << i << "]"
-            << " z=" << isl.z
-            << " contour[0]=(" << isl.contour[0].x << ", " << isl.contour[0].y << ")"
-            << " contour_count=" << n;
-    }
-
-    // Debug: print raw_bounding_box center used for rasterization reference
-    const ModelObject* mo_dbg = m_c->selection_info() ? m_c->selection_info()->model_object() : nullptr;
-    if (mo_dbg) {
-        const BoundingBoxf3 bb_dbg = mo_dbg->raw_bounding_box();
-        Vec3d center = bb_dbg.center();
-        BOOST_LOG_TRIVIAL(info) << "[IslandDebug] raw_bounding_box center=("
-            << center.x() << ", " << center.y() << ", " << center.z() << ")"
-            << "  min=(" << bb_dbg.min.x() << ", " << bb_dbg.min.y() << ")"
-            << "  max=(" << bb_dbg.max.x() << ", " << bb_dbg.max.y() << ")";
-        int active_inst = m_c->selection_info()->get_active_instance();
-        if (active_inst >= 0 && active_inst < (int)mo_dbg->instances.size()) {
-            const BoundingBoxf3 bb_world = mo_dbg->instance_bounding_box(active_inst);
-            Vec3d wc = bb_world.center();
-            BOOST_LOG_TRIVIAL(info) << "[IslandDebug] instance_bounding_box center=("
-                << wc.x() << ", " << wc.y() << ", " << wc.z() << ")"
-                << "  min=(" << bb_world.min.x() << ", " << bb_world.min.y() << ")"
-                << "  max=(" << bb_world.max.x() << ", " << bb_world.max.y() << ")";
-        }
-    }
-}
-
-void GLGizmoLcdOverhangDetection::render_island_contours()
-{
-    if (m_island_models.empty())
-        return;
-
-    GLShaderProgram* shader = wxGetApp().get_shader("flat");
-    if (shader == nullptr)
-        return;
-
-    const Camera& camera = wxGetApp().plater()->get_camera();
-
-    // Draw filled opaque island areas on top of everything.
-    // Disable depth test so islands are always visible above the model.
-    glsafe(::glDisable(GL_DEPTH_TEST));
-    // Render both faces so the fill is visible from below as well.
-    glsafe(::glDisable(GL_CULL_FACE));
-
-    shader->start_using();
-    shader->set_uniform("projection_matrix", camera.get_projection_matrix());
-    shader->set_uniform("view_model_matrix", camera.get_view_matrix());
-
-    for (GLModel& model : m_island_models) {
-        if (model.is_initialized())
-            model.render();
-    }
-
-    shader->stop_using();
-
-    glsafe(::glEnable(GL_CULL_FACE));
-    glsafe(::glEnable(GL_DEPTH_TEST));
-}
 
 } // namespace Slic3r::GUI
 #pragma endregion

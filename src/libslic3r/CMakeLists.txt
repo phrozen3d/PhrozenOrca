@@ -507,8 +507,6 @@ set(lisbslic3r_sources
     calib.cpp
     GCode/Thumbnails.cpp
     GCode/Thumbnails.hpp
-    IslandDetection/Island_Detector.hpp
-    IslandDetection/Island_Detector.cpp
 )
 
 if (APPLE)
