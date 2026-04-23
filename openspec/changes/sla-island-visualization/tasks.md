@@ -13,10 +13,10 @@
 
 ## 1. Backend：Island 資料結構與提取
 
-- [ ] 1.1 在 `SLAPrint.hpp` 的 `namespace sla` 中定義 `IslandContour` struct（`float print_z`、`ExPolygon contour`、`float area`）和 `IslandContourSet` struct（`std::vector<IslandContour> islands`、`bool valid = false`）
-- [ ] 1.2 在 `SLAPrintObject` class 中新增 `sla::IslandContourSet m_island_contours` private 成員，及 `island_contours()` const accessor、`set_island_contours()` setter、`clear_island_contours()` 方法
-- [ ] 1.3 在 `SLAPrintSteps.cpp` 的 `support_points()` 函式中，於 `generate_support_points()` 呼叫完成後迭代 `generator_data.layers`，收集 `part.prev_parts.empty()` 的 part，過濾面積 < 閾值的微小 island，組成 `IslandContourSet` 並呼叫 `po.set_island_contours()`；加入 `BOOST_LOG_TRIVIAL(info)` 輸出 island 數量和 Z 高度供驗證
-- [ ] 1.4 在 `SLAPrint.cpp` 中找到 `slaposSupportPoints` 被 invalidate 的所有路徑，加入 `po.clear_island_contours()` 確保資料失效時同步清除
+- [x] 1.1 在 `SLAPrint.hpp` 的 `namespace sla` 中定義 `IslandContour` struct（`float print_z`、`ExPolygon contour`、`float area`）和 `IslandContourSet` struct（`std::vector<IslandContour> islands`、`bool valid = false`）
+- [x] 1.2 在 `SLAPrintObject` class 中新增 `sla::IslandContourSet m_island_contours` private 成員，及 `island_contours()` const accessor、`set_island_contours()` setter、`clear_island_contours()` 方法
+- [x] 1.3 在 `SLAPrintSteps.cpp` 的 `support_points()` 函式中，於 `generate_support_points()` 呼叫完成後迭代 `generator_data.layers`，收集 `part.prev_parts.empty()` 的 part，過濾面積 < 閾值的微小 island，組成 `IslandContourSet` 並呼叫 `po.set_island_contours()`；加入 `BOOST_LOG_TRIVIAL(info)` 輸出 island 數量和 Z 高度供驗證
+- [x] 1.4 在 `SLAPrint.cpp` 中找到 `slaposSupportPoints` 被 invalidate 的所有路徑，加入 `po.clear_island_contours()` 確保資料失效時同步清除
 
 **Phase 1 驗收**：執行 SLA 自動生成支撐後，console 輸出每個 object 的 island 數量與 Z 值；切片輸出（支撐點數量、支撐樹形狀）與修改前完全相同。
 

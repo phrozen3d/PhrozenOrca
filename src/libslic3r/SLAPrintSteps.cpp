@@ -872,6 +872,35 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
         BOOST_LOG_TRIVIAL(debug) << "Automatic support points: "
                                  << po.m_supportdata->pts.size();
 
+        // Extract island contours: LayerParts with no previous-layer overlap are islands.
+        {
+            constexpr float k_min_island_radius_mm = 0.2f;
+            const double scaled_r = scale_(double(k_min_island_radius_mm));
+            const double min_area = scaled_r * scaled_r * M_PI;
+
+            sla::IslandContourSet cs;
+            for (const sla::Layer& layer : po.m_support_point_generator_data.layers) {
+                for (const sla::LayerPart& part : layer.parts) {
+                    if (!part.prev_parts.empty() || part.shape == nullptr)
+                        continue;
+                    const double area = part.shape->area();
+                    if (area < min_area)
+                        continue;
+                    sla::IslandContour ic;
+                    ic.print_z = layer.print_z;
+                    ic.contour = *part.shape;
+                    ic.area    = float(unscale<double>(unscale<double>(area)));
+                    cs.islands.push_back(std::move(ic));
+                }
+            }
+            cs.valid = true;
+            po.set_island_contours(std::move(cs));
+
+            BOOST_LOG_TRIVIAL(info) << "Island contours: "
+                                    << po.island_contours().islands.size()
+                                    << " islands found";
+        }
+
         // Using RELOAD_SLA_SUPPORT_POINTS to tell the Plater to pass
         // the update status to GLGizmoSlaSupports
         report_status(-1, L("Generating support points"),

@@ -1123,6 +1123,7 @@ bool SLAPrintObject::invalidate_step(SLAPrintObjectStep step)
         invalidated |= this->invalidate_steps({ slaposSupportPoints, slaposSupportTree, slaposPad, slaposSliceSupports });
         invalidated |= m_print->invalidate_step(slapsMergeSlicesAndEval);
     } else if (step == slaposSupportPoints) {
+        clear_island_contours();
         invalidated |= this->invalidate_steps({ slaposSupportTree, slaposPad, slaposSliceSupports });
         invalidated |= m_print->invalidate_step(slapsMergeSlicesAndEval);
     } else if (step == slaposSupportTree) {

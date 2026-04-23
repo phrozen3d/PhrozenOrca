@@ -71,6 +71,23 @@ using _SLAPrintObjectBase =
 
 enum SliceOrigin { soSupport, soModel };
 
+namespace sla {
+
+// One island contour: a floating part that has no connection to any lower layer.
+struct IslandContour {
+    float     print_z; // layer height [mm]
+    ExPolygon contour; // scaled polygon
+    float     area;    // [mm²]
+};
+
+// Collection of island contours extracted from slaposSupportPoints step.
+struct IslandContourSet {
+    std::vector<IslandContour> islands;
+    bool                       valid = false;
+};
+
+} // namespace sla
+
 class SLAPrintObject : public _SLAPrintObjectBase
 {
 private: // Prevents erroneous use by other classes.
@@ -256,6 +273,10 @@ private:
     const std::vector<ExPolygons>& get_model_slices() const { return m_model_slices; }
     const std::vector<ExPolygons>& get_support_slices() const;
 
+    const sla::IslandContourSet& island_contours() const { return m_island_contours; }
+    void set_island_contours(sla::IslandContourSet s) { m_island_contours = std::move(s); }
+    void clear_island_contours() { m_island_contours = {}; }
+
 public:
 
     // /////////////////////////////////////////////////////////////////////////
@@ -360,6 +381,9 @@ private:
     // Populated by prepare_for_generate_supports() in slice_model step.
     // Reused by generate_support_points() in support_points step without re-slicing.
     sla::SupportPointGeneratorData         m_support_point_generator_data;
+
+    // Island contours extracted after slaposSupportPoints completes.
+    sla::IslandContourSet                  m_island_contours;
 
     // Caching the transformed (m_trafo) raw mesh of the object
     mutable CachedObject<TriangleMesh>      m_transformed_rmesh;
