@@ -58,9 +58,9 @@
 
 進入 Gizmo 前如果場景已選取了某個 SLA object，進入後應自動將 `m_current_model_index` 設為該 object，並對焦至其第一個 island（若已有偵測資料）。
 
-- [ ] 3.1 在 `on_set_state(On)` 中（或 `on_opening()` 內），呼叫 `sync_all_objects_names()` 初始化 model 清單，接著透過 `m_parent.get_selection().get_object_idx()` 取得進入時的選取 object index，將 `m_current_model_index` 設為該值（若 `get_object_idx()` 返回 -1 則維持 0）
+- [x] 3.1 在 `on_set_state(On)` 中（或 `on_opening()` 內），呼叫 `sync_all_objects_names()` 初始化 model 清單，接著透過 `m_parent.get_selection().get_object_idx()` 取得進入時的選取 object index，將 `m_current_model_index` 設為該值（若 `get_object_idx()` 返回 -1 則維持 0）
 
-- [ ] 3.2 在 3.1 之後，若 `m_island_data_per_object[m_current_model_index].valid == true`，呼叫 `rebuild_overhang_area_index_map(false)` 並 `focus_camera_on_island(0)` 對焦至該 model 的第一個 island
+- [x] 3.2 在 3.1 之後，若 `m_island_data_per_object[m_current_model_index].valid == true`，呼叫 `rebuild_overhang_area_index_map(false)` 並 `focus_camera_on_island(0)` 對焦至該 model 的第一個 island
 
 **Phase 3 驗收**：場景有兩個 SLA 物件時，選取第二個後進入 Gizmo，model 導覽顯示第二個物件名稱，若已有偵測結果則鏡頭自動對焦至其第一個 island。
 

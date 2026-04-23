@@ -208,8 +208,30 @@ void GLGizmoLcdOverhangDetection::on_set_state()
 
     if (get_state() == On) {
         m_support_threshold_angle = -1;
+
+        // Task 3.1: 初始化 model 清單，定位至進入時已選取的物件
+        sync_all_objects_names();
+        int sel_idx = m_parent.get_selection().get_object_idx();
+        if (sel_idx >= 0 && sel_idx < (int)m_model_names.size())
+            m_current_model_index = sel_idx;
+        else
+            m_current_model_index = 0;
+
+        // Task 3.2: 若已有 island 資料，立即建立索引（overlay 由 Phase 4 負責渲染）
+        auto it = m_island_data_per_object.find(m_current_model_index);
+        if (it != m_island_data_per_object.end() && it->second.valid && !it->second.islands.empty())
+            rebuild_overhang_area_index_map(false);
     }
     else if (get_state() == Off) {
+        // 清除所有 island GL 資源與資料
+        m_island_overlay_model.reset();
+        m_island_highlight_model.reset();
+        m_island_data_per_object.clear();
+        m_overhang_area_index_map.clear();
+        m_current_overhang_area_index = 0;
+        m_total_overhang_areas        = 0;
+        m_island_data_dirty           = false;
+
         ModelObject* mo = m_c->selection_info()->model_object();
         if (mo) Slic3r::save_object_mesh(*mo);
     }
