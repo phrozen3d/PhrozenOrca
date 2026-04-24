@@ -17,6 +17,8 @@ phrozenorca_add_cmake_project(OCCT
     DEPENDS ${FREETYPE_PKG}
     CMAKE_ARGS
         -DBUILD_LIBRARY_TYPE=${library_build_type}
+        -DCMAKE_CXX_STANDARD=17
+        -DCMAKE_CXX_STANDARD_REQUIRED=ON
         -DUSE_TK=OFF
         -DUSE_TBB=OFF
 	#-DUSE_FREETYPE=OFF
