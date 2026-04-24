@@ -709,7 +709,9 @@ void SupportTreeBuildsteps::filter()
 
         // skip if the surface is not steep enough to need support
         // overhang_angle_threshold measured from horizontal: 0=only flat, PI/2=all overhangs
-        if (polar < M_PI / 2.0 + m_cfg.overhang_angle_threshold) return;
+        // manual_add points bypass this filter — they represent explicit user intent
+        if (m_support_pts[fidx].type != SupportPointType::manual_add &&
+            polar < M_PI / 2.0 + m_cfg.overhang_angle_threshold) return;
 
         // We saturate the polar angle to 3pi/4
         polar = std::max(polar, PI - m_cfg.bridge_slope);
