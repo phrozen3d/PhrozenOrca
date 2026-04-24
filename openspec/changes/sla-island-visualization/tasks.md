@@ -108,18 +108,12 @@
 
 ---
 
-## 6. 「Detect All」整合
+## 6. 「Detect All」整合（暫緩）
 
-點擊 Detect All 對所有 SLA 物件偵測，overhang area 導覽涵蓋全部物件的 islands。
+**暫緩原因**：Gizmo mode 受架構限制，進入後只會保留單一 model 的顯示，多物件同時偵測在現階段無法正確呈現。按鈕與相關 function（`sync_island_data_for_all`、`rebuild_overhang_area_index_map(true)` 等）保留，後續統一處理 UI 調整。
 
-- [ ] 6.1 在 `detect_all` 按鈕 handler 中（取代現有 `// TODO`）：
-  1. 呼叫 `sync_island_data_for_all()`（對所有 SLAPrintObject）
-  2. 呼叫 `rebuild_overhang_area_index_map(true)`（收集所有物件的 islands）
-  3. 若 `m_total_overhang_areas > 0`，呼叫 `focus_camera_on_island(0)` 對焦第一個 island
-
-- [ ] 6.2 在 `detect_all` 按鈕前加入 disabled 判斷：若任一 SLA object 的 `slaposSupportPoints` 尚未完成，顯示 disabled（或僅對已完成的 object 顯示 enabled——以實作簡易度決定，優先前者）
-
-**Phase 6 驗收**：「Detect All」後 `m_total_overhang_areas` 等於所有物件 island 的總數；`< >` 導覽可連續切換跨物件的 islands；鏡頭正確 focus 到各物件各 island。
+- [ ] 6.1 ~~Detect All button handler 實作~~ — 暫緩
+- [ ] 6.2 ~~Detect All disabled 判斷~~ — 暫緩
 
 ---
 
