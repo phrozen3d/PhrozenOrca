@@ -82,14 +82,29 @@
 
 點擊 Detect Selected 僅偵測當前 `m_current_model_index` 所指向的 model，overhang area 導覽範圍限定在該 model。
 
-- [ ] 5.1 在 `detect_selected` 按鈕 handler 中（取代舊 `Island_Detection()` 呼叫）：
+- [x] 5.1 在 `detect_selected` 按鈕 handler 中（取代舊 `Island_Detection()` 呼叫）：
   1. 呼叫 `sync_island_data_for_object(m_current_model_index)`
   2. 呼叫 `rebuild_overhang_area_index_map(false)`（只收集當前 model 的 islands）
-  3. 若 `m_total_overhang_areas > 0`，呼叫 `focus_camera_on_island(0)` 自動對焦第一個 island
+  3. 若 `m_total_overhang_areas > 0`，呼叫 `rebuild_island_highlight_mesh(0)` 建立高亮
 
-- [ ] 5.2 在 `detect_selected` 按鈕前加入 disabled 判斷：若當前 model 的 `slaposSupportPoints` step 尚未完成，按鈕顯示為 disabled，tooltip 提示「Run SLA auto-generate first」
+- [ ] 5.2 在 `detect_selected` 按鈕前加入 disabled 判斷：待 Phase 5.5 完成後依新依賴關係實作（改為檢查 `slaposObjectSlice` 而非 `slaposSupportPoints`）
 
-**Phase 5 驗收**：場景有兩個物件時，切換至物件 A 點擊「Detect Selected」→ overhang area 只顯示物件 A 的 island 數量；切換至物件 B 點擊「Detect Selected」→ overhang area 只顯示物件 B 的 island；兩次偵測不互相干擾。
+**Phase 5 驗收**：點擊「Detect Selected」後 overlay 正確顯示在模型 island 區域上，顏色/位置/Z 高度均正確；island 數量與 auto-generate support 偵測到的 island 數量一致。✅
+
+---
+
+## 5.5 Island 資料提取時機優化
+
+**背景**：原設計將 island 提取放在 `slaposSupportPoints`（auto-generate support 之後），導致使用者必須先跑一次 auto-generate support 才能使用 island detection 功能。新設計改為在 `slaposObjectSlice` 完成後立即提取，使 island detection 獨立於 auto-generate support 的執行。
+
+**決策**：保持 `generate_support = false` 時跳過（零額外成本），`generate_support = true` 且切片完成即可得到 island 資料，不需再等 `slaposSupportPoints`。
+
+- [ ] 5.5.1 在 `SLAPrintSteps.cpp` 的 `slice_model()` 中，在 `prepare_for_generate_supports(po)` 呼叫之後緊接加入 island 提取邏輯（與現有的 `if (generate_support)` 條件同層）
+- [ ] 5.5.2 移除 `support_points()` 中的 island 提取程式碼（避免重複執行）
+- [ ] 5.5.3 在 `SLAPrint.cpp` 的 `invalidate_step()` 中，將 `clear_island_contours()` 從 `slaposSupportPoints` 移至 `slaposObjectSlice` 的 invalidation 路徑（確保切片重跑時 island 資料同步清除）
+- [ ] 5.5.4 更新 5.2：`detect_selected` 的 disabled 判斷改為檢查 `slaposObjectSlice` 是否完成，並確認 `island_contours().valid == true`
+
+**Phase 5.5 驗收**：`generate_support = true` 且切片完成後，不需執行 auto-generate support，直接點擊「Detect Selected」即可看到正確 island overlay；`generate_support = false` 時點擊無反應（island 資料為空）。
 
 ---
 

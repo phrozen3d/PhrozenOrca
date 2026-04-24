@@ -872,24 +872,19 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
         BOOST_LOG_TRIVIAL(debug) << "Automatic support points: "
                                  << po.m_supportdata->pts.size();
 
-        // Extract island contours: LayerParts with no previous-layer overlap are islands.
+        // Extract island contours: only parts with prev_parts.empty() call support_island().
+        // Small parts are already removed by get_small_parts() in prepare_generator_data(),
+        // so no additional area filter is needed here.
         {
-            constexpr float k_min_island_radius_mm = 0.2f;
-            const double scaled_r = scale_(double(k_min_island_radius_mm));
-            const double min_area = scaled_r * scaled_r * M_PI;
-
             sla::IslandContourSet cs;
             for (const sla::Layer& layer : po.m_support_point_generator_data.layers) {
                 for (const sla::LayerPart& part : layer.parts) {
-                    if (!part.prev_parts.empty() || part.shape == nullptr)
-                        continue;
-                    const double area = part.shape->area();
-                    if (area < min_area)
+                    if (part.shape == nullptr || !part.prev_parts.empty())
                         continue;
                     sla::IslandContour ic;
                     ic.print_z = layer.print_z;
                     ic.contour = *part.shape;
-                    ic.area    = float(unscale<double>(unscale<double>(area)));
+                    ic.area    = float(unscale<double>(unscale<double>(part.shape->area())));
                     cs.islands.push_back(std::move(ic));
                 }
             }

@@ -447,7 +447,11 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::SameLine();
 
     if (m_imgui->button(m_desc.at("detect_selected"))) {
-        // TODO Phase 5
+        sync_island_data_for_object(m_current_model_index);
+        rebuild_overhang_area_index_map(false);
+        if (!m_overhang_area_index_map.empty())
+            rebuild_island_highlight_mesh(0);
+        m_parent.set_as_dirty();
     }
     const float detect_selected_w = ImGui::GetItemRectSize().x;
 
@@ -1012,14 +1016,19 @@ void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
         const sla::IslandContour& ic = cs.islands[isl_idx];
         const Polygon& poly = ic.contour.contour;
         const size_t n = poly.points.size();
-        if (n < 3)
+        if (n < 3 || obj_idx >= (int)objs.size())
             continue;
-        if (obj_idx >= (int)objs.size())
-            continue;
-        const Transform3d& trafo = objs[obj_idx]->trafo();
-        const float z = ic.print_z + 0.05f;
 
-        // 計算重心
+        // Slice coords are in model local space.
+        // Instance transform provides XY world position; po->trafo() provides Z elevation.
+        const SLAPrintObject* po = objs[obj_idx];
+        const ModelObject* mo = po->model_object();
+        if (!mo || mo->instances.empty())
+            continue;
+        // print_z is already world Z; only XY needs inst_trafo applied.
+        const Transform3d world_trafo = mo->instances[0]->get_transformation().get_matrix();
+        const float z = ic.print_z;
+
         double cx = 0.0, cy = 0.0;
         for (const Point& p : poly.points) {
             cx += unscale<double>(p.x());
@@ -1028,11 +1037,15 @@ void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
         cx /= (double)n;
         cy /= (double)n;
 
+        // print_z is already world Z; apply trafo to XY only (pass Z=0 to avoid double-adding Z translation).
         const unsigned int base = (unsigned int)geo.vertices_count();
-        geo.add_vertex(Vec3f((trafo * Vec3d(cx, cy, (double)z)).cast<float>()));
+        {
+            Vec3d w = world_trafo * Vec3d(cx, cy, 0.0);
+            geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_overlay_z_offset));
+        }
         for (const Point& p : poly.points) {
-            Vec3f pt((trafo * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), (double)z)).cast<float>());
-            geo.add_vertex(pt);
+            Vec3d w = world_trafo * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), 0.0);
+            geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_overlay_z_offset));
         }
         for (unsigned int j = 0; j < (unsigned int)n; ++j) {
             geo.add_index(base);
@@ -1054,10 +1067,6 @@ void GLGizmoLcdOverhangDetection::rebuild_island_highlight_mesh(int flat_idx)
     if (flat_idx < 0 || flat_idx >= (int)m_overhang_area_index_map.size())
         return;
 
-    const SLAPrint* sla_print = m_parent.sla_print();
-    if (!sla_print)
-        return;
-
     auto [obj_idx, isl_idx] = m_overhang_area_index_map[flat_idx];
     auto it = m_island_data_per_object.find(obj_idx);
     if (it == m_island_data_per_object.end())
@@ -1070,11 +1079,15 @@ void GLGizmoLcdOverhangDetection::rebuild_island_highlight_mesh(int flat_idx)
     const size_t n = poly.points.size();
     if (n < 3)
         return;
-    const auto& objs = sla_print->objects();
-    if (obj_idx >= (int)objs.size())
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print || obj_idx >= (int)sla_print->objects().size())
         return;
-    const Transform3d& trafo = objs[obj_idx]->trafo();
-    const float z = ic.print_z + 0.10f;
+    const SLAPrintObject* po_h = sla_print->objects()[obj_idx];
+    const ModelObject* mo_h = po_h->model_object();
+    if (!mo_h || mo_h->instances.empty())
+        return;
+    const Transform3d world_trafo_h = mo_h->instances[0]->get_transformation().get_matrix();
+    const float z = ic.print_z;
 
     double cx = 0.0, cy = 0.0;
     for (const Point& p : poly.points) {
@@ -1087,10 +1100,13 @@ void GLGizmoLcdOverhangDetection::rebuild_island_highlight_mesh(int flat_idx)
     GLModel::Geometry geo;
     geo.format = { GLModel::Geometry::EPrimitiveType::Triangles,
                    GLModel::Geometry::EVertexLayout::P3 };
-    geo.add_vertex(Vec3f((trafo * Vec3d(cx, cy, (double)z)).cast<float>()));
+    {
+        Vec3d w = world_trafo_h * Vec3d(cx, cy, 0.0);
+        geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_highlight_z_offset));
+    }
     for (const Point& p : poly.points) {
-        Vec3f pt((trafo * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), (double)z)).cast<float>());
-        geo.add_vertex(pt);
+        Vec3d w = world_trafo_h * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), 0.0);
+        geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_highlight_z_offset));
     }
     for (unsigned int j = 0; j < (unsigned int)n; ++j) {
         geo.add_index(0);

@@ -30,11 +30,21 @@ SLA 切片流程在 `slaposObjectSlice` 末尾的 `prepare_for_generate_supports
 
 兩套機制完全平行，保留舊版只會造成混淆。移除 `GLGizmoLcdOverhangDetection` 中的三個 island 方法及成員，並刪除 `libslic3r/IslandDetection/` 整個目錄。`GLGizmoLcdOverhangDetection` 其餘的 overhang 偵測功能不受影響。
 
-### D1：提取位置選擇 `support_points()` 而非獨立模組
+### D1：提取位置選擇 `slice_model()` 而非 `support_points()`（Phase 5.5 修訂）
 
-island 判斷在 `slaposObjectSlice` 已完成，`generate_support_points()` 只是消費結果。在 `support_points()` 末段直接讀取 `generator_data.layers` 提取 island 輪廓，零額外計算。
+**初始設計（Phase 1）**：在 `support_points()` 末段提取 island 輪廓。
 
-替代方案：建立獨立 `IslandDetectionService` 重新執行偵測 → 放棄，會造成重複計算且需要獨立觸發時機。
+**修訂原因（Phase 5.5）**：實作驗證後發現，island 提取必須在 `slaposSupportPoints`（auto-generate support）完成後才能取得資料，使用者必須先跑一次 auto-generate support 才能使用 island detection 功能。這與預期的獨立工作流程衝突。
+
+**新決策**：將 island 提取移至 `slice_model()` 中，緊接在 `prepare_for_generate_supports()` 之後，並保留在既有的 `if (generate_support)` 條件內：
+- `generate_support = false`（預設）：跳過，零額外成本，island 功能不可用
+- `generate_support = true` + 切片完成：island 資料立即可用，不需再等 auto-generate support 執行
+
+`prepare_for_generate_supports()` 在此步驟已建立完整的 `SupportPointGeneratorData`（含 `prev_parts` 連結），island 提取直接讀取，無重複計算。
+
+替代方案：
+- 建立獨立輕量版（只跑步驟 1+2）→ 需實作新函式且維護兩條程式碼路徑，成本較高
+- 無條件呼叫 `prepare_for_generate_supports()` → 對所有使用者增加切片成本，不適合（預設 `generate_support=false`）
 
 ### D2：資料儲存在 `SLAPrintObject` 而非 `SupportPointGeneratorData`
 
@@ -77,10 +87,14 @@ GL 渲染方面：island 輪廓疊加在模型表面（Z +0.05mm offset），`gl
 
 ```
 SLAPrintSteps.cpp (per SLAPrintObject)
+  slice_model()
+    if (generate_support)
+      prepare_for_generate_supports()      ← 現有，建立 SupportPointGeneratorData
+      [NEW] extract island contours        ← Phase 5.5：讀取 layers，找 prev_parts.empty()
+      po.set_island_contours()             ← 存入各自的 SLAPrintObject
+
   support_points()
-    generate_support_points()              ← 現有，不修改
-    [NEW] extract island contours          ← 讀取 layers，過濾微小 island
-    po.set_island_contours()               ← 存入各自的 SLAPrintObject
+    generate_support_points()              ← 現有，不修改（不再提取 island）
 
 GLGizmoLcdOverhangDetection.cpp           （所有 island UI 功能均在此）
 
