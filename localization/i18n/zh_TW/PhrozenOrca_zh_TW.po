@@ -18766,7 +18766,7 @@ msgid "Raft Max Merge Distance"
 msgstr "底筏最大合併距離"
 
 msgid "Support Angle"
-msgstr "底筏坡度"
+msgstr "支撐臨界角度"
 
 msgid "Contact Type"
 msgstr "接觸類型"
@@ -18778,4 +18778,4 @@ msgid "Head Connection Length"
 msgstr "頂部連接長度"
 
 msgid "Pad Wall Slope"
-msgstr "底筏壁坡度"
+msgstr "底筏坡度"
