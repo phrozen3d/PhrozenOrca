@@ -99,10 +99,10 @@
 
 **決策**：保持 `generate_support = false` 時跳過（零額外成本），`generate_support = true` 且切片完成即可得到 island 資料，不需再等 `slaposSupportPoints`。
 
-- [ ] 5.5.1 在 `SLAPrintSteps.cpp` 的 `slice_model()` 中，在 `prepare_for_generate_supports(po)` 呼叫之後緊接加入 island 提取邏輯（與現有的 `if (generate_support)` 條件同層）
-- [ ] 5.5.2 移除 `support_points()` 中的 island 提取程式碼（避免重複執行）
-- [ ] 5.5.3 在 `SLAPrint.cpp` 的 `invalidate_step()` 中，將 `clear_island_contours()` 從 `slaposSupportPoints` 移至 `slaposObjectSlice` 的 invalidation 路徑（確保切片重跑時 island 資料同步清除）
-- [ ] 5.5.4 更新 5.2：`detect_selected` 的 disabled 判斷改為檢查 `slaposObjectSlice` 是否完成，並確認 `island_contours().valid == true`
+- [x] 5.5.1 在 `SLAPrintSteps.cpp` 的 `slice_model()` 中，`prepare_for_generate_supports()` 改為無條件呼叫，island 提取緊接其後（不受 `generate_support` 限制）
+- [x] 5.5.2 移除 `support_points()` 中的 island 提取程式碼（避免重複執行）
+- [x] 5.5.3 在 `SLAPrint.cpp` 的 `invalidate_step()` 中，將 `clear_island_contours()` 從 `slaposSupportPoints` 移至 `slaposObjectSlice` 的 invalidation 路徑
+- [x] 5.5.4 `detect_selected` 按鈕：若 `slaposObjectSlice` 尚未完成則觸發背景切片並設 `m_slice_pending_for_detect`；每幀在 `on_render_input_window()` 檢查切片完成後自動執行 island 偵測
 
 **Phase 5.5 驗收**：`generate_support = true` 且切片完成後，不需執行 auto-generate support，直接點擊「Detect Selected」即可看到正確 island overlay；`generate_support = false` 時點擊無反應（island 資料為空）。
 

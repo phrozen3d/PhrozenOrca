@@ -72,6 +72,7 @@ protected:
     bool m_island_data_dirty{false};
     float m_island_overlay_z_offset   = -0.05f; // Z offset for all-islands overlay
     float m_island_highlight_z_offset = -0.1f;  // Z offset for selected island highlight
+    bool  m_slice_pending_for_detect  = false;  // waiting for slaposObjectSlice to complete
 
 private:
     bool on_init() override;

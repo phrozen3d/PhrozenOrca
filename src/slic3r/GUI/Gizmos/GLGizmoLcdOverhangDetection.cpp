@@ -218,7 +218,7 @@ void GLGizmoLcdOverhangDetection::on_set_state()
         else
             m_current_model_index = 0;
 
-        // Task 3.2: 若已有 island 資料，立即建立索引（overlay 由 Phase 4 負責渲染）
+        // 若已有 island 資料，立即建立索引
         auto it = m_island_data_per_object.find(m_current_model_index);
         if (it != m_island_data_per_object.end() && it->second.valid && !it->second.islands.empty())
             rebuild_overhang_area_index_map(false);
@@ -232,6 +232,7 @@ void GLGizmoLcdOverhangDetection::on_set_state()
         m_current_overhang_area_index = 0;
         m_total_overhang_areas        = 0;
         m_island_data_dirty           = false;
+        m_slice_pending_for_detect    = false;
 
         ModelObject* mo = m_c->selection_info()->model_object();
         if (mo) Slic3r::save_object_mesh(*mo);
@@ -240,6 +241,21 @@ void GLGizmoLcdOverhangDetection::on_set_state()
 
 void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float bottom_limit)
 {
+    // Check if a pending slice triggered by detect_selected has now completed.
+    if (m_slice_pending_for_detect) {
+        const SLAPrint* sla_print = m_parent.sla_print();
+        if (sla_print && m_current_model_index < (int)sla_print->objects().size()) {
+            if (sla_print->objects()[m_current_model_index]->is_step_done(slaposObjectSlice)) {
+                m_slice_pending_for_detect = false;
+                sync_island_data_for_object(m_current_model_index);
+                rebuild_overhang_area_index_map(false);
+                if (!m_overhang_area_index_map.empty())
+                    rebuild_island_highlight_mesh(0);
+                m_parent.set_as_dirty();
+            }
+        }
+    }
+
     init_print_instance();
     if (! m_c->selection_info()->model_object())
         return;
@@ -447,11 +463,25 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::SameLine();
 
     if (m_imgui->button(m_desc.at("detect_selected"))) {
-        sync_island_data_for_object(m_current_model_index);
-        rebuild_overhang_area_index_map(false);
-        if (!m_overhang_area_index_map.empty())
-            rebuild_island_highlight_mesh(0);
-        m_parent.set_as_dirty();
+        const SLAPrint* sla_print = m_parent.sla_print();
+        if (sla_print && m_current_model_index < (int)sla_print->objects().size()) {
+            const SLAPrintObject* po = sla_print->objects()[m_current_model_index];
+            if (!po->is_step_done(slaposObjectSlice)) {
+                // Slice not done — trigger it; detection will auto-run when complete.
+                m_slice_pending_for_detect = true;
+                const ModelObject* mo = po->model_object();
+                if (mo)
+                    wxGetApp().CallAfter([mo]() {
+                        wxGetApp().plater()->reslice_SLA_until_step(slaposObjectSlice, *mo, false);
+                    });
+            } else {
+                sync_island_data_for_object(m_current_model_index);
+                rebuild_overhang_area_index_map(false);
+                if (!m_overhang_area_index_map.empty())
+                    rebuild_island_highlight_mesh(0);
+                m_parent.set_as_dirty();
+            }
+        }
     }
     const float detect_selected_w = ImGui::GetItemRectSize().x;
 

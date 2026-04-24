@@ -744,10 +744,32 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
     }
 
-    // Step A5.2: Pre-compute support generator data for interactive re-generation.
-    // Called here so density changes can call generate_support_points() without re-slicing.
-    if (po.m_config.generate_support.getBool())
-        prepare_for_generate_supports(po);
+    // Step A5.2: Pre-compute support generator data and extract island contours.
+    // Runs unconditionally so that island detection is available regardless of
+    // generate_support setting. support_points() reuses the cached data when
+    // generate_support=true, avoiding duplicate computation.
+    prepare_for_generate_supports(po);
+
+    {
+        sla::IslandContourSet cs;
+        for (const sla::Layer& layer : po.m_support_point_generator_data.layers) {
+            for (const sla::LayerPart& part : layer.parts) {
+                if (part.shape == nullptr || !part.prev_parts.empty())
+                    continue;
+                sla::IslandContour ic;
+                ic.print_z = layer.print_z;
+                ic.contour = *part.shape;
+                ic.area    = float(unscale<double>(unscale<double>(part.shape->area())));
+                cs.islands.push_back(std::move(ic));
+            }
+        }
+        cs.valid = true;
+        po.set_island_contours(std::move(cs));
+
+        BOOST_LOG_TRIVIAL(info) << "Island contours: "
+                                << po.island_contours().islands.size()
+                                << " islands found";
+    }
 }
 
 // Step A5.1: Pre-compute layer connectivity and island data for the support generator.
@@ -871,30 +893,6 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
 
         BOOST_LOG_TRIVIAL(debug) << "Automatic support points: "
                                  << po.m_supportdata->pts.size();
-
-        // Extract island contours: only parts with prev_parts.empty() call support_island().
-        // Small parts are already removed by get_small_parts() in prepare_generator_data(),
-        // so no additional area filter is needed here.
-        {
-            sla::IslandContourSet cs;
-            for (const sla::Layer& layer : po.m_support_point_generator_data.layers) {
-                for (const sla::LayerPart& part : layer.parts) {
-                    if (part.shape == nullptr || !part.prev_parts.empty())
-                        continue;
-                    sla::IslandContour ic;
-                    ic.print_z = layer.print_z;
-                    ic.contour = *part.shape;
-                    ic.area    = float(unscale<double>(unscale<double>(part.shape->area())));
-                    cs.islands.push_back(std::move(ic));
-                }
-            }
-            cs.valid = true;
-            po.set_island_contours(std::move(cs));
-
-            BOOST_LOG_TRIVIAL(info) << "Island contours: "
-                                    << po.island_contours().islands.size()
-                                    << " islands found";
-        }
 
         // Using RELOAD_SLA_SUPPORT_POINTS to tell the Plater to pass
         // the update status to GLGizmoSlaSupports
