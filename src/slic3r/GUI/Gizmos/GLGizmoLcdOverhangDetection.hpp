@@ -103,6 +103,7 @@ private:
     void rebuild_island_overlay_mesh();
     void rebuild_island_highlight_mesh(int flat_idx);
     void render_island_contours();
+    void focus_camera_on_island(int flat_idx);
 
     //BBS: add support preview logic
     void init_print_instance();

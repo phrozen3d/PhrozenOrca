@@ -381,8 +381,9 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     
     // Left arrow button
     if (ImGui::Button("<", ImVec2(bracket_button_width, 0))) {
-        if (m_current_model_index > 0) {
+        if (!m_model_names.empty() && m_current_model_index > 0) {
             m_current_model_index--;
+            rebuild_overhang_area_index_map(false);
         }
     }
     
@@ -405,8 +406,9 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     // Right arrow button
     ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
     if (ImGui::Button(">", ImVec2(bracket_button_width, 0))) {
-        if (m_current_model_index < static_cast<int>(m_model_names.size()) - 1) {
+        if (!m_model_names.empty() && m_current_model_index < static_cast<int>(m_model_names.size()) - 1) {
             m_current_model_index++;
+            rebuild_overhang_area_index_map(false);
         }
     }
     
@@ -419,8 +421,10 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     
     // Left arrow button
     if (ImGui::Button("<##overhang", ImVec2(bracket_button_width, 0))) {
-        if (m_current_overhang_area_index > 0) {
+        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index > 0) {
             m_current_overhang_area_index--;
+            rebuild_island_highlight_mesh(m_current_overhang_area_index);
+            focus_camera_on_island(m_current_overhang_area_index);
         }
     }
     
@@ -438,8 +442,10 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     // Right arrow button
     ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
     if (ImGui::Button(">##overhang", ImVec2(bracket_button_width, 0))) {
-        if (m_current_overhang_area_index < m_total_overhang_areas - 1) {
+        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index < m_total_overhang_areas - 1) {
             m_current_overhang_area_index++;
+            rebuild_island_highlight_mesh(m_current_overhang_area_index);
+            focus_camera_on_island(m_current_overhang_area_index);
         }
     }
     
@@ -1187,6 +1193,51 @@ void GLGizmoLcdOverhangDetection::render_island_contours()
     glsafe(::glDisable(GL_BLEND));
     glsafe(::glEnable(GL_CULL_FACE));
     glsafe(::glEnable(GL_DEPTH_TEST));
+}
+
+void GLGizmoLcdOverhangDetection::focus_camera_on_island(int flat_idx)
+{
+    if (flat_idx < 0 || flat_idx >= (int)m_overhang_area_index_map.size())
+        return;
+
+    auto [obj_idx, isl_idx] = m_overhang_area_index_map[flat_idx];
+    auto it = m_island_data_per_object.find(obj_idx);
+    if (it == m_island_data_per_object.end())
+        return;
+    const sla::IslandContourSet& cs = it->second;
+    if (isl_idx >= (int)cs.islands.size())
+        return;
+    const sla::IslandContour& ic = cs.islands[isl_idx];
+    const Polygon& poly = ic.contour.contour;
+    if (poly.points.empty())
+        return;
+
+    // Get world transform for XY (same as rebuild_island_overlay_mesh)
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print || obj_idx >= (int)sla_print->objects().size())
+        return;
+    const ModelObject* mo = sla_print->objects()[obj_idx]->model_object();
+    if (!mo || mo->instances.empty())
+        return;
+    const Transform3d world_trafo = mo->instances[0]->get_transformation().get_matrix();
+
+    // Compute 2D bounding box in local coords then transform to world XY
+    BoundingBoxf bb2d;
+    for (const Point& p : poly.points)
+        bb2d.merge(Vec2d(unscale<double>(p.x()), unscale<double>(p.y())));
+
+    // Build 3D AABB: transform corners to world space, Z range = print_z ± 2mm
+    const float z = ic.print_z;
+    BoundingBoxf3 bb3d;
+    for (double xi : {bb2d.min.x(), bb2d.max.x()})
+        for (double yi : {bb2d.min.y(), bb2d.max.y()})
+            for (float zi : {z - 2.0f, z + 2.0f}) {
+                Vec3d w = world_trafo * Vec3d(xi, yi, 0.0);
+                bb3d.merge(Vec3d(w.x(), w.y(), (double)zi));
+            }
+
+    wxGetApp().plater()->get_camera().zoom_to_box(bb3d);
+    m_parent.set_as_dirty();
 }
 
 } // namespace Slic3r::GUI

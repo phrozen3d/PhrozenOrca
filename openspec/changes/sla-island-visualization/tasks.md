@@ -119,17 +119,17 @@
 
 ## 7. Camera Focus 整合（使用現有 Overhang Area 導覽 UI）
 
-- [ ] 7.1 實作 `focus_camera_on_island(int flat_idx)`：從 `m_overhang_area_index_map[flat_idx]` 取得 `(obj_idx, island_idx)`，再從 `m_island_data_per_object[obj_idx].islands[island_idx]` 取 ExPolygon 及 `print_z`；計算 2D AABB（`unscale()` 轉換）→ 建立 3D AABB（Z range `print_z ±2mm`）→ 套用對應 `SLAPrintObject::trafo()` → 呼叫 `m_parent.zoom_to_box(bb3d)`
+- [x] 7.1 實作 `focus_camera_on_island(int flat_idx)`：從 `m_overhang_area_index_map[flat_idx]` 取得 `(obj_idx, island_idx)`，再從 `m_island_data_per_object[obj_idx].islands[island_idx]` 取 ExPolygon 及 `print_z`；計算 2D AABB（`unscale()` 轉換）→ 建立 3D AABB（Z range `print_z ±2mm`）→ 套用對應 `SLAPrintObject::trafo()` → 呼叫 `m_parent.zoom_to_box(bb3d)`
 
-- [ ] 7.2 在現有 `<##overhang` 按鈕 handler 的 index 遞減後，加入 `focus_camera_on_island(m_current_overhang_area_index)` 及 `rebuild_island_highlight_mesh(m_current_overhang_area_index)` 呼叫
+- [x] 7.2 在現有 `<##overhang` 按鈕 handler 的 index 遞減後，加入 `focus_camera_on_island(m_current_overhang_area_index)` 及 `rebuild_island_highlight_mesh(m_current_overhang_area_index)` 呼叫
 
-- [ ] 7.3 在現有 `>##overhang` 按鈕 handler 的 index 遞增後，加入 `focus_camera_on_island(m_current_overhang_area_index)` 及 `rebuild_island_highlight_mesh(m_current_overhang_area_index)` 呼叫
+- [x] 7.3 在現有 `>##overhang` 按鈕 handler 的 index 遞增後，加入 `focus_camera_on_island(m_current_overhang_area_index)` 及 `rebuild_island_highlight_mesh(m_current_overhang_area_index)` 呼叫
 
-- [ ] 7.4 實作 `rebuild_island_highlight_mesh(int flat_idx)`：從 `m_overhang_area_index_map[flat_idx]` 取 ExPolygon，建立 `m_island_highlight_model`，Z offset `+0.10f`，顏色 `ColorRGBA(1.0f, 0.5f, 0.0f, 0.75f)`，套用對應 object 的 `trafo()`
+- [x] 7.4 實作 `rebuild_island_highlight_mesh(int flat_idx)`：從 `m_overhang_area_index_map[flat_idx]` 取 ExPolygon，建立 `m_island_highlight_model`，Z offset `+0.10f`，顏色 `ColorRGBA(1.0f, 0.5f, 0.0f, 0.75f)`，套用對應 object 的 `trafo()`
 
-- [ ] 7.5 在現有 model `<` 按鈕 handler 的 index 遞減後，呼叫 `rebuild_overhang_area_index_map(false)` 以切換 overhang area 範圍至新的 current model（僅顯示該 model 已偵測的 islands，若未偵測則清空）
+- [x] 7.5 在現有 model `<` 按鈕 handler 的 index 遞減後，呼叫 `rebuild_overhang_area_index_map(false)` 以切換 overhang area 範圍至新的 current model（僅顯示該 model 已偵測的 islands，若未偵測則清空）
 
-- [ ] 7.6 在現有 model `>` 按鈕 handler 的 index 遞增後，同 7.5
+- [x] 7.6 在現有 model `>` 按鈕 handler 的 index 遞增後，同 7.5
 
 **Phase 7 驗收**：「Detect All」後，`< >` 導覽跨越兩個物件的 island 時，鏡頭正確切換到不同物件上；切換 model 後 overhang area 範圍自動更新為新 model 的 islands；選中 island 以亮橙高亮。
 
