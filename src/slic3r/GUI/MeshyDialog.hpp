@@ -40,6 +40,8 @@ private:
     ::TextInput*   m_api_key_ctrl   {nullptr};
     ::TextInput*   m_image_path_ctrl{nullptr};
     ::Button*      m_browse_btn     {nullptr};
+    ::CheckBox*    m_image_enhancement {nullptr};
+    ::CheckBox*    m_remove_lighting   {nullptr};
 
     // Model settings
     ::ComboBox*    m_ai_model       {nullptr};

@@ -252,6 +252,15 @@ MeshyDialog::MeshyDialog(wxWindow* parent)
     input_grid->Add(file_row, 1, wxEXPAND);
     form_sizer->Add(input_grid, 0, wxEXPAND | wxALL, pad);
 
+    auto* img_opts_row = new wxBoxSizer(wxHORIZONTAL);
+    auto* enh_row = make_check_row(form, &m_image_enhancement, _L("Image enhancement"));
+    auto* rml_row = make_check_row(form, &m_remove_lighting,   _L("Remove lighting"));
+    m_image_enhancement->SetValue(true);
+    m_remove_lighting  ->SetValue(true);
+    img_opts_row->Add(enh_row, 0, wxRIGHT, pad);
+    img_opts_row->Add(rml_row, 0);
+    form_sizer->Add(img_opts_row, 0, wxLEFT | wxRIGHT | wxBOTTOM, pad);
+
     // ---- Model settings -----------------------------------------------------
     form_sizer->Add(section_title(form, _L("Model settings")), 0, wxLEFT | wxRIGHT | wxTOP, pad);
     auto* model_grid = new wxFlexGridSizer(2, gap, gap);
@@ -624,6 +633,11 @@ void MeshyDialog::load_saved_settings()
     auto mc = cfg->get(CFG_SECTION, "multi_color");
     if (!mc.empty()) m_multi_color->SetValue(mc == "1" || mc == "true");
 
+    auto enh = cfg->get(CFG_SECTION, "image_enhancement");
+    if (!enh.empty()) m_image_enhancement->SetValue(enh == "1" || enh == "true");
+    auto rml = cfg->get(CFG_SECTION, "remove_lighting");
+    if (!rml.empty()) m_remove_lighting->SetValue(rml == "1" || rml == "true");
+
     auto tex = cfg->get(CFG_SECTION, "should_texture");
     if (!tex.empty()) m_should_texture->SetValue(tex == "1" || tex == "true");
     auto pbr = cfg->get(CFG_SECTION, "enable_pbr");
@@ -652,6 +666,8 @@ void MeshyDialog::save_current_settings()
     cfg->set(CFG_SECTION, "enable_pbr",     m_enable_pbr->GetValue() ? "1" : "0");
     cfg->set(CFG_SECTION, "hd_texture",     m_hd_texture->GetValue() ? "1" : "0");
     cfg->set(CFG_SECTION, "texture_prompt", m_texture_prompt->GetTextCtrl()->GetValue().ToStdString());
+    cfg->set(CFG_SECTION, "image_enhancement", m_image_enhancement->GetValue() ? "1" : "0");
+    cfg->set(CFG_SECTION, "remove_lighting",   m_remove_lighting->GetValue()   ? "1" : "0");
     cfg->save();
 }
 
@@ -683,6 +699,8 @@ void MeshyDialog::set_busy(bool busy)
     m_symmetry->Enable(!busy);
     m_pose_mode->Enable(!busy);
     m_should_remesh->Enable(!busy);
+    m_image_enhancement->Enable(!busy);
+    m_remove_lighting->Enable(!busy);
     m_multi_color->Enable(!busy);
     m_should_texture->Enable(!busy);
     m_enable_pbr->Enable(!busy);
@@ -779,14 +797,16 @@ void MeshyDialog::start_task_from_image(const std::string& image_path)
     const bool need_texture = m_should_texture->GetValue() || m_multi_color->GetValue();
 
     json body = {
-        {"image_url",        data_uri},
-        {"ai_model",         m_ai_model->GetValue().ToStdString()},
-        {"model_type",       m_model_type->GetValue().ToStdString()},
-        {"topology",         m_topology->GetValue().ToStdString()},
-        {"target_polycount", m_polycount->GetValue()},
-        {"symmetry_mode",    m_symmetry->GetValue().ToStdString()},
-        {"should_remesh",    m_should_remesh->GetValue()},
-        {"should_texture",   need_texture},
+        {"image_url",         data_uri},
+        {"ai_model",          m_ai_model->GetValue().ToStdString()},
+        {"model_type",        m_model_type->GetValue().ToStdString()},
+        {"topology",          m_topology->GetValue().ToStdString()},
+        {"target_polycount",  m_polycount->GetValue()},
+        {"symmetry_mode",     m_symmetry->GetValue().ToStdString()},
+        {"should_remesh",     m_should_remesh->GetValue()},
+        {"should_texture",    need_texture},
+        {"image_enhancement", m_image_enhancement->GetValue()},
+        {"remove_lighting",   m_remove_lighting->GetValue()},
     };
     if (need_texture) {
         body["enable_pbr"] = m_enable_pbr->GetValue();
