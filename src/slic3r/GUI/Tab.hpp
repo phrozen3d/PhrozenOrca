@@ -422,6 +422,9 @@ public:
     virtual void				set_custom_gcode(const t_config_option_key& opt_key, const std::string& value);
 
 protected:
+	// Option rows compare ConfigOptionDef::mode to this. SLA print hides Simple/Advanced in ParamsPanel but rows still filter by mode.
+	ConfigOptionMode visibility_mode() const { return m_type == Preset::TYPE_SLA_PRINT ? comAdvanced : m_mode; }
+
 	void			create_line_with_widget(ConfigOptionsGroup* optgroup, const std::string& opt_key, const std::string& path, widget_t widget);
 	wxSizer*		compatible_widget_create(wxWindow* parent, PresetDependencies &deps);
 	void 			compatible_widget_reload(PresetDependencies &deps);

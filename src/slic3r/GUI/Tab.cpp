@@ -1175,7 +1175,7 @@ void Tab::on_roll_back_value(const bool to_sys /*= true*/)
     // When all values are rolled, then we have to update whole tab in respect to the reverted values
     update();
     if (m_active_page)
-        m_active_page->update_visibility(m_mode, true);
+        m_active_page->update_visibility(visibility_mode(), true);
 
     // BBS: restore all pages in preset, update_dirty also update combobox
     update_dirty();
@@ -1262,7 +1262,7 @@ void Tab::update_visibility()
     Freeze(); // There is needed Freeze/Thaw to avoid a flashing after Show/Layout
 
     for (auto page : m_pages)
-        page->update_visibility(m_mode, page.get() == m_active_page);
+        page->update_visibility(visibility_mode(), page.get() == m_active_page);
     rebuild_page_tree();
 
     if (m_type == Preset::TYPE_SLA_PRINT)
@@ -1847,7 +1847,7 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
 
     update();
     if(m_active_page)
-        m_active_page->update_visibility(m_mode, true);
+        m_active_page->update_visibility(visibility_mode(), true);
     m_page_view->GetParent()->Layout();
 }
 
@@ -1954,7 +1954,7 @@ void Tab::activate_option(const std::string& opt_key, const wxString& category)
 
 void Tab::apply_searcher()
 {
-    wxGetApp().sidebar().get_searcher().apply(m_config, m_type, m_mode);
+    wxGetApp().sidebar().get_searcher().apply(m_config, m_type, visibility_mode());
 }
 
 void Tab::cache_config_diff(const std::vector<std::string>& selected_options, const DynamicPrintConfig* config/* = nullptr*/)
@@ -2888,7 +2888,7 @@ void TabPrintModel::update_model_config()
     }
     toggle_options();
     if (m_active_page)
-        m_active_page->update_visibility(m_mode, true); // for taggle line
+        m_active_page->update_visibility(visibility_mode(), true); // for taggle line
     update_dirty();
     TabPrint::reload_config();
     //update();
@@ -5614,12 +5614,12 @@ void Tab::activate_selected_page(std::function<void()> throw_if_canceled)
     if (!m_active_page)
         return;
 
-    m_active_page->activate(m_mode, throw_if_canceled);
+    m_active_page->activate(visibility_mode(), throw_if_canceled);
     update_changed_ui();
     update_description_lines();
     if (m_active_page && !(m_active_page->title() == "Dependencies"))
         toggle_options();
-    m_active_page->update_visibility(m_mode, true); // for taggle line
+    m_active_page->update_visibility(visibility_mode(), true); // for taggle line
 }
 
 //BBS: GUI refactor
