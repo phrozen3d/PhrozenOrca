@@ -1583,6 +1583,14 @@ void GLGizmoSlaSupports::get_data_from_backend()
 
 
 
+void GLGizmoSlaSupports::activate_structure_view()
+{
+    m_show_support_structure = true;
+    show_sla_supports(true);
+    if (!m_normal_cache.empty())
+        reslice_until_step(slaposPad);
+}
+
 void GLGizmoSlaSupports::auto_generate()
 {
     //wxMessageDialog dlg(GUI::wxGetApp().plater(), 

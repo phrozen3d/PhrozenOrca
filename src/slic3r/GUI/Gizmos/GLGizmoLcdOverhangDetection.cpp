@@ -7,6 +7,10 @@
 #include "libslic3r/Thread.hpp"
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/SLA/SupportIslands/UniformSupportIsland.hpp"
+#include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
+
+#include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
 
 #include <boost/log/trivial.hpp>
 
@@ -498,8 +502,9 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
 
     ImGui::Dummy(ImVec2(tooltip_icon_w, 0.f));
     ImGui::SameLine();
-    if (m_imgui->button(m_desc.at("add_overhang_supports"), ImVec2(two_buttons_w, 0.f), true)) {
-        // TODO: Implement add overhang supports functionality
+    const bool can_add = !m_overhang_area_index_map.empty();
+    if (m_imgui->button(m_desc.at("add_overhang_supports"), ImVec2(two_buttons_w, 0.f), can_add)) {
+        generate_island_support_points();
     }
 
     ImGui::PopStyleVar(1);
@@ -1193,6 +1198,102 @@ void GLGizmoLcdOverhangDetection::render_island_contours()
     glsafe(::glDisable(GL_BLEND));
     glsafe(::glEnable(GL_CULL_FACE));
     glsafe(::glEnable(GL_DEPTH_TEST));
+}
+
+void GLGizmoLcdOverhangDetection::generate_island_support_points()
+{
+    if (m_overhang_area_index_map.empty())
+        return;
+
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print)
+        return;
+
+    // Build SampleConfig from current SLA print settings
+    const DynamicPrintConfig& cfg =
+        wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
+    const float head_diameter =
+        float(cfg.opt<ConfigOptionFloat>("support_head_front_diameter")->value);
+    const sla::SampleConfig sample_cfg =
+        sla::SampleConfigFactory::create(head_diameter);
+
+    // Group islands by object so we process each object once
+    std::map<int, std::vector<int>> by_obj;
+    for (int fi = 0; fi < (int)m_overhang_area_index_map.size(); ++fi)
+        by_obj[m_overhang_area_index_map[fi].first].push_back(fi);
+
+    const auto& objs = sla_print->objects();
+    for (auto& [obj_idx, flat_indices] : by_obj) {
+        if (obj_idx >= (int)objs.size())
+            continue;
+        const SLAPrintObject* po = objs[obj_idx];
+        const ModelObject* mo_const = po->model_object();
+        if (!mo_const)
+            continue;
+        ModelObject* mo = wxGetApp().plater()->model().objects[obj_idx];
+        if (!mo)
+            continue;
+
+        auto it = m_island_data_per_object.find(obj_idx);
+        if (it == m_island_data_per_object.end())
+            continue;
+        const sla::IslandContourSet& cs = it->second;
+
+        // Remove previously injected island-type support points
+        sla::SupportPoints& pts = mo->sla_support_points;
+        pts.erase(std::remove_if(pts.begin(), pts.end(),
+            [](const sla::SupportPoint& p) {
+                return p.type == sla::SupportPointType::island;
+            }),
+            pts.end());
+
+        // island contour XY is in sla_trafo (print) space; ic.print_z is also
+        // print-space Z.  GLGizmoSlaSupports::render_points() applies
+        // vol->get_instance_transformation() (world trafo), so the stored
+        // positions must be in LOCAL MODEL space: apply sla_trafo.inverse().
+        const Transform3d trafo_inv = po->trafo().inverse();
+
+        // Generate and inject new island support points
+        for (int fi : flat_indices) {
+            int isl_idx = m_overhang_area_index_map[fi].second;
+            if (isl_idx >= (int)cs.islands.size())
+                continue;
+            const sla::IslandContour& ic = cs.islands[isl_idx];
+
+            sla::SupportIslandPoints samples =
+                sla::uniform_support_island(ic.contour, Points{}, sample_cfg);
+
+            for (const sla::SupportIslandPointPtr& s : samples) {
+                // Convert from print space to local model space
+                const Vec3d local = trafo_inv * Vec3d(
+                    unscale<double>(s->point.x()),
+                    unscale<double>(s->point.y()),
+                    double(ic.print_z));
+                sla::SupportPoint sp(
+                    Vec3f(float(local.x()), float(local.y()), float(local.z())),
+                    head_diameter / 2.f,
+                    sla::SupportPointType::island);
+                pts.push_back(sp);
+            }
+        }
+
+        // Mark as user-modified: pipeline will use our points only (no auto-gen)
+        mo->sla_points_status = sla::PointsStatus::UserModified;
+    }
+
+    // Switch to SLA support gizmo and force Structure view + support tree build.
+    // open_gizmo() is synchronous — data_changed() runs inside it and populates
+    // m_normal_cache from mo->sla_support_points before activate_structure_view()
+    // is called.
+    wxGetApp().CallAfter([this]() {
+        GLCanvas3D* canvas = wxGetApp().plater()->canvas3D();
+        if (!canvas)
+            return;
+        canvas->get_gizmos_manager().open_gizmo(GLGizmosManager::EType::SlaSupports);
+        GLGizmoBase* base = canvas->get_gizmos_manager().get_gizmo(GLGizmosManager::EType::SlaSupports);
+        if (auto* sla = dynamic_cast<GLGizmoSlaSupports*>(base))
+            sla->activate_structure_view();
+    });
 }
 
 void GLGizmoLcdOverhangDetection::focus_camera_on_island(int flat_idx)

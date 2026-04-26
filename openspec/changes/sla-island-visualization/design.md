@@ -50,11 +50,25 @@ SLA 切片流程在 `slaposObjectSlice` 末尾的 `prepare_for_generate_supports
 
 `SupportPointGeneratorData` 是 step 內部物件，生命週期短且對 GUI 不可見。將 `IslandContourSet` 作為 `SLAPrintObject` 的成員，Gizmo 可直接存取，且 step invalidate 時可同步清除。
 
-### D3：Targeted Support 注入手動支撐點而非觸發 `slaposSupportPoints` 重跑
+### D3：Targeted Support — 注入 local model space 座標 + 切換至 SlaSupports Gizmo（Phase 8 最終實作）
 
-直接呼叫 `uniform_support_island()` 取得支撐點位置，以 `SupportPointType::island` 加入 `sla_support_points`，再觸發 `slaposSupportTree` 重建。這樣不重跑全部自動生成，保留使用者現有的手動支撐點設定。
+**流程**：
+1. 呼叫 `uniform_support_island()` 取得採樣點（print space 縮放整數座標）
+2. 對每個採樣點以 `po->trafo().inverse()` 將 print space 座標（`unscale(x)`, `unscale(y)`, `ic.print_z`）轉換為 **local model space**，確保 `GLGizmoSlaSupports::render_points()` 的 `vol->get_instance_transformation()` 能正確還原世界座標
+3. 以 `SupportPointType::island` 型別加入 `mo->sla_support_points`；設定 `sla_points_status = UserModified`（pipeline 只用這些點，不跑 auto-gen，確保 structure 只包含 island 支撐）
+4. 透過 `CallAfter`：`open_gizmo(SlaSupports)` → `activate_structure_view()`
+5. `activate_structure_view()`（新增於 `GLGizmoSlaSupports`）：設定 `m_show_support_structure = true`、`show_sla_supports(true)`、呼叫 `reslice_until_step(slaposPad)` 觸發完整管線（`slaposSupportPoints` → `slaposSupportTree` → `slaposPad`）
 
-替代方案：重跑 `slaposSupportPoints` → 放棄，會清除使用者的手動調整。
+**座標系統說明**：
+- Island 輪廓 XY 在 sla_trafo（print）space（sla_trafo 無 XY 位移，但有 scale/rotation）
+- `ic.print_z` 為 print space 絕對 Z（從底板起算）
+- `po->trafo().inverse()` 同時修正 XY（scale/rotation）和 Z（instance Z offset），得到真正的 local model space 座標
+- `GLGizmoSlaSupports::render_points()` 以 `world_trafo * sp.pos + sla_shift_Z` 還原世界位置
+
+**放棄的替代方案**：
+- 直接觸發 `slaposSupportTree`（原 Phase 8 設計）→ 發現 `generate_support = false` 時無 `RELOAD_SCENE` 事件，畫面無反應
+- 在 LcdOverhangDetection 內自行 render 球體（Option B）→ 功能重複，且在 `GLGizmoPainterBase` 中 `InstancesHider` 會隱藏 SLA auxiliary mesh，無論如何看不到 support structure
+- 使用 `Generating` 狀態 + 過濾 → 需要兩次 pipeline 執行，架構複雜
 
 ### D4：Camera Focus 整合至現有 Overhang Area 導覽 UI，不新建 UI 元件
 
@@ -117,7 +131,18 @@ GLGizmoLcdOverhangDetection.cpp           （所有 island UI 功能均在此）
     [Detect All]                           ← sync_island_data_for_all()
                                              → rebuild_overhang_area_index_map(true)
     [Add Overhang Supports]                ← generate_island_support_points()
-                                             （對 m_overhang_area_index_map 內所有 islands）
+                                             1. uniform_support_island() → print space 座標
+                                             2. po->trafo().inverse() → local model space
+                                             3. sla_points_status = UserModified
+                                             4. CallAfter:
+                                                  open_gizmo(SlaSupports)
+                                                  activate_structure_view()
+                                                    m_show_support_structure = true
+                                                    reslice_until_step(slaposPad)
+
+GLGizmoSlaSupports（新增 public method）
+  activate_structure_view()               ← 由 LcdOverhangDetection 的 CallAfter 呼叫
+                                             設定 structure 顯示 + 觸發 slaposPad 管線
 
   Key data structures:
     m_island_data_per_object               ← map<obj_idx, IslandContourSet>

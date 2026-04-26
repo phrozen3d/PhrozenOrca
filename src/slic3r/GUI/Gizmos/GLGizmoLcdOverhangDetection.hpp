@@ -104,6 +104,7 @@ private:
     void rebuild_island_highlight_mesh(int flat_idx);
     void render_island_contours();
     void focus_camera_on_island(int flat_idx);
+    void generate_island_support_points();
 
     //BBS: add support preview logic
     void init_print_instance();

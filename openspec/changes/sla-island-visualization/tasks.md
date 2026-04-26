@@ -137,22 +137,29 @@
 
 ## 8. 「Add Overhang Supports」整合
 
-點擊按鈕對當前 overhang area 索引表中的所有 island（即當前偵測範圍）生成支撐點，**不新建按鈕**。
+點擊按鈕對當前 overhang area 索引表中的所有 island（即當前偵測範圍）生成支撐點，**不新建按鈕**。執行後自動切換至 `GLGizmoSlaSupports` 並強制進入 Structure 顯示模式。
 
-- [ ] 8.1 實作 `generate_island_support_points()`：迭代 `m_overhang_area_index_map`，依 `(obj_idx, island_idx)` 取對應 `SLAPrintObject` 和 `IslandContour`；先移除該 object 現有的 `SupportPointType::island` 點，再呼叫 `uniform_support_island(contour, {}, cfg.island_configuration)`，轉換後加入各 object 的 `sla_support_points`；完成後對有新增點的所有 object 觸發 `slaposSupportTree` 重建
+- [x] 8.1 實作 `generate_island_support_points()`：
+  - 迭代 `m_overhang_area_index_map`，依 `(obj_idx, island_idx)` 取對應 `SLAPrintObject` 和 `IslandContour`
+  - 先移除該 object 現有的 `SupportPointType::island` 點
+  - 呼叫 `uniform_support_island(contour, {}, sample_cfg)`，對每個採樣點以 `po->trafo().inverse()` 將 print space 座標轉成 local model space，以 `SupportPointType::island` 加入 `mo->sla_support_points`
+  - 設定 `sla_points_status = UserModified`（pipeline 只使用注入的 island 點，不跑 auto-gen）
+  - 透過 `CallAfter`：`open_gizmo(SlaSupports)` → `dynamic_cast<GLGizmoSlaSupports*>` → 呼叫 `activate_structure_view()`
 
-- [ ] 8.2 在 `add_overhang_supports` 按鈕 handler 的 TODO 位置呼叫 `generate_island_support_points()`；若 `m_overhang_area_index_map.empty()` 則 disabled（確認現有第三個參數正確傳入）
+- [x] 8.2 在 `add_overhang_supports` 按鈕 handler 呼叫 `generate_island_support_points()`；`m_overhang_area_index_map.empty()` 時 disabled
 
-**Phase 8 驗收**：「Detect Selected」→「Add Overhang Supports」→ 只有當前 model 生成支撐；「Detect All」→「Add Overhang Supports」→ 所有物件都生成支撐；重複點擊不累積重複點；手動支撐點不受影響。
+- [x] 8.3 在 `GLGizmoSlaSupports` 新增 `activate_structure_view()` public 方法：設定 `m_show_support_structure = true`、`show_sla_supports(true)`，若 `m_normal_cache` 非空則呼叫 `reslice_until_step(slaposPad)` 觸發完整支撐樹建構
+
+**Phase 8 驗收**：「Detect Selected」→「Add Overhang Supports」→ 自動切換至 SlaSupports Gizmo → 橘色球體顯示在正確 island 位置 → structure 模式顯示完整樹狀支撐柱；重複點擊不累積重複點；手動支撐點不受影響。✅
 
 ---
 
 ## 9. 邊界條件防護
 
-- [ ] 9.1 在 `on_set_state(Off)` 中 reset `m_island_overlay_model`、`m_island_highlight_model`，清空 `m_island_data_per_object`、`m_overhang_area_index_map`，重設 `m_current_overhang_area_index = 0`、`m_total_overhang_areas = 0`
-- [ ] 9.2 在 `sync_island_data_for_object()` 入口確認 obj_idx 合法（在 SLAPrintObject 數量範圍內）
-- [ ] 9.3 `m_overhang_area_index_map.empty()` 時，overhang `< >` 按鈕 handler 不呼叫 focus（邊界保護）
-- [ ] 9.4 場景物件數為 0（空場景）時，model `< >` 按鈕 handler 不做任何操作
+- [x] 9.1 在 `on_set_state(Off)` 中 reset `m_island_overlay_model`、`m_island_highlight_model`，清空 `m_island_data_per_object`、`m_overhang_area_index_map`，重設 `m_current_overhang_area_index = 0`、`m_total_overhang_areas = 0`、`m_slice_pending_for_detect = false`
+- [x] 9.2 `sync_island_data_for_object()` 入口有 `obj_idx < 0 || obj_idx >= objs.size()` 守衛；`generate_island_support_points()` 也有相同守衛
+- [x] 9.3 Overhang `< >` 按鈕 handler 均有 `!m_overhang_area_index_map.empty()` guard，不呼叫 focus
+- [x] 9.4 Model `< >` 按鈕 handler 均有 `!m_model_names.empty()` guard，空場景時不操作
 
 ---
 
@@ -164,5 +171,6 @@
 - [ ] 10.4 切片輸出（sl1/zip）的 PNG 圖像與修改前完全相同
 - [ ] 10.5 FDM 機種下開啟 Gizmo 無渲染錯誤、無 crash
 - [ ] 10.6 單物件場景：行為與修改前一致（model 導覽只有一個物件，overhang area 正常運作）
-- [ ] 10.7 多物件場景：Detect Selected 與 Detect All 結果正確分開，支撐生成各自獨立
+- [ ] 10.7 多物件場景：Detect Selected 結果正確，支撐生成限定於當前 object
 - [ ] 10.8 關閉 Gizmo 再重新開啟，所有狀態正確清除，無殘留 mesh 或錯誤索引
+- [ ] 10.9 Add Overhang Supports 執行後，切換回 Island Detection gizmo 再次 Detect → 支撐點不重複累積

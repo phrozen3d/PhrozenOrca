@@ -71,6 +71,11 @@ public:
     bool is_selection_rectangle_dragging() const override { return m_selection_rectangle.is_dragging(); }
     bool has_backend_supports() const;
 
+    // Switch to Structure view and trigger support tree + pad generation.
+    // Called externally (e.g. from GLGizmoLcdOverhangDetection) after island
+    // support points have been injected into mo->sla_support_points.
+    void activate_structure_view();
+
     bool wants_enter_leave_snapshots() const override { return true; }
     std::string get_gizmo_entering_text() const override { return "Entering SLA support points"; }
     std::string get_gizmo_leaving_text() const override { return "Leaving SLA support points"; }
