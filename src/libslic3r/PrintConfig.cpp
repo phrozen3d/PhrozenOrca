@@ -6832,9 +6832,9 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionInt(255));
 
     def           = this->add("picture_grayscale", coInt);
-    def->label    = L("Picture Grayscale");
+    def->label    = L("Picture GrayScale");
     def->category = L("Advanced");
-    def->tooltip  = L("Picture Grayscale for advanced");
+    def->tooltip  = L("Picture GrayScale for advanced");
     def->min      = 0;
     def->max      = 255;
     def->set_default_value(new ConfigOptionInt(255));

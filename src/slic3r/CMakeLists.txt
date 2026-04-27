@@ -42,6 +42,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Widgets/LabeledStaticBox.hpp
     GUI/Widgets/StaticBox.cpp
     GUI/Widgets/StaticBox.hpp
+    GUI/Widgets/SupportAnnotationLabel.cpp
+    GUI/Widgets/SupportAnnotationLabel.hpp
     GUI/Widgets/ImageSwitchButton.cpp
     GUI/Widgets/ImageSwitchButton.hpp
     GUI/Widgets/SwitchButton.cpp
@@ -257,6 +259,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/TickCode.hpp
     GUI/Tab.cpp
     GUI/Tab.hpp
+    GUI/SupportPreviewHelpDialog.cpp
+    GUI/SupportPreviewHelpDialog.hpp
     GUI/ParamsDialog.cpp
     GUI/ParamsDialog.hpp
     GUI/ParamsPanel.cpp

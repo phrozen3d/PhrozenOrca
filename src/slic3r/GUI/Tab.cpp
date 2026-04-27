@@ -42,9 +42,12 @@
 #include "SavePresetDialog.hpp"
 #include "EditGCodeDialog.hpp"
 #include "MsgDialog.hpp"
+#include "SupportPreviewHelpDialog.hpp"
 #include "Notebook.hpp"
 
 #include "Widgets/Label.hpp"
+#include "Widgets/Button.hpp"
+#include "Widgets/StateColor.hpp"
 #include "Widgets/TabCtrl.hpp"
 #include "MarkdownTip.hpp"
 #include "Search.hpp"
@@ -6944,6 +6947,57 @@ void TabSLAPrint::build()
 
     // Support
     page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
+
+    // Figma Support: full-width bar above "Top" — dark frame 392:4102 (#3E3E45 / #4A4A51), light frame 378:4615 (#FFF / #B6B6BF); text #919191 both. No handler yet.
+    {
+        ConfigOptionsGroupShp header_og = page->new_optgroup(wxString(), wxEmptyString, 15);
+        Line                    header_line{ "", "" };
+        header_line.full_width = 1;
+        header_line.widget    = [this](wxWindow* parent) -> wxSizer* {
+            auto* row = new wxBoxSizer(wxHORIZONTAL);
+            auto* btn = new Button(parent, _L(L("Support preview description")));
+            btn->Bind(wxEVT_BUTTON, [this, parent](wxCommandEvent&) {
+                const ContactType ct = m_config->opt_enum<ContactType>("support_contact_type");
+                const bool           sphere = (ct == spSphere);
+                SupportPreviewHelpDialog dlg(parent, sphere);
+                dlg.ShowModal();
+            });
+            btn->SetStyle(ButtonStyle::Regular, ButtonType::Expanded);
+            btn->SetMinSize(wxSize(-1, parent->FromDIP(26)));
+            btn->SetPaddingSize(wxSize(parent->FromDIP(8), parent->FromDIP(4)));
+            btn->SetCornerRadius(parent->FromDIP(2));
+            btn->SetFont(Label::Body_12);
+            btn->SetCenter(true);
+            const bool is_dark = StateColor::darkModeColorFor(wxColour(255, 255, 255)) != wxColour(255, 255, 255);
+            const wxColour text(0x91, 0x91, 0x91);
+            wxColour       bg;
+            wxColour       bg_hover;
+            wxColour       border;
+            if (is_dark) {
+                bg       = wxColour(0x3e, 0x3e, 0x45);
+                bg_hover = wxColour(0x4a, 0x4a, 0x52);
+                border   = wxColour(0x4a, 0x4a, 0x51);
+            } else {
+                bg       = wxColour(0xff, 0xff, 0xff);
+                bg_hover = wxColour(0xf2, 0xf2, 0xf4);
+                border   = wxColour(0xb6, 0xb6, 0xbf);
+            }
+            btn->SetBackgroundColor(StateColor(
+                std::make_pair(bg, (int) StateColor::Normal),
+                std::make_pair(bg, (int) StateColor::Enabled),
+                std::make_pair(bg_hover, (int) StateColor::Hovered),
+                std::make_pair(bg, (int) StateColor::Pressed)));
+            btn->SetBorderColor(StateColor(std::make_pair(border, (int) StateColor::Normal)));
+            btn->SetTextColor(StateColor(
+                std::make_pair(text, (int) StateColor::Normal),
+                std::make_pair(text, (int) StateColor::Hovered)));
+            row->AddSpacer(parent->FromDIP(6));
+            row->Add(btn, 1, wxEXPAND);
+            row->AddSpacer(parent->FromDIP(16));
+            return row;
+        };
+        header_og->append_line(header_line);
+    }
 
     optgroup = page->new_optgroup(L("Top"), L"PhrozenImages_Resin/param_top", 15);
     optgroup->append_single_option_line("support_contact_type", "123");

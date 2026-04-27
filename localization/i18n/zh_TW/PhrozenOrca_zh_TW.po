@@ -18618,8 +18618,8 @@ msgstr "列印過程等待模式"
 msgid "Resting Time"
 msgstr "靜止時間"
 
-msgid "Resting time"
-msgstr "靜止時間"
+msgid "Light-off Delay"
+msgstr "燈滅延遲"
 
 msgid "Rest Time Before Lift"
 msgstr "抬升前的靜止時間"
@@ -18629,12 +18629,6 @@ msgstr "抬升後的靜止時間"
 
 msgid "Rest Time After Retract"
 msgstr "回程後的靜止時間"
-
-msgid "Light off delay"
-msgstr "燈滅延遲"
-
-msgid "Light-off Delay"
-msgstr "燈滅延遲"
 
 msgid "Bottom Light-off Delay"
 msgstr "底層燈滅延遲"
@@ -18779,3 +18773,9 @@ msgstr "頂部連接長度"
 
 msgid "Pad Wall Slope"
 msgstr "底筏坡度"
+
+msgid "Sphere size"
+msgstr "球體大小"
+
+msgid "Support preview description"
+msgstr "支撐預覽說明"
