@@ -165,12 +165,12 @@
 
 ## 10. Regression 驗證
 
-- [ ] 10.1 SLA 自動生成支撐點的數量和位置與修改前完全相同
-- [ ] 10.2 手動新增/刪除支撐點功能正常，不受 island 邏輯干擾
-- [ ] 10.3 未點擊「Add Overhang Supports」時，支撐樹形狀與修改前完全相同
-- [ ] 10.4 切片輸出（sl1/zip）的 PNG 圖像與修改前完全相同
-- [ ] 10.5 FDM 機種下開啟 Gizmo 無渲染錯誤、無 crash
-- [ ] 10.6 單物件場景：行為與修改前一致（model 導覽只有一個物件，overhang area 正常運作）
-- [ ] 10.7 多物件場景：Detect Selected 結果正確，支撐生成限定於當前 object
-- [ ] 10.8 關閉 Gizmo 再重新開啟，所有狀態正確清除，無殘留 mesh 或錯誤索引
-- [ ] 10.9 Add Overhang Supports 執行後，切換回 Island Detection gizmo 再次 Detect → 支撐點不重複累積
+- [x] 10.1 SLA 自動生成支撐點的數量和位置與修改前完全相同
+- [x] 10.2 手動新增/刪除支撐點功能正常，不受 island 邏輯干擾
+- [x] 10.3 未點擊「Add Overhang Supports」時，支撐樹形狀與修改前完全相同
+- [x] 10.4 切片輸出（sl1/zip）的 PNG 圖像與修改前完全相同
+- [x] 10.5 FDM 機種下開啟 Gizmo 無渲染錯誤、無 crash
+- [x] 10.6 單物件場景：行為與修改前一致（model 導覽只有一個物件，overhang area 正常運作）
+- [x] 10.7 多物件場景：Detect Selected 結果正確，支撐生成限定於當前 object
+- [x] 10.8 關閉 Gizmo 再重新開啟，所有狀態正確清除，無殘留 mesh 或錯誤索引
+- [x] 10.9 Add Overhang Supports 執行後，切換回 Island Detection gizmo 再次 Detect → 支撐點不重複累積

@@ -59,8 +59,8 @@ protected:
     };
     DetectionAccuracy m_detection_accuracy = Accuracy_Low;
     int m_current_model_index = 0;
-    int m_current_overhang_area_index = 1;
-    int m_total_overhang_areas = 8;
+    int m_current_overhang_area_index = 0;
+    int m_total_overhang_areas = 0;
     std::vector<std::string> m_model_names;
 
     // Island data per SLAPrintObject index

@@ -105,7 +105,7 @@ void GLGizmoLcdOverhangDetection::on_opening()
     m_detection_accuracy = Accuracy_Low;
     m_current_model_index = 0;
     m_current_overhang_area_index = 0;
-    m_total_overhang_areas = 8;
+    m_total_overhang_areas = 0;
     m_model_names.clear();
 }
 
@@ -381,19 +381,25 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     m_imgui->text(m_desc.at("model"));
     
     // Row 4: < Model text >
+    // Set to true to show model navigation arrows; false to hide (layout preserved).
+    static constexpr bool show_model_nav_arrows = false;
+
     ImGui::AlignTextToFramePadding();
-    
-    // Left arrow button
-    if (ImGui::Button("<", ImVec2(bracket_button_width, 0))) {
-        if (!m_model_names.empty() && m_current_model_index > 0) {
-            m_current_model_index--;
-            rebuild_overhang_area_index_map(false);
+
+    if (show_model_nav_arrows) {
+        if (ImGui::Button("<", ImVec2(bracket_button_width, 0))) {
+            if (!m_model_names.empty() && m_current_model_index > 0) {
+                m_current_model_index--;
+                rebuild_overhang_area_index_map(false);
+            }
         }
+    } else {
+        ImGui::Dummy(ImVec2(bracket_button_width, ImGui::GetFrameHeight()));
     }
-    
+
     ImGui::SameLine();
-    
-    // Model text (centered) - 使用實際模型名稱
+
+    // Model text (centered)
     wxString model_text;
     if (m_current_model_index >= 0 && m_current_model_index < static_cast<int>(m_model_names.size())) {
         model_text = wxString::FromUTF8(m_model_names[m_current_model_index].c_str());
@@ -404,16 +410,19 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     float available_width = ImGui::GetContentRegionAvail().x - button_width * 2 - ImGui::GetStyle().ItemSpacing.x * 2;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (available_width - model_text_width) * 0.5f);
     m_imgui->text(model_text);
-    
+
     ImGui::SameLine();
-    
-    // Right arrow button
+
     ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
-    if (ImGui::Button(">", ImVec2(bracket_button_width, 0))) {
-        if (!m_model_names.empty() && m_current_model_index < static_cast<int>(m_model_names.size()) - 1) {
-            m_current_model_index++;
-            rebuild_overhang_area_index_map(false);
+    if (show_model_nav_arrows) {
+        if (ImGui::Button(">", ImVec2(bracket_button_width, 0))) {
+            if (!m_model_names.empty() && m_current_model_index < static_cast<int>(m_model_names.size()) - 1) {
+                m_current_model_index++;
+                rebuild_overhang_area_index_map(false);
+            }
         }
+    } else {
+        ImGui::Dummy(ImVec2(bracket_button_width, ImGui::GetFrameHeight()));
     }
     
     // Row 5: Overhang Area label
@@ -425,7 +434,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     
     // Left arrow button
     if (ImGui::Button("<##overhang", ImVec2(bracket_button_width, 0))) {
-        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index > 0) {
+        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index > 1) {
             m_current_overhang_area_index--;
             rebuild_island_highlight_mesh(m_current_overhang_area_index);
             focus_camera_on_island(m_current_overhang_area_index);
@@ -446,7 +455,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     // Right arrow button
     ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - bracket_button_width);
     if (ImGui::Button(">##overhang", ImVec2(bracket_button_width, 0))) {
-        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index < m_total_overhang_areas - 1) {
+        if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index < m_total_overhang_areas ) {
             m_current_overhang_area_index++;
             rebuild_island_highlight_mesh(m_current_overhang_area_index);
             focus_camera_on_island(m_current_overhang_area_index);
