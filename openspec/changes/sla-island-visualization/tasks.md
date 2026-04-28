@@ -87,7 +87,7 @@
   2. 呼叫 `rebuild_overhang_area_index_map(false)`（只收集當前 model 的 islands）
   3. 若 `m_total_overhang_areas > 0`，呼叫 `rebuild_island_highlight_mesh(0)` 建立高亮
 
-- [ ] 5.2 在 `detect_selected` 按鈕前加入 disabled 判斷：待 Phase 5.5 完成後依新依賴關係實作（改為檢查 `slaposObjectSlice` 而非 `slaposSupportPoints`）
+- [x] 5.2 ~~detect_selected disabled 判斷~~ — Phase 5.5.4 已以更好的方式取代：按鈕永遠可點，點擊時若切片未完成則自動觸發背景切片並等待完成後執行偵測，不需 disable
 
 **Phase 5 驗收**：點擊「Detect Selected」後 overlay 正確顯示在模型 island 區域上，顏色/位置/Z 高度均正確；island 數量與 auto-generate support 偵測到的 island 數量一致。✅
 
