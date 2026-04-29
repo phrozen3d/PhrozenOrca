@@ -310,6 +310,49 @@ void SLASlice2DCanvas::render_layers_imgui_overlay(int vp_w, int vp_h)
     if (m_pan_dragging)
         io.MouseDown[0] = false;
     m_im_layers_slider->render(vp_w, vp_h);
+
+    if (m_print != nullptr && m_print->is_step_done(slapsMergeSlicesAndEval)) {
+        const SLAPrintStatistics& st = m_print->print_statistics();
+        const double total_ml = (st.objects_used_material + st.support_used_material) / 1000.0;
+        const int    total_s  = st.prz_print_time_s;
+        if (total_ml > 0.0 || total_s > 0) {
+            const int   hours  = total_s / 3600;
+            const int   mins   = (total_s % 3600) / 60;
+            const float font_h = ImGui::GetFontSize();
+            const float margin = font_h * 0.6f;
+            const float win_w  = font_h * 14.f;
+            ImGui::SetNextWindowPos(ImVec2(float(vp_w) - font_h * 13.5f, margin), ImGuiCond_Always, ImVec2(1.f, 0.f));
+            ImGui::SetNextWindowSize(ImVec2(win_w, 0.f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.78f);
+            constexpr ImGuiWindowFlags kStatsFlags =
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                ImGuiWindowFlags_NoNav        | ImGuiWindowFlags_NoMove   |
+                ImGuiWindowFlags_NoSavedSettings;
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.f);
+            if (ImGui::Begin("##sla_stats_ovl", nullptr, kStatsFlags)) {
+                ImGui::TextUnformatted("Total estimation");
+                ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(1.f, 1.f, 1.f, 0.5f));
+                ImGui::Separator();
+                ImGui::PopStyleColor();
+
+                char buf[32];
+                const float pad_r = ImGui::GetStyle().WindowPadding.x;
+
+                ImGui::TextUnformatted("Total resin:");
+                snprintf(buf, sizeof(buf), "%.3f ml", total_ml);
+                ImGui::SameLine(win_w - pad_r - ImGui::CalcTextSize(buf).x);
+                ImGui::TextUnformatted(buf);
+
+                ImGui::TextUnformatted("Total  time:");
+                snprintf(buf, sizeof(buf), "%dh %dm", hours, mins);
+                ImGui::SameLine(win_w - pad_r - ImGui::CalcTextSize(buf).x);
+                ImGui::TextUnformatted(buf);
+            }
+            ImGui::End();
+            ImGui::PopStyleVar();
+        }
+    }
+
     ImGui::Render();
     wxGetApp().imgui()->render_imgui_draw_data(ImGui::GetDrawData());
     m_imgui_wants_capture_mouse = io.WantCaptureMouse;
