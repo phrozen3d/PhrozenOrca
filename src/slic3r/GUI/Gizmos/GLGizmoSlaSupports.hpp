@@ -98,8 +98,9 @@ private:
     bool m_show_support_structure = false; // Step 4.2: controls supports_clipper visibility in on_render
     bool m_lock_unique_islands = false;
     bool m_editing_mode = false;            // Is editing mode active?
-    float m_new_point_head_diameter;        // Size of a new point.
-    sla::SupportWeight m_new_point_weight = sla::SupportWeight::Medium; // Task 4.1: weight for next manually placed point
+    float m_new_point_head_diameter;
+    float m_new_point_pillar_diameter;
+    sla::SupportWeight m_new_point_weight = sla::SupportWeight::Medium;
     CacheEntry m_point_before_drag;         // undo/redo - so we know what state was edited
     float m_old_point_head_diameter = 0.;   // the same
     mutable std::vector<CacheEntry> m_editing_cache; // a support point and whether it is currently selected

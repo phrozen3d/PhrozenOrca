@@ -1,10 +1,4 @@
-# Spec: sla-support-weight-geometry
-
-## Purpose
-
-定義 SLA 支撐系統中，支撐柱的幾何計算行為，包括支撐點尺寸（pillar_radius）如何影響柱體生成、柱間橋接間距判斷、補強柱搜尋半徑，以及重複點去除策略。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: L/M/H 切換更新全域 print config，並在放點時記錄 pillar_radius
 當使用者在支撐點 Gizmo 選取 Light、Medium 或 Heavy 時，系統 SHALL 呼叫 `cfg.set()` 更新全域 SLA print config 並刷新支撐頁面。放置手動支撐點時，系統 SHALL 將當下的 `m_new_point_pillar_diameter / 2` 存入 `SupportPoint::pillar_radius`。
@@ -20,7 +14,7 @@
 ### Requirement: 演算法使用 SupportPoint::pillar_radius 決定柱徑，不以 weight 做倍率計算或叢集排序
 支撐樹演算法 SHALL NOT 讀取 `SupportPoint::weight` 做倍率計算或叢集排序。
 
-**手動放置點**：演算法 SHALL 讀取每點的 `pillar_radius`。若 `pillar_radius > 0.f`，以其作為 `back_r` 傳入 `filterfn`，使每個手動點的柱徑忠實反映放置時的設定值。`widen`（柱徑加寬）行為由 `filterfn` 內部的 `back_r < head_back_radius_mm` 比較自動決定。
+**手動放置點**：演算法 SHALL 讀取每點的 `pillar_radius`。若 `pillar_radius > 0.f`，以其作為 `back_r` 傳入 `filterfn`，使每個手動點的柱徑忠實反映放置時的設定值。`widen`（柱徑加寬）行為由 `filterfn` 內部的 `back_r < head_back_radius_mm` 比較自動決定：Light 點的 pillar_radius 較小，head width 自然縮短，不需額外條件。
 
 **自動產生點**：`pillar_radius == 0.f`，統一使用 `m_cfg.head_back_radius_mm`（由全域 print config 決定）。
 
@@ -33,26 +27,18 @@
 - **THEN** 對應支撐柱使用全域 `m_cfg.head_back_radius_mm`，不讀取 pillar_radius
 
 #### Scenario: 叢集中保留第一個點
-- **WHEN** 多個支撐點落入同一叢集（D_SP=0.1mm），其中各點 `pillar_radius` 或 `weight` 不同
-- **THEN** 叢集保留第一個點（迭代順序），不再依 `pillar_radius` 或 `weight` 排序
+- **WHEN** 多個支撐點落入同一叢集，其中各點 `pillar_radius` 不同
+- **THEN** 叢集保留第一個點（迭代順序），不依 `pillar_radius` 或 `weight` 排序
 
-### Requirement: Pillar interconnect minimum distance uses actual pillar radii
-支撐樹在連接兩根相鄰柱子時，SHALL 以「兩柱實際半徑之和」作為最小允許中心間距。當兩柱中心距離小於 `pillar.r_start + nextpillar.r_start` 時，系統 SHALL 跳過此對柱子的橋接嘗試。
-
-#### Scenario: 兩根 Heavy 柱距離不足時不建橋
-- **WHEN** 兩根 Heavy 手動支撐柱（r_start = 1.0mm 各）中心間距為 1.5mm
-- **THEN** `interconnect()` 不為此對柱子建立橋段，回傳 false
-
-### Requirement: 補強柱搜尋半徑不小於目標柱實際半徑的兩倍
-當 `interconnect_pillars()` 需要在某柱旁放置補強柱時，起始搜尋圓半徑 SHALL 不小於 `2 * pillar.r_start`，以確保補強柱落地點不與目標柱物理重疊。
-
-#### Scenario: Heavy 柱的補強柱搜尋半徑
-- **WHEN** 一根 Heavy 柱（r_start = 1.0mm）需要補強柱
-- **THEN** 起始搜尋圓半徑 SHALL 至少為 2.0mm
+## ADDED Requirements
 
 ### Requirement: 3MF 格式 version 2 持久化 SupportPoint pillar_radius
-`Slic3r_PE_sla_support_points.txt` 格式 SHALL 升級至 version 2，每個支撐點存 6 個 float（x, y, z, head_front_radius, type_f, pillar_radius_f）。讀取 version 1 檔案時 `pillar_radius` SHALL 設為 `0.f`。
+`Slic3r_PE_sla_support_points.txt` 格式 SHALL 升級至 version 2，每個支撐點存 6 個 float（x, y, z, head_front_radius, type_f, pillar_radius_f）。讀取 version 1 檔案時 `pillar_radius` SHALL 設為 `0.f`（使用全域設定，切片行為等同修改前）。pillar_radius_f 以實際 mm 值存入。
 
 #### Scenario: version 2 存檔後重開 pillar_radius 保留
 - **WHEN** 使用者新增 Light 手動支撐點（pillar_radius = 0.3mm），存檔為 .3mf，重新開啟
 - **THEN** 該點的 `pillar_radius` 仍為 0.3mm，切片後柱體使用此值
+
+#### Scenario: version 1 舊檔重開 pillar_radius 為 0.f
+- **WHEN** 開啟一個以 version 1 格式存入的 .3mf 檔案
+- **THEN** 所有支撐點的 `pillar_radius` 為 `0.f`，切片使用全域 `head_back_radius_mm`，行為與修改前一致

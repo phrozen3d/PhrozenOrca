@@ -423,7 +423,8 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add support point");
                     {
                         sla::SupportPoint sp(pos_and_normal.first, m_new_point_head_diameter/2.f, sla::SupportPointType::manual_add);
-                        sp.weight = m_new_point_weight; // Task 4.3: apply current weight selection
+                        sp.weight        = m_new_point_weight;
+                        sp.pillar_radius = m_new_point_pillar_diameter / 2.f;
                         m_editing_cache.emplace_back(sp, false, pos_and_normal.second);
                     }
                     // Step 2.3 Mod 6: Re-register raycasters after adding a point
@@ -1192,6 +1193,16 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
         ImGui::PopItemWidth();
     }
 
+    // ── Row 3.5: Pillar Diameter — read-only display ─────────────────────────
+    {
+        ImGui::AlignTextToFramePadding();
+        m_imgui->text(_L("Pillar Diameter"));
+        ImGui::SameLine(label_col_w);
+        char pd_buf[32];
+        snprintf(pd_buf, sizeof(pd_buf), "%.2f mm", m_new_point_pillar_diameter);
+        ImGui::TextUnformatted(pd_buf);
+    }
+
     // ── Row 4: Lock — label on left, checkbox pushed to right edge ──────────
     {
         const bool was_locked = m_lock_unique_islands;
@@ -1341,7 +1352,8 @@ void GLGizmoSlaSupports::apply_weight_preset(sla::SupportWeight w)
     cfg.set("support_base_diameter",       (double)p.base_diameter,       true);
     cfg.set("support_base_height",         (double)p.base_height,         true);
     cfg.set("support_head_width",          (double)p.head_width,          true);
-    m_new_point_head_diameter = p.head_front_diameter;
+    m_new_point_head_diameter   = p.head_front_diameter;
+    m_new_point_pillar_diameter = p.pillar_diameter;
     wxTheApp->CallAfter([]() {
         auto *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT);
         if (!tab) return;
@@ -1363,6 +1375,7 @@ void GLGizmoSlaSupports::on_set_state()
         // Match current pillar diameter against weight presets to restore radio state.
         const auto *opt_pd = cfg.option<ConfigOptionFloat>("support_pillar_diameter");
         float cur_pillar = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
+        m_new_point_pillar_diameter = cur_pillar;
         int matched = -1;
         for (int i = 0; i < 3; ++i) {
             if (std::abs(k_weight_presets[i].pillar_diameter - cur_pillar) < 1e-4f) {
@@ -1430,6 +1443,7 @@ void GLGizmoSlaSupports::on_stop_dragging()
 void GLGizmoSlaSupports::on_load(cereal::BinaryInputArchive& ar)
 {
     ar(m_new_point_head_diameter,
+       m_new_point_pillar_diameter,
        m_normal_cache,
        m_editing_cache,
        m_selection_empty
@@ -1441,6 +1455,7 @@ void GLGizmoSlaSupports::on_load(cereal::BinaryInputArchive& ar)
 void GLGizmoSlaSupports::on_save(cereal::BinaryOutputArchive& ar) const
 {
     ar(m_new_point_head_diameter,
+       m_new_point_pillar_diameter,
        m_normal_cache,
        m_editing_cache,
        m_selection_empty
@@ -1461,13 +1476,28 @@ void GLGizmoSlaSupports::select_point(int i)
             point_and_selection.selected = ( i == AllPoints );
         m_selection_empty = (i == NoPoints);
 
-        if (i == AllPoints)
+        if (i == AllPoints) {
             m_new_point_head_diameter = m_editing_cache[0].support_point.head_front_radius * 2.f;
+            float pr = m_editing_cache[0].support_point.pillar_radius;
+            if (pr > 0.f) {
+                m_new_point_pillar_diameter = pr * 2.f;
+            } else {
+                const auto *opt_pd = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option<ConfigOptionFloat>("support_pillar_diameter");
+                m_new_point_pillar_diameter = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
+            }
+        }
     }
     else {
         m_editing_cache[i].selected = true;
         m_selection_empty = false;
         m_new_point_head_diameter = m_editing_cache[i].support_point.head_front_radius * 2.f;
+        float pr = m_editing_cache[i].support_point.pillar_radius;
+        if (pr > 0.f) {
+            m_new_point_pillar_diameter = pr * 2.f;
+        } else {
+            const auto *opt_pd = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option<ConfigOptionFloat>("support_pillar_diameter");
+            m_new_point_pillar_diameter = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
+        }
     }
 }
 

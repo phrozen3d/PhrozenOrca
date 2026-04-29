@@ -39,3 +39,4 @@ resources/profiles/user/default
 *.code-workspace
 _temp/
 deps_src/build/
+.gemini/*

@@ -1238,6 +1238,19 @@ ModelVolumeType type_from_string(const std::string &s)
                                 float(std::atof(object_data_points[i+3].c_str())),
                                 float(std::atof(object_data_points[i+4].c_str()));
                         sla_support_points.emplace_back(data);
+                        // pillar_radius defaults to 0.f (use global config)
+                    }
+                }
+                if (version == 2) {
+                    for (unsigned int i=0; i<object_data_points.size(); i+=6) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i+0].c_str())),
+                                float(std::atof(object_data_points[i+1].c_str())),
+                                float(std::atof(object_data_points[i+2].c_str())),
+                                float(std::atof(object_data_points[i+3].c_str())),
+                                float(std::atof(object_data_points[i+4].c_str()));
+                        sla_support_points.emplace_back(data);
+                        sla_support_points.back().pillar_radius = float(std::atof(object_data_points[i+5].c_str()));
                     }
                 }
 
@@ -3001,7 +3014,7 @@ ModelVolumeType type_from_string(const std::string &s)
                     // island=1.0, manual_add=2.0, slope=3.0
                     float type_f = (sla_support_points[i].type == sla::SupportPointType::island)     ? 1.0f :
                                    (sla_support_points[i].type == sla::SupportPointType::manual_add) ? 2.0f : 3.0f;
-                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),  sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2), sla_support_points[i].head_front_radius, type_f);
+                    sprintf(buffer, (i==0 ? "%f %f %f %f %f %f" : " %f %f %f %f %f %f"),  sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2), sla_support_points[i].head_front_radius, type_f, sla_support_points[i].pillar_radius);
                     out += buffer;
                 }
                 out += "\n";

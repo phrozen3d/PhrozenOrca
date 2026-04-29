@@ -40,7 +40,7 @@ private:
     */
 
     enum {
-        support_points_format_version = 1
+        support_points_format_version = 2
     };
     
     enum {

@@ -481,18 +481,19 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
     double gndlvl = 0.; // The Z level where pedestals should be
     double jp_gnd = 0.; // The lowest Z where a junction center can be
     double gap_dist = 0.; // The gap distance between the model and the pad
+    double base_r_to_use = m_cfg.base_radius_mm;
 
     auto to_floor = [&gndlvl](const Vec3d &p) { return Vec3d{p.x(), p.y(), gndlvl}; };
 
-    auto eval_limits = [this, &radius, &can_add_base, &gndlvl, &gap_dist, &jp_gnd]
+    auto eval_limits = [this, &radius, &can_add_base, &gndlvl, &gap_dist, &jp_gnd, &base_r_to_use]
         (bool base_en = true)
     {
         can_add_base  = base_en && radius >= m_cfg.head_back_radius_mm;
-        double base_r = can_add_base ? m_cfg.base_radius_mm : 0.;
+        base_r_to_use = can_add_base ? m_cfg.base_radius_mm : 0.;
         gndlvl        = m_builder.ground_level;
         if (!can_add_base) gndlvl -= m_mesh.ground_level_offset();
         jp_gnd   = gndlvl + (can_add_base ? 0. : m_cfg.head_back_radius_mm);
-        gap_dist = m_cfg.pillar_base_safety_distance_mm + base_r + EPSILON;
+        gap_dist = m_cfg.pillar_base_safety_distance_mm + base_r_to_use + EPSILON;
     };
 
     eval_limits();
@@ -512,10 +513,11 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
         }
         if (is_manual) {
             can_add_base = true;
+            base_r_to_use = std::max(radius * 2.0, 1.0);
             gndlvl       = m_builder.ground_level;
             jp_gnd       = gndlvl;
             gap_dist     = m_cfg.pillar_base_safety_distance_mm
-                           + m_cfg.base_radius_mm + EPSILON;
+                           + base_r_to_use + EPSILON;
         }
     }
 
@@ -599,7 +601,7 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
                                             m_builder.add_pillar(gp, h, radius);
 
     if (can_add_base)
-        add_pillar_base(pillar_id);
+        m_builder.add_pillar_base(pillar_id, m_cfg.base_height_mm, base_r_to_use);
 
     if(pillar_id >= 0) // Save the pillar endpoint in the spatial index
         m_pillar_index.guarded_insert(m_builder.pillar(pillar_id).endpt,
@@ -722,7 +724,9 @@ void SupportTreeBuildsteps::filter()
         double lmin = m_cfg.head_width_mm, lmax = lmin;
 
         if (back_r < m_cfg.head_back_radius_mm) {
-            lmin = 0., lmax = m_cfg.head_penetration_mm;
+            // Allow shorter head (e.g. half width) but keep full lmax so the optimizer
+            // can still find a valid head length on non-ideal surfaces.
+            lmin = m_cfg.head_width_mm * 0.5, lmax = m_cfg.head_width_mm;
         }
 
         // The distance needed for a pinhead to not collide with model.
@@ -784,7 +788,11 @@ void SupportTreeBuildsteps::filter()
     ccr::for_each(size_t(0), filtered_indices.size(),
                   [this, &filterfn, &filtered_indices] (size_t i) {
                       unsigned fidx = filtered_indices[i];
-                      filterfn(fidx, i, m_cfg.head_back_radius_mm);
+                      const auto &sp = m_support_pts[fidx];
+                      double back_r = (sp.type == sla::SupportPointType::manual_add && sp.pillar_radius > 0.f)
+                          ? double(sp.pillar_radius)
+                          : m_cfg.head_back_radius_mm;
+                      filterfn(fidx, i, back_r);
                   });
 
     for (size_t i = 0; i < heads.size(); ++i)
@@ -896,7 +904,20 @@ void SupportTreeBuildsteps::routing_to_ground()
 
         Head &h = m_builder.head(hid);
 
+        // Disable widening for manual points whose pillar_radius is explicitly
+        // smaller than the global back radius — widening would override the
+        // user's chosen Light/Medium size.
         bool widen = true;
+        {
+            const long sp_id = h.id;
+            if (sp_id >= 0 && size_t(sp_id) < m_support_pts.size()) {
+                const auto &sp = m_support_pts[size_t(sp_id)];
+                if (sp.type == sla::SupportPointType::manual_add &&
+                    sp.pillar_radius > 0.f &&
+                    double(sp.pillar_radius) < m_cfg.head_back_radius_mm)
+                    widen = false;
+            }
+        }
         if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id, widen)) {
             BOOST_LOG_TRIVIAL(warning)
                 << "Pillar cannot be created for support point id: " << hid;
@@ -946,7 +967,21 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     double r = head.r_back_mm;
     double t = bridge_mesh_distance(hjp, dir, head.r_back_mm);
     double d = 0, tdown = 0;
-    t = std::min(t, m_cfg.max_bridge_length_mm * r / m_cfg.head_back_radius_mm);
+
+    // For manual points whose pillar_radius is smaller than the global back
+    // radius, do not scale the bridge length down — they need the same reach
+    // as the global setting to find a valid downward path.
+    bool is_manual_small = false;
+    if (head.id >= 0 && size_t(head.id) < m_support_pts.size()) {
+        const auto &sp = m_support_pts[size_t(head.id)];
+        if (sp.type == sla::SupportPointType::manual_add &&
+            sp.pillar_radius > 0.f &&
+            double(sp.pillar_radius) < m_cfg.head_back_radius_mm)
+            is_manual_small = true;
+    }
+
+    t = std::min(t, is_manual_small ? m_cfg.max_bridge_length_mm
+                                    : m_cfg.max_bridge_length_mm * r / m_cfg.head_back_radius_mm);
 
     while (d < t && !std::isinf(tdown = bridge_mesh_distance(hjp + d * dir, DOWN, r)))
         d += r;
@@ -956,7 +991,8 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     Vec3d endp = hjp + d * dir;
     bool ret = false;
 
-    bool widen_ctg = true;
+    // Don't widen the pillar for manual points with an explicit smaller radius.
+    bool widen_ctg = !is_manual_small;
     if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, SupportTreeNode::ID_UNSET, widen_ctg))) {
         m_builder.add_bridge(head.id, endp);
         m_builder.add_junction(endp, head.r_back_mm);

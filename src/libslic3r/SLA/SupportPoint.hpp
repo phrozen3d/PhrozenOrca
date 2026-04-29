@@ -25,9 +25,8 @@ enum class SupportPointType {
     slope      = 2, // Auto-generated on an overhang / peninsula
 };
 
-// Per-point pillar thickness for manually-placed support points.
-// Scales head_back_radius: Light=0.6x, Medium=1.0x (default), Heavy=1.4x.
-// Only applied when SupportPointType == manual_add; auto-generated points ignore this.
+// Per-point weight classification for manually-placed support points.
+// Kept for UI display (L/M/H button highlight) only; geometry uses pillar_radius directly.
 enum class SupportWeight {
     Light  = 0,
     Medium = 1,
@@ -40,6 +39,7 @@ struct SupportPoint
     float            head_front_radius;
     SupportPointType type;
     SupportWeight    weight = SupportWeight::Medium;
+    float            pillar_radius = 0.f; // 0 = use global config (auto points); >0 = per-point override (manual points)
 
     SupportPoint()
         : pos(Vec3f::Zero()), head_front_radius(0.f), type(SupportPointType::manual_add)
@@ -76,7 +76,7 @@ struct SupportPoint
             type = SupportPointType::slope;
         else
             type = SupportPointType::slope; // legacy is_new_island=false → slope
-        // weight defaults to Medium; loaded from 6th float when Step 3 is implemented
+        // pillar_radius defaults to 0.f; set from 6th float by 3mf.cpp (version 2)
     }
 
     bool is_island() const { return type == SupportPointType::island; }
@@ -84,15 +84,16 @@ struct SupportPoint
     bool operator==(const SupportPoint &sp) const
     {
         float rdiff = std::abs(head_front_radius - sp.head_front_radius);
+        float prdiff = std::abs(pillar_radius - sp.pillar_radius);
         return (pos == sp.pos) && rdiff < float(EPSILON) &&
-               type == sp.type && weight == sp.weight;
+               type == sp.type && weight == sp.weight && prdiff < float(EPSILON);
     }
 
     bool operator!=(const SupportPoint &sp) const { return !(sp == (*this)); }
 
     template<class Archive> void serialize(Archive &ar)
     {
-        ar(pos, head_front_radius, type, weight);
+        ar(pos, head_front_radius, type, weight, pillar_radius);
     }
 };
 
