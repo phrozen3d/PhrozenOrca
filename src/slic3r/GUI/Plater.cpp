@@ -1530,12 +1530,14 @@ void Sidebar::update_all_preset_comboboxes()
         ams_btn->Show();
         //update print button default value for bbl or third-party printer
         p_mainframe->set_print_button_to_default(MainFrame::PrintSelectType::ePrintPlate);
-    } 
+    }
     else if ( preset_bundle.is_phrozen_vendor() ) {
         //PhrozenOrca has its own connection mechanism and AMS control, so only the default values ​​need to be connected to the print function.
         connection_btn->Hide();
         ams_btn->Hide();
-        p_mainframe->set_print_button_to_default(MainFrame::PrintSelectType::ePrintPlate);
+        p_mainframe->set_print_button_to_default(
+            print_tech == ptSLA ? MainFrame::PrintSelectType::eExportPrz
+                                : MainFrame::PrintSelectType::eExportGcode);
     }
     else {
         connection_btn->Show();
@@ -1551,9 +1553,11 @@ void Sidebar::update_all_preset_comboboxes()
             url = host_opt->value;
 
         wxString apikey;
-        if(url.empty())
+        if(url.empty()) {
             url = wxString::Format("file://%s/web/orca/missing_connection.html", from_u8(resources_dir()));
-        else {
+            if (print_tech == ptSLA)
+                print_btn_type = MainFrame::PrintSelectType::eExportPrz;
+        } else {
             if (!url.Lower().starts_with("http"))
                 url = wxString::Format("http://%s", url);
             const auto host_type_opt = cfg.option<ConfigOptionEnum<PrintHostType>>("host_type");
@@ -1568,7 +1572,6 @@ void Sidebar::update_all_preset_comboboxes()
         }
 
         p_mainframe->load_printer_url(url, apikey);
-
 
         p_mainframe->set_print_button_to_default(print_btn_type);
 

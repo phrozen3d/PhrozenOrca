@@ -1963,12 +1963,13 @@ wxBoxSizer* MainFrame::create_side_tools()
     wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
 
     m_slice_select = eSlicePlate;
-    m_print_select = ePrintPlate;
+    const bool ui_is_sla = wxGetApp().get_ui_printer_technology() == ptSLA;
+    m_print_select = ui_is_sla ? eExportPrz : eExportGcode;
 
     // m_publish_btn = new Button(this, _L("Upload"), "bar_publish", 0, FromDIP(16));
     if ( !m_slice_btn )         m_slice_btn = new SideButton(this, _L("Slice plate"), "");
     if ( !m_slice_option_btn )  m_slice_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
-    if ( !m_print_btn )         m_print_btn = new SideButton(this, _L("Print plate"), "");
+    if ( !m_print_btn )         m_print_btn = new SideButton(this, ui_is_sla ? _L("Export PRZ file") : _L("Export G-code file"), "");
     if ( !m_print_option_btn )  m_print_option_btn = new SideButton(this, "", "sidebutton_dropdown", 0, 14);
 
     update_side_button_style();
@@ -2099,7 +2100,7 @@ wxBoxSizer* MainFrame::create_side_tools()
             bool bIsPhrozenVender = wxGetApp().preset_bundle->is_phrozen_vendor();
             bIsPhrozenVender = true;
 
-            bool bIsFDMMode = plater()->printer_technology() == ptFFF;
+            bool bIsFDMMode = wxGetApp().get_ui_printer_technology() == ptFFF;
 
             if (wxGetApp().preset_bundle
                 && !( wxGetApp().preset_bundle->is_bbl_vendor() || bIsPhrozenVender ) ) {
@@ -2279,20 +2280,18 @@ wxBoxSizer* MainFrame::create_side_tools()
                         p->Dismiss();
                     });
                     p->append_button(export_gcode_btn);
-                }
-                else {
-                    SideButton* export_prz_btn = new SideButton(p, _L("Export .prz file"), "");
+                } else {
+                    SideButton* export_prz_btn = new SideButton(p, _L("Export PRZ file"), "");
                     export_prz_btn->SetCornerRadius(0);
                     export_prz_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                        m_print_btn->SetLabel(_L("Export .prz file"));
-                        m_print_select = eExportPrz;   // 新增的 enum 值
+                        m_print_btn->SetLabel(_L("Export PRZ file"));
+                        m_print_select = eExportPrz;
                         m_print_enable = get_enable_print_status();
                         m_print_btn->Enable(m_print_enable);
                         this->Layout();
                         p->Dismiss();
                     });
                     p->append_button(export_prz_btn);
-
                 }
 
             }
@@ -4159,6 +4158,13 @@ void MainFrame::set_print_button_to_default(PrintSelectType select_type)
         m_print_select = eExportGcode;
         if (m_print_enable)
             m_print_enable = get_enable_print_status() && can_send_gcode();
+        m_print_btn->Enable(m_print_enable);
+        this->Layout();
+    } else if (select_type == PrintSelectType::eExportPrz) {
+        m_print_btn->SetLabel(_L("Export PRZ file"));
+        m_print_select = eExportPrz;
+        if (m_print_enable)
+            m_print_enable = get_enable_print_status();
         m_print_btn->Enable(m_print_enable);
         this->Layout();
     } else {
