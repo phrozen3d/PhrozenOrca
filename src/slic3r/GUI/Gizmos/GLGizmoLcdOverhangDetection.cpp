@@ -102,7 +102,7 @@ void GLGizmoLcdOverhangDetection::on_opening()
     // Phrozen LCD: Set default values
     m_current_tool = ImGui::SphereButtonIcon;
     m_paint_on_overhangs_only = true;
-    m_detection_accuracy = Accuracy_Low;
+    m_detection_accuracy = Accuracy_Middle;
     m_current_model_index = 0;
     m_current_overhang_area_index = 0;
     m_total_overhang_areas = 0;
@@ -373,8 +373,17 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     }
 
     m_detection_accuracy = next_accuracy;
-    
+
     ImGui::PopStyleVar(1);
+
+    // Layer height hint — updates immediately when accuracy level changes
+    {
+        const float lh = accuracy_to_layer_height(m_detection_accuracy);
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "Layer Height: %.2fmm", lh);
+        ImGui::AlignTextToFramePadding();
+        m_imgui->text(buf);
+    }
 
     // Row 3: Model label
     ImGui::AlignTextToFramePadding();

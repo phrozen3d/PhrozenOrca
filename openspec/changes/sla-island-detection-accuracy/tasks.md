@@ -37,8 +37,8 @@
 
 ## 4. Gizmo：切換精度等級不自動重偵測
 
-- [ ] 4.1 確認 `DetectionAccuracy` enum 切換（Low/Middle/High UI 按鈕）只更新 `m_detection_accuracy` 成員，**不呼叫** `sync_island_data_for_object()`
-- [ ] 4.2 確認 Detect Selected 按鈕每次都重新呼叫 `sync_island_data_for_object()`（現有邏輯，無需修改），從而使用最新的 `m_detection_accuracy` 對應的 layer height
+- [x] 4.1 確認 `DetectionAccuracy` enum 切換（Low/Middle/High UI 按鈕）只更新 `m_detection_accuracy` 成員，**不呼叫** `sync_island_data_for_object()`
+- [x] 4.2 確認 Detect Selected 按鈕每次都重新呼叫 `sync_island_data_for_object()`（現有邏輯，無需修改），從而使用最新的 `m_detection_accuracy` 對應的 layer height
 
 **驗收**：切換等級後 overlay 不改變；按下 Detect Selected 後 overlay 更新為新等級結果。
 
@@ -64,15 +64,15 @@
 
 ## 6. UI：精度等級顯示與預設值
 
-- [ ] 6.1 將 `on_opening()` 中 `m_detection_accuracy` 的初始值從 `Accuracy_Low` 改為 `Accuracy_Middle`（預設使用 0.1mm 偵測）
+- [x] 6.1 將 `on_opening()` 中 `m_detection_accuracy` 的初始值從 `Accuracy_Low` 改為 `Accuracy_Middle`（預設使用 0.1mm 偵測）
 
-- [ ] 6.2 在精度等級三個按鈕下方新增一行 layer height 提示文字：
+- [x] 6.2 在精度等級三個按鈕下方新增一行 layer height 提示文字：
   - 使用 Task 3.1 實作的 `accuracy_to_layer_height()` 取得當前值
   - 格式：`"Layer Height: 0.10mm"`（固定兩位小數）
   - 使用與其他標籤相同的 `m_imgui->text()` 風格，不加額外樣式
   - 此行每幀更新，隨切換等級即時反映
 
-- [ ] 6.3 確認精度切換與 Detect Selected 的串接正確：
+- [x] 6.3 確認精度切換與 Detect Selected 的串接正確：
   - 切換等級只更新 `m_detection_accuracy`，**不**呼叫 `sync_island_data_for_object()`（符合 D4：切換不自動重偵測）
   - Detect Selected 的 handler 呼叫 `sync_island_data_for_object()` 時，內部讀取 `m_detection_accuracy` 計算 `detect_lh`，傳入 `plater()->sla_print().redetect_islands(mo->id(), detect_lh)`
   - 用手動驗證：低精度偵測 → 切換至高精度 → overlay 不變 → 再按 Detect Selected → overlay 更新為高精度結果
