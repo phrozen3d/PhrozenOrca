@@ -83,9 +83,9 @@
 
 ## 7. 驗收測試
 
-- [ ] 7.1 高精度（0.05mm）的偵測結果與修改前行為一致（當模型 layer height = 0.05mm 時）
-- [ ] 7.2 低精度（0.5mm）偵測結果的 island 面積 ≥ 高精度結果（對常見幾何形狀驗證）
-- [ ] 7.3 切換等級後正式切片輸出（`po.m_model_slices`）不改變
-- [ ] 7.4 auto generate support points 的點數和位置與修改前完全相同（regression）
-- [ ] 7.5 Detect Selected → Add Overhang Supports 的完整流程在三個等級下均正常運作
-- [ ] 7.6 重複點擊 Detect Selected（不同等級）不會 crash 或 memory leak
+- [x] 7.1 高精度（0.05mm）的偵測結果與修改前行為一致（當模型 layer height = 0.05mm 時）
+- [x] 7.2 低精度（0.5mm）偵測結果的 island 面積 ≥ 高精度結果（對常見幾何形狀驗證）
+- [x] 7.3 切換等級後正式切片輸出（`po.m_model_slices`）不改變
+- [x] 7.4 auto generate support points 的點數和位置與修改前完全相同（regression）
+- [x] 7.5 Detect Selected → Add Overhang Supports 的完整流程在三個等級下均正常運作
+- [x] 7.6 重複點擊 Detect Selected（不同等級）不會 crash 或 memory leak
