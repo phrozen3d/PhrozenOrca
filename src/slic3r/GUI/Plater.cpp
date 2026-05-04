@@ -12692,7 +12692,7 @@ void Plater::export_stl(bool extended, bool selection_only, bool multi_stls)
 
         const SLAPrintObject *object = this->p->sla_print.get_print_object_by_model_object_id(mo.id());
 
-        if (auto m = object->get_mesh_to_print(); m.empty())
+        if (auto m = object->get_mesh_to_slice(); m.empty())
             mesh = combine_mesh_fff(mo, instance_id, [this](const std::string& msg) {return get_notification_manager()->push_plater_error_notification(msg); });
         else {
             const Transform3d mesh_trafo_inv = object->trafo().inverse();
@@ -12732,7 +12732,7 @@ void Plater::export_stl(bool extended, bool selection_only, bool multi_stls)
                         inst_mesh.merge(inst_supports_mesh);
                     }
 
-                    TriangleMesh inst_object_mesh = object->get_mesh_to_print();
+                    TriangleMesh inst_object_mesh = object->get_mesh_to_slice();
 
                     inst_object_mesh.transform(mesh_trafo_inv);
                     inst_object_mesh.transform(inst_transform, is_left_handed);
