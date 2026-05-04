@@ -7123,14 +7123,14 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(68.));
 
     def = this->add("display_pixels_x", coInt);
-    //def->full_label = L("");
+    def->full_label = L("Resolution (pixels)");
     def->label = ("X");
     //def->tooltip = L("");
     def->min = 100;
     def->set_default_value(new ConfigOptionInt(2560));
 
     def = this->add("display_pixels_y", coInt);
-    //def->full_label = L("");
+    def->full_label = L("Resolution (pixels)");
     def->label = ("Y");
     //def->tooltip = L("");
     def->min = 100;

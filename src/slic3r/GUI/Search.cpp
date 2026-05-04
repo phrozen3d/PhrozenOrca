@@ -516,9 +516,11 @@ void SearchItem::on_mouse_left_up(wxMouseEvent &evt)
     //if (m_sdialog->prevent_list_events) return;
     // if (wxGetMouseState().LeftIsDown())
     if (m_sdialog) {
+        wxWindow *event_tag = m_sdialog->event_tag();
         m_sdialog->Die();
         wxCommandEvent event(wxCUSTOMEVT_JUMP_TO_OPTION);
         event.SetInt(m_index);
+        event.SetClientData(event_tag);
         wxPostEvent(GUI::wxGetApp().plater(), event);
     }
 

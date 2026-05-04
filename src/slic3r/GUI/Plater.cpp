@@ -74,6 +74,7 @@
 #include "GUI_ObjectList.hpp"
 #include "GUI_Utils.hpp"
 #include "GUI_Factories.hpp"
+#include "SLAPrinterSettingsDialog.hpp"
 #include "wxExtensions.hpp"
 #include "MainFrame.hpp"
 #include "format.hpp"
@@ -430,7 +431,8 @@ Sidebar::priv::~priv()
 void Sidebar::priv::show_preset_comboboxes()
 {
     const bool showSLA = wxGetApp().get_ui_printer_technology() == ptSLA;
-    const bool showEditButtons = !showSLA; // ptFFF only
+    const bool showPrinterEditButton = combo_printer && combo_printer->edit_btn;
+    const bool showOtherEditButtons = !showSLA; // ptFFF only
 
     // Show/Hide FDM panels (filament settings)
     if (m_panel_filament_title && m_panel_filament_content) {
@@ -457,13 +459,13 @@ void Sidebar::priv::show_preset_comboboxes()
             m_hsizer_sla_material_row->Show(!showSLA);
     }
 
-    // ptSLA: hide EDIT buttons next to Printer / SLA material dropdowns.
+    // ptSLA: keep Printer Settings entry visible, but hide other edit buttons.
     if (combo_printer && combo_printer->edit_btn)
-        combo_printer->edit_btn->Show(showEditButtons);
+        combo_printer->edit_btn->Show(showPrinterEditButton);
     if (combo_sla_print && combo_sla_print->edit_btn)
-        combo_sla_print->edit_btn->Show(showEditButtons);
+        combo_sla_print->edit_btn->Show(showOtherEditButtons);
     if (combo_sla_material && combo_sla_material->edit_btn)
-        combo_sla_material->edit_btn->Show(showEditButtons);
+        combo_sla_material->edit_btn->Show(showOtherEditButtons);
 
     update_sla_preset_sidebar_buttons();
 
@@ -822,6 +824,13 @@ Sidebar::Sidebar(Plater *parent)
         edit_btn->SetToolTip(_L("Click to edit preset"));
         edit_btn->Bind(wxEVT_BUTTON, [this, combo_printer](wxCommandEvent)
             {
+                if (wxGetApp().get_ui_printer_technology() == ptSLA) {
+                    SLAPrinterSettingsDialog dlg(this->GetParent());
+                    if (dlg.ShowModal() == wxID_OK)
+                        wxGetApp().sidebar().update_presets(Preset::TYPE_PRINTER);
+                    return;
+                }
+
                 p->editing_filament = -1;
                 if (combo_printer->switch_to_tab())
                     p->editing_filament = 0;
@@ -1932,7 +1941,7 @@ void Sidebar::search()
     p->searcher.search();
 }
 
-void Sidebar::jump_to_option(const std::string& opt_key, Preset::Type type, const std::wstring& category)
+void Sidebar::jump_to_option(const std::string& opt_key, Preset::Type type, const std::wstring& category, wxWindow *search_event_tag /* = nullptr */)
 {
     //const Search::Option& opt = p->searcher.get_option(opt_key, type);
     if (type == Preset::TYPE_PRINT) {
@@ -1943,13 +1952,19 @@ void Sidebar::jump_to_option(const std::string& opt_key, Preset::Type type, cons
         }
         wxGetApp().params_panel()->switch_to_global();
     }
-    wxGetApp().get_tab(type)->activate_option(opt_key, category);
+    const bool from_sla_printer_dlg = dynamic_cast<SLAPrinterSettingsDialog *>(search_event_tag) != nullptr;
+    if (from_sla_printer_dlg) {
+        auto *sla_dlg = static_cast<SLAPrinterSettingsDialog *>(search_event_tag);
+        if (sla_dlg->try_focus_printer_search_result(opt_key))
+            return;
+    }
+    wxGetApp().get_tab(type)->activate_option(opt_key, wxString(category), !from_sla_printer_dlg);
 }
 
-void Sidebar::jump_to_option(size_t selected)
+void Sidebar::jump_to_option(size_t selected, wxWindow *search_event_tag /* = nullptr */)
 {
     const Search::Option& opt = p->searcher.get_option(selected);
-    jump_to_option(opt.opt_key(), opt.type, opt.category);
+    jump_to_option(opt.opt_key(), opt.type, opt.category, search_event_tag);
 
     // Switch to the Settings NotePad
 //    wxGetApp().mainframe->select_tab();
@@ -3322,7 +3337,9 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
         // BBS: should bind BACKGROUND_PROCESS event to plater
         q->Bind(EVT_SCHEDULE_BACKGROUND_PROCESS, [this](SimpleEvent&) { this->schedule_background_process(); });
         // jump to found option from SearchDialog
-        q->Bind(wxCUSTOMEVT_JUMP_TO_OPTION, [this](wxCommandEvent& evt) { sidebar->jump_to_option(evt.GetInt()); });
+        q->Bind(wxCUSTOMEVT_JUMP_TO_OPTION, [this](wxCommandEvent& evt) {
+            sidebar->jump_to_option(evt.GetInt(), static_cast<wxWindow *>(evt.GetClientData()));
+        });
         q->Bind(wxCUSTOMEVT_JUMP_TO_OBJECT, [this](wxCommandEvent& evt) {
             auto client_data = evt.GetClientData();
             ObjectDataViewModelNode* data = static_cast<ObjectDataViewModelNode*>(client_data);

@@ -588,6 +588,8 @@ set(SLIC3R_GUI_SOURCES
     Utils/ProfileDescription.hpp
     GUI/PrinterCloudAuthDialog.cpp
     GUI/PrinterCloudAuthDialog.hpp
+    GUI/SLAPrinterSettingsDialog.cpp
+    GUI/SLAPrinterSettingsDialog.hpp
     Utils/Obico.cpp
     Utils/Obico.hpp
     Utils/Flashforge.cpp

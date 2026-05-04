@@ -225,6 +225,8 @@ public:
     void Die();
     void msw_rescale();
 
+    wxWindow *event_tag() const { return m_event_tag; }
+
 };
 
 // ----------------------------------------------------------------------------

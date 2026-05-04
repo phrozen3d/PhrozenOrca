@@ -145,8 +145,8 @@ public:
     void msw_rescale();
     void sys_color_changed();
     void search();
-    void jump_to_option(size_t selected);
-    void jump_to_option(const std::string& opt_key, Preset::Type type, const std::wstring& category);
+    void jump_to_option(size_t selected, wxWindow *search_event_tag = nullptr);
+    void jump_to_option(const std::string& opt_key, Preset::Type type, const std::wstring& category, wxWindow *search_event_tag = nullptr);
     // BBS. Add on_filaments_change() method.
     void on_filaments_change(size_t num_filaments);
     void add_filament();

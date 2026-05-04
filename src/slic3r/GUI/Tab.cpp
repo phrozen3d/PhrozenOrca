@@ -1881,7 +1881,7 @@ void Tab::update_wiping_button_visibility() {
 
 }
 
-void Tab::activate_option(const std::string& opt_key, const wxString& category)
+void Tab::activate_option(const std::string& opt_key, const wxString& category, bool switch_main_frame_tab /* = true */)
 {
     wxString page_title = translate_category(category, m_type);
 
@@ -1893,7 +1893,8 @@ void Tab::activate_option(const std::string& opt_key, const wxString& category)
     // And do it before finding of the cur_item to avoid a case when Tab isn't activated jet and all treeItems are invisible
     //BBS: GUI refactor
     //wxGetApp().mainframe->select_tab(this);
-    wxGetApp().mainframe->select_tab((wxPanel*)m_parent);
+    if (switch_main_frame_tab)
+        wxGetApp().mainframe->select_tab((wxPanel*)m_parent);
 
     while (cur_item >= 0) {
         if (page_title.empty()) {
