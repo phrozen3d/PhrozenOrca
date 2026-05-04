@@ -15,9 +15,9 @@
 
 ## 2. 後端：保護 `prepare_for_generate_supports()` 不受影響
 
-- [ ] 2.1 確認 `prepare_for_generate_supports()` 仍使用 `po.m_model_height_levels`（原始切片高度），不接觸任何偵測用資料
-- [ ] 2.2 確認 `support_points()` 的 auto generate 路徑仍使用 `po.m_support_point_generator_data`，與 island detection 路徑完全獨立
-- [ ] 2.3 移除或調整 `slice_model()` 末段的原始 island 提取邏輯（原本以 `po.m_model_height_levels` 切片的提取），改為不在 `slice_model()` 提取（由 Gizmo 按需觸發）
+- [x] 2.1 確認 `prepare_for_generate_supports()` 仍使用 `po.m_model_height_levels`（原始切片高度），不接觸任何偵測用資料
+- [x] 2.2 確認 `support_points()` 的 auto generate 路徑仍使用 `po.m_support_point_generator_data`，與 island detection 路徑完全獨立
+- [x] 2.3 移除或調整 `slice_model()` 末段的原始 island 提取邏輯（原本以 `po.m_model_height_levels` 切片的提取），改為不在 `slice_model()` 提取（由 Gizmo 按需觸發）
 
 **驗收**：auto generate support points 的點數和位置與修改前完全相同。
 

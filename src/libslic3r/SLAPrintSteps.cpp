@@ -744,32 +744,15 @@ void SLAPrint::Steps::slice_model(SLAPrintObject &po)
         po.m_supportdata.reset(new SLAPrintObject::SupportData(po.get_mesh_to_print()));
     }
 
-    // Step A5.2: Pre-compute support generator data and extract island contours.
-    // Runs unconditionally so that island detection is available regardless of
-    // generate_support setting. support_points() reuses the cached data when
-    // generate_support=true, avoiding duplicate computation.
-    prepare_for_generate_supports(po);
+    // Step A5.2: Pre-compute support generator data when needed.
+    // support_points() also has a fallback guard, but pre-computing here avoids
+    // repeating the work when both generate_support and island detection are used.
+    if (po.m_config.generate_support.getBool() || po.m_config.pad_enable.getBool())
+        prepare_for_generate_supports(po);
 
-    {
-        sla::IslandContourSet cs;
-        for (const sla::Layer& layer : po.m_support_point_generator_data.layers) {
-            for (const sla::LayerPart& part : layer.parts) {
-                if (part.shape == nullptr || !part.prev_parts.empty())
-                    continue;
-                sla::IslandContour ic;
-                ic.print_z = layer.print_z;
-                ic.contour = *part.shape;
-                ic.area    = float(unscale<double>(unscale<double>(part.shape->area())));
-                cs.islands.push_back(std::move(ic));
-            }
-        }
-        cs.valid = true;
-        po.set_island_contours(std::move(cs));
-
-        BOOST_LOG_TRIVIAL(info) << "Island contours: "
-                                << po.island_contours().islands.size()
-                                << " islands found";
-    }
+    // Island contours are no longer extracted here.
+    // They are built on demand via SLAPrint::redetect_islands() when the user
+    // clicks "Detect Selected" in GLGizmoLcdOverhangDetection.
 }
 
 // Step A5.1: Pre-compute layer connectivity and island data for the support generator.
