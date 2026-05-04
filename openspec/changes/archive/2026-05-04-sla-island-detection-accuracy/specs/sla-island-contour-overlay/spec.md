@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Island contours extracted after auto-generate
 After re-slicing at the selected detection layer height completes, the system SHALL extract all `LayerPart` entries where `prev_parts.empty() == true` from the temporary `SupportPointGeneratorData.layers`, pair each with its `print_z`, and store them as an `IslandContourSet` in `SLAPrintObject`. Island contours with area below the configured minimum threshold SHALL be excluded. The detection layer height is determined by the current `DetectionAccuracy` level (High=0.05mm, Medium=0.1mm, Low=0.5mm) and is independent of the print layer height.
@@ -22,32 +22,3 @@ After re-slicing at the selected detection layer height completes, the system SH
 - **WHEN** the user modifies model geometry or support settings causing `slaposObjectSlice` to be invalidated
 - **THEN** `SLAPrintObject::clear_island_contours()` SHALL be called
 - **THEN** `island_contours().valid` SHALL be `false` until Detect Selected is re-run
-
-### Requirement: Island overlay rendered in 3D view
-When the SLA Support Gizmo is active and island contour data is valid, `GLGizmoSlaSupports` SHALL render a semi-transparent colored polygon overlay on the model surface at each island location.
-
-#### Scenario: Overlay visible with valid data
-- **WHEN** the SLA Support Gizmo is active AND `island_contours().valid == true`
-- **THEN** colored semi-transparent polygons SHALL appear on the model surface covering each island region
-
-#### Scenario: Overlay uses island color at 40% alpha
-- **WHEN** island contour polygons are rendered
-- **THEN** the color SHALL be `ColorRGBA(1.0f, 0.85f, 0.2f, 0.4f)` (bright yellow-orange, alpha 40%)
-- **THEN** `GL_DEPTH_TEST` SHALL be disabled so the overlay is always visible regardless of viewing angle
-
-#### Scenario: Overlay uses Z offset to avoid Z-fighting
-- **WHEN** island contour meshes are built via `triangulate_expolygon_3d()`
-- **THEN** each polygon SHALL be placed at `print_z + 0.05f` mm above the layer surface
-
-#### Scenario: Overlay absent when Gizmo is inactive
-- **WHEN** the user exits the SLA Support Gizmo
-- **THEN** no island overlay polygons SHALL be rendered
-
-### Requirement: Overlay updates on re-generate
-When auto-generate is re-run, the island overlay SHALL reflect the new result.
-
-#### Scenario: Overlay refreshes after re-generate
-- **WHEN** the user modifies support density and re-runs auto-generate
-- **THEN** the previous island overlay SHALL be cleared
-- **THEN** a new overlay SHALL be built from the updated `IslandContourSet`
-- **THEN** the overlay SHALL update without requiring the Gizmo to be closed and re-opened
