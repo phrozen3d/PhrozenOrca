@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include "libslic3r/GCode/ThumbnailData.hpp"
 
 namespace Slic3r {
 
@@ -9,7 +10,8 @@ class DynamicPrintConfig;
 
 // Generate a complete PRZ format binary string from a finished SLAPrint.
 // m_layer_images must already be populated (call after slapsRasterize).
-std::string generate_prz(const SLAPrint &print);
+// Optionally pass a rendered thumbnail (RGBA) to embed as PRZ preview images.
+std::string generate_prz(const SLAPrint &print, const ThumbnailData *thumb = nullptr);
 
 // Calculate estimated print time in seconds using the full physics model
 // (exposure + lift/retract motion + rest times). Can be called before

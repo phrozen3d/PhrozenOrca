@@ -6,6 +6,7 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <libslic3r/SLAPrint.hpp>
 #include <libslic3r/PrintConfig.hpp>
@@ -59,7 +60,7 @@ static void write_be(std::string &fh, T val)
 int calculate_prz_print_time(int                       total_layers,
                              const DynamicPrintConfig &cfg)
 {
-    // speed == 0 → treat that motion segment as 0 s (avoid divide-by-zero)
+    // speed == 0 ??treat that motion segment as 0 s (avoid divide-by-zero)
     auto motion_s = [](float dist_mm, float speed_mm_min) -> float {
         if (speed_mm_min <= 0.f) return 0.f;
         return dist_mm / speed_mm_min * 60.f;
@@ -140,9 +141,10 @@ int calculate_prz_print_time(int                       total_layers,
 // ---------------------------------------------------------------------------
 // PRZ Header  (mirrors Slicer::PrzHeader)
 // ---------------------------------------------------------------------------
-static void prz_header(std::string             &fh,
-                       const SLAPrint          &print,
-                       const DynamicPrintConfig &cfg)
+static void prz_header(std::string              &fh,
+                       const SLAPrint           &print,
+                       const DynamicPrintConfig  &cfg,
+                       const ThumbnailData       *thumb)
 {
     const SLAPrinterConfig &pcfg = print.printer_config();
 
@@ -237,14 +239,23 @@ static void prz_header(std::string             &fh,
         write_be(fh, v);
         layerContent_position_offset += 2;
     }
-    // Preview 116×116 (RGB565 big-endian, from PreviewImage_116_116.png or zeros)
+    // Preview 116?116 (RGB565 big-endian, from rendered thumbnail or PreviewImage_116_116.png or zeros)
     {
         const int W = 116, H = 116;
         const int sz = W * H * 2;
-        std::string preview_path = cfg_s(cfg, "preview_image_path");
         cv::Mat image;
-        if (!preview_path.empty())
-            image = cv::imread(preview_path + "/PreviewImage_116_116.png");
+        if (thumb && thumb->is_valid()) {
+            cv::Mat rgba(thumb->height, thumb->width, CV_8UC4,
+                         const_cast<unsigned char *>(thumb->pixels.data()));
+            cv::cvtColor(rgba, image, cv::COLOR_RGBA2BGR);
+            cv::flip(image, image, 0);
+            if (image.cols != W || image.rows != H)
+                cv::resize(image, image, cv::Size(W, H), 0, 0, cv::INTER_AREA);
+        } else {
+            std::string preview_path = cfg_s(cfg, "preview_image_path");
+            if (!preview_path.empty())
+                image = cv::imread(preview_path + "/PreviewImage_116_116.png");
+        }
         if (!image.empty() && image.rows >= H && image.cols >= W) {
             std::vector<cv::Mat> bgr;
             cv::split(image, bgr);
@@ -268,14 +279,23 @@ static void prz_header(std::string             &fh,
         fh += '\r'; fh += '\n';
         layerContent_position_offset += 2;
     }
-    // Preview 290×290 (RGB565 big-endian, from PreviewImage_290_290.png or zeros)
+    // Preview 290?290 (RGB565 big-endian, from rendered thumbnail or PreviewImage_290_290.png or zeros)
     {
         const int W = 290, H = 290;
         const int sz = W * H * 2;
-        std::string preview_path = cfg_s(cfg, "preview_image_path");
         cv::Mat image;
-        if (!preview_path.empty())
-            image = cv::imread(preview_path + "/PreviewImage_290_290.png");
+        if (thumb && thumb->is_valid()) {
+            cv::Mat rgba(thumb->height, thumb->width, CV_8UC4,
+                         const_cast<unsigned char *>(thumb->pixels.data()));
+            cv::cvtColor(rgba, image, cv::COLOR_RGBA2BGR);
+            cv::flip(image, image, 0);
+            if (image.cols != W || image.rows != H)
+                cv::resize(image, image, cv::Size(W, H), 0, 0, cv::INTER_AREA);
+        } else {
+            std::string preview_path = cfg_s(cfg, "preview_image_path");
+            if (!preview_path.empty())
+                image = cv::imread(preview_path + "/PreviewImage_290_290.png");
+        }
         if (!image.empty() && image.rows >= H && image.cols >= W) {
             std::vector<cv::Mat> bgr;
             cv::split(image, bgr);
@@ -313,9 +333,9 @@ static void prz_header(std::string             &fh,
         write_be(fh, yr);
         layerContent_position_offset += 4;
     }
-    // Xmirror (1 byte): mirror_x=false → 1; true → 0
+    // Xmirror (1 byte): mirror_x=false ??1; true ??0
     { fh += static_cast<char>(pcfg.display_mirror_x.getBool() ? 0 : 1); layerContent_position_offset += 1; }
-    // Ymirror (1 byte): mirror_y=false → 0; true → 1
+    // Ymirror (1 byte): mirror_y=false ??0; true ??1
     { fh += static_cast<char>(pcfg.display_mirror_y.getBool() ? 1 : 0); layerContent_position_offset += 1; }
     // PlatformXLength (4 bytes, float, mm)
     { float v = static_cast<float>(pcfg.display_height.getFloat());  write_be(fh, v); layerContent_position_offset += 4; }
@@ -544,9 +564,9 @@ static void prz_layer_content(std::string              &fh,
 
 // ---------------------------------------------------------------------------
 // Main entry point  (mirrors Slicer::getPRZString2)
-// encode_pixels replaced by direct cv::Mat pixel scan — no intermediate vector
+// encode_pixels replaced by direct cv::Mat pixel scan ??no intermediate vector
 // ---------------------------------------------------------------------------
-std::string generate_prz(const SLAPrint &print)
+std::string generate_prz(const SLAPrint &print, const ThumbnailData *thumb)
 {
     const auto &layer_images = print.layer_images();
     if (layer_images.empty())
@@ -564,7 +584,7 @@ std::string generate_prz(const SLAPrint &print)
     std::string out;
     out.reserve(64 * 1024 * 1024);
 
-    prz_header(out, print, cfg);
+    prz_header(out, print, cfg, thumb);
 
     const size_t layerSize = layer_images.size();
 
@@ -619,7 +639,7 @@ std::string generate_prz(const SLAPrint &print)
             }
         };
 
-        // Scan pixels directly — no intermediate encode_pixels vector
+        // Scan pixels directly ??no intermediate encode_pixels vector
         if (total > 0) {
             uchar cur   = data[0];
             int   count = 1;

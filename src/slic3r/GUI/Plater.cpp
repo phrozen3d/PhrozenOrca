@@ -12417,7 +12417,13 @@ void Plater::export_prz(bool prefer_removable)
         }
 
         try {
-            std::string prz_data = Slic3r::generate_prz(sla_print());
+            ThumbnailData thumb;
+            {
+                const ThumbnailsParams params = { {}, false, true, true, true,
+                    p->partplate_list.get_curr_plate_index() };
+                p->generate_thumbnail(thumb, 290, 290, params, Camera::EType::Ortho);
+            }
+            std::string prz_data = Slic3r::generate_prz(sla_print(), thumb.is_valid() ? &thumb : nullptr);
             std::ofstream ofs(output_path.string(), std::ios::binary);
             if (!ofs) {
                 show_error(this, _L("Cannot open file for writing:") + "\n" + output_path.string());
