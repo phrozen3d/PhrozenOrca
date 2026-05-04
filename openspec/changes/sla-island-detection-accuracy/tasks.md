@@ -25,13 +25,13 @@
 
 ## 3. Gizmo：DetectionAccuracy 對應 detect_lh
 
-- [ ] 3.1 在 `GLGizmoLcdOverhangDetection.cpp` 新增 `accuracy_to_layer_height(DetectionAccuracy acc) -> float`：
+- [x] 3.1 在 `GLGizmoLcdOverhangDetection.cpp` 新增 `accuracy_to_layer_height(DetectionAccuracy acc) -> float`：
   ```
   High   → 0.05f
   Middle → 0.1f
   Low    → 0.5f
   ```
-- [ ] 3.2 在 `sync_island_data_for_object(int obj_idx)` 中，改為呼叫 `wxGetApp().plater()->sla_print().redetect_islands(mo->id(), detect_lh)` 觸發偵測（Task 5 實作的公開入口），再讀取 `po->island_contours()` 取得結果
+- [x] 3.2 在 `sync_island_data_for_object(int obj_idx)` 中，改為呼叫 `wxGetApp().plater()->sla_print().redetect_islands(mo->id(), detect_lh)` 觸發偵測（Task 5 實作的公開入口），再讀取 `po->island_contours()` 取得結果
 
 ---
 

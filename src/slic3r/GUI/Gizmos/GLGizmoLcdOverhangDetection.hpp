@@ -93,6 +93,9 @@ private:
 
     int m_support_threshold_angle = -1;
 
+    // Returns the detection layer height corresponding to the given accuracy level.
+    float accuracy_to_layer_height(DetectionAccuracy acc) const;
+
     // Island data layer
     void sync_all_objects_names();
     void sync_island_data_for_object(int obj_idx);

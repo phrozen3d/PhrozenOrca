@@ -983,6 +983,16 @@ void GLGizmoLcdOverhangDetection::generate_support_volume()
 
 // ── Island data layer ──────────────────────────────────────────────────────
 
+float GLGizmoLcdOverhangDetection::accuracy_to_layer_height(DetectionAccuracy acc) const
+{
+    switch (acc) {
+    case Accuracy_High:   return 0.05f;
+    case Accuracy_Middle: return 0.10f;
+    case Accuracy_Low:    return 0.50f;
+    default:              return 0.10f;
+    }
+}
+
 void GLGizmoLcdOverhangDetection::sync_all_objects_names()
 {
     m_model_names.clear();
@@ -1003,6 +1013,16 @@ void GLGizmoLcdOverhangDetection::sync_island_data_for_object(int obj_idx)
     const auto& objs = sla_print->objects();
     if (obj_idx < 0 || obj_idx >= (int)objs.size())
         return;
+
+    const ModelObject* mo = objs[obj_idx]->model_object();
+    if (!mo)
+        return;
+
+    // Trigger on-demand re-slice at the layer height matching the current accuracy level.
+    const float detect_lh = accuracy_to_layer_height(m_detection_accuracy);
+    wxGetApp().plater()->sla_print().redetect_islands(mo->id(), detect_lh);
+
+    // Read back the updated island contours.
     m_island_data_per_object[obj_idx] = objs[obj_idx]->island_contours();
 }
 
