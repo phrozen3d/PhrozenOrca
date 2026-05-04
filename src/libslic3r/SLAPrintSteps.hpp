@@ -67,6 +67,11 @@ public:
     
     void merge_slices_and_eval_stats();
     void rasterize();
+
+    // On-demand island detection at a custom layer height.
+    // Called by SLAPrint::redetect_islands(); does NOT modify m_model_slices
+    // or m_support_point_generator_data.
+    void prepare_island_detection(SLAPrintObject &po, float detect_lh);
     
     void execute(SLAPrintObjectStep step, SLAPrintObject &obj);
     void execute(SLAPrintStep step);

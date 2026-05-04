@@ -719,6 +719,16 @@ void SLAPrint::set_task(const TaskParams &params)
     }
 }
 
+void SLAPrint::redetect_islands(ObjectID obj_id, float detect_lh)
+{
+    auto it = std::find_if(m_objects.begin(), m_objects.end(),
+        [&obj_id](SLAPrintObject *po) { return po->model_object()->id() == obj_id; });
+    if (it == m_objects.end())
+        return;
+    Steps steps(this);
+    steps.prepare_island_detection(**it, detect_lh);
+}
+
 // Clean up after process() finished, either with success, error or if canceled.
 // The adjustments on the SLAPrint / SLAPrintObject data due to set_task() are to be reverted here.
 void SLAPrint::finalize()

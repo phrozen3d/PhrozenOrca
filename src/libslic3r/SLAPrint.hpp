@@ -536,6 +536,11 @@ public:
     // Return sla tansformation for a given model_object
     Transform3d sla_trafo(const ModelObject &model_object) const;
 
+    // On-demand island detection at a custom layer height.
+    // Re-slices the CSG mesh at detect_lh without modifying m_model_slices or
+    // m_support_point_generator_data. Results are written to the object's island_contours().
+    void redetect_islands(ObjectID obj_id, float detect_lh);
+
 	std::string                 output_filename(const std::string &filename_base = std::string()) const override;
 
     const SLAPrintStatistics&   print_statistics() const { return m_print_statistics; }

@@ -791,6 +791,78 @@ void SLAPrint::Steps::prepare_for_generate_supports(SLAPrintObject &po)
     );
 }
 
+// Build a uniform Z-height grid for island detection at a custom layer height.
+// Mirrors the logic in slice_model() but uses detect_lh for all layers and
+// does NOT write any result into po — the output is consumed by prepare_island_detection().
+static std::vector<float> build_detection_height_levels(
+    const BoundingBoxf3 &bb3d,
+    float detect_lh,
+    float elevation)
+{
+    const coord_t lhs  = scaled(double(detect_lh));
+    const double  minZ = bb3d.min(Z) - double(elevation);
+    const double  maxZ = bb3d.max(Z);
+    const coord_t minZs = scaled(minZ);
+    const coord_t maxZs = scaled(maxZ);
+
+    std::vector<float> heights;
+    heights.reserve(size_t(1 + (maxZs - minZs) / lhs));
+    for (coord_t h = minZs + lhs; h <= maxZs; h += lhs)
+        heights.push_back(unscaled<float>(h) - detect_lh / 2.f);
+    return heights;
+}
+
+// On-demand island detection using a custom layer height.
+// Re-slices po.m_mesh_to_slice at detect_lh, builds temporary SupportPointGeneratorData,
+// extracts islands, and writes the result to po.m_island_contours.
+// po.m_model_slices and po.m_support_point_generator_data are NOT modified.
+void SLAPrint::Steps::prepare_island_detection(SLAPrintObject &po, float detect_lh)
+{
+    const auto bb3d = po.transformed_mesh().bounding_box();
+    std::vector<float> detect_heights =
+        build_detection_height_levels(bb3d, detect_lh, float(po.get_elevation()));
+
+    if (detect_heights.empty()) {
+        po.clear_island_contours();
+        return;
+    }
+
+    MeshSlicingParamsEx params;
+    params.closing_radius = float(po.config().slice_closing_radius.value);
+    params.mode = MeshSlicingParams::SlicingMode::Regular;
+    auto thr = [this]() { throw_if_canceled(); };
+
+    auto csg_range = Range{po.m_mesh_to_slice.cbegin(), po.m_mesh_to_slice.cend()};
+    std::vector<ExPolygons> detect_slices =
+        csg::slice_csgmesh_ex(csg_range, detect_heights, params, thr);
+
+    sla::PrepareSupportConfig prep_cfg;
+    sla::SupportPointGeneratorData temp_data = sla::prepare_generator_data(
+        std::move(detect_slices),
+        detect_heights,
+        prep_cfg,
+        [this]() { throw_if_canceled(); }
+    );
+
+    sla::IslandContourSet cs;
+    for (const sla::Layer &layer : temp_data.layers) {
+        for (const sla::LayerPart &part : layer.parts) {
+            if (part.shape == nullptr || !part.prev_parts.empty())
+                continue;
+            sla::IslandContour ic;
+            ic.print_z = layer.print_z;
+            ic.contour = *part.shape;
+            ic.area    = float(unscale<double>(unscale<double>(part.shape->area())));
+            cs.islands.push_back(std::move(ic));
+        }
+    }
+    cs.valid = true;
+    po.set_island_contours(std::move(cs));
+
+    BOOST_LOG_TRIVIAL(info) << "Island detection (lh=" << detect_lh << "mm): "
+                            << po.island_contours().islands.size() << " islands found";
+}
+
 // In this step we check the slices, identify island and cover them with
 // support points. Then we sprinkle the rest of the mesh.
 void SLAPrint::Steps::support_points(SLAPrintObject &po)
