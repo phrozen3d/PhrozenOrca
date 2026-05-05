@@ -22,6 +22,7 @@ public:
 
     void render_painter_gizmo() override;
     void on_render() override;
+    bool on_mouse(const wxMouseEvent& mouse_event) override;
 
     //BBS: add edit state
     enum EditState {
@@ -105,6 +106,12 @@ private:
     void sync_island_data_for_object(int obj_idx);
     void sync_island_data_for_all();
     void rebuild_overhang_area_index_map(bool all_objects);
+
+    // Navigation (orbit / pan) — replaces painter-base painting on mouse events
+    Vec3d compute_orbit_center() const;
+    bool  m_nav_dragging     = false;
+    Vec2d m_nav_drag_start   = Vec2d::Zero();
+    Vec3d m_nav_orbit_center = Vec3d::Zero();
 
     // Island GL visualization — colors
     static ColorRGBA island_contour_color()  { return { 1.0f, 0.5f,  0.0f,  0.75f }; } // orange flat original contour

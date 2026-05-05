@@ -311,15 +311,26 @@ protected:
 
     TriangleSelector::ClippingPlane get_clipping_plane_in_volume_coordinates(const Transform3d &trafo) const;
 
+    // Raycast cache — accessible to derived classes that need surface hit detection
+    // without rendering the sphere cursor (e.g. GLGizmoLcdOverhangDetection).
+    struct RaycastResult {
+        Vec2d  mouse_position;
+        int    mesh_id;
+        Vec3f  hit;
+        size_t facet;
+    };
+    mutable RaycastResult m_rr = {Vec2d::Zero(), -1, Vec3f::Zero(), 0};
+
+    void update_raycast_cache(const Vec2d& mouse_position,
+                              const Camera& camera,
+                              const std::vector<Transform3d>& trafo_matrices) const;
+
 private:
     std::vector<std::vector<ProjectedMousePosition>> get_projected_mouse_positions(const Vec2d &mouse_position, double resolution, const std::vector<Transform3d> &trafo_matrices) const;
 
     std::vector<ProjectedHeightRange> get_projected_height_range(const Vec2d& mouse_position, double resolution, const std::vector<const ModelVolume*>& part_volumes, const std::vector<Transform3d>& trafo_matrices) const;
 
     bool is_mesh_point_clipped(const Vec3d& point, const Transform3d& trafo) const;
-    void update_raycast_cache(const Vec2d& mouse_position,
-                              const Camera& camera,
-                              const std::vector<Transform3d>& trafo_matrices) const;
 
     static std::shared_ptr<GLModel> s_sphere;
 
@@ -329,17 +340,6 @@ private:
 
     Button m_button_down = Button::None;
     EState m_old_state = Off; // to be able to see that the gizmo has just been closed (see on_set_state)
-
-    // Following cache holds result of a raycast query. The queries are asked
-    // during rendering the sphere cursor and painting, this saves repeated
-    // raycasts when the mouse position is the same as before.
-    struct RaycastResult {
-        Vec2d mouse_position;
-        int mesh_id;
-        Vec3f hit;
-        size_t facet;
-    };
-    mutable RaycastResult m_rr = {Vec2d::Zero(), -1, Vec3f::Zero(), 0};
 
     // BBS
     struct CutContours

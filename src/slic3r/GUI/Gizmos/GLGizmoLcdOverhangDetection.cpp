@@ -174,7 +174,19 @@ void GLGizmoLcdOverhangDetection::render_painter_gizmo()
 
     m_c->object_clipper()->render_cut();
     m_c->instances_hider()->render_cut();
-    render_cursor();
+    // No sphere cursor rendered. Update raycast cache so m_rr stays current for
+    // on_mouse() orbit-center computation.
+    const ModelObject* mo_rc = m_c->selection_info()->model_object();
+    if (mo_rc) {
+        const ModelInstance* mi_rc = mo_rc->instances[m_parent.get_selection().get_instance_idx()];
+        std::vector<Transform3d> trafos;
+        for (const ModelVolume* mv : mo_rc->volumes)
+            if (mv->is_model_part())
+                trafos.emplace_back(mi_rc->get_transformation().get_matrix() * mv->get_matrix());
+        if (!trafos.empty())
+            update_raycast_cache(m_parent.get_local_mouse_position(),
+                                 wxGetApp().plater()->get_camera(), trafos);
+    }
 
     glsafe(::glDisable(GL_BLEND));
 }
@@ -182,6 +194,69 @@ void GLGizmoLcdOverhangDetection::render_painter_gizmo()
 void GLGizmoLcdOverhangDetection::on_render()
 {
     render_island_contours();
+}
+
+Vec3d GLGizmoLcdOverhangDetection::compute_orbit_center() const
+{
+    // If m_rr has a valid surface hit, convert from mesh local space to world space.
+    if (m_rr.mesh_id >= 0) {
+        const ModelObject* mo = m_c->selection_info()->model_object();
+        if (mo) {
+            const ModelInstance* mi = mo->instances[m_parent.get_selection().get_instance_idx()];
+            int vol_idx = 0;
+            for (const ModelVolume* mv : mo->volumes) {
+                if (mv->is_model_part()) {
+                    if (vol_idx == m_rr.mesh_id) {
+                        const Transform3d trafo = mi->get_transformation().get_matrix() * mv->get_matrix();
+                        return trafo * m_rr.hit.cast<double>();
+                    }
+                    ++vol_idx;
+                }
+            }
+        }
+    }
+    // Fallback: selection bounding box center.
+    return m_parent.get_selection().get_bounding_box().center();
+}
+
+bool GLGizmoLcdOverhangDetection::on_mouse(const wxMouseEvent& mouse_event)
+{
+    // Island Detection gizmo has no painting. Left-drag orbits around the surface
+    // hit point; right-drag and middle-drag are handled by the canvas (pan).
+
+    if (mouse_event.Moving())
+        return false;
+
+    if (mouse_event.LeftDown()) {
+        m_nav_orbit_center = compute_orbit_center();
+        m_nav_drag_start   = Vec2d(mouse_event.GetX(), mouse_event.GetY());
+        m_nav_dragging     = true;
+        return true;  // consume so canvas does not select/move objects
+    }
+
+    if (mouse_event.Dragging() && m_nav_dragging && mouse_event.LeftIsDown()) {
+        const Vec2d cur   = Vec2d(mouse_event.GetX(), mouse_event.GetY());
+        const Vec2d delta = cur - m_nav_drag_start;
+        m_nav_drag_start  = cur;
+
+        Camera& camera = wxGetApp().plater()->get_camera();
+        const std::string mult_str = wxGetApp().app_config->get("camera_orbit_mult");
+        const double      mult     = mult_str.empty() ? 1.0 : std::stod(mult_str);
+        // Same formula as GLCanvas3D orbit: pixel delta → radians
+        // rot.x = horizontal delta → azimuth; rot.y = vertical delta → zenith
+        const Vec3d rot = Vec3d(delta.x(), delta.y(), 0.) * (M_PI * 0.8 / 180.) * mult;
+        camera.rotate_on_sphere_with_target(rot.x(), rot.y(), false, m_nav_orbit_center);
+        m_parent.set_as_dirty();
+        return true;
+    }
+
+    if (mouse_event.LeftUp()) {
+        m_nav_dragging = false;
+        return true;
+    }
+
+    // Right / middle button: return false so canvas handles pan normally.
+    return false;
 }
 
 // BBS
