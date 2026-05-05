@@ -52,7 +52,8 @@ bool GLGizmoHollow::on_init()
 {
     m_shortcut_key = WXK_CONTROL_H;
     // offset / quality / closing_distance labels are set from config defs inside render_hollow_panel
-    m_desc["hp_preview"]      = _(L("Preview"));
+    m_desc["hp_hollow"] = _(L("Hollow"));
+    m_desc["hp_remove"] = _(L("Remove"));
 
     return true;
 }
@@ -222,6 +223,15 @@ void GLGizmoHollow::on_render_input_window(float x, float y, float bottom_limit)
         m_enable_hollowing = static_cast<const ConfigOptionBool*>(opts[0].first)->value;
     }
 
+    // Reset pending params when object changes (discards unapplied adjustments)
+    if (mo != m_pending_owner) {
+        auto p_opts = get_config_options({"hollowing_min_thickness", "hollowing_quality", "hollowing_closing_distance"});
+        m_pending_offset    = static_cast<const ConfigOptionFloat*>(p_opts[0].first)->value;
+        m_pending_quality   = static_cast<const ConfigOptionFloat*>(p_opts[1].first)->value;
+        m_pending_closing_d = static_cast<const ConfigOptionFloat*>(p_opts[2].first)->value;
+        m_pending_owner     = mo;
+    }
+
     ConfigOptionMode current_mode = wxGetApp().get_mode();
     bool config_changed = false;
     render_hollow_panel(x, y, mo, current_mode, config_changed);
@@ -298,7 +308,9 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
 {
     const float scale = m_parent.get_scale();
 
-    // Re-fetch hollowing config so the panel always reflects current values.
+    // Fetch config defs for labels, ranges, and mode thresholds.
+    // Values are kept in m_pending_* (initialized from config on object change, written to
+    // config only when the Hollow button is pressed — not on every slider interaction).
     std::vector<std::string> opts_keys = {"hollowing_min_thickness", "hollowing_quality", "hollowing_closing_distance"};
     auto opts = get_config_options(opts_keys);
 
@@ -307,9 +319,9 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
     m_desc["quality"]          = _(opts[1].second->label) + ":";
     m_desc["closing_distance"] = _(opts[2].second->label) + ":";
 
-    float offset    = static_cast<const ConfigOptionFloat*>(opts[0].first)->value;
-    float quality   = static_cast<const ConfigOptionFloat*>(opts[1].first)->value;
-    float closing_d = static_cast<const ConfigOptionFloat*>(opts[2].first)->value;
+    float& offset    = m_pending_offset;
+    float& quality   = m_pending_quality;
+    float& closing_d = m_pending_closing_d;
     const float offset_min    = (float)opts[0].second->min;
     const float offset_max    = (float)opts[0].second->max;
     const float quality_min   = (float)opts[1].second->min;
@@ -331,11 +343,11 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
         m_imgui->calc_text_size(m_desc.at("closing_distance")).x
     }) + m_imgui->scaled(1.5f);
 
-    // Total slider-row content width — used to right-align the header checkbox
-    const float row_w = label_col_w + slider_w + spacing_x + value_box_w;
-
     const float fp    = ImGui::GetStyle().FramePadding.x * 2.f;
-    const float btn_w = m_imgui->calc_text_size(m_desc.at("hp_preview")).x + fp + m_imgui->scaled(1.f);
+    const float btn_w = std::max(
+        m_imgui->calc_text_size(m_desc.at("hp_hollow")).x,
+        m_imgui->calc_text_size(m_desc.at("hp_remove")).x
+    ) + fp + m_imgui->scaled(1.f);
 
     ImGuiWrapper::push_toolbar_style(scale);
 
@@ -345,131 +357,53 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize |
                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
 
-    // Row 1: "Hollow object when slicing" label on left, BBL-styled checkbox on right edge
-    {
-        m_imgui->disabled_begin(!is_input_enabled());
-        m_imgui->text(_(L("Hollow object when slicing")));
-        ImGui::SameLine(row_w - ImGui::GetFrameHeight());
-        bool local_enable = m_enable_hollowing;
-        const bool was_enabled = local_enable;  // snapshot before BBLCheckbox may change it
-        if (was_enabled) {
-            ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.91f, 0.42f, 0.13f, 1.00f));  // orange fill
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.91f, 0.42f, 0.13f, 1.00f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBgActive,  ImVec4(0.91f, 0.42f, 0.13f, 1.00f));
-            ImGui::PushStyleColor(ImGuiCol_CheckMark,      ImVec4(1.00f, 1.00f, 1.00f, 1.00f));  // white checkmark
-        }
-        if (ImGui::BBLCheckbox("##hp_enable", &local_enable)) {
-            mo->config.set("hollowing_enable", local_enable);
-            m_enable_hollowing = local_enable;
-            wxGetApp().obj_list()->update_and_show_object_settings_item();
-            config_changed = true;
-        }
-        if (was_enabled)  // must match push condition exactly
-            ImGui::PopStyleColor(4);
-        m_imgui->disabled_end();
-    }
-
-    // Rows 2–4: hollowing params — disabled when hollow off or input disabled
-    const bool hollow_active = is_input_enabled() && m_enable_hollowing;
+    // Rows 2–4: hollowing params — always enabled when input is available
+    const bool hollow_active = is_input_enabled();
     m_imgui->disabled_begin(!hollow_active);
-
-    // Slider interaction state — aggregate across all three param sliders
-    bool slider_clicked  = false;
-    bool slider_edited   = false;
-    bool slider_released = false;
-    static bool hp_was_editing = false;  // tracks whether a drag edit occurred during current active period
 
     // Row 2: Wall thickness — slider range == config range; InputFloat allows same range
     ImGui::AlignTextToFramePadding();
     m_imgui->text(m_desc.at("offset"));
     ImGui::SameLine(label_col_w);
-    bool off_ch  = hp_draw_custom_slider("##hp_sl_off", offset,  offset_min,    offset_max,    offset_min,    offset_max,    slider_w, hollow_active);
-    bool off_act = ImGui::IsItemActivated();
-    bool off_dec = ImGui::IsItemDeactivated();
+    hp_draw_custom_slider("##hp_sl_off", offset, offset_min, offset_max, offset_min, offset_max, slider_w, hollow_active);
     ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
     ImGui::InputFloat("##hp_v_off", &offset, 0.f, 0.f, "%.1f");
-    const bool off_inp = ImGui::IsItemDeactivatedAfterEdit() && hollow_active;
-    if (off_inp) offset = std::clamp(offset, offset_min, offset_max);
+    if (ImGui::IsItemDeactivatedAfterEdit() && hollow_active)
+        offset = std::clamp(offset, offset_min, offset_max);
     ImGui::PopItemWidth();
 
     // Row 3: Accuracy — mode-conditional
-    bool qua_ch = false, qua_act = false, qua_dec = false, qua_inp = false;
     if (current_mode >= quality_mode) {
         ImGui::AlignTextToFramePadding();
         m_imgui->text(m_desc.at("quality"));
         ImGui::SameLine(label_col_w);
-        qua_ch  = hp_draw_custom_slider("##hp_sl_qua", quality,   quality_min,   quality_max,   quality_min,   quality_max,   slider_w, hollow_active);
-        qua_act = ImGui::IsItemActivated();
-        qua_dec = ImGui::IsItemDeactivated();
+        hp_draw_custom_slider("##hp_sl_qua", quality, quality_min, quality_max, quality_min, quality_max, slider_w, hollow_active);
         ImGui::SameLine();
         ImGui::PushItemWidth(value_box_w);
         ImGui::InputFloat("##hp_v_qua", &quality, 0.f, 0.f, "%.2f");
-        qua_inp = ImGui::IsItemDeactivatedAfterEdit() && hollow_active;
-        if (qua_inp) quality = std::clamp(quality, quality_min, quality_max);
+        if (ImGui::IsItemDeactivatedAfterEdit() && hollow_active)
+            quality = std::clamp(quality, quality_min, quality_max);
         ImGui::PopItemWidth();
     }
 
     // Row 4: Closing distance — mode-conditional
-    bool cld_ch = false, cld_act = false, cld_dec = false, cld_inp = false;
     if (current_mode >= closing_d_mode) {
         ImGui::AlignTextToFramePadding();
         m_imgui->text(m_desc.at("closing_distance"));
         ImGui::SameLine(label_col_w);
-        cld_ch  = hp_draw_custom_slider("##hp_sl_cld", closing_d, closing_d_min, closing_d_max, closing_d_min, closing_d_max, slider_w, hollow_active);
-        cld_act = ImGui::IsItemActivated();
-        cld_dec = ImGui::IsItemDeactivated();
+        hp_draw_custom_slider("##hp_sl_cld", closing_d, closing_d_min, closing_d_max, closing_d_min, closing_d_max, slider_w, hollow_active);
         ImGui::SameLine();
         ImGui::PushItemWidth(value_box_w);
         ImGui::InputFloat("##hp_v_cld", &closing_d, 0.f, 0.f, "%.1f");
-        cld_inp = ImGui::IsItemDeactivatedAfterEdit() && hollow_active;
-        if (cld_inp) closing_d = std::clamp(closing_d, closing_d_min, closing_d_max);
+        if (ImGui::IsItemDeactivatedAfterEdit() && hollow_active)
+            closing_d = std::clamp(closing_d, closing_d_min, closing_d_max);
         ImGui::PopItemWidth();
-    }
-
-    // Aggregate slider interaction events
-    slider_clicked = off_act || qua_act || cld_act;
-    slider_edited  = off_ch  || qua_ch  || cld_ch;
-    const bool any_dec = off_dec || qua_dec || cld_dec;
-    if (slider_clicked) hp_was_editing = false;
-    if (slider_edited)  hp_was_editing = true;
-    if (any_dec && hp_was_editing) { slider_released = true; hp_was_editing = false; }
-
-    // Stash/snapshot logic (mirrors legacy panel)
-    if (slider_clicked) {
-        m_offset_stash    = offset;
-        m_quality_stash   = quality;
-        m_closing_d_stash = closing_d;
-    }
-    if (slider_edited || slider_released) {
-        if (slider_released) {
-            mo->config.set("hollowing_min_thickness",    m_offset_stash);
-            mo->config.set("hollowing_quality",          m_quality_stash);
-            mo->config.set("hollowing_closing_distance", m_closing_d_stash);
-            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Hollowing parameter change");
-        }
-        mo->config.set("hollowing_min_thickness",    offset);
-        mo->config.set("hollowing_quality",          quality);
-        mo->config.set("hollowing_closing_distance", closing_d);
-        if (slider_released) {
-            wxGetApp().obj_list()->update_and_show_object_settings_item();
-            config_changed = true;
-        }
-    }
-
-    // InputFloat direct commit (keyboard entry — no drag stash needed)
-    if (off_inp || qua_inp || cld_inp) {
-        mo->config.set("hollowing_min_thickness",    offset);
-        mo->config.set("hollowing_quality",          quality);
-        mo->config.set("hollowing_closing_distance", closing_d);
-        Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Hollowing parameter change");
-        wxGetApp().obj_list()->update_and_show_object_settings_item();
-        config_changed = true;
     }
 
     m_imgui->disabled_end();
 
-    // Button row: [?] | Preview — tighter item spacing
+    // Button row: [?] | Hollow | Remove — tighter item spacing
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.0f, 4.0f));
     {
         ImTextureID normal_id = m_parent.get_gizmos_manager().get_icon_texture_id(
@@ -491,8 +425,27 @@ void GLGizmoHollow::render_hollow_panel(float x, float y,
 
         m_imgui->disabled_begin(!is_input_enabled());
         ImGui::SameLine();
-        if (ImGui::Button((m_desc.at("hp_preview") + "##hp").ToUTF8().data(), ImVec2(btn_w, 0.f)))
+        if (ImGui::Button((m_desc.at("hp_hollow") + "##hp_on").ToUTF8().data(), ImVec2(btn_w, 0.f))) {
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Hollow");
+            mo->config.set("hollowing_min_thickness",    m_pending_offset);
+            mo->config.set("hollowing_quality",          m_pending_quality);
+            mo->config.set("hollowing_closing_distance", m_pending_closing_d);
+            mo->config.set("hollowing_enable", true);
+            m_enable_hollowing = true;
+            wxGetApp().obj_list()->update_and_show_object_settings_item();
+            config_changed = true;
             reslice_until_step(slaposDrillHoles);
+        }
+        m_imgui->disabled_end();
+        m_imgui->disabled_begin(!is_input_enabled() || !m_enable_hollowing);
+        ImGui::SameLine();
+        if (ImGui::Button((m_desc.at("hp_remove") + "##hp_off").ToUTF8().data(), ImVec2(btn_w, 0.f))) {
+            mo->config.set("hollowing_enable", false);
+            m_enable_hollowing = false;
+            wxGetApp().obj_list()->update_and_show_object_settings_item();
+            config_changed = true;
+            reslice_until_step(slaposDrillHoles);
+        }
         m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(1);
@@ -555,6 +508,7 @@ void GLGizmoHollow::on_set_state()
         // Step 4.3: restore model visibility when gizmo closes.
         m_c->instances_hider()->set_hide_full_scene(false);
         // Note: set_use_shift() not available in PhrozenOrca's SelectionInfo.
+        m_pending_owner = nullptr;  // discard pending params so re-entry re-reads from config
     }
 
     m_old_state = m_state;

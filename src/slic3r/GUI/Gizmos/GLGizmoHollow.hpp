@@ -58,9 +58,10 @@ protected:
 private:
     bool m_enable_hollowing = true;
 
-    float m_offset_stash    = 3.0f;
-    float m_quality_stash   = 0.5f;
-    float m_closing_d_stash = 2.f;
+    float        m_pending_offset    = 3.0f;
+    float        m_pending_quality   = 0.5f;
+    float        m_pending_closing_d = 2.f;
+    ModelObject* m_pending_owner     = nullptr;
 
     EState m_old_state = Off;
 
