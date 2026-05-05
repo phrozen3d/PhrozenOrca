@@ -229,6 +229,7 @@ void GLGizmoLcdOverhangDetection::on_set_state()
     }
     else if (get_state() == Off) {
         // 清除所有 island GL 資源與資料
+        m_island_original_model.reset();
         m_island_overlay_model.reset();
         m_island_highlight_model.reset();
         m_island_data_per_object.clear();
@@ -253,8 +254,10 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
                 m_slice_pending_for_detect = false;
                 sync_island_data_for_object(m_current_model_index);
                 rebuild_overhang_area_index_map(false);
-                if (!m_overhang_area_index_map.empty())
+                if (!m_overhang_area_index_map.empty()) {
+                    rebuild_island_overlay_mesh();
                     rebuild_island_highlight_mesh(0);
+                }
                 m_parent.set_as_dirty();
             }
         }
@@ -445,6 +448,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     if (ImGui::Button("<##overhang", ImVec2(bracket_button_width, 0))) {
         if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index > 1) {
             m_current_overhang_area_index--;
+            rebuild_island_overlay_mesh();
             rebuild_island_highlight_mesh(m_current_overhang_area_index);
             focus_camera_on_island(m_current_overhang_area_index);
         }
@@ -466,6 +470,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     if (ImGui::Button(">##overhang", ImVec2(bracket_button_width, 0))) {
         if (!m_overhang_area_index_map.empty() && m_current_overhang_area_index < m_total_overhang_areas ) {
             m_current_overhang_area_index++;
+            rebuild_island_overlay_mesh();
             rebuild_island_highlight_mesh(m_current_overhang_area_index);
             focus_camera_on_island(m_current_overhang_area_index);
         }
@@ -505,8 +510,10 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
             } else {
                 sync_island_data_for_object(m_current_model_index);
                 rebuild_overhang_area_index_map(false);
-                if (!m_overhang_area_index_map.empty())
+                if (!m_overhang_area_index_map.empty()) {
+                    rebuild_island_overlay_mesh();
                     rebuild_island_highlight_mesh(0);
+                }
                 m_parent.set_as_dirty();
             }
         }
@@ -1070,12 +1077,146 @@ void GLGizmoLcdOverhangDetection::rebuild_overhang_area_index_map(bool all_objec
 
 // ── Island GL visualization ────────────────────────────────────────────────
 
+// Build extruded-solid geometry (P3N3) for one island into `geo`.
+// top_verts / bot_verts: world-space perimeter points at z_top / z_bot.
+// Normals: top cap +(0,0,1), bottom cap -(0,0,1), side walls = per-edge outward horizontal.
+static void build_island_extrude_p3n3(
+    GLModel::Geometry&          geo,
+    const Vec3f&                center_top,
+    const Vec3f&                center_bot,
+    const std::vector<Vec3f>&   top_verts,
+    const std::vector<Vec3f>&   bot_verts)
+{
+    const auto    n   = (unsigned int)top_verts.size();
+    const Vec3f   nup { 0.f,  0.f,  1.f };
+    const Vec3f   ndn { 0.f,  0.f, -1.f };
+
+    // Top face fan (CCW from above, normal +Z)
+    const unsigned int ct = (unsigned int)geo.vertices_count();
+    geo.add_vertex(center_top, nup);
+    for (const auto& v : top_verts) geo.add_vertex(v, nup);
+    for (unsigned int j = 0; j < n; ++j) {
+        geo.add_index(ct);
+        geo.add_index(ct + 1 + j);
+        geo.add_index(ct + 1 + (j + 1) % n);
+    }
+
+    // Bottom face fan (reversed winding — CCW from below, normal -Z)
+    const unsigned int cb = (unsigned int)geo.vertices_count();
+    geo.add_vertex(center_bot, ndn);
+    for (const auto& v : bot_verts) geo.add_vertex(v, ndn);
+    for (unsigned int j = 0; j < n; ++j) {
+        geo.add_index(cb);
+        geo.add_index(cb + 1 + (j + 1) % n);
+        geo.add_index(cb + 1 + j);
+    }
+
+    // Side walls — unshared vertices per edge for flat outward normals.
+    // CCW polygon: outward normal of edge j = normalize(dy, -dx, 0) where d = next - curr.
+    for (unsigned int j = 0; j < n; ++j) {
+        const unsigned int j1  = (j + 1) % n;
+        const float        dx  = top_verts[j1].x() - top_verts[j].x();
+        const float        dy  = top_verts[j1].y() - top_verts[j].y();
+        const float        len = std::sqrt(dx * dx + dy * dy);
+        const Vec3f        nrm = (len > 1e-6f) ? Vec3f(dy / len, -dx / len, 0.f)
+                                                : Vec3f(0.f, 0.f, 1.f);
+        const unsigned int sw  = (unsigned int)geo.vertices_count();
+        geo.add_vertex(top_verts[j],  nrm);   // sw+0  TL
+        geo.add_vertex(top_verts[j1], nrm);   // sw+1  TR
+        geo.add_vertex(bot_verts[j1], nrm);   // sw+2  BR
+        geo.add_vertex(bot_verts[j],  nrm);   // sw+3  BL
+        // CCW from outside: (TL, BR, TR) then (TL, BL, BR)
+        geo.add_index(sw + 0); geo.add_index(sw + 2); geo.add_index(sw + 1);
+        geo.add_index(sw + 0); geo.add_index(sw + 3); geo.add_index(sw + 2);
+    }
+}
+
 void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
 {
     m_island_overlay_model.reset();
+    if (m_overhang_area_index_map.empty()) {
+        rebuild_island_original_mesh();
+        m_island_data_dirty = false;
+        return;
+    }
+
+    const SLAPrint* sla_print = m_parent.sla_print();
+    if (!sla_print) {
+        rebuild_island_original_mesh();
+        m_island_data_dirty = false;
+        return;
+    }
+
+    GLModel::Geometry geo;
+    geo.format = { GLModel::Geometry::EPrimitiveType::Triangles,
+                   GLModel::Geometry::EVertexLayout::P3N3 };
+
+    const auto& objs = sla_print->objects();
+    int flat_idx = 0;
+    for (const auto& [obj_idx, isl_idx] : m_overhang_area_index_map) {
+        const bool is_selected = (flat_idx++ == m_current_overhang_area_index);
+        if (is_selected) continue;  // selected island is drawn by highlight model (gray)
+        auto it = m_island_data_per_object.find(obj_idx);
+        if (it == m_island_data_per_object.end())
+            continue;
+        const sla::IslandContourSet& cs = it->second;
+        if (isl_idx >= (int)cs.islands.size())
+            continue;
+        const sla::IslandContour& ic = cs.islands[isl_idx];
+        const Polygon& poly = ic.contour.contour;
+        const size_t n = poly.points.size();
+        if (n < 3 || obj_idx >= (int)objs.size())
+            continue;
+
+        const SLAPrintObject* po = objs[obj_idx];
+        const ModelObject* mo = po->model_object();
+        if (!mo || mo->instances.empty())
+            continue;
+        const Transform3d world_trafo = mo->instances[0]->get_transformation().get_matrix();
+        const float z = ic.print_z;
+
+        double cx = 0.0, cy = 0.0;
+        for (const Point& p : poly.points) {
+            cx += unscale<double>(p.x());
+            cy += unscale<double>(p.y());
+        }
+        cx /= (double)n;
+        cy /= (double)n;
+
+        const float z_top = z + m_island_overlay_z_offset;
+        const float z_bot = z_top - m_island_overlay_thickness;
+
+        std::vector<Vec3f> top_verts, bot_verts;
+        top_verts.reserve(n);
+        bot_verts.reserve(n);
+        for (const Point& p : poly.points) {
+            const double sx = cx + (unscale<double>(p.x()) - cx) * m_island_overlay_scale;
+            const double sy = cy + (unscale<double>(p.y()) - cy) * m_island_overlay_scale;
+            Vec3d w = world_trafo * Vec3d(sx, sy, 0.0);
+            top_verts.emplace_back(float(w.x()), float(w.y()), z_top);
+            bot_verts.emplace_back(float(w.x()), float(w.y()), z_bot);
+        }
+
+        Vec3d wc = world_trafo * Vec3d(cx, cy, 0.0);
+        build_island_extrude_p3n3(geo,
+            Vec3f(float(wc.x()), float(wc.y()), z_top),
+            Vec3f(float(wc.x()), float(wc.y()), z_bot),
+            top_verts, bot_verts);
+    }
+
+    if (geo.vertices_count() > 0) {
+        m_island_overlay_model.init_from(std::move(geo));
+        m_island_overlay_model.set_color(island_overlay_color());
+    }
+    rebuild_island_original_mesh();
+    m_island_data_dirty = false;
+}
+
+void GLGizmoLcdOverhangDetection::rebuild_island_original_mesh()
+{
+    m_island_original_model.reset();
     if (m_overhang_area_index_map.empty())
         return;
-
     const SLAPrint* sla_print = m_parent.sla_print();
     if (!sla_print)
         return;
@@ -1098,15 +1239,12 @@ void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
         if (n < 3 || obj_idx >= (int)objs.size())
             continue;
 
-        // Slice coords are in model local space.
-        // Instance transform provides XY world position; po->trafo() provides Z elevation.
         const SLAPrintObject* po = objs[obj_idx];
         const ModelObject* mo = po->model_object();
         if (!mo || mo->instances.empty())
             continue;
-        // print_z is already world Z; only XY needs inst_trafo applied.
         const Transform3d world_trafo = mo->instances[0]->get_transformation().get_matrix();
-        const float z = ic.print_z;
+        const float z_orig = ic.print_z + m_island_overlay_z_offset;
 
         double cx = 0.0, cy = 0.0;
         for (const Point& p : poly.points) {
@@ -1116,15 +1254,12 @@ void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
         cx /= (double)n;
         cy /= (double)n;
 
-        // print_z is already world Z; apply trafo to XY only (pass Z=0 to avoid double-adding Z translation).
         const unsigned int base = (unsigned int)geo.vertices_count();
-        {
-            Vec3d w = world_trafo * Vec3d(cx, cy, 0.0);
-            geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_overlay_z_offset));
-        }
+        Vec3d wc = world_trafo * Vec3d(cx, cy, 0.0);
+        geo.add_vertex(Vec3f(float(wc.x()), float(wc.y()), z_orig));
         for (const Point& p : poly.points) {
             Vec3d w = world_trafo * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), 0.0);
-            geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_overlay_z_offset));
+            geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z_orig));
         }
         for (unsigned int j = 0; j < (unsigned int)n; ++j) {
             geo.add_index(base);
@@ -1134,10 +1269,9 @@ void GLGizmoLcdOverhangDetection::rebuild_island_overlay_mesh()
     }
 
     if (geo.vertices_count() > 0) {
-        m_island_overlay_model.init_from(std::move(geo));
-        m_island_overlay_model.set_color(ColorRGBA(1.0f, 0.85f, 0.2f, 0.4f));
+        m_island_original_model.init_from(std::move(geo));
+        m_island_original_model.set_color(island_contour_color());
     }
-    m_island_data_dirty = false;
 }
 
 void GLGizmoLcdOverhangDetection::rebuild_island_highlight_mesh(int flat_idx)
@@ -1176,24 +1310,34 @@ void GLGizmoLcdOverhangDetection::rebuild_island_highlight_mesh(int flat_idx)
     cx /= (double)n;
     cy /= (double)n;
 
+    // Extruded gray solid — same geometry as overlay but for the selected island only.
+    const float z_top = z + m_island_overlay_z_offset;
+    const float z_bot = z_top - m_island_overlay_thickness;
+
+    std::vector<Vec3f> top_verts, bot_verts;
+    top_verts.reserve(n);
+    bot_verts.reserve(n);
+    for (const Point& p : poly.points) {
+        const double sx = cx + (unscale<double>(p.x()) - cx) * m_island_overlay_scale;
+        const double sy = cy + (unscale<double>(p.y()) - cy) * m_island_overlay_scale;
+        Vec3d w = world_trafo_h * Vec3d(sx, sy, 0.0);
+        top_verts.emplace_back(float(w.x()), float(w.y()), z_top);
+        bot_verts.emplace_back(float(w.x()), float(w.y()), z_bot);
+    }
+
+    Vec3d wc = world_trafo_h * Vec3d(cx, cy, 0.0);
+
     GLModel::Geometry geo;
     geo.format = { GLModel::Geometry::EPrimitiveType::Triangles,
-                   GLModel::Geometry::EVertexLayout::P3 };
-    {
-        Vec3d w = world_trafo_h * Vec3d(cx, cy, 0.0);
-        geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_highlight_z_offset));
-    }
-    for (const Point& p : poly.points) {
-        Vec3d w = world_trafo_h * Vec3d(unscale<double>(p.x()), unscale<double>(p.y()), 0.0);
-        geo.add_vertex(Vec3f(float(w.x()), float(w.y()), z + m_island_highlight_z_offset));
-    }
-    for (unsigned int j = 0; j < (unsigned int)n; ++j) {
-        geo.add_index(0);
-        geo.add_index(1 + j);
-        geo.add_index(1 + (j + 1) % (unsigned int)n);
-    }
+                   GLModel::Geometry::EVertexLayout::P3N3 };
+
+    build_island_extrude_p3n3(geo,
+        Vec3f(float(wc.x()), float(wc.y()), z_top),
+        Vec3f(float(wc.x()), float(wc.y()), z_bot),
+        top_verts, bot_verts);
+
     m_island_highlight_model.init_from(std::move(geo));
-    m_island_highlight_model.set_color(ColorRGBA(1.0f, 0.5f, 0.0f, 0.75f));
+    m_island_highlight_model.set_color(island_selected_color());
 }
 
 void GLGizmoLcdOverhangDetection::render_island_contours()
@@ -1204,38 +1348,55 @@ void GLGizmoLcdOverhangDetection::render_island_contours()
     if (m_island_data_dirty)
         rebuild_island_overlay_mesh();
 
-    if (!m_island_overlay_model.is_initialized() && !m_island_highlight_model.is_initialized())
+    if (!m_island_overlay_model.is_initialized() &&
+        !m_island_highlight_model.is_initialized() &&
+        !m_island_original_model.is_initialized())
         return;
 
-    GLShaderProgram* shader = wxGetApp().get_shader("flat");
-    if (!shader)
-        return;
+    const Camera&     camera      = wxGetApp().plater()->get_camera();
+    const Transform3d view_matrix = camera.get_view_matrix();
 
-    const Camera& camera = wxGetApp().plater()->get_camera();
-
-    glsafe(::glDisable(GL_DEPTH_TEST));
-    glsafe(::glDisable(GL_CULL_FACE));
     glsafe(::glEnable(GL_BLEND));
     glsafe(::glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
-    shader->start_using();
-    shader->set_uniform("projection_matrix", camera.get_projection_matrix());
-    shader->set_uniform("view_model_matrix", camera.get_view_matrix());
+    // Pass 1: extruded solids with gouraud_light (depth test ON, back-face culling ON).
+    // Geometry is already in world space → model_matrix = Identity →
+    // view_normal_matrix = upper-left 3×3 of view_matrix.
+    GLShaderProgram* gouraud = wxGetApp().get_shader("gouraud_light");
+    if (gouraud) {
+        const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3);
+        gouraud->start_using();
+        gouraud->set_uniform("view_model_matrix",  view_matrix);
+        gouraud->set_uniform("projection_matrix",  camera.get_projection_matrix());
+        gouraud->set_uniform("view_normal_matrix", view_normal_matrix);
+        gouraud->set_uniform("emission_factor",    0.1f);
 
-    if (m_island_overlay_model.is_initialized())
-        m_island_overlay_model.render();
+        if (m_island_overlay_model.is_initialized())
+            m_island_overlay_model.render();
 
-    if (m_island_highlight_model.is_initialized() &&
-        !m_overhang_area_index_map.empty() &&
-        m_current_overhang_area_index >= 0 &&
-        m_current_overhang_area_index < (int)m_overhang_area_index_map.size())
-        m_island_highlight_model.render();
+        if (m_island_highlight_model.is_initialized() &&
+            !m_overhang_area_index_map.empty() &&
+            m_current_overhang_area_index >= 0 &&
+            m_current_overhang_area_index < (int)m_overhang_area_index_map.size())
+            m_island_highlight_model.render();
 
-    shader->stop_using();
+        gouraud->stop_using();
+    }
+
+    // Pass 2: orange original flat contour (P3, flat shader) — depth test OFF so it is
+    // always visible regardless of model geometry above the island overhang plane.
+    GLShaderProgram* flat_sh = wxGetApp().get_shader("flat");
+    if (flat_sh && m_island_original_model.is_initialized()) {
+        flat_sh->start_using();
+        flat_sh->set_uniform("view_model_matrix", view_matrix);
+        flat_sh->set_uniform("projection_matrix", camera.get_projection_matrix());
+        glsafe(::glDisable(GL_DEPTH_TEST));
+        m_island_original_model.render();
+        glsafe(::glEnable(GL_DEPTH_TEST));
+        flat_sh->stop_using();
+    }
 
     glsafe(::glDisable(GL_BLEND));
-    glsafe(::glEnable(GL_CULL_FACE));
-    glsafe(::glEnable(GL_DEPTH_TEST));
 }
 
 void GLGizmoLcdOverhangDetection::generate_island_support_points()

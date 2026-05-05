@@ -67,12 +67,16 @@ protected:
     std::map<int, sla::IslandContourSet> m_island_data_per_object;
     // Flat index: [flat_idx] -> (obj_idx, island_idx)
     std::vector<std::pair<int,int>> m_overhang_area_index_map;
-    GLModel m_island_overlay_model;
-    GLModel m_island_highlight_model;
+    GLModel m_island_original_model;   // flat original-scale contour (orange, all islands)
+    GLModel m_island_overlay_model;    // extruded scaled solid (yellow, unselected islands)
+    GLModel m_island_highlight_model;  // extruded scaled solid (gray, selected island)
     bool m_island_data_dirty{false};
-    float m_island_overlay_z_offset   = -0.05f; // Z offset for all-islands overlay
-    float m_island_highlight_z_offset = -0.1f;  // Z offset for selected island highlight
+    float m_island_overlay_z_offset   = -0.05f; // Z offset for all-islands overlay top face
+    float m_island_highlight_z_offset = -0.1f;  // Z offset for highlight relative to overlay top face
     bool  m_slice_pending_for_detect  = false;  // waiting for slaposObjectSlice to complete
+    float m_island_overlay_thickness  = 0.5f;   // downward extrusion depth (mm)
+    float m_island_overlay_scale      = 1.5f;   // XY scale factor for overlay (around centroid)
+    float m_island_highlight_scale    = 2.0f;   // XY scale factor for highlight (around centroid)
 
 private:
     bool on_init() override;
@@ -102,7 +106,12 @@ private:
     void sync_island_data_for_all();
     void rebuild_overhang_area_index_map(bool all_objects);
 
-    // Island GL visualization
+    // Island GL visualization — colors
+    static ColorRGBA island_contour_color()  { return { 1.0f, 0.5f,  0.0f,  0.75f }; } // orange flat original contour
+    static ColorRGBA island_overlay_color()  { return { 1.0f, 0.95f, 0.3f,  0.6f  }; } // yellow extruded solid (unselected)
+    static ColorRGBA island_selected_color() { return { 0.95f, 0.95f, 0.95f, 0.65f }; } // gray extruded solid (selected)
+
+    void rebuild_island_original_mesh();
     void rebuild_island_overlay_mesh();
     void rebuild_island_highlight_mesh(int flat_idx);
     void render_island_contours();
