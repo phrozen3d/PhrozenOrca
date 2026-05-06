@@ -1,10 +1,39 @@
+## 0. Build 環境前置修正（首次啟用測試時執行）
+
+> 這些是 PhrozenOrca fork 時遺留的 build 問題，與本次修改無關，但必須修正才能執行測試。
+
+- [x] 0.1 在根 `CMakeLists.txt` 補上 `orcaslicer_copy_dlls` macro alias（原名稱在 fork 時被改為 `phrozenorca_copy_dlls`，tests 目錄仍用舊名）
+- [x] 0.2 在根 `CMakeLists.txt` 開啟 `SLIC3R_BUILD_TESTS=ON`，確認不影響主程式 target
+- [x] 0.3 在 `tests/CMakeLists.txt` 確認 `add_subdirectory(libslic3r)` 已啟用
+- [x] 0.4 在 `tests/libslic3r/CMakeLists.txt` 補上 `OpenSSL::Crypto`、`bcrypt.lib`、`Setupapi.lib` link（pre-existing 缺失，`libslic3r` 用 PRIVATE 連結 OpenSSL 不繼承）
+
+**PowerShell 啟用測試 build 的完整步驟（含繁體中文亂碼處理）：**
+
+```powershell
+# Step 1：開啟測試並重新 configure（只需執行一次）
+cd C:\Dev\PhrozenOrca\build-dbginfo
+cmake .. -DSLIC3R_BUILD_TESTS=ON 2>&1 | Out-File -Encoding utf8 cmake_config.txt
+Get-Content cmake_config.txt | Select-Object -Last 5
+
+# Step 2：編譯測試目標（設 VSLANG=1033 避免中文亂碼）
+$env:VSLANG = "1033"
+cmake --build . --target libslic3r_tests --config RelWithDebInfo 2>&1 | Out-File -Encoding utf8 build_log.txt
+Get-Content build_log.txt | Select-Object -Last 10
+
+# Step 3：執行 Layer 1 測試
+.\tests\libslic3r\RelWithDebInfo\libslic3r_tests.exe "[SLA][UndoRedo][L1]" --order rand
+```
+
 ## 1. Layer 1 測試 — SLA 資料序列化（先於實作撰寫）
 
-- [ ] 1.1 在 `tests/sla_print/CMakeLists.txt` 加入 `test_sla_undo_redo_data.cpp`
-- [ ] 1.2 建立 `tests/sla_print/test_sla_undo_redo_data.cpp`，加入 `sla_drain_holes` cereal round-trip 測試（單洞 pos/normal/radius/height 驗證）
-- [ ] 1.3 加入多洞 count 與順序保留測試
-- [ ] 1.4 加入 `hollowing_min_thickness`、`hollowing_quality`、`hollowing_closing_distance` 透過 `ModelObject::config` 的 round-trip 測試
-- [ ] 1.5 執行 `cd build && ctest -R sla_print` 確認 Layer 1 測試全數通過（現有序列化正確，測試應立即通過）
+> 測試位置：`tests/libslic3r/test_sla_undo_redo_data.cpp`（非 sla_print，原有 sla_print tests 已損壞）
+> `DynamicPrintConfig` 因 cereal polymorphic 限制無法直接測試，改以 `sla::DrainHoles` 為主。
+
+- [x] 1.1 在 `tests/libslic3r/CMakeLists.txt` 加入 `test_sla_undo_redo_data.cpp`
+- [x] 1.2 建立 `tests/libslic3r/test_sla_undo_redo_data.cpp`，加入 `sla_drain_holes` cereal round-trip 測試（單洞 pos/normal/radius/height 驗證）
+- [x] 1.3 加入多洞 count 與順序保留測試
+- [x] 1.4 加入空 vector round-trip 測試（`hollowing config` 因 cereal polymorphic 問題暫不測試）
+- [x] 1.5 執行測試確認全數通過（3 test cases，16 assertions，all passed）
 
 ## 2. Layer 2 測試 — Gizmo 序列化合約（先於實作撰寫）
 

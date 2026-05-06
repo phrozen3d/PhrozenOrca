@@ -818,6 +818,9 @@ function(phrozenorca_copy_dlls target config postfix output_dlls)
 
 endfunction()
 
+macro(orcaslicer_copy_dlls arg1 arg2 arg3 arg4)
+    phrozenorca_copy_dlls("${arg1}" "${arg2}" "${arg3}" "${arg4}")
+endmacro()
 
 # libslic3r, PhrozenOrca GUI and the PhrozenOrca executable.
 add_subdirectory(deps_src)
