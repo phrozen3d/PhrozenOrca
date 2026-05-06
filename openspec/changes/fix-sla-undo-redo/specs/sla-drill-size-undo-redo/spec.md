@@ -2,7 +2,7 @@
 
 ### Requirement: SLA drain holes data serializes correctly through ModelObject
 
-`ModelObject::sla_drain_holes` 的每個 `sla::DrainHole` 欄位（`pos`、`normal`、`radius`、`height`）SHALL 在 cereal BinaryArchive round-trip 後保持數值完整，此為 undo/redo stack 能正確還原 drill hole 狀態的資料層前提。此測試 SHALL 在無 GUI 依賴的環境（`tests/sla_print/`）執行。
+`ModelObject::sla_drain_holes` 的每個 `sla::DrainHole` 欄位（`pos`、`normal`、`radius`、`height`）SHALL 在 cereal BinaryArchive round-trip 後保持數值完整，此為 undo/redo stack 能正確還原 drill hole 狀態的資料層前提。此測試 SHALL 在無 GUI 依賴的環境（`tests/libslic3r/`）執行。
 
 #### Scenario: DrainHole fields survive cereal round-trip
 
@@ -18,33 +18,6 @@
 - **WHEN** 從 archive 反序列化
 - **THEN** 還原後的 `sla_drain_holes` 數量 SHALL 為 3
 - **THEN** 各洞的欄位值 SHALL 與序列化前完全一致
-
-### Requirement: GLGizmoDrill on_save/on_load serialization contract is verifiable without GUI
-
-`GLGizmoDrill::on_save` 與 `on_load` 的欄位格式 SHALL 與以下 stub struct 完全一致，使序列化合約可在 headless 測試環境下被驗證：
-
-```cpp
-// tests/slic3rutils/test_sla_gizmo_serialization.cpp
-struct DrillSerialState {
-    float             new_hole_radius = 1.0f;  // maps to m_new_hole_radius
-    float             new_hole_height = 5.0f;  // maps to m_new_hole_height
-    std::vector<bool> selected        = {};     // maps to m_selected
-    bool              selection_empty = true;   // maps to m_selection_empty
-    template<class Archive>
-    void save(Archive& ar) const { ar(new_hole_radius, new_hole_height, selected, selection_empty); }
-    template<class Archive>
-    void load(Archive& ar) { ar(new_hole_radius, new_hole_height, selected, selection_empty); }
-};
-```
-
-#### Scenario: DrillSerialState round-trips all fields correctly
-
-- **WHEN** `DrillSerialState{radius=2.5, height=12.0, selected={true,false,true}, empty=false}` 被序列化
-- **WHEN** 從 archive 反序列化至新的 `DrillSerialState`
-- **THEN** `new_hole_radius` SHALL 等於 2.5f
-- **THEN** `new_hole_height` SHALL 等於 12.0f
-- **THEN** `selected` SHALL 等於 `{true, false, true}`
-- **THEN** `selection_empty` SHALL 等於 false
 
 ### Requirement: Drain hole diameter change is undoable
 

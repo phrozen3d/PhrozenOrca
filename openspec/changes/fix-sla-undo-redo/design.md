@@ -103,51 +103,30 @@ Rollback：直接 revert 相關 cpp/hpp 改動。
 
 ### 測試層級與 TDD 可行性
 
-本次修改採用兩層自動化測試，均可在實作前先行撰寫。
+本次修改採用單層自動化測試（Layer 1），Layer 2 gizmo 序列化合約測試因效益不足而捨棄。
 
-```
-Layer 1：資料序列化測試              Layer 2：gizmo 序列化合約測試
-tests/sla_print/                     tests/slic3rutils/
-  test_sla_undo_redo_data.cpp          test_sla_gizmo_serialization.cpp
-  links: libslic3r (no GUI)            links: libslic3r_gui (cereal only)
-  TDD: ✅ 完全可行                      TDD: ✅ Spec-First 可行
-```
+**Layer 1 — 資料序列化（已實作，作為永久回歸基線）**
 
-**Layer 1 — 資料序列化（可先於實作撰寫，馬上可跑）**
+測試 `sla::DrainHoles` 的 cereal round-trip，確保 undo/redo 所捕捉的 drain hole 資料不會退化。
 
-測試 `ModelObject::sla_drain_holes` 和 hollowing config 的 cereal round-trip，確保 undo/redo 所捕捉的資料欄位不會退化。測試在實作前即可通過（現有序列化已正確），作為永久回歸基線。
-
-測試位置：`tests/sla_print/test_sla_undo_redo_data.cpp`
+測試位置：`tests/libslic3r/test_sla_undo_redo_data.cpp`
 連結目標：`libslic3r`（無 GUI 依賴）
-涵蓋欄位：
-- `sla_drain_holes`（pos, normal, radius, height）
-- `hollowing_min_thickness`、`hollowing_quality`、`hollowing_closing_distance`（via ModelObject::config）
+涵蓋欄位：`sla::DrainHole`（pos, normal, radius, height, failed）
 
-**Layer 2 — gizmo 序列化合約（Spec-First，代表實作規格）**
+**Layer 2 捨棄原因：**
 
-以「stub struct + cereal round-trip」形式定義 `on_save/on_load` 的預期欄位格式。stub struct 的欄位即為實作規格，開發者對照 stub 實作 gizmo 的 on_save/on_load。未來若有人改動欄位順序或型別，round-trip 測試失敗即為回歸信號。
+原計畫以 stub struct + cereal round-trip 測試 `GLGizmoHollow`/`GLGizmoDrill` 的 `on_save/on_load` 欄位格式。但 stub struct 本身就是我們自己寫的，測試永遠 pass——它測的是 stub，不是 gizmo 的實際程式碼。要直接測 gizmo 程式碼需要 `GLGizmosManager` 實例，而後者依賴 `GLCanvas3D → wxWidgets → OpenGL`，headless 環境無法執行。兩個限制加總後效益不足，捨棄。
 
-測試位置：`tests/slic3rutils/test_sla_gizmo_serialization.cpp`
-連結目標：`libslic3r_gui`（cereal headers already available）
+`on_save/on_load` 的正確性改由靜態 code review（task 3.4）和手動行為驗證（task 9）確保。
 
-| Stub 名稱 | 對應 gizmo | 欄位 |
-|-----------|-----------|------|
-| `HollowSerialState` | `GLGizmoHollow` | `float offset, float quality, float closing_d, bool enable` |
-| `DrillSerialState` | `GLGizmoDrill` | `float radius, float height, vector<bool> selected, bool empty` |
-
-**為何無法對 gizmo 直接進行完整 TDD：**
-
-`GLGizmoHollow::on_save/on_load` 的呼叫需要完整的 `GLGizmosManager` 實例，而後者依賴 `GLCanvas3D → wxWidgets → OpenGL`。在 headless 測試環境中無法實例化。Layer 2 以 stub struct 繞過此限制，在精神上實現 Spec-First 開發。
-
-### 建議的開發順序（Test-First）
+### 建議的開發順序
 
 ```
-Step 1  撰寫 Layer 1 測試 → ctest 驗證全數通過（現有序列化正確）
-Step 2  撰寫 Layer 2 測試（stub structs）→ ctest 驗證通過（stub 即規格）
-Step 3  實作 GLGizmoHollow on_save/on_load → 對照 HollowSerialState
-Step 4  實作 GLGizmoDrill begin/apply_size_change
-Step 5  ctest 重跑 Layer 1+2 確認無退化
-Step 6  手動驗證行為（見 tasks.md 第 7 節）
+Step 1  Layer 1 測試已完成，作為回歸基線 ✅
+Step 2  實作 GLGizmoHollow on_save/on_load
+Step 3  實作 GLGizmoDrill begin/apply_size_change
+Step 4  ctest 重跑 Layer 1 確認無退化
+Step 5  手動驗證行為（見 tasks.md 第 8 節）
 ```
 
 ## Open Questions

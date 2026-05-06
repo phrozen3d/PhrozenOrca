@@ -35,22 +35,17 @@ Get-Content build_log.txt | Select-Object -Last 10
 - [x] 1.4 加入空 vector round-trip 測試（`hollowing config` 因 cereal polymorphic 問題暫不測試）
 - [x] 1.5 執行測試確認全數通過（3 test cases，16 assertions，all passed）
 
-## 2. Layer 2 測試 — Gizmo 序列化合約（先於實作撰寫）
+## 2. ~~Layer 2 測試 — Gizmo 序列化合約~~（已捨棄）
 
-- [ ] 2.1 在 `tests/slic3rutils/CMakeLists.txt` 加入 `test_sla_gizmo_serialization.cpp`
-- [ ] 2.2 建立 `tests/slic3rutils/test_sla_gizmo_serialization.cpp`，定義 `HollowSerialState` stub struct（4 個欄位：float offset, float quality, float closing_d, bool enable）
-- [ ] 2.3 加入 `HollowSerialState` non-default values round-trip 測試
-- [ ] 2.4 加入 cereal stream 完整消耗驗證（REQUIRE_NOTHROW round-trip）
-- [ ] 2.5 定義 `DrillSerialState` stub struct（4 個欄位：float radius, float height, vector<bool> selected, bool empty）
-- [ ] 2.6 加入 `DrillSerialState` round-trip 測試，包含非空的 `selected` vector
-- [ ] 2.7 執行 `cd build && ctest -R slic3rutils` 確認 Layer 2 測試全數通過（stub 是規格，應立即通過）
+> **捨棄原因：** stub struct 測試的是我們自己寫的 stub，不是 gizmo 實際程式碼，永遠 pass，效益不足。
+> gizmo on_save/on_load 正確性改由 task 3.4 靜態 review 和 task 8 手動驗證確保。
 
 ## 3. GLGizmoHollow — 修正 on_save / on_load
 
 - [ ] 3.1 在 `GLGizmoHollow.hpp` 確認 `m_pending_offset`、`m_pending_quality`、`m_pending_closing_d`、`m_enable_hollowing` 四個成員存在且型別為 `float`、`float`、`float`、`bool`
-- [ ] 3.2 修改 `GLGizmoHollow.cpp::on_save`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`（4 個欄位，順序對應 `HollowSerialState`）
+- [ ] 3.2 修改 `GLGizmoHollow.cpp::on_save`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`（4 個欄位）
 - [ ] 3.3 修改 `GLGizmoHollow.cpp::on_load`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`，結尾加上 `m_pending_owner = nullptr`
-- [ ] 3.4 對照 `HollowSerialState` 的欄位順序做靜態 review，確認 on_save 與 on_load 完全一致
+- [ ] 3.4 靜態 review：on_save 與 on_load 欄位型別與順序完全一致（不依賴自動化測試）
 
 ## 4. GLGizmoDrill — 新增成員變數
 
@@ -82,8 +77,15 @@ Get-Content build_log.txt | Select-Object -Last 10
 
 ## 8. 自動化測試回歸確認
 
-- [ ] 8.1 執行 `cd build && ctest -R "sla_print|slic3rutils"` 確認 Layer 1 和 Layer 2 測試在實作後仍全數通過
-- [ ] 8.2 確認新加的測試檔案已被 CMakeLists.txt 正確納入（檢查 ctest 輸出有出現對應的 test name）
+**PowerShell 執行指令（含繁體中文亂碼處理）：**
+```powershell
+$env:VSLANG = "1033"
+cmake --build . --target libslic3r_tests --config RelWithDebInfo 2>&1 | Out-File -Encoding utf8 regression_log.txt
+.\tests\libslic3r\RelWithDebInfo\libslic3r_tests.exe "[SLA][UndoRedo][L1]" --order rand
+```
+
+- [ ] 8.1 執行上述指令，確認 Layer 1 的 3 個測試在實作後仍全數通過（3 test cases，16 assertions）
+- [ ] 8.2 確認 `libslic3r_tests.exe` 輸出包含 `[SLA][UndoRedo][L1]` tag 的測試名稱
 
 ## 9. 手動行為驗證
 

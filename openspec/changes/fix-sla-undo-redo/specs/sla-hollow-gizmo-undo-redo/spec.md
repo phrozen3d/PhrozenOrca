@@ -19,40 +19,6 @@ GLGizmoHollow 的 `on_save` SHALL 將 `m_pending_offset`、`m_pending_quality`�
 - **THEN** ModelObject::config 的 `hollowing_min_thickness` SHALL 還原為按下 Hollow 前的值
 - **THEN** SLA 後台 SHALL 重新計算以反映還原後的 config
 
-### Requirement: Hollow gizmo on_save/on_load serialization contract is verifiable without GUI
-
-`GLGizmoHollow::on_save` 與 `on_load` 的欄位格式 SHALL 與以下 stub struct 完全一致，使序列化合約可在 headless 測試環境（無 wxWidgets / OpenGL）下被驗證：
-
-```cpp
-// tests/slic3rutils/test_sla_gizmo_serialization.cpp
-struct HollowSerialState {
-    float pending_offset    = 0.f;  // maps to m_pending_offset
-    float pending_quality   = 0.f;  // maps to m_pending_quality
-    float pending_closing_d = 0.f;  // maps to m_pending_closing_d
-    bool  enable_hollowing  = true; // maps to m_enable_hollowing
-    template<class Archive>
-    void save(Archive& ar) const { ar(pending_offset, pending_quality, pending_closing_d, enable_hollowing); }
-    template<class Archive>
-    void load(Archive& ar) { ar(pending_offset, pending_quality, pending_closing_d, enable_hollowing); }
-};
-```
-
-#### Scenario: HollowSerialState round-trips non-default values correctly
-
-- **WHEN** `HollowSerialState` 以 `{offset=5.0, quality=0.8, closing_d=1.5, enable=false}` 序列化至 BinaryOutputArchive
-- **WHEN** 從同一 archive 反序列化至新的 `HollowSerialState`
-- **THEN** 還原後的 `pending_offset` SHALL 等於 5.0
-- **THEN** 還原後的 `pending_quality` SHALL 等於 0.8
-- **THEN** 還原後的 `pending_closing_d` SHALL 等於 1.5
-- **THEN** 還原後的 `enable_hollowing` SHALL 等於 false
-
-#### Scenario: Serialization stream position is preserved with exactly 4 fields
-
-- **WHEN** `HollowSerialState::save` 寫入 archive
-- **WHEN** `HollowSerialState::load` 從同一 archive 讀取
-- **THEN** archive 的讀取位置 SHALL 在 load 後完全消耗（無殘餘位元組）
-- **THEN** REQUIRE_NOTHROW 確認 cereal 無拋出 exception
-
 ### Requirement: Hollow gizmo pending owner is safely invalidated on undo
 
 `on_load` 執行完畢時，`m_pending_owner` SHALL 被設為 `nullptr`，以強制 `data_changed()` 在下次呼叫時從還原後的 ModelObject config 重新初始化 pending 參數，避免使用已失效的 ModelObject 指標。
