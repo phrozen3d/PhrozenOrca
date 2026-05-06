@@ -524,20 +524,15 @@ void GLGizmoHollow::on_dragging(const UpdateData &) {}
 
 void GLGizmoHollow::on_load(cereal::BinaryInputArchive& ar)
 {
-    // Deserialize legacy hole-editor fields to keep stream position correct.
-    float radius = 0.f, height = 0.f;
-    std::vector<bool> selected;
-    bool selection_empty = true;
-    ar(radius, height, selected, selection_empty);
+    ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing);
+    // Force data_changed() to re-initialize from the restored ModelObject on next call,
+    // since the previous m_pending_owner pointer is invalid after undo restores the model.
+    m_pending_owner = nullptr;
 }
 
 void GLGizmoHollow::on_save(cereal::BinaryOutputArchive& ar) const
 {
-    // Serialize legacy hole-editor fields as empty/default to keep stream position correct.
-    float radius = 0.f, height = 0.f;
-    std::vector<bool> selected;
-    bool selection_empty = true;
-    ar(radius, height, selected, selection_empty);
+    ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing);
 }
 
 

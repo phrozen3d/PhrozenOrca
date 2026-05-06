@@ -42,10 +42,10 @@ Get-Content build_log.txt | Select-Object -Last 10
 
 ## 3. GLGizmoHollow — 修正 on_save / on_load
 
-- [ ] 3.1 在 `GLGizmoHollow.hpp` 確認 `m_pending_offset`、`m_pending_quality`、`m_pending_closing_d`、`m_enable_hollowing` 四個成員存在且型別為 `float`、`float`、`float`、`bool`
-- [ ] 3.2 修改 `GLGizmoHollow.cpp::on_save`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`（4 個欄位）
-- [ ] 3.3 修改 `GLGizmoHollow.cpp::on_load`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`，結尾加上 `m_pending_owner = nullptr`
-- [ ] 3.4 靜態 review：on_save 與 on_load 欄位型別與順序完全一致（不依賴自動化測試）
+- [x] 3.1 在 `GLGizmoHollow.hpp` 確認 `m_pending_offset`、`m_pending_quality`、`m_pending_closing_d`、`m_enable_hollowing` 四個成員存在且型別為 `float`、`float`、`float`、`bool`
+- [x] 3.2 修改 `GLGizmoHollow.cpp::on_save`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`（4 個欄位）
+- [x] 3.3 修改 `GLGizmoHollow.cpp::on_load`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`，結尾加上 `m_pending_owner = nullptr`
+- [x] 3.4 靜態 review：on_save 與 on_load 欄位型別與順序完全一致（不依賴自動化測試）
 
 ## 4. GLGizmoDrill — 新增成員變數
 
