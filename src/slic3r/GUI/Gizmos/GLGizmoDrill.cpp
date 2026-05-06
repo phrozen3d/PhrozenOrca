@@ -623,8 +623,10 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // final clamp [0.1, 60]: allows keyboard input beyond slider range, protects against nonsense.
     // If current value exceeds slider range, handle visually saturates at the endpoint.
     float display_diam = m_new_hole_radius * 2.f;       // shared by slider and InputFloat below
+    float pre_radius   = m_new_hole_radius;             // save before slider may change it
     if (draw_custom_slider("##sl_diameter", display_diam, 1.f, 25.f, 0.1f, 60.f, slider_w, is_input_enabled())) {
         m_new_hole_radius = display_diam / 2.f;         // slider: immediate apply, every frame
+        begin_size_change(pre_radius, m_new_hole_height); // no-op after first call
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
@@ -632,9 +634,13 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
             m_parent.set_as_dirty();
         }
     }
+    if (ImGui::IsItemDeactivated())
+        apply_size_change("Change hole radius");
     ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
     ImGui::InputFloat("##ph_diameter", &display_diam, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+    if (ImGui::IsItemActivated() && is_input_enabled())
+        begin_size_change(m_new_hole_radius, m_new_hole_height);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
         m_new_hole_radius = std::clamp(display_diam, 0.1f, 60.f) / 2.f;  // final clamp [0.1, 60]
         if (!m_selection_empty) {
@@ -643,6 +649,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
                     mo->sla_drain_holes[idx].radius = m_new_hole_radius; // radius only
             m_parent.set_as_dirty();
         }
+        apply_size_change("Change hole radius");
     }
     ImGui::PopItemWidth();
 
@@ -655,8 +662,10 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // slider range [0, 10]: common drag range (matches old Hollow UI).
     // final clamp [0, 100]: allows keyboard input beyond slider range, protects against nonsense.
     float display_depth = m_new_hole_height;            // shared by slider and InputFloat below
+    float pre_height    = m_new_hole_height;            // save before slider may change it
     if (draw_custom_slider("##sl_depth", display_depth, 0.f, 10.f, 0.f, 100.f, slider_w, is_input_enabled())) {
         m_new_hole_height = display_depth;              // slider: immediate apply, every frame
+        begin_size_change(m_new_hole_radius, pre_height); // no-op after first call
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
@@ -664,9 +673,13 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
             m_parent.set_as_dirty();
         }
     }
+    if (ImGui::IsItemDeactivated())
+        apply_size_change("Change hole depth");
     ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
     ImGui::InputFloat("##ph_depth", &display_depth, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
+    if (ImGui::IsItemActivated() && is_input_enabled())
+        begin_size_change(m_new_hole_radius, m_new_hole_height);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
         m_new_hole_height = std::clamp(display_depth, 0.f, 100.f);
         if (!m_selection_empty) {
@@ -675,6 +688,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
                     mo->sla_drain_holes[idx].height = m_new_hole_height; // height only
             m_parent.set_as_dirty();
         }
+        apply_size_change("Change hole depth");
     }
     ImGui::PopItemWidth();
 
@@ -915,6 +929,47 @@ void GLGizmoDrill::on_save(cereal::BinaryOutputArchive& ar) const
        m_selected,
        m_selection_empty
     );
+}
+
+
+void GLGizmoDrill::begin_size_change(float old_radius, float old_height)
+{
+    if (m_radius_before_change == 0.f && m_height_before_change == 0.f) {
+        m_radius_before_change = old_radius;
+        m_height_before_change = old_height;
+        m_holes_before_change  = m_c->selection_info()->model_object()->sla_drain_holes;
+    }
+}
+
+void GLGizmoDrill::apply_size_change(const std::string& snapshot_name)
+{
+    if (m_radius_before_change == 0.f && m_height_before_change == 0.f)
+        return;
+
+    ModelObject* mo = m_c->selection_info()->model_object();
+    auto& holes = mo->sla_drain_holes;
+
+    // Restore old values so TakeSnapshot captures the pre-change state.
+    float new_radius = m_new_hole_radius;
+    float new_height = m_new_hole_height;
+    holes = m_holes_before_change;
+
+    Plater::TakeSnapshot snapshot(wxGetApp().plater(), snapshot_name);
+
+    // Re-apply new values to selected holes.
+    m_new_hole_radius = new_radius;
+    m_new_hole_height = new_height;
+    for (size_t idx = 0; idx < holes.size(); ++idx) {
+        if (m_selected.size() > idx && m_selected[idx]) {
+            holes[idx].radius = new_radius;
+            holes[idx].height = new_height;
+        }
+    }
+    m_parent.set_as_dirty();
+
+    m_radius_before_change = 0.f;
+    m_height_before_change = 0.f;
+    m_holes_before_change.clear();
 }
 
 

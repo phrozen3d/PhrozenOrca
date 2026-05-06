@@ -49,31 +49,31 @@ Get-Content build_log.txt | Select-Object -Last 10
 
 ## 4. GLGizmoDrill — 新增成員變數
 
-- [ ] 4.1 在 `GLGizmoDrill.hpp` 新增 `float m_radius_before_change = 0.f`
-- [ ] 4.2 在 `GLGizmoDrill.hpp` 新增 `float m_height_before_change = 0.f`
-- [ ] 4.3 在 `GLGizmoDrill.hpp` 新增 `sla::DrainHoles m_holes_before_change`（型別與 `mo->sla_drain_holes` 一致）
+- [x] 4.1 在 `GLGizmoDrill.hpp` 新增 `float m_radius_before_change = 0.f`
+- [x] 4.2 在 `GLGizmoDrill.hpp` 新增 `float m_height_before_change = 0.f`
+- [x] 4.3 在 `GLGizmoDrill.hpp` 新增 `sla::DrainHoles m_holes_before_change`（型別與 `mo->sla_drain_holes` 一致）
 
 ## 5. GLGizmoDrill — 實作 begin_size_change / apply_size_change
 
-- [ ] 5.1 在 `GLGizmoDrill.hpp` 宣告 `begin_size_change(float old_radius, float old_height)` 和 `apply_size_change(const std::string& snapshot_name)`
-- [ ] 5.2 在 `GLGizmoDrill.cpp` 實作 `begin_size_change`：若 `m_radius_before_change == 0.f && m_height_before_change == 0.f`，儲存舊值並複製所有洞至 `m_holes_before_change`
-- [ ] 5.3 在 `GLGizmoDrill.cpp` 實作 `apply_size_change`：
+- [x] 5.1 在 `GLGizmoDrill.hpp` 宣告 `begin_size_change(float old_radius, float old_height)` 和 `apply_size_change(const std::string& snapshot_name)`
+- [x] 5.2 在 `GLGizmoDrill.cpp` 實作 `begin_size_change`：若 `m_radius_before_change == 0.f && m_height_before_change == 0.f`，儲存舊值並複製所有洞至 `m_holes_before_change`
+- [x] 5.3 在 `GLGizmoDrill.cpp` 實作 `apply_size_change`：
   - 若無暫存值則直接返回
   - 備份新值 → 還原 `mo->sla_drain_holes` 為 `m_holes_before_change` → `TakeSnapshot` → 重套新值至選取洞 → `set_as_dirty()` → 清除暫存
 
 ## 6. GLGizmoDrill — 接入 Diameter slider 與 InputFloat
 
-- [ ] 6.1 在 diameter slider 首次啟動時呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
-- [ ] 6.2 在 diameter slider 的 `deactivated_after_edit` 呼叫 `apply_size_change("Change hole radius")`
-- [ ] 6.3 在 diameter InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
-- [ ] 6.4 在 diameter InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole radius")`
+- [x] 6.1 在 diameter slider 首次啟動時呼叫 `begin_size_change(pre_radius, m_new_hole_height)`（pre_radius 在 slider 回傳前取樣）
+- [x] 6.2 在 diameter slider 的 `IsItemDeactivated()` 呼叫 `apply_size_change("Change hole radius")`
+- [x] 6.3 在 diameter InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
+- [x] 6.4 在 diameter InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole radius")`
 
 ## 7. GLGizmoDrill — 接入 Depth slider 與 InputFloat
 
-- [ ] 7.1 在 depth slider 首次啟動時呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
-- [ ] 7.2 在 depth slider 的 `deactivated_after_edit` 呼叫 `apply_size_change("Change hole depth")`
-- [ ] 7.3 在 depth InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
-- [ ] 7.4 在 depth InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole depth")`
+- [x] 7.1 在 depth slider 首次啟動時呼叫 `begin_size_change(m_new_hole_radius, pre_height)`（pre_height 在 slider 回傳前取樣）
+- [x] 7.2 在 depth slider 的 `IsItemDeactivated()` 呼叫 `apply_size_change("Change hole depth")`
+- [x] 7.3 在 depth InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
+- [x] 7.4 在 depth InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole depth")`
 
 ## 8. 自動化測試回歸確認
 

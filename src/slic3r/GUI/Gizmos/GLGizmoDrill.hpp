@@ -65,6 +65,15 @@ private:
     float m_new_hole_height = 6.f;
     mutable std::vector<bool> m_selected; // which holes are currently selected
 
+    // Tracks hole sizes before a slider/input drag begins, so we can
+    // restore them before taking a TakeSnapshot (same pattern as GLGizmoBrimEars).
+    float            m_radius_before_change = 0.f;
+    float            m_height_before_change = 0.f;
+    sla::DrainHoles  m_holes_before_change;
+
+    void begin_size_change(float old_radius, float old_height);
+    void apply_size_change(const std::string& snapshot_name);
+
     Vec3f m_hole_before_drag = Vec3f::Zero();
     sla::DrainHoles m_holes_in_drilled_mesh;
 
