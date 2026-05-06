@@ -114,7 +114,7 @@ private:
     Vec3d m_nav_orbit_center = Vec3d::Zero();
 
     // Island GL visualization — colors
-    static ColorRGBA island_contour_color()  { return { 1.0f, 0.5f,  0.0f,  0.75f }; } // orange flat original contour
+    static ColorRGBA island_contour_color()  { return { 1.0f, 0.9f,  0.0f,  1.0f }; } // orange flat original contour
     static ColorRGBA island_overlay_color()  { return { 1.0f, 0.95f, 0.3f,  0.6f  }; } // yellow extruded solid (unselected)
     static ColorRGBA island_selected_color() { return { 0.95f, 0.95f, 0.95f, 0.65f }; } // gray extruded solid (selected)
 
