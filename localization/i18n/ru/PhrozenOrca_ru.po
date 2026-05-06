@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PhrozenOrca V2.3.0 Official Release\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 13:31+0800\n"
+"POT-Creation-Date: 2026-05-06 13:49+0800\n"
 "PO-Revision-Date: 2025-07-06 21:08+0700\n"
 "Last-Translator: \n"
 "Language-Team: Andylg <andylg@yandex.ru>\n"
@@ -37,14 +37,6 @@ msgstr "Температура"
 msgid "Left Time"
 msgstr ""
 
-#, c-format, boost-format
-msgid "%.1f ℃"
-msgstr ""
-
-#, c-format, boost-format
-msgid "%d : %d"
-msgstr ""
-
 msgid "Serial:"
 msgstr "Серийный номер:"
 
@@ -57,17 +49,23 @@ msgstr "Последняя версия"
 msgid "Support Painting"
 msgstr "Рисование поддержек"
 
-msgid "Alt + Mouse wheel"
-msgstr "Alt + Колесо мыши"
+msgid "Ctrl+"
+msgstr "Ctrl+"
+
+msgid "Alt+"
+msgstr ""
+
+msgid "Shift+"
+msgstr "Shift+"
+
+msgid "Mouse wheel"
+msgstr "Колесо мыши"
 
 msgid "Section view"
 msgstr "Отсечение вида"
 
 msgid "Reset direction"
 msgstr "Сброс направления"
-
-msgid "Ctrl + Mouse wheel"
-msgstr "Ctrl + Колесо мыши"
 
 msgid "Pen size"
 msgstr "Размер кисти"
@@ -83,9 +81,6 @@ msgstr "Правая кнопка мыши"
 
 msgid "Block supports"
 msgstr "Блокировка поддержки"
-
-msgid "Shift + Left mouse button"
-msgstr "Shift + Левая кнопка мыши"
 
 msgid "Erase"
 msgstr "Очистить"
@@ -196,11 +191,20 @@ msgstr "Заливка"
 msgid "Height range"
 msgstr "Диапазон высоты слоёв"
 
-msgid "Alt + Shift + Enter"
-msgstr "Alt + Shift + Enter"
+msgid "Enter"
+msgstr ""
 
 msgid "Toggle Wireframe"
 msgstr "Показать/скрыть каркас"
+
+msgid "Remap filaments"
+msgstr ""
+
+msgid "Remap"
+msgstr ""
+
+msgid "Cancel"
+msgstr "Отмена"
 
 msgid "Shortcut Key "
 msgstr "Горячая клавиша "
@@ -225,6 +229,9 @@ msgstr "Удаление окрашенного участка"
 #, boost-format
 msgid "Painted using: Filament %1%"
 msgstr "Окрашено с использованием прутка %1%"
+
+msgid "Filament remapping finished."
+msgstr ""
 
 msgid "Move"
 msgstr "Перемещение"
@@ -496,9 +503,6 @@ msgstr "Пропорция прорези в клипсе, связанная с
 msgid "Confirm connectors"
 msgstr "Подтвердить"
 
-msgid "Cancel"
-msgstr "Отмена"
-
 msgid "Build Volume"
 msgstr "Область построения"
 
@@ -730,8 +734,8 @@ msgstr "На поверхности"
 msgid "Horizontal text"
 msgstr "Горизонтальный текст"
 
-msgid "Shift + Mouse move up or down"
-msgstr "Shift + Мышь вверх или вниз"
+msgid "Mouse move up or down"
+msgstr ""
 
 msgid "Rotate text"
 msgstr "Поворот текста"
@@ -1489,8 +1493,196 @@ msgstr ""
 msgid "Flip by Face 2"
 msgstr "Перевернуть грань 2"
 
-msgid "Ctrl+"
-msgstr "Ctrl+"
+msgid "Overhang Detection"
+msgstr ""
+
+msgid "Alt + Mouse wheel"
+msgstr "Alt + Колесо мыши"
+
+msgid "Ctrl + Mouse wheel"
+msgstr "Ctrl + Колесо мыши"
+
+msgid "Shift + Left mouse button"
+msgstr "Shift + Левая кнопка мыши"
+
+msgid "Detection Accuracy"
+msgstr ""
+
+msgid "Middle"
+msgstr ""
+
+msgid "Model"
+msgstr "Модели"
+
+msgid "Overhang Area"
+msgstr ""
+
+msgid "Detect all"
+msgstr ""
+
+msgid "Detect selected"
+msgstr ""
+
+msgid "Add overhang supports"
+msgstr ""
+
+msgid "Hollow"
+msgstr "Полость"
+
+msgid "Remove"
+msgstr "Удалить"
+
+msgid "Hollow and drill"
+msgstr ""
+
+msgid "Selected object has to be on the active bed."
+msgstr ""
+
+msgid "Preview"
+msgstr "Предпросмотр нарезки"
+
+msgid "Remove selected"
+msgstr ""
+
+msgid "Remove all"
+msgstr "Удалить все"
+
+msgid "Left click:"
+msgstr ""
+
+msgid "Right click:"
+msgstr ""
+
+msgid "Add hole"
+msgstr ""
+
+msgid "Remove hole"
+msgstr ""
+
+msgid "Drill"
+msgstr ""
+
+msgid "Head diameter"
+msgstr "Диаметр уха"
+
+msgid "Lock supports under new islands"
+msgstr ""
+
+msgid "Remove selected points"
+msgstr "Удалить выбранные"
+
+msgid "Remove all points"
+msgstr ""
+
+msgid "Apply changes"
+msgstr ""
+
+msgid "Discard changes"
+msgstr ""
+
+msgid "Support points density"
+msgstr ""
+
+msgid "Auto-generate points"
+msgstr "Сгенерировать автоматически"
+
+msgid "Manual editing"
+msgstr ""
+
+msgid "Head Diameter"
+msgstr ""
+
+msgid "Discard"
+msgstr "Не сохранять"
+
+msgid "Auto Support"
+msgstr ""
+
+msgid "Manual Support"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Heavy"
+msgstr ""
+
+msgid "Structure"
+msgstr ""
+
+msgid "Points"
+msgstr ""
+
+msgid "Density"
+msgstr "Плотность"
+
+msgid "Auto-generate support points based on density setting."
+msgstr ""
+
+msgid "Pillar Diameter"
+msgstr ""
+
+msgid ""
+"Left-click: add support point\n"
+"Right-click: remove point"
+msgstr ""
+
+msgid "SLA Support Points"
+msgstr ""
+
+msgid "Do you want to save your manually edited support points?"
+msgstr ""
+
+msgid "Save support points?"
+msgstr ""
+
+msgid "Autogeneration will erase all manually edited points."
+msgstr ""
+
+msgid "Are you sure you want to do it?"
+msgstr ""
+
+msgid "SLA gizmo keyboard shortcuts"
+msgstr ""
+
+msgid "Note: some shortcuts work in (non)editing mode only."
+msgstr ""
+
+msgid "Add point"
+msgstr ""
+
+msgid "Remove point"
+msgstr ""
+
+msgid "Move point"
+msgstr ""
+
+msgid "Add point to selection"
+msgstr ""
+
+msgid "Remove point from selection"
+msgstr ""
+
+msgid "Select by rectangle"
+msgstr ""
+
+msgid "Deselect by rectangle"
+msgstr ""
+
+msgid "Select all points"
+msgstr ""
+
+msgid "Del"
+msgstr "Del"
+
+msgid "Move clipping plane"
+msgstr ""
+
+msgid "Reset clipping plane"
+msgstr ""
+
+msgid "Switch to editing mode"
+msgstr ""
 
 msgid "Notice"
 msgstr "Примечание"
@@ -1853,11 +2045,11 @@ msgstr "Скрыть"
 msgid "Show"
 msgstr "Показать"
 
-msgid "Del"
-msgstr "Del"
-
 msgid "Delete the selected object"
 msgstr "Удаление выбранных моделей"
+
+msgid "Backspace"
+msgstr ""
 
 msgid "Load..."
 msgstr "Загрузить…"
@@ -1891,6 +2083,9 @@ msgstr "Стенфордский кролик"
 
 msgid "PhrozenOrca Cube"
 msgstr "Куб Orca Design"
+
+msgid "Orca Tolerance Test"
+msgstr ""
 
 msgid "PhrozenOrca String Hell"
 msgstr "«Струнный ад» Orca"
@@ -2911,8 +3106,8 @@ msgstr "Загрузка"
 msgid "Download failed"
 msgstr "Ошибка загрузки"
 
-msgid "Cancelled"
-msgstr ""
+msgid "Canceled"
+msgstr "Отменено"
 
 msgid "Installed successfully"
 msgstr "Успешно установлено."
@@ -3124,10 +3319,10 @@ msgstr "Шаг"
 msgid "AMS Slots"
 msgstr "Слоты АСПП"
 
-msgid "Left Ams"
+msgid "Left AMS"
 msgstr ""
 
-msgid "Right Ams"
+msgid "Right AMS"
 msgstr ""
 
 # Примечание: выбор слотов ограничен одним типом материала.
@@ -3727,14 +3922,8 @@ msgstr "Настройки"
 msgid "Texture"
 msgstr "Текстура"
 
-msgid "Remove"
-msgstr "Удалить"
-
 msgid "Not found:"
 msgstr "Не найдено:"
-
-msgid "Model"
-msgstr "Модели"
 
 msgid "Choose an STL file to import bed shape from:"
 msgstr "Выберите STL файл для импорта формы стола из:"
@@ -3799,8 +3988,10 @@ msgstr ""
 
 msgid ""
 "Too small max volumetric speed.\n"
-"Reset to 0.5"
+"Reset to 0.5."
 msgstr ""
+"Слишком маленький максимальный объёмный расход.\n"
+"Значение будет сброшено на 0,5."
 
 #, c-format, boost-format
 msgid ""
@@ -3814,13 +4005,17 @@ msgstr ""
 
 msgid ""
 "Too small layer height.\n"
-"Reset to 0.2"
+"Reset to 0.2."
 msgstr ""
+"Слишком маленькая высота слоя.\n"
+"Значение будет сброшено на 0,2."
 
 msgid ""
 "Too small ironing spacing.\n"
-"Reset to 0.1"
+"Reset to 0.1."
 msgstr ""
+"Слишком маленькое расстояние между линиями разглаживания.\n"
+"Значение будет сброшено на 0,1."
 
 msgid ""
 "Zero initial layer height is invalid.\n"
@@ -3926,8 +4121,20 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"lock depth should smaller than skin depth.\n"
-"Reset to 50% of skin depth"
+"Lock depth should smaller than skin depth.\n"
+"Reset to 50% of skin depth."
+msgstr ""
+
+msgid ""
+"Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
+"Generator to be enabled."
+msgstr ""
+
+msgid ""
+"Change these settings automatically?\n"
+"Yes - Enable Arachne Wall Generator\n"
+"No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
+"Fuzzy Skin"
 msgstr ""
 
 msgid ""
@@ -4271,8 +4478,12 @@ msgstr "Введённое значение вне диапазона"
 msgid "Some extension in the input is invalid"
 msgstr "Недопустимое расширение на входе"
 
+msgid "This parameter expects a valid template."
+msgstr ""
+
 msgid ""
-"This parameter expects a comma-delimited list of numbers. E.g, \"0,90\"."
+"Invalid pattern. Use N, N#K, or a comma-separated list with optional #K per "
+"entry. Examples: 5, 5#2, 1,7,9, 5,9#2,18."
 msgstr ""
 
 #, boost-format
@@ -4482,26 +4693,14 @@ msgstr "Радиус"
 msgid "Keep min"
 msgstr "Сохранять минимумы"
 
-msgid "Left mouse button:"
-msgstr "Левая кнопка мыши:"
-
 msgid "Add detail"
 msgstr "Увеличить детализацию"
-
-msgid "Right mouse button:"
-msgstr "Правая кнопка мыши:"
 
 msgid "Remove detail"
 msgstr "Уменьшить детализацию"
 
-msgid "Shift + Left mouse button:"
-msgstr "Shift + Левая кнопка мыши:"
-
 msgid "Reset to base"
 msgstr "Сброс до базовой высоты слоя"
-
-msgid "Shift + Right mouse button:"
-msgstr "Shift + Правая кнопка мыши:"
 
 msgid "Smoothing"
 msgstr "Сглаживание"
@@ -4518,7 +4717,7 @@ msgstr "Последовательность"
 msgid "object selection"
 msgstr ""
 
-msgid "part selectiont"
+msgid "part selection"
 msgstr ""
 
 msgid "number keys"
@@ -4628,9 +4827,6 @@ msgstr "Отсечение вида"
 
 msgid "Assemble Control"
 msgstr "Управление сборкой"
-
-msgid "part selection"
-msgstr ""
 
 msgid "Selection Mode"
 msgstr ""
@@ -4764,6 +4960,12 @@ msgstr ""
 msgid "Invalid input."
 msgstr "Неверный ввод."
 
+msgid "Phrozen Orca FDM"
+msgstr ""
+
+msgid "Phrozen Orca Resin"
+msgstr ""
+
 msgid "New Window"
 msgstr "Новое окно"
 
@@ -4778,9 +4980,6 @@ msgstr "Закрытие приложения, при имеющихся изм�
 
 msgid "Logging"
 msgstr "Авторизация"
-
-msgid "Preview"
-msgstr "Предпросмотр нарезки"
 
 # ??? Управ. принтерами, менеджер принтеров, Диспетчер принтеров
 msgid "Multi-device"
@@ -4798,14 +4997,29 @@ msgstr "Нет"
 msgid "will be closed before creating a new model. Do you want to continue?"
 msgstr "будет закрыт перед созданием новой модели. Хотите продолжить?"
 
+msgid ""
+"No Phrozen SLA printer preset found. Enable Phrozen SLA machines in Setup "
+"Wizard."
+msgstr ""
+
+msgid ""
+"Phrozen Arco preset not found. Enable the Phrozen FDM bundle in Setup Wizard."
+msgstr ""
+
+msgid "Phrozen Orca"
+msgstr ""
+
 msgid "Slice plate"
 msgstr "Нарезать стол"
 
-msgid "Print plate"
-msgstr "Распечатать стол"
+msgid "Export PRZ file"
+msgstr ""
 
 msgid "Export G-code file"
 msgstr "Экспорт в G-код"
+
+msgid "Print plate"
+msgstr "Распечатать стол"
 
 msgid "Export plate sliced file"
 msgstr "Экспорт стола в файл проекта"
@@ -4911,9 +5125,6 @@ msgstr "Сохранить текущий проект в файл"
 
 msgid "Save Project as"
 msgstr "Сохранить проект как"
-
-msgid "Shift+"
-msgstr "Shift+"
 
 msgid "Save current project as"
 msgstr "Сохранить текущий проект как"
@@ -5132,9 +5343,6 @@ msgstr "Тест на вертикальные артефакты (VFA)"
 
 msgid "Pressure advance"
 msgstr "Коэф. Pressure advance"
-
-msgid "Orca Tolerance Test"
-msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr "Частота Input Shaping "
@@ -5438,11 +5646,6 @@ msgstr "Перезагрузка списка файлов с принтера."
 
 msgid "No printers."
 msgstr "Принтеры отсутствуют."
-
-msgid ""
-"Please check the network and try again, You can restart or update the "
-"printer if the issue persists."
-msgstr ""
 
 msgid "Loading file list..."
 msgstr "Загрузка списка файлов..."
@@ -6221,6 +6424,9 @@ msgstr "Расчётное время печати"
 msgid "Filament changes"
 msgstr "Смена прутка"
 
+msgid "Resin"
+msgstr ""
+
 msgid "Click to edit preset"
 msgstr "Нажмите, чтобы изменить профиль"
 
@@ -6229,6 +6435,20 @@ msgstr "Подключиться"
 
 msgid "Bed type"
 msgstr "Тип стола"
+
+msgid "SLA Print Settings"
+msgstr ""
+
+#. TRN "Save current Settings"
+#, c-format, boost-format
+msgid "Save current %s"
+msgstr "Сохранить текущий %s"
+
+msgid "Delete this preset"
+msgstr "Удалить этот профиль"
+
+msgid "Material"
+msgstr ""
 
 msgid "Flushing volumes"
 msgstr "Объём очистки"
@@ -6346,6 +6566,9 @@ msgstr "Развернуть боковую панель"
 msgid "Collapse sidebar"
 msgstr "Свернуть боковую панель"
 
+msgid "Tab"
+msgstr ""
+
 #, c-format, boost-format
 msgid "Loading file: %s"
 msgstr "Загрузка файла: %s"
@@ -6356,6 +6579,17 @@ msgstr ""
 
 msgid "Load 3mf"
 msgstr "Загрузка 3mf"
+
+msgid ""
+"This project was created with an OrcaSlicer 2.3.1-alpha and uses infill "
+"rotation template settings that may not work properly with your current "
+"infill pattern. This could result in weak support or print quality issues."
+msgstr ""
+
+msgid ""
+"Would you like PhrozenOrca to automatically fix this by clearing the "
+"rotation template settings?"
+msgstr ""
 
 #, c-format, boost-format
 msgid ""
@@ -6574,9 +6808,6 @@ msgstr "Пожалуйста, устраните ошибки нарезки и 
 msgid "Phrozen Orca not supply this action"
 msgstr ""
 
-msgid "Phrozen Orca"
-msgstr ""
-
 msgid ""
 "Network Plug-in is not detected. Network related features are unavailable."
 msgstr "Сетевой плагин не обнаружен. Функции, связанные с сетью, недоступны."
@@ -6727,6 +6958,12 @@ msgstr "Указано недопустимое имя файла."
 
 msgid "The following characters are not allowed by a FAT file system:"
 msgstr "Следующие символы не разрешены файловой системой FAT:"
+
+msgid "Save Phrozen SLA file as:"
+msgstr ""
+
+msgid "No raster parameters found. Please slice the model before exporting."
+msgstr ""
 
 msgid "Save Sliced file as:"
 msgstr "Сохранить нарезанный файл как:"
@@ -7950,14 +8187,6 @@ msgstr "Выход выполнен успешно."
 msgid "Failed to log out."
 msgstr "Не удалось выйти."
 
-#. TRN "Save current Settings"
-#, c-format, boost-format
-msgid "Save current %s"
-msgstr "Сохранить текущий %s"
-
-msgid "Delete this preset"
-msgstr "Удалить этот профиль"
-
 msgid "Search in preset"
 msgstr "Поиск в профиле"
 
@@ -8016,6 +8245,14 @@ msgstr ""
 
 msgid "Are you sure you want to enable this option?"
 msgstr "Вы уверены, что хотите включить эту опцию?"
+
+msgid ""
+"Infill patterns are typically designed to handle rotation automatically to "
+"ensure proper printing and achieve their intended effects (e.g., Gyroid, "
+"Cubic). Rotating the current sparse infill pattern may lead to insufficient "
+"support. Please proceed with caution and thoroughly check for any potential "
+"printing issues.Are you sure you want to enable this option?"
+msgstr ""
 
 msgid ""
 "Layer height is too small.\n"
@@ -8514,6 +8751,30 @@ msgstr "G-код паузы печати"
 msgid "Template Custom G-code"
 msgstr "Шаблон пользовательского G-кода"
 
+msgid "General"
+msgstr "Общие"
+
+msgid "Size and coordinates"
+msgstr ""
+
+msgid "Tilt"
+msgstr ""
+
+msgid "Tilt time"
+msgstr ""
+
+msgid "Corrections"
+msgstr ""
+
+msgid "Exposure"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Profile dependencies"
+msgstr "Зависимости профиля"
+
 msgid "Motion ability"
 msgstr "Ограничения принтера"
 
@@ -8650,6 +8911,54 @@ msgstr "Нажмите, чтобы сбросить текущее значен�
 msgid "Click to drop current modify and reset to saved value."
 msgstr "Нажмите, чтобы сбросить текущее изменение к сохраненному значению."
 
+msgid "Layer & Exposure"
+msgstr ""
+
+msgid "Transition"
+msgstr ""
+
+msgid "Wait & Rest"
+msgstr ""
+
+msgid "Lift & Retract Distance"
+msgstr ""
+
+msgid "Bottom Lift Distance"
+msgstr ""
+
+msgid "Lifting Distance"
+msgstr ""
+
+msgid "Bottom Retract Distance"
+msgstr ""
+
+msgid "Retract Distance"
+msgstr ""
+
+msgid "Lift & Retract Speed"
+msgstr ""
+
+msgid "Bottom Lift Speed"
+msgstr ""
+
+msgid "Lifting Speed"
+msgstr ""
+
+msgid "Bottom Retract Speed"
+msgstr ""
+
+msgid "Retract Speed"
+msgstr ""
+
+msgid "Support preview description"
+msgstr ""
+
+msgid "Main"
+msgstr ""
+
+msgid "Raft Setting"
+msgstr ""
+
 msgid "Process Settings"
 msgstr "Настройки процесса"
 
@@ -8672,9 +8981,6 @@ msgid "Transfer"
 msgstr "Перенести"
 
 msgid "Don't save"
-msgstr "Не сохранять"
-
-msgid "Discard"
 msgstr "Не сохранять"
 
 msgid "Click the right mouse button to display the full text."
@@ -8765,9 +9071,6 @@ msgstr ""
 
 msgid "Extruders count"
 msgstr "Количество экструдеров"
-
-msgid "General"
-msgstr "Общие"
 
 msgid "Capabilities"
 msgstr "Характеристики принтера"
@@ -9089,12 +9392,6 @@ msgstr "Список моделей"
 msgid "Import geometry data from STL/STEP/3MF/OBJ/AMF files"
 msgstr "Импорт геометрических данных из STL/STEP/3MF/OBJ/AMF файлов"
 
-msgid "⌘+Shift+G"
-msgstr "⌘+Shift+G"
-
-msgid "Ctrl+Shift+G"
-msgstr "Ctrl+Shift+G"
-
 msgid "Paste from clipboard"
 msgstr "Вставить из буфера обмена"
 
@@ -9112,20 +9409,14 @@ msgstr "Показать список сочетаний клавиш"
 msgid "Global shortcuts"
 msgstr "Глобальные горячие клавиши"
 
-msgid "Rotate View"
-msgstr "Вращение камеры"
-
 msgid "Pan View"
 msgstr "Перемещение камеры"
 
-msgid "Mouse wheel"
-msgstr "Колесо мыши"
+msgid "Rotate View"
+msgstr "Вращение камеры"
 
 msgid "Zoom View"
 msgstr "Масштабирование вида"
-
-msgid "Shift+A"
-msgstr "Shift+A"
 
 msgid ""
 "Auto orients selected objects or all objects. If there are selected objects, "
@@ -9136,47 +9427,23 @@ msgstr ""
 "ориентация будет применена только к ним; в противном случае ко всем моделям "
 "на текущем столе."
 
-msgid "Shift+Q"
-msgstr ""
-
 msgid "Auto orients all objects on the active plate."
 msgstr "Автоориентация всех моделей на текущей печатной пластине."
-
-msgid "Shift+Tab"
-msgstr "Shift+Tab"
 
 msgid "Collapse/Expand the sidebar"
 msgstr "Свернуть/Развернуть боковую панель"
 
-msgid "⌘+Any arrow"
-msgstr "⌘ + Любая стрелка"
+msgid "Any arrow"
+msgstr ""
 
 msgid "Movement in camera space"
 msgstr "Перемещение выбранного по отношению к камере"
 
-msgid "⌥+Left mouse button"
-msgstr "⌥ + Левая кнопка мыши"
-
 msgid "Select a part"
 msgstr "Выбор части модели"
 
-msgid "⌘+Left mouse button"
-msgstr "⌘ + Левая кнопка мыши"
-
 msgid "Select multiple objects"
 msgstr "Выбор нескольких моделей"
-
-msgid "Ctrl+Any arrow"
-msgstr "Ctrl + Любая стрелка"
-
-msgid "Alt+Left mouse button"
-msgstr "Alt + Левая кнопка мыши"
-
-msgid "Ctrl+Left mouse button"
-msgstr "Ctrl + Левая кнопка мыши"
-
-msgid "Shift+Left mouse button"
-msgstr "Shift + Левая кнопка мыши"
 
 msgid "Select objects by rectangle"
 msgstr "Выбор прямоугольником"
@@ -9204,9 +9471,6 @@ msgstr "Стрелка вправо"
 
 msgid "Move selection 10 mm in positive X direction"
 msgstr "Перемещение выбранного на 10 мм по оси X+"
-
-msgid "Shift+Any arrow"
-msgstr "Shift + Любая стрелка"
 
 msgid "Movement step set to 1 mm"
 msgstr "Зафиксировать шаг перемещения на 1 мм"
@@ -9292,23 +9556,11 @@ msgstr "Печатная пластина"
 msgid "Move: press to snap by 1mm"
 msgstr "Перемещение: Фиксация перемещения на 1 мм"
 
-msgid "⌘+Mouse wheel"
-msgstr "⌘+Колесо мыши"
-
 msgid "Support/Color Painting: adjust pen radius"
 msgstr "Рисование поддержек/Шва/Покраски: регулировка радиуса кисти"
 
-msgid "⌥+Mouse wheel"
-msgstr "⌥+Колесо мыши"
-
 msgid "Support/Color Painting: adjust section position"
 msgstr "Рисование поддержек/Шва/Покраски: регулировка положения сечения"
-
-msgid "Ctrl+Mouse wheel"
-msgstr "Ctrl+Колесо мыши"
-
-msgid "Alt+Mouse wheel"
-msgstr "Alt+Колесо мыши"
 
 msgid "Gizmo"
 msgstr "Гизмо"
@@ -9352,9 +9604,6 @@ msgstr "Показать/скрыть окно отображения G-кода
 
 msgid "Move slider 5x faster"
 msgstr "Перемещение ползунка быстрее в 5 раз"
-
-msgid "Shift+Mouse wheel"
-msgstr "Shift + Колесо мыши"
 
 msgid "Horizontal slider - Move to start position"
 msgstr "Горизонтальный ползунок - Перемещение в начальную позицию"
@@ -9509,10 +9758,10 @@ msgstr ""
 msgid "Air Pump"
 msgstr ""
 
-msgid "Laser 10w"
+msgid "Laser 10 W"
 msgstr ""
 
-msgid "Laser 40w"
+msgid "Laser 40 W"
 msgstr ""
 
 msgid "Cutting Module"
@@ -10131,6 +10380,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"The precise wall option will be ignored for outer-inner or inner-outer-inner "
+"wall sequences."
+msgstr ""
+
+msgid ""
 "Filament shrinkage will not be used because filament shrinkage for the used "
 "filaments differs significantly."
 msgstr ""
@@ -10216,8 +10470,9 @@ msgstr "Максимальная высота печати, которая ог�
 msgid "Preferred orientation"
 msgstr "Предпочтительная ориентация"
 
-msgid "Automatically orient stls on the Z-axis upon initial import."
-msgstr ""
+# Автоориентация stl файлов по оси Z при первоначальном импорте.
+msgid "Automatically orient stls on the Z axis upon initial import."
+msgstr "Автоориентация моделей относительно оси Z при первоначальном импорте."
 
 msgid "Printer preset names"
 msgstr "Имена профиля принтера"
@@ -10434,6 +10689,13 @@ msgstr "Не нагреваемая гладкая пластина Bambu"
 
 msgid "Smooth High Temp Plate"
 msgstr "Высокотемп. гладкая пластина"
+
+msgid "Default bed type"
+msgstr ""
+
+msgid ""
+"Default bed type for the printer (supports both numeric and string format)."
+msgstr ""
 
 msgid "First layer print sequence"
 msgstr "Последовательность печати первого слоя"
@@ -10763,10 +11025,9 @@ msgstr "Точные периметры"
 
 msgid ""
 "Improve shell precision by adjusting outer wall spacing. This also improves "
-"layer consistency."
+"layer consistency. NOTE: This option will be ignored for outer-inner or "
+"inner-outer-inner wall sequences."
 msgstr ""
-"Повышение точности оболочки за счёт регулировки расстояния между внешними "
-"стенками. Это также позволяет уменьшить расслоение слоёв."
 
 msgid "Only one wall on top surfaces"
 msgstr "Только один периметр на верхней поверхности"
@@ -11051,9 +11312,12 @@ msgstr "Радиус обнаружения ушек каймы"
 
 msgid ""
 "The geometry will be decimated before detecting sharp angles. This parameter "
-"indicates the minimum length of the deviation for the decimation. \n"
+"indicates the minimum length of the deviation for the decimation.\n"
 "0 to deactivate."
 msgstr ""
+"Геометрия модели будет упрощена перед обнаружением острых углов. Этот "
+"параметр задаёт минимальную длину отклонения для её упрощения.\n"
+"Установите 0 для отключения."
 
 msgid "Select printers"
 msgstr "Выбор профиля принтера"
@@ -11971,7 +12235,7 @@ msgid "Default color"
 msgstr "Цвет по умолчанию"
 
 msgid ""
-"Default filament color\n"
+"Default filament color.\n"
 "Right click to reset value to system default."
 msgstr ""
 
@@ -12236,9 +12500,6 @@ msgstr "Поток рэмминга многоинструментального
 msgid "Flow used for ramming the filament before the tool change."
 msgstr "Поток рэмминга пластиковой нити перед сменой инструмента."
 
-msgid "Density"
-msgstr "Плотность"
-
 msgid "Filament density. For statistics only."
 msgstr ""
 "Плотность пластиковой нити. Это необходимо только для отображения "
@@ -12330,6 +12591,25 @@ msgstr ""
 "Плотность внутреннего заполнения, выраженная в процентах. 100% означает "
 "сплошное заполнение."
 
+msgid "Align infill direction to model"
+msgstr ""
+
+msgid ""
+"Aligns infill and surface fill directions to follow the model's orientation "
+"on the build plate. When enabled, fill directions rotate with the model to "
+"maintain optimal strength characteristics."
+msgstr ""
+
+msgid "Insert solid layers"
+msgstr ""
+
+msgid ""
+"Insert solid infill at specific layers. Use N to insert every Nth layer, N#K "
+"to insert K consecutive solid layers every N layers (K is optional, e.g. "
+"'5#' equals '5#1'), or a comma-separated list (e.g. 1,7,9) to insert at "
+"explicit layers. Layers are 1-based."
+msgstr ""
+
 msgid "Fill Multiline"
 msgstr ""
 
@@ -12382,11 +12662,11 @@ msgstr "Соты"
 msgid "3D Honeycomb"
 msgstr "3D соты"
 
-msgid "2D Honeycomb"
+msgid "Lateral Honeycomb"
 msgstr ""
 
-msgid "2D Lattice"
-msgstr ""
+msgid "Lateral Lattice"
+msgstr "2D решётка"
 
 msgid "Cross Hatch"
 msgstr "Перекрёстная решётка"
@@ -12394,24 +12674,31 @@ msgstr "Перекрёстная решётка"
 msgid "TPMS-D"
 msgstr ""
 
+msgid "TPMS-FK"
+msgstr ""
+
 msgid "Gyroid"
 msgstr "Гироид"
 
-msgid "Lattice angle 1"
-msgstr ""
+msgid "Lateral lattice angle 1"
+msgstr "Угол №1 (2D решётка)"
 
 msgid ""
-"The angle of the first set of 2D lattice elements in the Z direction. Zero "
-"is vertical."
+"The angle of the first set of Lateral lattice elements in the Z direction. "
+"Zero is vertical."
 msgstr ""
+"Угол наклона первой линии для шаблона заполнения «2D решётка» относительно "
+"вертикальной оси Z (0 - вертикально)."
 
-msgid "Lattice angle 2"
-msgstr ""
+msgid "Lateral lattice angle 2"
+msgstr "Угол №2 (2D решётка)"
 
 msgid ""
-"The angle of the second set of 2D lattice elements in the Z direction. Zero "
-"is vertical."
+"The angle of the second set of Lateral lattice elements in the Z direction. "
+"Zero is vertical."
 msgstr ""
+"Угол наклона второй линии для шаблона заполнения «2D решётка» относительно "
+"вертикальной оси Z (0 - вертикально)."
 
 msgid "Infill overhang angle"
 msgstr ""
@@ -12553,7 +12840,8 @@ msgid "Default jerk."
 msgstr ""
 
 msgid ""
-"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)"
+"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk "
+"setting)."
 msgstr ""
 
 msgid "Jerk of outer walls."
@@ -12747,6 +13035,42 @@ msgstr "Нечёткая оболочки на первом слое"
 
 msgid "Whether to apply fuzzy skin on the first layer."
 msgstr "Применять ли нечёткую оболочку к первому слою."
+
+msgid "Fuzzy skin generator mode"
+msgstr ""
+
+#, c-format, boost-format
+msgid ""
+"Fuzzy skin generation mode. Works only with Arachne!\n"
+"Displacement: Сlassic mode when the pattern is formed by shifting the nozzle "
+"sideways from the original path.\n"
+"Extrusion: The mode when the pattern formed by the amount of extruded "
+"plastic. This is the fast and straight algorithm without unnecessary nozzle "
+"shake that gives a smooth pattern. But it is more useful for forming loose "
+"walls in the entire they array.\n"
+"Combined: Joint mode [Displacement] + [Extrusion]. The appearance of the "
+"walls is similar to [Displacement] Mode, but it leaves no pores between the "
+"perimeters.\n"
+"\n"
+"Attention! The [Extrusion] and [Combined] modes works only the "
+"fuzzy_skin_thickness parameter not more than the thickness of printed loop. "
+"At the same time, the width of the extrusion for a particular layer should "
+"also not be below a certain level. It is usually equal 15-25%% of a layer "
+"height. Therefore, the maximum fuzzy skin thickness with a perimeter width "
+"of 0.4 mm and a layer height of 0.2 mm will be 0.4-(0.2*0.25)=±0.35mm! If "
+"you enter a higher parameter than this, the error Flow::spacing() will "
+"displayed, and the model will not be sliced. You can choose this number "
+"until this error is repeated."
+msgstr ""
+
+msgid "Displacement"
+msgstr ""
+
+msgid "Extrusion"
+msgstr ""
+
+msgid "Combined"
+msgstr "Общая"
 
 msgid "Fuzzy skin noise type"
 msgstr "Тип нечёткой оболочки"
@@ -13132,19 +13456,14 @@ msgid "Sparse infill rotatation template"
 msgstr ""
 
 msgid ""
-"This parameter adds a rotation of sparse infill direction to each layer "
-"according to the specified template. The template is a comma-separated list "
-"of angles in degrees, e.g. '0,90'. The first angle is applied to the first "
-"layer, the second angle to the second layer, and so on. If there are more "
-"layers than angles, the angles will be repeated. Note that not all sparse "
-"infill patterns support rotation."
+"Rotate the sparse infill direction per layer using a template of angles. "
+"Enter comma-separated degrees (e.g., '0,30,60,90'). Angles are applied in "
+"order by layer and repeat when the list ends. Advanced syntax is supported: "
+"'+5' rotates +5° every layer; '+5#5' rotates +5° every 5 layers. See the "
+"Wiki for details. When a template is set, the standard infill direction "
+"setting is ignored. Note: some infill patterns (e.g., Gyroid) control "
+"rotation themselves; use with care."
 msgstr ""
-"Этот параметр поворачивает шаблон разреженного заполнения на каждом слое по "
-"заданному правилу. Шаблон представляет собой список углов в градусах, "
-"разделенных запятыми, например '0,90'. Первый угол применяется к первому "
-"слою, второй угол - ко второму слою и так далее. Если слоёв больше, чем "
-"углов, то углы будут повторяться. Обратите внимание, что не все шаблоны с "
-"разреженной заливкой поддерживают поворот."
 
 msgid "°"
 msgstr "°"
@@ -13167,9 +13486,9 @@ msgstr ""
 msgid ""
 "The remaining part of the model contour after removing a certain depth from "
 "the surface is called the skeleton. This parameter is used to adjust the "
-"density of this section.When two regions have the same sparse infill "
+"density of this section. When two regions have the same sparse infill "
 "settings but different skeleton densities, their skeleton areas will develop "
-"overlapping sections.default is as same as infill density."
+"overlapping sections. Default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill density"
@@ -13178,9 +13497,9 @@ msgstr ""
 msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
-"section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate regions."
-"default is as same as infill density."
+"section. When two regions have the same sparse infill settings but different "
+"skin densities, this area will not be split into two separate regions. "
+"Default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -13207,11 +13526,11 @@ msgstr ""
 msgid "Adjust the line width of the selected skeleton paths."
 msgstr ""
 
-msgid "Symmetric infill y axis"
+msgid "Symmetric infill Y axis"
 msgstr ""
 
 msgid ""
-"If the model has two parts that are symmetric about the y-axis, and you want "
+"If the model has two parts that are symmetric about the Y axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
@@ -13448,8 +13767,8 @@ msgstr ""
 msgid "Ironing speed"
 msgstr "Скорость разглаживания"
 
-msgid "Print speed of ironing lines"
-msgstr ""
+msgid "Print speed of ironing lines."
+msgstr "Скорость разглаживания."
 
 msgid "Ironing angle"
 msgstr "Угол разглаживания"
@@ -13597,8 +13916,7 @@ msgid "Maximum Junction Deviation"
 msgstr "Макс. значение Junction Deviation"
 
 msgid ""
-"Maximum junction deviation (M205 J, only apply if  JD > 0 for Marlin "
-"Firmware)"
+"Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
 msgstr ""
 
 msgid "Minimum speed for extruding"
@@ -13815,8 +14133,8 @@ msgstr ""
 "сохранить минимальное время слоя, указанное выше, если включена опция "
 "«Замедлять печать для лучшего охлаждения слоёв»."
 
-msgid "Diameter of nozzle"
-msgstr ""
+msgid "The diameter of nozzle."
+msgstr "Диаметр сопла"
 
 msgid "Configuration notes"
 msgstr "Примечание конфигурации"
@@ -13968,8 +14286,8 @@ msgstr ""
 "Определяет процент нависания относительно ширины линии и использует разную "
 "скорость печати. Для 100%%-го свеса используется скорость печати мостов."
 
-msgid "Filament to print walls"
-msgstr ""
+msgid "Filament to print walls."
+msgstr "Пластиковая нить для печати периметров."
 
 msgid ""
 "Line width of inner wall. If expressed as a %, it will be computed over the "
@@ -14024,8 +14342,8 @@ msgstr ""
 msgid "Printer type"
 msgstr "Тип принтера"
 
-msgid "Type of the printer"
-msgstr ""
+msgid "Type of the printer."
+msgstr "Тип принтера"
 
 msgid "Printer notes"
 msgstr "Примечания к принтеру"
@@ -14317,6 +14635,9 @@ msgstr "Ближайшая"
 msgid "Aligned"
 msgstr "Выровненная"
 
+msgid "Aligned back"
+msgstr ""
+
 msgid "Back"
 msgstr "Сзади"
 
@@ -14532,8 +14853,8 @@ msgstr ""
 msgid "Skirt distance"
 msgstr "Расстояние до юбки"
 
-msgid "Distance from skirt to brim or object"
-msgstr ""
+msgid "The distance from the skirt to the brim or the object."
+msgstr "Расстояние между юбкой и каймой, или моделью."
 
 msgid "Skirt start point"
 msgstr "Начальная точка юбки"
@@ -14599,9 +14920,6 @@ msgstr ""
 "Выбор типа печатаемой юбки - одна общая для всех моделей или отдельные юбки "
 "для каждой модели."
 
-msgid "Combined"
-msgstr "Общая"
-
 msgid "Per object"
 msgstr "Для каждой модели"
 
@@ -14659,8 +14977,8 @@ msgstr ""
 msgid "Solid infill"
 msgstr "Сплошное заполнение"
 
-msgid "Filament to print solid infill"
-msgstr ""
+msgid "Filament to print solid infill."
+msgstr "Пластиковая нить для печати сплошного заполнения."
 
 msgid ""
 "Line width of internal solid infill. If expressed as a %, it will be "
@@ -15106,9 +15424,6 @@ msgstr "Шаблон печати поддержки."
 
 msgid "Rectilinear grid"
 msgstr "Прямолинейная сетка"
-
-msgid "Hollow"
-msgstr "Полость"
 
 msgid "Interface pattern"
 msgstr "Шаблон связующего слоя"
@@ -15629,8 +15944,8 @@ msgstr ""
 msgid "Wipe tower rotation angle"
 msgstr "Угол поворота черновой башни"
 
-msgid "Wipe tower rotation angle with respect to x-axis."
-msgstr ""
+msgid "Wipe tower rotation angle with respect to X axis."
+msgstr "Угол поворота черновой башни относительно оси X."
 
 msgid "Width of the brim."
 msgstr ""
@@ -15713,12 +16028,18 @@ msgstr "Дополнительная длина ребра"
 
 msgid ""
 "Positive values can increase the size of the rib wall, while negative values "
-"can reduce the size.However, the size of the rib wall can not be smaller "
+"can reduce the size. However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
+"Положительное значение может увеличить длину ребра, а отрицательное - "
+"уменьшить. Однако она не может быть меньше размера, определяемого объёмом "
+"очистки."
 
 msgid "Rib width"
 msgstr "Ширина ребра"
+
+msgid "Rib width."
+msgstr ""
 
 # ??? Скругление углов стенки
 msgid "Fillet wall"
@@ -16070,6 +16391,457 @@ msgstr ""
 "заполнения. В противном случае по умолчанию используется прямолинейный "
 "шаблон заполнения."
 
+msgid "Bottom Layer Count"
+msgstr ""
+
+msgid "Bottom Layer Count for quality."
+msgstr ""
+
+msgid "Exposure time"
+msgstr ""
+
+msgid "Exposure time for quality."
+msgstr ""
+
+msgid "Bottom exposure time"
+msgstr ""
+
+msgid "Bottom exposure time for quality."
+msgstr ""
+
+msgid "Transition Layer Count"
+msgstr ""
+
+msgid "Transition Layer Count for quality."
+msgstr ""
+
+msgid "Transition Type"
+msgstr ""
+
+msgid "Transition Type for quality."
+msgstr ""
+
+msgid "Linear"
+msgstr ""
+
+msgid "Transition Layer Interval Time Difference"
+msgstr ""
+
+msgid "Transition Layer Interval Time Difference for quality."
+msgstr ""
+
+msgid "Waiting Mode During Printing"
+msgstr ""
+
+msgid "Waiting Mode During Printing for quality."
+msgstr ""
+
+msgid "Resting time"
+msgstr ""
+
+msgid "Light off delay"
+msgstr ""
+
+msgid "Rest Time Before Lift"
+msgstr ""
+
+msgid "Rest Time Before Lift for quality."
+msgstr ""
+
+msgid "Rest Time After Lift"
+msgstr ""
+
+msgid "Rest Time After Lift for quality."
+msgstr ""
+
+msgid "Rest Time After Retract"
+msgstr ""
+
+msgid "Rest Time After Retract for quality."
+msgstr ""
+
+msgid "Light-off Delay"
+msgstr ""
+
+msgid "Light-off Delay for quality."
+msgstr ""
+
+msgid "Bottom Light-off Delay"
+msgstr ""
+
+msgid "Bottom Light-off Delay for quality."
+msgstr ""
+
+msgid "Primary bottom lift distance (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Lift Second Distance"
+msgstr ""
+
+msgid "Second-stage bottom lift distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary lifting distance (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Lift Second Distance"
+msgstr ""
+
+msgid "Second-stage lifting distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid ""
+"Primary bottom retract distance (read-only): bottom lift (1st+2nd) minus "
+"bottom retract 2nd; not loaded from preset JSON, computed after load."
+msgstr ""
+
+msgid "Bottom Retract Second Distance"
+msgstr ""
+
+msgid "Second-stage bottom retract distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid ""
+"Primary retract distance (read-only): lifting distance (1st+2nd) minus "
+"retract 2nd; not loaded from preset JSON, computed after load."
+msgstr ""
+
+msgid "Retract Second Distance"
+msgstr ""
+
+msgid "Second-stage retract distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary bottom lift speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Lift Second Speed"
+msgstr ""
+
+msgid "Second-stage bottom lift speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary lifting speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Lift Second Speed"
+msgstr ""
+
+msgid "Second-stage lifting speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary bottom retract speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Retract Second Speed"
+msgstr ""
+
+msgid "Second-stage bottom retract speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary retract speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Retract Second Speed"
+msgstr ""
+
+msgid "Second-stage retract speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Light PWM"
+msgstr ""
+
+msgid "Bottom Light PWM for advanced"
+msgstr ""
+
+msgid "Light PWM"
+msgstr ""
+
+msgid "Light PWM for advanced"
+msgstr ""
+
+msgid "Picture GrayScale"
+msgstr ""
+
+msgid "Picture GrayScale for advanced"
+msgstr ""
+
+msgid "Anti-Aliasing"
+msgstr ""
+
+msgid "Anti-Aliasing for advanced."
+msgstr ""
+
+msgid "Gray Scale Level"
+msgstr ""
+
+msgid "Anti-aliasing Level"
+msgstr ""
+
+msgid "Gray Scale Level for advanced"
+msgstr ""
+
+msgid "Image Blur Enable"
+msgstr ""
+
+msgid "Image Blur Enable for advanced"
+msgstr ""
+
+msgid "Image Blur Pixel"
+msgstr ""
+
+msgid "Image Blur Pixel for advanced"
+msgstr ""
+
+msgid "Preview Image Path"
+msgstr ""
+
+msgid ""
+"Directory containing preview images for PRZ export (PreviewImage_116_116.png "
+"and PreviewImage_290_290.png)."
+msgstr ""
+
+msgid "Shrinkage Compensation"
+msgstr ""
+
+msgid "Shrinkage Compensation for advanced"
+msgstr ""
+
+msgid "X"
+msgstr ""
+
+msgid "X for advanced."
+msgstr ""
+
+msgid "Y"
+msgstr ""
+
+msgid "Y for advanced."
+msgstr ""
+
+msgid "Z"
+msgstr ""
+
+msgid "Z for advanced."
+msgstr ""
+
+msgid "Tolerance Compensation"
+msgstr ""
+
+msgid "Tolerance Compensation for advanced"
+msgstr ""
+
+msgid "a"
+msgstr ""
+
+msgid "A for advanced."
+msgstr ""
+
+msgid "b"
+msgstr ""
+
+msgid "B for advanced."
+msgstr ""
+
+msgid "Bottom Tolerance Compensation"
+msgstr ""
+
+msgid "Bottom Tolerance Compensation for advanced"
+msgstr ""
+
+msgid "Contact Type"
+msgstr ""
+
+msgid "Contact Type for support"
+msgstr ""
+
+msgid "Support Point Diameter"
+msgstr ""
+
+msgid "Support Point Diameter for support"
+msgstr ""
+
+msgid "Upper Diameter"
+msgstr ""
+
+msgid "Upper Diameter for support."
+msgstr ""
+
+msgid "Contact Depth"
+msgstr ""
+
+msgid "Contact Depth for support."
+msgstr ""
+
+msgid "Pinhead Width"
+msgstr ""
+
+msgid "Pinhead Width for support."
+msgstr ""
+
+msgid "Pillar Diameter for support."
+msgstr ""
+
+msgid "Support Bracing Angle"
+msgstr ""
+
+msgid "Support Bracing Angle for support."
+msgstr ""
+
+msgid "Support Bottom Diameter"
+msgstr ""
+
+msgid "Support Bottom Diameter for support."
+msgstr ""
+
+msgid "Support Boss Height"
+msgstr ""
+
+msgid "Support Boss Height for support."
+msgstr ""
+
+msgid "Raft Thickness"
+msgstr ""
+
+msgid "Raft Thickness for support."
+msgstr ""
+
+msgid "Bottom Contact Diameter"
+msgstr ""
+
+msgid "Bottom Contact Diameter for support."
+msgstr ""
+
+msgid "Raft Max Merge Distance"
+msgstr ""
+
+msgid "Raft Max Merge Distance for support."
+msgstr ""
+
+msgid "Support Angle"
+msgstr ""
+
+msgid "Pad Wall Slope for support."
+msgstr ""
+
+msgid "Support Points Density"
+msgstr ""
+
+msgid "Support Points Density for support."
+msgstr ""
+
+msgid "Max Bridge Length"
+msgstr ""
+
+msgid "Max BridgeLength for support."
+msgstr ""
+
+msgid "Max Pillar Linking Distance"
+msgstr ""
+
+msgid "Max Pillar Linking Distance for support."
+msgstr ""
+
+msgid "Resolution (pixels)"
+msgstr ""
+
+msgid "Supports"
+msgstr ""
+
+msgid ""
+"Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
+"the tip to increase contact area."
+msgstr ""
+
+msgid ""
+"Diameter of the contact sphere at the pinhead tip (used when Contact Type is "
+"Sphere)."
+msgstr ""
+
+msgid "Head Connection Length"
+msgstr ""
+
+msgid "Width from the back sphere center to the front sphere center."
+msgstr ""
+
+msgid "Generate support"
+msgstr ""
+
+msgid "Generate support for support"
+msgstr ""
+
+msgid ""
+"Surfaces whose slope angle from horizontal is below this value will not "
+"receive supports. Set to 90 to support all overhangs."
+msgstr ""
+
+msgid "This is a relative measure of support points density."
+msgstr ""
+
+msgid "%"
+msgstr "%"
+
+msgid "Minimal points distance"
+msgstr ""
+
+msgid ""
+"Minimum distance between auto-generated support points. Note: This parameter "
+"is no longer used by the support generator (deprecated since PrusaSlicer "
+"2.9.1 when the Voronoi-based algorithm replaced Poisson disk sampling). Kept "
+"for backward compatibility only."
+msgstr ""
+
+msgid "Pad Wall Slope"
+msgstr ""
+
+msgid "The slope angle of the raft/pad walls."
+msgstr ""
+
+msgid "Enable hollowing"
+msgstr ""
+
+msgid "Hollowing"
+msgstr ""
+
+msgid "Hollow out a model to have an empty interior"
+msgstr ""
+
+msgid "Wall thickness"
+msgstr ""
+
+msgid "Minimum wall thickness of a hollowed model."
+msgstr ""
+
+msgid "Accuracy"
+msgstr ""
+
+msgid ""
+"Performance vs accuracy of calculation. Lower values may produce unwanted "
+"artifacts."
+msgstr ""
+
+msgid "Closing distance"
+msgstr ""
+
+msgid ""
+"Hollowing is done in two steps: first, an imaginary interior is calculated "
+"deeper (offset plus the closing distance) in the object and then it's "
+"inflated back to the specified offset. A greater closing distance makes the "
+"interior more rounded. At zero, the interior will resemble the exterior the "
+"most."
+msgstr ""
+
+msgid "Support tree type"
+msgstr ""
+
+msgid ""
+"Support tree building strategy. Default uses pillar-based supports; "
+"Branching uses organic tree-like supports (requires Step 3.3 implementation)."
+msgstr ""
+
+msgid "Branching"
+msgstr ""
+
 msgid "invalid value "
 msgstr "недопустимое значение "
 
@@ -16379,8 +17151,9 @@ msgstr "Загрузить пользовательский G-код"
 msgid "Load custom G-code from json."
 msgstr "Загрузить пользовательской G-код из json"
 
-msgid "Load filament ids"
-msgstr ""
+# ??? назначить идентификаторы
+msgid "Load filament IDs"
+msgstr "Загрузить идентификаторы прутков"
 
 msgid "Load filament IDs for each object."
 msgstr ""
@@ -16422,26 +17195,26 @@ msgstr ""
 msgid "MakerLab name"
 msgstr "Имя MakerLab"
 
-msgid "MakerLab name to generate this 3mf"
-msgstr ""
+msgid "MakerLab name to generate this 3mf."
+msgstr "Имя MakerLab, использованное для создания этого 3mf-файла."
 
 msgid "MakerLab version"
 msgstr "Версия MakerLab"
 
-msgid "MakerLab version to generate this 3mf"
-msgstr ""
+msgid "MakerLab version to generate this 3mf."
+msgstr "Версия MakerLab, использованная для создания этого 3mf-файла."
 
 msgid "metadata name list"
 msgstr "Список имён метаданных"
 
-msgid "metadata name list added into 3mf"
-msgstr ""
+msgid "metadata name list added into 3mf."
+msgstr "Список имён метаданных добавляемых в 3mf"
 
 msgid "metadata value list"
 msgstr "Список значений метаданных"
 
-msgid "metadata value list added into 3mf"
-msgstr ""
+msgid "metadata value list added into 3mf."
+msgstr "Список значений метаданных добавляемых в 3mf"
 
 msgid "Allow 3mf with newer version to be sliced"
 msgstr ""
@@ -16735,8 +17508,8 @@ msgstr ""
 "Номер текущего слоя отсчитываемый от единицы (т.е. первый слой имеет номер "
 "1)."
 
-msgid "Layer z"
-msgstr ""
+msgid "Layer Z"
+msgstr "Высота слоя над столом"
 
 msgid ""
 "Height of the current layer above the print bed, measured to the top of the "
@@ -16744,8 +17517,8 @@ msgid ""
 msgstr ""
 "Высота текущего слоя над печатным столом, измеренная до верхней части слоя."
 
-msgid "Maximal layer z"
-msgstr ""
+msgid "Maximal layer Z"
+msgstr "Макс. высота слоя над столом"
 
 msgid "Height of the last layer above the print bed."
 msgstr "Высота последнего слоя над печатным столом."
@@ -16845,9 +17618,6 @@ msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
 "Неизвестный формат файла. Входной файл должен иметь расширение *.3mf или *."
 "zip.amf."
-
-msgid "Canceled"
-msgstr "Отменено"
 
 msgid "load_obj: failed to parse"
 msgstr "load_obj: ошибка обработки"
@@ -16949,8 +17719,13 @@ msgid ""
 "Start value: >= %.1f\n"
 "End value: <= %.1f\n"
 "End value: > Start value\n"
-"Value step: >= %.3f)"
+"Value step: >= %.3f"
 msgstr ""
+"Введите допустимое значение:\n"
+"Начальное: >= %.1f\n"
+"Конечное: <= %.1f\n"
+"Конечное: > Начальное\n"
+"Шаг: >= %.3f)"
 
 msgid "The name cannot be empty."
 msgstr "Имя не может быть пустым."
@@ -17487,8 +18262,12 @@ msgid ""
 "Please input valid values:\n"
 "Start PA: >= 0.0\n"
 "End PA: > Start PA\n"
-"PA step: >= 0.001)"
+"PA step: >= 0.001"
 msgstr ""
+"Введите допустимые значения:\n"
+"Начальный коэффициент PA: >= 0.0\n"
+"Конечный коэффициент PA: > Start PA\n"
+"Шаг коэффициента PA: >= 0.001)"
 
 msgid "Temperature calibration"
 msgstr "Калибровка температуры"
@@ -17530,8 +18309,12 @@ msgid ""
 "Please input valid values:\n"
 "Start temp: <= 350\n"
 "End temp: >= 170\n"
-"Start temp > End temp + 5)"
+"Start temp > End temp + 5"
 msgstr ""
+"Введите допустимые значения:\n"
+"Начальная температура: <= 350\n"
+"Конечная температура: >= 180\n"
+"Начальная температура > Конечная температура + 5)"
 
 msgid "Max volumetric speed test"
 msgstr "Тест макс. объёмного расхода"
@@ -17544,10 +18327,14 @@ msgstr "Конечный объёмный расход: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 0 \n"
+"start > 0\n"
 "step >= 0\n"
-"end > start + step)"
+"end > start + step"
 msgstr ""
+"Введите допустимое значение:\n"
+"Начальное > 0\n"
+"Шаг >= 0\n"
+"Конечное > Начальное + Шаг"
 
 msgid "VFA test"
 msgstr "Тест на вертикальные артефакты (VFA)"
@@ -17560,10 +18347,14 @@ msgstr "Конечная скорость: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 10 \n"
+"start > 10\n"
 "step >= 0\n"
-"end > start + step)"
+"end > start + step"
 msgstr ""
+"Введите допустимое значение:\n"
+"Начальное > 10\n"
+"Шаг >= 0\n"
+"Конечное > Начальное + Шаг"
 
 msgid "Start retraction length: "
 msgstr "Начальная длина отката: "
@@ -17590,9 +18381,6 @@ msgstr "(начальное/конечное значение)"
 msgid "Frequency settings"
 msgstr "Задание частоты"
 
-msgid "hz"
-msgstr ""
-
 msgid "Damp: "
 msgstr "Затухание (Damp):"
 
@@ -17606,8 +18394,8 @@ msgstr ""
 "значение."
 
 msgid ""
-"Please input valid values\n"
-"(0 < FreqStart < FreqEnd < 500"
+"Please input valid values:\n"
+"(0 < FreqStart < FreqEnd < 500)"
 msgstr ""
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
@@ -17626,9 +18414,11 @@ msgid "Note: Use previously calculated frequencies."
 msgstr "Примечание: используйте ранее рассчитанные частоты."
 
 msgid ""
-"Please input valid values\n"
-"(0 < Freq < 500"
+"Please input valid values:\n"
+"(0 < Freq < 500)"
 msgstr ""
+"Введите допустимые значения:\n"
+"(0 < Частота < 500)"
 
 msgid ""
 "Please input a valid damping factor (0 <= DampingStart < DampingEnd <= 1)"
@@ -17652,7 +18442,7 @@ msgstr ""
 "но более низкая скорость."
 
 msgid ""
-"Please input valid values\n"
+"Please input valid values:\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
 
@@ -17713,8 +18503,8 @@ msgstr "В очереди"
 msgid "Uploading"
 msgstr "Отправка"
 
-msgid "Cancelling"
-msgstr ""
+msgid "Canceling"
+msgstr "Отмена"
 
 msgid "Error uploading to print host"
 msgstr "Ошибка при отправке на хост печати"
@@ -18188,8 +18978,8 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"The file: %s \n"
-"may have been opened by another program. \n"
+"The file: %s\n"
+"may have been opened by another program.\n"
 "Please close it and try again."
 msgstr ""
 
@@ -18530,8 +19320,8 @@ msgstr "Подключение к Repetier успешно установлено
 msgid "Could not connect to Repetier"
 msgstr "Не удалось подключиться к Repetier"
 
-msgid "Note: Repetier version 0.90.0 ir higher is required."
-msgstr ""
+msgid "Note: Repetier version 0.90.0 or higher is required."
+msgstr "Примечание: требуется версия Repetier не ниже 0.90.0."
 
 #, boost-format
 msgid ""
@@ -18847,23 +19637,11 @@ msgstr "При попытке войти произошла какая-то ош
 msgid "User cancelled."
 msgstr ""
 
-msgid "Head diameter"
-msgstr "Диаметр уха"
-
 msgid "Max angle"
 msgstr "Макс. угол"
 
 msgid "Detection radius"
 msgstr "Радиус обнаружения"
-
-msgid "Remove selected points"
-msgstr "Удалить выбранные"
-
-msgid "Remove all"
-msgstr "Удалить все"
-
-msgid "Auto-generate points"
-msgstr "Сгенерировать автоматически"
 
 msgid "Add a brim ear"
 msgstr "Добавить «мышиные уши»"
@@ -18981,6 +19759,15 @@ msgid "Please connect to a Phrozen printer first."
 msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid "Firmware restarting..."
+msgstr ""
+
+msgid "Firmware restart complete."
+msgstr ""
+
+msgid "Firmware restart failed. Please power-cycle the printer."
 msgstr ""
 
 msgid ""
@@ -19408,6 +20195,97 @@ msgstr ""
 "ABS, повышение температуры подогреваемого стола может снизить эту "
 "вероятность?"
 
+#~ msgid "Alt + Shift + Enter"
+#~ msgstr "Alt + Shift + Enter"
+
+#~ msgid "Shift + Mouse move up or down"
+#~ msgstr "Shift + Мышь вверх или вниз"
+
+#~ msgid "Left mouse button:"
+#~ msgstr "Левая кнопка мыши:"
+
+#~ msgid "Right mouse button:"
+#~ msgstr "Правая кнопка мыши:"
+
+#~ msgid "Shift + Left mouse button:"
+#~ msgstr "Shift + Левая кнопка мыши:"
+
+#~ msgid "Shift + Right mouse button:"
+#~ msgstr "Shift + Правая кнопка мыши:"
+
+#~ msgid "⌘+Shift+G"
+#~ msgstr "⌘+Shift+G"
+
+#~ msgid "Ctrl+Shift+G"
+#~ msgstr "Ctrl+Shift+G"
+
+#~ msgid "Shift+A"
+#~ msgstr "Shift+A"
+
+#~ msgid "Shift+Tab"
+#~ msgstr "Shift+Tab"
+
+#~ msgid "⌘+Any arrow"
+#~ msgstr "⌘ + Любая стрелка"
+
+#~ msgid "⌥+Left mouse button"
+#~ msgstr "⌥ + Левая кнопка мыши"
+
+#~ msgid "⌘+Left mouse button"
+#~ msgstr "⌘ + Левая кнопка мыши"
+
+#~ msgid "Ctrl+Any arrow"
+#~ msgstr "Ctrl + Любая стрелка"
+
+#~ msgid "Alt+Left mouse button"
+#~ msgstr "Alt + Левая кнопка мыши"
+
+#~ msgid "Ctrl+Left mouse button"
+#~ msgstr "Ctrl + Левая кнопка мыши"
+
+#~ msgid "Shift+Left mouse button"
+#~ msgstr "Shift + Левая кнопка мыши"
+
+#~ msgid "Shift+Any arrow"
+#~ msgstr "Shift + Любая стрелка"
+
+#~ msgid "⌘+Mouse wheel"
+#~ msgstr "⌘+Колесо мыши"
+
+#~ msgid "⌥+Mouse wheel"
+#~ msgstr "⌥+Колесо мыши"
+
+#~ msgid "Ctrl+Mouse wheel"
+#~ msgstr "Ctrl+Колесо мыши"
+
+#~ msgid "Alt+Mouse wheel"
+#~ msgstr "Alt+Колесо мыши"
+
+#~ msgid "Shift+Mouse wheel"
+#~ msgstr "Shift + Колесо мыши"
+
+#~ msgid ""
+#~ "Improve shell precision by adjusting outer wall spacing. This also "
+#~ "improves layer consistency."
+#~ msgstr ""
+#~ "Повышение точности оболочки за счёт регулировки расстояния между внешними "
+#~ "стенками. Это также позволяет уменьшить расслоение слоёв."
+
+#~ msgid ""
+#~ "This parameter adds a rotation of sparse infill direction to each layer "
+#~ "according to the specified template. The template is a comma-separated "
+#~ "list of angles in degrees, e.g. '0,90'. The first angle is applied to the "
+#~ "first layer, the second angle to the second layer, and so on. If there "
+#~ "are more layers than angles, the angles will be repeated. Note that not "
+#~ "all sparse infill patterns support rotation."
+#~ msgstr ""
+#~ "Этот параметр поворачивает шаблон разреженного заполнения на каждом слое "
+#~ "по заданному правилу. Шаблон представляет собой список углов в градусах, "
+#~ "разделенных запятыми, например '0,90'. Первый угол применяется к первому "
+#~ "слою, второй угол - ко второму слою и так далее. Если слоёв больше, чем "
+#~ "углов, то углы будут повторяться. Обратите внимание, что не все шаблоны с "
+#~ "разреженной заливкой поддерживают поворот."
+
 #~ msgid "PhrozenOrca Tolerance Test"
 #~ msgstr "Тест допусков от Orca"
 
@@ -19417,27 +20295,6 @@ msgstr ""
 #~ msgid "PhrozenOrca is based on BambuStudio, PrusaSlicer, and SuperSlicer."
 #~ msgstr ""
 #~ "PhrozenOrca основан на проектах BambuStudio, PrusaSlicer и SuperSlicer."
-
-#~ msgid ""
-#~ "Too small max volumetric speed.\n"
-#~ "Reset to 0.5."
-#~ msgstr ""
-#~ "Слишком маленький максимальный объёмный расход.\n"
-#~ "Значение будет сброшено на 0,5."
-
-#~ msgid ""
-#~ "Too small layer height.\n"
-#~ "Reset to 0.2."
-#~ msgstr ""
-#~ "Слишком маленькая высота слоя.\n"
-#~ "Значение будет сброшено на 0,2."
-
-#~ msgid ""
-#~ "Too small ironing spacing.\n"
-#~ "Reset to 0.1."
-#~ msgstr ""
-#~ "Слишком маленькое расстояние между линиями разглаживания.\n"
-#~ "Значение будет сброшено на 0,1."
 
 #~ msgid "Open Network Test"
 #~ msgstr "Проверка сети"
@@ -19495,167 +20352,6 @@ msgstr ""
 #~ "Если хотите получить более высокие скорости, вы можете изменить это "
 #~ "значение в настройках принтера (вкладка «Ограничение принтера»)."
 
-# Автоориентация stl файлов по оси Z при первоначальном импорте.
-#~ msgid "Automatically orient stls on the Z axis upon initial import."
-#~ msgstr ""
-#~ "Автоориентация моделей относительно оси Z при первоначальном импорте."
-
-#~ msgid ""
-#~ "The geometry will be decimated before detecting sharp angles. This "
-#~ "parameter indicates the minimum length of the deviation for the "
-#~ "decimation.\n"
-#~ "0 to deactivate."
-#~ msgstr ""
-#~ "Геометрия модели будет упрощена перед обнаружением острых углов. Этот "
-#~ "параметр задаёт минимальную длину отклонения для её упрощения.\n"
-#~ "Установите 0 для отключения."
-
-#~ msgid "Lateral Lattice"
-#~ msgstr "2D решётка"
-
-#~ msgid "Lateral lattice angle 1"
-#~ msgstr "Угол №1 (2D решётка)"
-
-#~ msgid ""
-#~ "The angle of the first set of Lateral lattice elements in the Z "
-#~ "direction. Zero is vertical."
-#~ msgstr ""
-#~ "Угол наклона первой линии для шаблона заполнения «2D решётка» "
-#~ "относительно вертикальной оси Z (0 - вертикально)."
-
-#~ msgid "Lateral lattice angle 2"
-#~ msgstr "Угол №2 (2D решётка)"
-
-#~ msgid ""
-#~ "The angle of the second set of Lateral lattice elements in the Z "
-#~ "direction. Zero is vertical."
-#~ msgstr ""
-#~ "Угол наклона второй линии для шаблона заполнения «2D решётка» "
-#~ "относительно вертикальной оси Z (0 - вертикально)."
-
-#~ msgid "Print speed of ironing lines."
-#~ msgstr "Скорость разглаживания."
-
-#~ msgid "The diameter of nozzle."
-#~ msgstr "Диаметр сопла"
-
-#~ msgid "Filament to print walls."
-#~ msgstr "Пластиковая нить для печати периметров."
-
-#~ msgid "Type of the printer."
-#~ msgstr "Тип принтера"
-
-#~ msgid "The distance from the skirt to the brim or the object."
-#~ msgstr "Расстояние между юбкой и каймой, или моделью."
-
-#~ msgid "Filament to print solid infill."
-#~ msgstr "Пластиковая нить для печати сплошного заполнения."
-
-#~ msgid "Wipe tower rotation angle with respect to X axis."
-#~ msgstr "Угол поворота черновой башни относительно оси X."
-
-#~ msgid ""
-#~ "Positive values can increase the size of the rib wall, while negative "
-#~ "values can reduce the size. However, the size of the rib wall can not be "
-#~ "smaller than that determined by the cleaning volume."
-#~ msgstr ""
-#~ "Положительное значение может увеличить длину ребра, а отрицательное - "
-#~ "уменьшить. Однако она не может быть меньше размера, определяемого объёмом "
-#~ "очистки."
-
-# ??? назначить идентификаторы
-#~ msgid "Load filament IDs"
-#~ msgstr "Загрузить идентификаторы прутков"
-
-#~ msgid "MakerLab name to generate this 3mf."
-#~ msgstr "Имя MakerLab, использованное для создания этого 3mf-файла."
-
-#~ msgid "MakerLab version to generate this 3mf."
-#~ msgstr "Версия MakerLab, использованная для создания этого 3mf-файла."
-
-#~ msgid "metadata name list added into 3mf."
-#~ msgstr "Список имён метаданных добавляемых в 3mf"
-
-#~ msgid "metadata value list added into 3mf."
-#~ msgstr "Список значений метаданных добавляемых в 3mf"
-
-#~ msgid "Layer Z"
-#~ msgstr "Высота слоя над столом"
-
-#~ msgid "Maximal layer Z"
-#~ msgstr "Макс. высота слоя над столом"
-
-#, c-format, boost-format
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "Start value: >= %.1f\n"
-#~ "End value: <= %.1f\n"
-#~ "End value: > Start value\n"
-#~ "Value step: >= %.3f"
-#~ msgstr ""
-#~ "Введите допустимое значение:\n"
-#~ "Начальное: >= %.1f\n"
-#~ "Конечное: <= %.1f\n"
-#~ "Конечное: > Начальное\n"
-#~ "Шаг: >= %.3f)"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "Start PA: >= 0.0\n"
-#~ "End PA: > Start PA\n"
-#~ "PA step: >= 0.001"
-#~ msgstr ""
-#~ "Введите допустимые значения:\n"
-#~ "Начальный коэффициент PA: >= 0.0\n"
-#~ "Конечный коэффициент PA: > Start PA\n"
-#~ "Шаг коэффициента PA: >= 0.001)"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "Start temp: <= 350\n"
-#~ "End temp: >= 170\n"
-#~ "Start temp > End temp + 5"
-#~ msgstr ""
-#~ "Введите допустимые значения:\n"
-#~ "Начальная температура: <= 350\n"
-#~ "Конечная температура: >= 180\n"
-#~ "Начальная температура > Конечная температура + 5)"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "start > 0\n"
-#~ "step >= 0\n"
-#~ "end > start + step"
-#~ msgstr ""
-#~ "Введите допустимое значение:\n"
-#~ "Начальное > 0\n"
-#~ "Шаг >= 0\n"
-#~ "Конечное > Начальное + Шаг"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "start > 10\n"
-#~ "step >= 0\n"
-#~ "end > start + step"
-#~ msgstr ""
-#~ "Введите допустимое значение:\n"
-#~ "Начальное > 10\n"
-#~ "Шаг >= 0\n"
-#~ "Конечное > Начальное + Шаг"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "(0 < Freq < 500)"
-#~ msgstr ""
-#~ "Введите допустимые значения:\n"
-#~ "(0 < Частота < 500)"
-
-#~ msgid "Canceling"
-#~ msgstr "Отмена"
-
-#~ msgid "Note: Repetier version 0.90.0 or higher is required."
-#~ msgstr "Примечание: требуется версия Repetier не ниже 0.90.0."
-
 #~ msgid ""
 #~ "How to use keyboard shortcuts\n"
 #~ "Did you know that Phrozen Orca offers a wide range of keyboard shortcuts "
@@ -19700,9 +20396,6 @@ msgstr ""
 
 #~ msgid "Set Position"
 #~ msgstr "Задание позиции"
-
-#~ msgid "%"
-#~ msgstr "%"
 
 #, boost-format
 #~ msgid "%1%"
@@ -19813,9 +20506,6 @@ msgstr ""
 
 #~ msgid "Ramming settings"
 #~ msgstr "Настройки рэмминга"
-
-#~ msgid "Profile dependencies"
-#~ msgstr "Зависимости профиля"
 
 #~ msgid "the Configuration package is incompatible with the current APP."
 #~ msgstr "пакет профилей несовместим с текущим приложением."

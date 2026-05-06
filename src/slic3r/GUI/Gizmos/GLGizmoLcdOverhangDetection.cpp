@@ -11,6 +11,7 @@
 #include "libslic3r/SLA/SupportIslands/SampleConfigFactory.hpp"
 
 #include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
+#include "slic3r/GUI/I18N.hpp"
 
 #include <boost/log/trivial.hpp>
 
@@ -381,7 +382,8 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     
     // Row 1: Detection Accuracy label
     ImGui::AlignTextToFramePadding();
-    m_imgui->text(m_desc.at("detection_accuracy"));
+    //m_imgui->text(m_desc.at("detection_accuracy"));
+    m_imgui->text(_L("Detection Accuracy"));
     
     // Row 2: Low, Middle, High buttons
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 4.0f));

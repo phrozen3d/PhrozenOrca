@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 13:31+0800\n"
+"POT-Creation-Date: 2026-05-06 13:49+0800\n"
 "Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -29,14 +29,6 @@ msgstr "Hőmérséklet"
 msgid "Left Time"
 msgstr ""
 
-#, c-format, boost-format
-msgid "%.1f ℃"
-msgstr ""
-
-#, c-format, boost-format
-msgid "%d : %d"
-msgstr ""
-
 msgid "Serial:"
 msgstr "Sorozatszám:"
 
@@ -49,17 +41,23 @@ msgstr "Legfrissebb verzió"
 msgid "Support Painting"
 msgstr "Támaszok festése"
 
-msgid "Alt + Mouse wheel"
-msgstr "Alt + Egérgörgő"
+msgid "Ctrl+"
+msgstr "Ctrl+"
+
+msgid "Alt+"
+msgstr ""
+
+msgid "Shift+"
+msgstr "Shift+"
+
+msgid "Mouse wheel"
+msgstr "Egérgörgő"
 
 msgid "Section view"
 msgstr "Keresztmetszet nézet"
 
 msgid "Reset direction"
 msgstr "Irány visszaállítása"
-
-msgid "Ctrl + Mouse wheel"
-msgstr "Ctrl + Egérgörgő"
 
 msgid "Pen size"
 msgstr "Tollméret"
@@ -75,9 +73,6 @@ msgstr "Jobb egérgomb"
 
 msgid "Block supports"
 msgstr "Támaszok blokkolása"
-
-msgid "Shift + Left mouse button"
-msgstr "Shift + bal egérgomb"
 
 msgid "Erase"
 msgstr "Törlés"
@@ -184,11 +179,20 @@ msgstr "Vödör kitöltés"
 msgid "Height range"
 msgstr "Magasságtartomány"
 
-msgid "Alt + Shift + Enter"
-msgstr "Alt + Shift + Enter"
+msgid "Enter"
+msgstr ""
 
 msgid "Toggle Wireframe"
 msgstr "Drótváz-megjelenítés váltása"
+
+msgid "Remap filaments"
+msgstr ""
+
+msgid "Remap"
+msgstr ""
+
+msgid "Cancel"
+msgstr "Mégse"
 
 msgid "Shortcut Key "
 msgstr "Gyorsgomb "
@@ -211,6 +215,9 @@ msgstr "Festett szín eltávolítása"
 #, boost-format
 msgid "Painted using: Filament %1%"
 msgstr "A következővel festve: %1% filament"
+
+msgid "Filament remapping finished."
+msgstr ""
 
 msgid "Move"
 msgstr "Mozgatás"
@@ -476,9 +483,6 @@ msgstr ""
 msgid "Confirm connectors"
 msgstr ""
 
-msgid "Cancel"
-msgstr "Mégse"
-
 msgid "Build Volume"
 msgstr ""
 
@@ -703,7 +707,7 @@ msgstr ""
 msgid "Horizontal text"
 msgstr ""
 
-msgid "Shift + Mouse move up or down"
+msgid "Mouse move up or down"
 msgstr ""
 
 msgid "Rotate text"
@@ -1432,8 +1436,196 @@ msgstr ""
 msgid "Flip by Face 2"
 msgstr ""
 
-msgid "Ctrl+"
-msgstr "Ctrl+"
+msgid "Overhang Detection"
+msgstr ""
+
+msgid "Alt + Mouse wheel"
+msgstr "Alt + Egérgörgő"
+
+msgid "Ctrl + Mouse wheel"
+msgstr "Ctrl + Egérgörgő"
+
+msgid "Shift + Left mouse button"
+msgstr "Shift + bal egérgomb"
+
+msgid "Detection Accuracy"
+msgstr ""
+
+msgid "Middle"
+msgstr ""
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "Overhang Area"
+msgstr ""
+
+msgid "Detect all"
+msgstr ""
+
+msgid "Detect selected"
+msgstr ""
+
+msgid "Add overhang supports"
+msgstr ""
+
+msgid "Hollow"
+msgstr "Üreges"
+
+msgid "Remove"
+msgstr "Eltávolítás"
+
+msgid "Hollow and drill"
+msgstr ""
+
+msgid "Selected object has to be on the active bed."
+msgstr ""
+
+msgid "Preview"
+msgstr "Előnézet"
+
+msgid "Remove selected"
+msgstr ""
+
+msgid "Remove all"
+msgstr ""
+
+msgid "Left click:"
+msgstr ""
+
+msgid "Right click:"
+msgstr ""
+
+msgid "Add hole"
+msgstr ""
+
+msgid "Remove hole"
+msgstr ""
+
+msgid "Drill"
+msgstr ""
+
+msgid "Head diameter"
+msgstr "Fej átmérő"
+
+msgid "Lock supports under new islands"
+msgstr ""
+
+msgid "Remove selected points"
+msgstr "Kijelölt pontok eltávolítása"
+
+msgid "Remove all points"
+msgstr ""
+
+msgid "Apply changes"
+msgstr ""
+
+msgid "Discard changes"
+msgstr ""
+
+msgid "Support points density"
+msgstr ""
+
+msgid "Auto-generate points"
+msgstr "Pontok automatikus generálása"
+
+msgid "Manual editing"
+msgstr ""
+
+msgid "Head Diameter"
+msgstr ""
+
+msgid "Discard"
+msgstr "Elvetés"
+
+msgid "Auto Support"
+msgstr ""
+
+msgid "Manual Support"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Heavy"
+msgstr ""
+
+msgid "Structure"
+msgstr ""
+
+msgid "Points"
+msgstr ""
+
+msgid "Density"
+msgstr "Sűrűség"
+
+msgid "Auto-generate support points based on density setting."
+msgstr ""
+
+msgid "Pillar Diameter"
+msgstr ""
+
+msgid ""
+"Left-click: add support point\n"
+"Right-click: remove point"
+msgstr ""
+
+msgid "SLA Support Points"
+msgstr ""
+
+msgid "Do you want to save your manually edited support points?"
+msgstr ""
+
+msgid "Save support points?"
+msgstr ""
+
+msgid "Autogeneration will erase all manually edited points."
+msgstr ""
+
+msgid "Are you sure you want to do it?"
+msgstr ""
+
+msgid "SLA gizmo keyboard shortcuts"
+msgstr ""
+
+msgid "Note: some shortcuts work in (non)editing mode only."
+msgstr ""
+
+msgid "Add point"
+msgstr ""
+
+msgid "Remove point"
+msgstr ""
+
+msgid "Move point"
+msgstr ""
+
+msgid "Add point to selection"
+msgstr ""
+
+msgid "Remove point from selection"
+msgstr ""
+
+msgid "Select by rectangle"
+msgstr ""
+
+msgid "Deselect by rectangle"
+msgstr ""
+
+msgid "Select all points"
+msgstr ""
+
+msgid "Del"
+msgstr "Del"
+
+msgid "Move clipping plane"
+msgstr ""
+
+msgid "Reset clipping plane"
+msgstr ""
+
+msgid "Switch to editing mode"
+msgstr ""
 
 msgid "Notice"
 msgstr "Megjegyzés"
@@ -1782,11 +1974,11 @@ msgstr "Elrejtés"
 msgid "Show"
 msgstr "Megjelenítés"
 
-msgid "Del"
-msgstr "Del"
-
 msgid "Delete the selected object"
 msgstr "Kiválasztott objektum törlése"
+
+msgid "Backspace"
+msgstr ""
 
 msgid "Load..."
 msgstr "Betöltés..."
@@ -1819,6 +2011,9 @@ msgid "Stanford Bunny"
 msgstr ""
 
 msgid "PhrozenOrca Cube"
+msgstr ""
+
+msgid "Orca Tolerance Test"
 msgstr ""
 
 msgid "PhrozenOrca String Hell"
@@ -2798,8 +2993,8 @@ msgstr "Letöltés"
 msgid "Download failed"
 msgstr "Letöltés sikertelen"
 
-msgid "Cancelled"
-msgstr ""
+msgid "Canceled"
+msgstr "Megszakítva"
 
 msgid "Installed successfully"
 msgstr "Sikeresen telepítve"
@@ -3008,10 +3203,10 @@ msgstr "Lépés"
 msgid "AMS Slots"
 msgstr "AMS férőhelyek"
 
-msgid "Left Ams"
+msgid "Left AMS"
 msgstr ""
 
-msgid "Right Ams"
+msgid "Right AMS"
 msgstr ""
 
 msgid ""
@@ -3573,14 +3768,8 @@ msgstr "Beállítások"
 msgid "Texture"
 msgstr "Textúra"
 
-msgid "Remove"
-msgstr "Eltávolítás"
-
 msgid "Not found:"
 msgstr "Nem található:"
-
-msgid "Model"
-msgstr "Modell"
 
 msgid "Choose an STL file to import bed shape from:"
 msgstr "Válassz egy STL fájlt az asztal alakjának importálásához (PNG/SVG):"
@@ -3644,8 +3833,10 @@ msgstr ""
 
 msgid ""
 "Too small max volumetric speed.\n"
-"Reset to 0.5"
+"Reset to 0.5."
 msgstr ""
+"Túl alacsony max. volumetrikus sebesség.\n"
+"Az értéke 0,5-re állt vissza"
 
 #, c-format, boost-format
 msgid ""
@@ -3656,13 +3847,17 @@ msgstr ""
 
 msgid ""
 "Too small layer height.\n"
-"Reset to 0.2"
+"Reset to 0.2."
 msgstr ""
+"Túl alacsony rétegmagasság.\n"
+"Visszaállítva 0,2-re"
 
 msgid ""
 "Too small ironing spacing.\n"
-"Reset to 0.1"
+"Reset to 0.1."
 msgstr ""
+"Túl kicsi vasalási térköz.\n"
+"Visszaállítva 0,1-re"
 
 msgid ""
 "Zero initial layer height is invalid.\n"
@@ -3756,8 +3951,20 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"lock depth should smaller than skin depth.\n"
-"Reset to 50% of skin depth"
+"Lock depth should smaller than skin depth.\n"
+"Reset to 50% of skin depth."
+msgstr ""
+
+msgid ""
+"Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
+"Generator to be enabled."
+msgstr ""
+
+msgid ""
+"Change these settings automatically?\n"
+"Yes - Enable Arachne Wall Generator\n"
+"No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
+"Fuzzy Skin"
 msgstr ""
 
 msgid ""
@@ -4075,8 +4282,12 @@ msgstr "A bemeneti érték kívül esik a tartományon"
 msgid "Some extension in the input is invalid"
 msgstr ""
 
+msgid "This parameter expects a valid template."
+msgstr ""
+
 msgid ""
-"This parameter expects a comma-delimited list of numbers. E.g, \"0,90\"."
+"Invalid pattern. Use N, N#K, or a comma-separated list with optional #K per "
+"entry. Examples: 5, 5#2, 1,7,9, 5,9#2,18."
 msgstr ""
 
 #, boost-format
@@ -4281,26 +4492,14 @@ msgstr "Sugár"
 msgid "Keep min"
 msgstr "Maradjon min."
 
-msgid "Left mouse button:"
-msgstr "Bal egérgomb:"
-
 msgid "Add detail"
 msgstr "Részlet hozzáadása"
-
-msgid "Right mouse button:"
-msgstr "Jobb egérgomb:"
 
 msgid "Remove detail"
 msgstr "Részlet eltávolítása"
 
-msgid "Shift + Left mouse button:"
-msgstr "Shift + bal egérgomb"
-
 msgid "Reset to base"
 msgstr "Alaphelyzetbe állítás"
-
-msgid "Shift + Right mouse button:"
-msgstr "Shift + jobb egérgomb:"
 
 msgid "Smoothing"
 msgstr "Simítás"
@@ -4317,7 +4516,7 @@ msgstr "Sorrend"
 msgid "object selection"
 msgstr ""
 
-msgid "part selectiont"
+msgid "part selection"
 msgstr ""
 
 msgid "number keys"
@@ -4427,9 +4626,6 @@ msgstr "Keresztmetszet nézet"
 
 msgid "Assemble Control"
 msgstr "Összeállítás"
-
-msgid "part selection"
-msgstr ""
 
 msgid "Selection Mode"
 msgstr ""
@@ -4556,6 +4752,12 @@ msgstr ""
 msgid "Invalid input."
 msgstr "Érvénytelen adat"
 
+msgid "Phrozen Orca FDM"
+msgstr ""
+
+msgid "Phrozen Orca Resin"
+msgstr ""
+
 msgid "New Window"
 msgstr "Új ablak"
 
@@ -4570,9 +4772,6 @@ msgstr "Alkalmazás bezárása egyes beállítások módosítása közben."
 
 msgid "Logging"
 msgstr "Naplózás"
-
-msgid "Preview"
-msgstr "Előnézet"
 
 msgid "Multi-device"
 msgstr "Multi-device"
@@ -4589,14 +4788,29 @@ msgstr "Nem"
 msgid "will be closed before creating a new model. Do you want to continue?"
 msgstr ""
 
+msgid ""
+"No Phrozen SLA printer preset found. Enable Phrozen SLA machines in Setup "
+"Wizard."
+msgstr ""
+
+msgid ""
+"Phrozen Arco preset not found. Enable the Phrozen FDM bundle in Setup Wizard."
+msgstr ""
+
+msgid "Phrozen Orca"
+msgstr ""
+
 msgid "Slice plate"
 msgstr "Tálca szeletelése"
 
-msgid "Print plate"
-msgstr "Nyomtatótálca"
+msgid "Export PRZ file"
+msgstr ""
 
 msgid "Export G-code file"
 msgstr "G-kód fájl exportálása"
+
+msgid "Print plate"
+msgstr "Nyomtatótálca"
 
 msgid "Export plate sliced file"
 msgstr "Szeletelt tálca exportálása"
@@ -4702,9 +4916,6 @@ msgstr "Jelenlegi projekt mentése egy fájlba"
 
 msgid "Save Project as"
 msgstr "Projekt mentése másként"
-
-msgid "Shift+"
-msgstr "Shift+"
 
 msgid "Save current project as"
 msgstr "Jelenlegi projekt mentése másként"
@@ -4920,9 +5131,6 @@ msgstr "VFA"
 
 msgid "Pressure advance"
 msgstr "Nyomáselőtolás (PA)"
-
-msgid "Orca Tolerance Test"
-msgstr ""
 
 msgid "Input Shaping Frequency"
 msgstr ""
@@ -5213,11 +5421,6 @@ msgid "Reload file list from printer."
 msgstr ""
 
 msgid "No printers."
-msgstr ""
-
-msgid ""
-"Please check the network and try again, You can restart or update the "
-"printer if the issue persists."
 msgstr ""
 
 msgid "Loading file list..."
@@ -5961,6 +6164,9 @@ msgstr "Becsült idő"
 msgid "Filament changes"
 msgstr "Filamentcserék"
 
+msgid "Resin"
+msgstr ""
+
 msgid "Click to edit preset"
 msgstr "Kattints a beállítás szerkesztéséhez"
 
@@ -5969,6 +6175,20 @@ msgstr "Kapcsolat"
 
 msgid "Bed type"
 msgstr "Asztaltípus"
+
+msgid "SLA Print Settings"
+msgstr ""
+
+#. TRN "Save current Settings"
+#, c-format, boost-format
+msgid "Save current %s"
+msgstr "Jelenlegi %s mentése"
+
+msgid "Delete this preset"
+msgstr "Ezen beállítás törlése"
+
+msgid "Material"
+msgstr ""
 
 msgid "Flushing volumes"
 msgstr "Tisztítási mennyiségek"
@@ -6080,6 +6300,9 @@ msgstr "Az oldalsáv kibontása"
 msgid "Collapse sidebar"
 msgstr "&Az oldalsáv összecsukása"
 
+msgid "Tab"
+msgstr ""
+
 #, c-format, boost-format
 msgid "Loading file: %s"
 msgstr "Fájl betöltése: %s"
@@ -6089,6 +6312,17 @@ msgstr ""
 
 msgid "Load 3mf"
 msgstr "3mf betöltése"
+
+msgid ""
+"This project was created with an OrcaSlicer 2.3.1-alpha and uses infill "
+"rotation template settings that may not work properly with your current "
+"infill pattern. This could result in weak support or print quality issues."
+msgstr ""
+
+msgid ""
+"Would you like PhrozenOrca to automatically fix this by clearing the "
+"rotation template settings?"
+msgstr ""
 
 #, c-format, boost-format
 msgid ""
@@ -6298,9 +6532,6 @@ msgstr "Kérjük, orvosold a szeletelési hibákat, és próbáld meg újra."
 msgid "Phrozen Orca not supply this action"
 msgstr ""
 
-msgid "Phrozen Orca"
-msgstr ""
-
 msgid ""
 "Network Plug-in is not detected. Network related features are unavailable."
 msgstr ""
@@ -6446,6 +6677,12 @@ msgstr "A megadott fájlnév érvénytelen."
 
 msgid "The following characters are not allowed by a FAT file system:"
 msgstr "A következő karakterek nem engedélyezettek a FAT fájlrendszerben:"
+
+msgid "Save Phrozen SLA file as:"
+msgstr ""
+
+msgid "No raster parameters found. Please slice the model before exporting."
+msgstr ""
 
 msgid "Save Sliced file as:"
 msgstr "Szeletelt fájl mentése mint:"
@@ -7568,14 +7805,6 @@ msgstr "Sikeres kijelentkezés."
 msgid "Failed to log out."
 msgstr "Sikertelen kijelentkezés."
 
-#. TRN "Save current Settings"
-#, c-format, boost-format
-msgid "Save current %s"
-msgstr "Jelenlegi %s mentése"
-
-msgid "Delete this preset"
-msgstr "Ezen beállítás törlése"
-
 msgid "Search in preset"
 msgstr "Keresés a beállításokban"
 
@@ -7628,6 +7857,14 @@ msgid ""
 msgstr ""
 
 msgid "Are you sure you want to enable this option?"
+msgstr ""
+
+msgid ""
+"Infill patterns are typically designed to handle rotation automatically to "
+"ensure proper printing and achieve their intended effects (e.g., Gyroid, "
+"Cubic). Rotating the current sparse infill pattern may lead to insufficient "
+"support. Please proceed with caution and thoroughly check for any potential "
+"printing issues.Are you sure you want to enable this option?"
 msgstr ""
 
 msgid ""
@@ -8102,6 +8339,30 @@ msgstr "Szünet G-kód"
 msgid "Template Custom G-code"
 msgstr "Sablon egyedi G-kód"
 
+msgid "General"
+msgstr "Általános"
+
+msgid "Size and coordinates"
+msgstr ""
+
+msgid "Tilt"
+msgstr ""
+
+msgid "Tilt time"
+msgstr ""
+
+msgid "Corrections"
+msgstr ""
+
+msgid "Exposure"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Profile dependencies"
+msgstr "Profilfüggőségek"
+
 msgid "Motion ability"
 msgstr "Géplimitek"
 
@@ -8226,6 +8487,54 @@ msgstr ""
 "Kattints a gombra az aktuális módosítás elvetéséhez és a mentett értékre "
 "való visszaállításhoz."
 
+msgid "Layer & Exposure"
+msgstr ""
+
+msgid "Transition"
+msgstr ""
+
+msgid "Wait & Rest"
+msgstr ""
+
+msgid "Lift & Retract Distance"
+msgstr ""
+
+msgid "Bottom Lift Distance"
+msgstr ""
+
+msgid "Lifting Distance"
+msgstr ""
+
+msgid "Bottom Retract Distance"
+msgstr ""
+
+msgid "Retract Distance"
+msgstr ""
+
+msgid "Lift & Retract Speed"
+msgstr ""
+
+msgid "Bottom Lift Speed"
+msgstr ""
+
+msgid "Lifting Speed"
+msgstr ""
+
+msgid "Bottom Retract Speed"
+msgstr ""
+
+msgid "Retract Speed"
+msgstr ""
+
+msgid "Support preview description"
+msgstr ""
+
+msgid "Main"
+msgstr ""
+
+msgid "Raft Setting"
+msgstr ""
+
 msgid "Process Settings"
 msgstr "Folyamatbeállítások"
 
@@ -8249,9 +8558,6 @@ msgstr "Átvitel"
 
 msgid "Don't save"
 msgstr "Ne mentsd"
-
-msgid "Discard"
-msgstr "Elvetés"
 
 msgid "Click the right mouse button to display the full text."
 msgstr "Kattints a jobb egérgombbal a teljes szöveg megjelenítéséhez."
@@ -8334,9 +8640,6 @@ msgstr ""
 
 msgid "Extruders count"
 msgstr "Extruderek száma"
-
-msgid "General"
-msgstr "Általános"
 
 msgid "Capabilities"
 msgstr "Képességek"
@@ -8621,12 +8924,6 @@ msgstr "Objektumok listája"
 msgid "Import geometry data from STL/STEP/3MF/OBJ/AMF files"
 msgstr ""
 
-msgid "⌘+Shift+G"
-msgstr "⌘+Shift+G"
-
-msgid "Ctrl+Shift+G"
-msgstr "Ctrl+Shift+G"
-
 msgid "Paste from clipboard"
 msgstr "Beillesztés a vágólapról"
 
@@ -8642,20 +8939,14 @@ msgstr "Gyorsgombok listájának megjelenítése"
 msgid "Global shortcuts"
 msgstr "Globális gyorsbillentyűk"
 
-msgid "Rotate View"
-msgstr "Nézet elforgatása"
-
 msgid "Pan View"
 msgstr "Pásztázó nézet"
 
-msgid "Mouse wheel"
-msgstr "Egérgörgő"
+msgid "Rotate View"
+msgstr "Nézet elforgatása"
 
 msgid "Zoom View"
 msgstr "Nagyítás nézet"
-
-msgid "Shift+A"
-msgstr "Shift+A"
 
 msgid ""
 "Auto orients selected objects or all objects. If there are selected objects, "
@@ -8666,47 +8957,23 @@ msgstr ""
 "tájolását. Ha vannak kijelölt objektumok, akkor csak a kijelölteket, "
 "ellenkező esetben pedig a projektben levő összes objektumot orientálja."
 
-msgid "Shift+Q"
-msgstr ""
-
 msgid "Auto orients all objects on the active plate."
 msgstr "Automatikusan orientálja az aktuális tálcán levő összes objektumot."
-
-msgid "Shift+Tab"
-msgstr "Shift+Tab"
 
 msgid "Collapse/Expand the sidebar"
 msgstr "Az oldalsáv összecsukása/kinyitása"
 
-msgid "⌘+Any arrow"
-msgstr "⌘+Bármilyen nyíl gomb"
+msgid "Any arrow"
+msgstr ""
 
 msgid "Movement in camera space"
 msgstr "Mozgás a kameratérben"
 
-msgid "⌥+Left mouse button"
-msgstr "⌥+Bal egérgomb"
-
 msgid "Select a part"
 msgstr "Válassz egy tárgyat"
 
-msgid "⌘+Left mouse button"
-msgstr "⌘+Bal egérgomb"
-
 msgid "Select multiple objects"
 msgstr "Több objektum kijelölése"
-
-msgid "Ctrl+Any arrow"
-msgstr "Ctrl+Bármelyik nyílgomb"
-
-msgid "Alt+Left mouse button"
-msgstr "Alt+bal egérgomb"
-
-msgid "Ctrl+Left mouse button"
-msgstr "Ctrl+Bal egérgomb"
-
-msgid "Shift+Left mouse button"
-msgstr "Shift+Bal egérgomb"
 
 msgid "Select objects by rectangle"
 msgstr "Objektumok kijelölése téglalapok alapján"
@@ -8734,9 +9001,6 @@ msgstr "Jobbra nyíl"
 
 msgid "Move selection 10 mm in positive X direction"
 msgstr "Kijelölés mozgatása 10 mm-rel pozitív X irányban"
-
-msgid "Shift+Any arrow"
-msgstr "Shift+Bármelyik nyílgomb"
 
 msgid "Movement step set to 1 mm"
 msgstr "Mozgatás lépéstávolsága 1mm-re állítva"
@@ -8822,23 +9086,11 @@ msgstr ""
 msgid "Move: press to snap by 1mm"
 msgstr ""
 
-msgid "⌘+Mouse wheel"
-msgstr "⌘+Egérgörgő"
-
 msgid "Support/Color Painting: adjust pen radius"
 msgstr "Támasz/Színfestés: toll méretének beállítása"
 
-msgid "⌥+Mouse wheel"
-msgstr "⌥+Egérgörgő"
-
 msgid "Support/Color Painting: adjust section position"
 msgstr "Támasz/Színfestés: metszet pozíciójának beállítása"
-
-msgid "Ctrl+Mouse wheel"
-msgstr "Ctrl+Egérgörgő"
-
-msgid "Alt+Mouse wheel"
-msgstr "Alt+Egérgörgő"
 
 msgid "Gizmo"
 msgstr "Gizmo"
@@ -8885,9 +9137,6 @@ msgstr ""
 
 msgid "Move slider 5x faster"
 msgstr "Csúszka 5x gyorsabb mozgatása"
-
-msgid "Shift+Mouse wheel"
-msgstr "Shift+Egérgörgő"
 
 msgid "Horizontal slider - Move to start position"
 msgstr ""
@@ -9030,10 +9279,10 @@ msgstr ""
 msgid "Air Pump"
 msgstr ""
 
-msgid "Laser 10w"
+msgid "Laser 10 W"
 msgstr ""
 
-msgid "Laser 40w"
+msgid "Laser 40 W"
 msgstr ""
 
 msgid "Cutting Module"
@@ -9604,6 +9853,11 @@ msgid ""
 msgstr ""
 
 msgid ""
+"The precise wall option will be ignored for outer-inner or inner-outer-inner "
+"wall sequences."
+msgstr ""
+
+msgid ""
 "Filament shrinkage will not be used because filament shrinkage for the used "
 "filaments differs significantly."
 msgstr ""
@@ -9685,7 +9939,7 @@ msgstr ""
 msgid "Preferred orientation"
 msgstr ""
 
-msgid "Automatically orient stls on the Z-axis upon initial import."
+msgid "Automatically orient stls on the Z axis upon initial import."
 msgstr ""
 
 msgid "Printer preset names"
@@ -9895,6 +10149,13 @@ msgid "Smooth Cool Plate"
 msgstr ""
 
 msgid "Smooth High Temp Plate"
+msgstr ""
+
+msgid "Default bed type"
+msgstr ""
+
+msgid ""
+"Default bed type for the printer (supports both numeric and string format)."
 msgstr ""
 
 msgid "First layer print sequence"
@@ -10121,7 +10382,8 @@ msgstr ""
 
 msgid ""
 "Improve shell precision by adjusting outer wall spacing. This also improves "
-"layer consistency."
+"layer consistency. NOTE: This option will be ignored for outer-inner or "
+"inner-outer-inner wall sequences."
 msgstr ""
 
 msgid "Only one wall on top surfaces"
@@ -10329,7 +10591,7 @@ msgstr ""
 
 msgid ""
 "The geometry will be decimated before detecting sharp angles. This parameter "
-"indicates the minimum length of the deviation for the decimation. \n"
+"indicates the minimum length of the deviation for the decimation.\n"
 "0 to deactivate."
 msgstr ""
 
@@ -11014,7 +11276,7 @@ msgid "Default color"
 msgstr "Alapértelmezett szín"
 
 msgid ""
-"Default filament color\n"
+"Default filament color.\n"
 "Right click to reset value to system default."
 msgstr ""
 
@@ -11234,9 +11496,6 @@ msgstr ""
 msgid "Flow used for ramming the filament before the tool change."
 msgstr ""
 
-msgid "Density"
-msgstr "Sűrűség"
-
 msgid "Filament density. For statistics only."
 msgstr "Filament sűrűsége. Csak statisztikákhoz kerül felhasználásra"
 
@@ -11315,6 +11574,25 @@ msgid ""
 "infill and internal solid infill pattern will be used."
 msgstr ""
 
+msgid "Align infill direction to model"
+msgstr ""
+
+msgid ""
+"Aligns infill and surface fill directions to follow the model's orientation "
+"on the build plate. When enabled, fill directions rotate with the model to "
+"maintain optimal strength characteristics."
+msgstr ""
+
+msgid "Insert solid layers"
+msgstr ""
+
+msgid ""
+"Insert solid infill at specific layers. Use N to insert every Nth layer, N#K "
+"to insert K consecutive solid layers every N layers (K is optional, e.g. "
+"'5#' equals '5#1'), or a comma-separated list (e.g. 1,7,9) to insert at "
+"explicit layers. Layers are 1-based."
+msgstr ""
+
 msgid "Fill Multiline"
 msgstr ""
 
@@ -11367,10 +11645,10 @@ msgstr "Méhsejt"
 msgid "3D Honeycomb"
 msgstr "3D-méhsejt"
 
-msgid "2D Honeycomb"
+msgid "Lateral Honeycomb"
 msgstr ""
 
-msgid "2D Lattice"
+msgid "Lateral Lattice"
 msgstr ""
 
 msgid "Cross Hatch"
@@ -11379,23 +11657,26 @@ msgstr "Cross Hatch"
 msgid "TPMS-D"
 msgstr ""
 
+msgid "TPMS-FK"
+msgstr ""
+
 msgid "Gyroid"
 msgstr "Gyroid"
 
-msgid "Lattice angle 1"
+msgid "Lateral lattice angle 1"
 msgstr ""
 
 msgid ""
-"The angle of the first set of 2D lattice elements in the Z direction. Zero "
-"is vertical."
+"The angle of the first set of Lateral lattice elements in the Z direction. "
+"Zero is vertical."
 msgstr ""
 
-msgid "Lattice angle 2"
+msgid "Lateral lattice angle 2"
 msgstr ""
 
 msgid ""
-"The angle of the second set of 2D lattice elements in the Z direction. Zero "
-"is vertical."
+"The angle of the second set of Lateral lattice elements in the Z direction. "
+"Zero is vertical."
 msgstr ""
 
 msgid "Infill overhang angle"
@@ -11514,7 +11795,8 @@ msgid "Default jerk."
 msgstr ""
 
 msgid ""
-"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk setting)"
+"Marlin Firmware Junction Deviation (replaces the traditional XY Jerk "
+"setting)."
 msgstr ""
 
 msgid "Jerk of outer walls."
@@ -11666,6 +11948,42 @@ msgid "Apply fuzzy skin to first layer"
 msgstr ""
 
 msgid "Whether to apply fuzzy skin on the first layer."
+msgstr ""
+
+msgid "Fuzzy skin generator mode"
+msgstr ""
+
+#, c-format, boost-format
+msgid ""
+"Fuzzy skin generation mode. Works only with Arachne!\n"
+"Displacement: Сlassic mode when the pattern is formed by shifting the nozzle "
+"sideways from the original path.\n"
+"Extrusion: The mode when the pattern formed by the amount of extruded "
+"plastic. This is the fast and straight algorithm without unnecessary nozzle "
+"shake that gives a smooth pattern. But it is more useful for forming loose "
+"walls in the entire they array.\n"
+"Combined: Joint mode [Displacement] + [Extrusion]. The appearance of the "
+"walls is similar to [Displacement] Mode, but it leaves no pores between the "
+"perimeters.\n"
+"\n"
+"Attention! The [Extrusion] and [Combined] modes works only the "
+"fuzzy_skin_thickness parameter not more than the thickness of printed loop. "
+"At the same time, the width of the extrusion for a particular layer should "
+"also not be below a certain level. It is usually equal 15-25%% of a layer "
+"height. Therefore, the maximum fuzzy skin thickness with a perimeter width "
+"of 0.4 mm and a layer height of 0.2 mm will be 0.4-(0.2*0.25)=±0.35mm! If "
+"you enter a higher parameter than this, the error Flow::spacing() will "
+"displayed, and the model will not be sliced. You can choose this number "
+"until this error is repeated."
+msgstr ""
+
+msgid "Displacement"
+msgstr ""
+
+msgid "Extrusion"
+msgstr ""
+
+msgid "Combined"
 msgstr ""
 
 msgid "Fuzzy skin noise type"
@@ -11975,12 +12293,13 @@ msgid "Sparse infill rotatation template"
 msgstr ""
 
 msgid ""
-"This parameter adds a rotation of sparse infill direction to each layer "
-"according to the specified template. The template is a comma-separated list "
-"of angles in degrees, e.g. '0,90'. The first angle is applied to the first "
-"layer, the second angle to the second layer, and so on. If there are more "
-"layers than angles, the angles will be repeated. Note that not all sparse "
-"infill patterns support rotation."
+"Rotate the sparse infill direction per layer using a template of angles. "
+"Enter comma-separated degrees (e.g., '0,30,60,90'). Angles are applied in "
+"order by layer and repeat when the list ends. Advanced syntax is supported: "
+"'+5' rotates +5° every layer; '+5#5' rotates +5° every 5 layers. See the "
+"Wiki for details. When a template is set, the standard infill direction "
+"setting is ignored. Note: some infill patterns (e.g., Gyroid) control "
+"rotation themselves; use with care."
 msgstr ""
 
 msgid "°"
@@ -12004,9 +12323,9 @@ msgstr ""
 msgid ""
 "The remaining part of the model contour after removing a certain depth from "
 "the surface is called the skeleton. This parameter is used to adjust the "
-"density of this section.When two regions have the same sparse infill "
+"density of this section. When two regions have the same sparse infill "
 "settings but different skeleton densities, their skeleton areas will develop "
-"overlapping sections.default is as same as infill density."
+"overlapping sections. Default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill density"
@@ -12015,9 +12334,9 @@ msgstr ""
 msgid ""
 "The portion of the model's outer surface within a certain depth range is "
 "called the skin. This parameter is used to adjust the density of this "
-"section.When two regions have the same sparse infill settings but different "
-"skin densities, This area will not be split into two separate regions."
-"default is as same as infill density."
+"section. When two regions have the same sparse infill settings but different "
+"skin densities, this area will not be split into two separate regions. "
+"Default is as same as infill density."
 msgstr ""
 
 msgid "Skin infill depth"
@@ -12044,11 +12363,11 @@ msgstr ""
 msgid "Adjust the line width of the selected skeleton paths."
 msgstr ""
 
-msgid "Symmetric infill y axis"
+msgid "Symmetric infill Y axis"
 msgstr ""
 
 msgid ""
-"If the model has two parts that are symmetric about the y-axis, and you want "
+"If the model has two parts that are symmetric about the Y axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
@@ -12235,8 +12554,8 @@ msgstr ""
 msgid "Ironing speed"
 msgstr "Vasalás sebessége"
 
-msgid "Print speed of ironing lines"
-msgstr ""
+msgid "Print speed of ironing lines."
+msgstr "A vasalási vonalak nyomtatási sebessége"
 
 msgid "Ironing angle"
 msgstr ""
@@ -12374,8 +12693,7 @@ msgid "Maximum Junction Deviation"
 msgstr ""
 
 msgid ""
-"Maximum junction deviation (M205 J, only apply if  JD > 0 for Marlin "
-"Firmware)"
+"Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
 msgstr ""
 
 msgid "Minimum speed for extruding"
@@ -12522,8 +12840,8 @@ msgid ""
 "is enabled."
 msgstr ""
 
-msgid "Diameter of nozzle"
-msgstr ""
+msgid "The diameter of nozzle."
+msgstr "Fúvóka átmérője"
 
 msgid "Configuration notes"
 msgstr "Konfiguráció megjegyzések"
@@ -12667,7 +12985,7 @@ msgstr ""
 "más sebességet használ. A 100%%-os túlnyúlás esetén az áthidaláshoz "
 "beállított sebességet használja."
 
-msgid "Filament to print walls"
+msgid "Filament to print walls."
 msgstr ""
 
 msgid ""
@@ -12706,7 +13024,7 @@ msgstr ""
 msgid "Printer type"
 msgstr "Nyomtató típusa"
 
-msgid "Type of the printer"
+msgid "Type of the printer."
 msgstr ""
 
 msgid "Printer notes"
@@ -12965,6 +13283,9 @@ msgstr "Legközelebbi"
 msgid "Aligned"
 msgstr "Igazított"
 
+msgid "Aligned back"
+msgstr ""
+
 msgid "Back"
 msgstr "Hátul"
 
@@ -13131,8 +13452,8 @@ msgstr ""
 msgid "Skirt distance"
 msgstr "Szoknya távolsága"
 
-msgid "Distance from skirt to brim or object"
-msgstr ""
+msgid "The distance from the skirt to the brim or the object."
+msgstr "A szoknyától a peremig vagy tárgyig mért távolság"
 
 msgid "Skirt start point"
 msgstr ""
@@ -13181,9 +13502,6 @@ msgstr ""
 msgid ""
 "Combined - single skirt for all objects, Per object - individual object "
 "skirt."
-msgstr ""
-
-msgid "Combined"
 msgstr ""
 
 msgid "Per object"
@@ -13242,7 +13560,7 @@ msgstr ""
 msgid "Solid infill"
 msgstr "Tömör kitöltés"
 
-msgid "Filament to print solid infill"
+msgid "Filament to print solid infill."
 msgstr ""
 
 msgid ""
@@ -13631,9 +13949,6 @@ msgstr "A támasz mintázata."
 
 msgid "Rectilinear grid"
 msgstr "Vonalrács"
-
-msgid "Hollow"
-msgstr "Üreges"
 
 msgid "Interface pattern"
 msgstr "Érintkező felület mintázata"
@@ -14039,8 +14354,8 @@ msgstr "Ez a törlő torony szélessége."
 msgid "Wipe tower rotation angle"
 msgstr "Törlőtorony forgatási szöge"
 
-msgid "Wipe tower rotation angle with respect to x-axis."
-msgstr ""
+msgid "Wipe tower rotation angle with respect to X axis."
+msgstr "Törlőtorony forgatási szöge az x-tengelyhez képest."
 
 msgid "Width of the brim."
 msgstr ""
@@ -14095,11 +14410,14 @@ msgstr ""
 
 msgid ""
 "Positive values can increase the size of the rib wall, while negative values "
-"can reduce the size.However, the size of the rib wall can not be smaller "
+"can reduce the size. However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
 
 msgid "Rib width"
+msgstr ""
+
+msgid "Rib width."
 msgstr ""
 
 msgid "Fillet wall"
@@ -14398,6 +14716,457 @@ msgstr ""
 "területen a koncentrikus mintát fogja használni. Ellenkező esetben "
 "alapértelmezés szerint az egyenes vonalú mintát használja."
 
+msgid "Bottom Layer Count"
+msgstr ""
+
+msgid "Bottom Layer Count for quality."
+msgstr ""
+
+msgid "Exposure time"
+msgstr ""
+
+msgid "Exposure time for quality."
+msgstr ""
+
+msgid "Bottom exposure time"
+msgstr ""
+
+msgid "Bottom exposure time for quality."
+msgstr ""
+
+msgid "Transition Layer Count"
+msgstr ""
+
+msgid "Transition Layer Count for quality."
+msgstr ""
+
+msgid "Transition Type"
+msgstr ""
+
+msgid "Transition Type for quality."
+msgstr ""
+
+msgid "Linear"
+msgstr ""
+
+msgid "Transition Layer Interval Time Difference"
+msgstr ""
+
+msgid "Transition Layer Interval Time Difference for quality."
+msgstr ""
+
+msgid "Waiting Mode During Printing"
+msgstr ""
+
+msgid "Waiting Mode During Printing for quality."
+msgstr ""
+
+msgid "Resting time"
+msgstr ""
+
+msgid "Light off delay"
+msgstr ""
+
+msgid "Rest Time Before Lift"
+msgstr ""
+
+msgid "Rest Time Before Lift for quality."
+msgstr ""
+
+msgid "Rest Time After Lift"
+msgstr ""
+
+msgid "Rest Time After Lift for quality."
+msgstr ""
+
+msgid "Rest Time After Retract"
+msgstr ""
+
+msgid "Rest Time After Retract for quality."
+msgstr ""
+
+msgid "Light-off Delay"
+msgstr ""
+
+msgid "Light-off Delay for quality."
+msgstr ""
+
+msgid "Bottom Light-off Delay"
+msgstr ""
+
+msgid "Bottom Light-off Delay for quality."
+msgstr ""
+
+msgid "Primary bottom lift distance (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Lift Second Distance"
+msgstr ""
+
+msgid "Second-stage bottom lift distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary lifting distance (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Lift Second Distance"
+msgstr ""
+
+msgid "Second-stage lifting distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid ""
+"Primary bottom retract distance (read-only): bottom lift (1st+2nd) minus "
+"bottom retract 2nd; not loaded from preset JSON, computed after load."
+msgstr ""
+
+msgid "Bottom Retract Second Distance"
+msgstr ""
+
+msgid "Second-stage bottom retract distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid ""
+"Primary retract distance (read-only): lifting distance (1st+2nd) minus "
+"retract 2nd; not loaded from preset JSON, computed after load."
+msgstr ""
+
+msgid "Retract Second Distance"
+msgstr ""
+
+msgid "Second-stage retract distance (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary bottom lift speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Lift Second Speed"
+msgstr ""
+
+msgid "Second-stage bottom lift speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary lifting speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Lift Second Speed"
+msgstr ""
+
+msgid "Second-stage lifting speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary bottom retract speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Retract Second Speed"
+msgstr ""
+
+msgid "Second-stage bottom retract speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Primary retract speed (shown before \"+\" in the UI)."
+msgstr ""
+
+msgid "Retract Second Speed"
+msgstr ""
+
+msgid "Second-stage retract speed (shown after \"+\" in the UI)."
+msgstr ""
+
+msgid "Bottom Light PWM"
+msgstr ""
+
+msgid "Bottom Light PWM for advanced"
+msgstr ""
+
+msgid "Light PWM"
+msgstr ""
+
+msgid "Light PWM for advanced"
+msgstr ""
+
+msgid "Picture GrayScale"
+msgstr ""
+
+msgid "Picture GrayScale for advanced"
+msgstr ""
+
+msgid "Anti-Aliasing"
+msgstr ""
+
+msgid "Anti-Aliasing for advanced."
+msgstr ""
+
+msgid "Gray Scale Level"
+msgstr ""
+
+msgid "Anti-aliasing Level"
+msgstr ""
+
+msgid "Gray Scale Level for advanced"
+msgstr ""
+
+msgid "Image Blur Enable"
+msgstr ""
+
+msgid "Image Blur Enable for advanced"
+msgstr ""
+
+msgid "Image Blur Pixel"
+msgstr ""
+
+msgid "Image Blur Pixel for advanced"
+msgstr ""
+
+msgid "Preview Image Path"
+msgstr ""
+
+msgid ""
+"Directory containing preview images for PRZ export (PreviewImage_116_116.png "
+"and PreviewImage_290_290.png)."
+msgstr ""
+
+msgid "Shrinkage Compensation"
+msgstr ""
+
+msgid "Shrinkage Compensation for advanced"
+msgstr ""
+
+msgid "X"
+msgstr ""
+
+msgid "X for advanced."
+msgstr ""
+
+msgid "Y"
+msgstr ""
+
+msgid "Y for advanced."
+msgstr ""
+
+msgid "Z"
+msgstr ""
+
+msgid "Z for advanced."
+msgstr ""
+
+msgid "Tolerance Compensation"
+msgstr ""
+
+msgid "Tolerance Compensation for advanced"
+msgstr ""
+
+msgid "a"
+msgstr ""
+
+msgid "A for advanced."
+msgstr ""
+
+msgid "b"
+msgstr ""
+
+msgid "B for advanced."
+msgstr ""
+
+msgid "Bottom Tolerance Compensation"
+msgstr ""
+
+msgid "Bottom Tolerance Compensation for advanced"
+msgstr ""
+
+msgid "Contact Type"
+msgstr ""
+
+msgid "Contact Type for support"
+msgstr ""
+
+msgid "Support Point Diameter"
+msgstr ""
+
+msgid "Support Point Diameter for support"
+msgstr ""
+
+msgid "Upper Diameter"
+msgstr ""
+
+msgid "Upper Diameter for support."
+msgstr ""
+
+msgid "Contact Depth"
+msgstr ""
+
+msgid "Contact Depth for support."
+msgstr ""
+
+msgid "Pinhead Width"
+msgstr ""
+
+msgid "Pinhead Width for support."
+msgstr ""
+
+msgid "Pillar Diameter for support."
+msgstr ""
+
+msgid "Support Bracing Angle"
+msgstr ""
+
+msgid "Support Bracing Angle for support."
+msgstr ""
+
+msgid "Support Bottom Diameter"
+msgstr ""
+
+msgid "Support Bottom Diameter for support."
+msgstr ""
+
+msgid "Support Boss Height"
+msgstr ""
+
+msgid "Support Boss Height for support."
+msgstr ""
+
+msgid "Raft Thickness"
+msgstr ""
+
+msgid "Raft Thickness for support."
+msgstr ""
+
+msgid "Bottom Contact Diameter"
+msgstr ""
+
+msgid "Bottom Contact Diameter for support."
+msgstr ""
+
+msgid "Raft Max Merge Distance"
+msgstr ""
+
+msgid "Raft Max Merge Distance for support."
+msgstr ""
+
+msgid "Support Angle"
+msgstr ""
+
+msgid "Pad Wall Slope for support."
+msgstr ""
+
+msgid "Support Points Density"
+msgstr ""
+
+msgid "Support Points Density for support."
+msgstr ""
+
+msgid "Max Bridge Length"
+msgstr ""
+
+msgid "Max BridgeLength for support."
+msgstr ""
+
+msgid "Max Pillar Linking Distance"
+msgstr ""
+
+msgid "Max Pillar Linking Distance for support."
+msgstr ""
+
+msgid "Resolution (pixels)"
+msgstr ""
+
+msgid "Supports"
+msgstr ""
+
+msgid ""
+"Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
+"the tip to increase contact area."
+msgstr ""
+
+msgid ""
+"Diameter of the contact sphere at the pinhead tip (used when Contact Type is "
+"Sphere)."
+msgstr ""
+
+msgid "Head Connection Length"
+msgstr ""
+
+msgid "Width from the back sphere center to the front sphere center."
+msgstr ""
+
+msgid "Generate support"
+msgstr ""
+
+msgid "Generate support for support"
+msgstr ""
+
+msgid ""
+"Surfaces whose slope angle from horizontal is below this value will not "
+"receive supports. Set to 90 to support all overhangs."
+msgstr ""
+
+msgid "This is a relative measure of support points density."
+msgstr ""
+
+msgid "%"
+msgstr "%"
+
+msgid "Minimal points distance"
+msgstr ""
+
+msgid ""
+"Minimum distance between auto-generated support points. Note: This parameter "
+"is no longer used by the support generator (deprecated since PrusaSlicer "
+"2.9.1 when the Voronoi-based algorithm replaced Poisson disk sampling). Kept "
+"for backward compatibility only."
+msgstr ""
+
+msgid "Pad Wall Slope"
+msgstr ""
+
+msgid "The slope angle of the raft/pad walls."
+msgstr ""
+
+msgid "Enable hollowing"
+msgstr ""
+
+msgid "Hollowing"
+msgstr ""
+
+msgid "Hollow out a model to have an empty interior"
+msgstr ""
+
+msgid "Wall thickness"
+msgstr ""
+
+msgid "Minimum wall thickness of a hollowed model."
+msgstr ""
+
+msgid "Accuracy"
+msgstr ""
+
+msgid ""
+"Performance vs accuracy of calculation. Lower values may produce unwanted "
+"artifacts."
+msgstr ""
+
+msgid "Closing distance"
+msgstr ""
+
+msgid ""
+"Hollowing is done in two steps: first, an imaginary interior is calculated "
+"deeper (offset plus the closing distance) in the object and then it's "
+"inflated back to the specified offset. A greater closing distance makes the "
+"interior more rounded. At zero, the interior will resemble the exterior the "
+"most."
+msgstr ""
+
+msgid "Support tree type"
+msgstr ""
+
+msgid ""
+"Support tree building strategy. Default uses pillar-based supports; "
+"Branching uses organic tree-like supports (requires Step 3.3 implementation)."
+msgstr ""
+
+msgid "Branching"
+msgstr ""
+
 msgid "invalid value "
 msgstr ""
 
@@ -14674,7 +15443,7 @@ msgstr ""
 msgid "Load custom G-code from json."
 msgstr ""
 
-msgid "Load filament ids"
+msgid "Load filament IDs"
 msgstr ""
 
 msgid "Load filament IDs for each object."
@@ -14709,25 +15478,25 @@ msgstr ""
 msgid "MakerLab name"
 msgstr ""
 
-msgid "MakerLab name to generate this 3mf"
+msgid "MakerLab name to generate this 3mf."
 msgstr ""
 
 msgid "MakerLab version"
 msgstr ""
 
-msgid "MakerLab version to generate this 3mf"
+msgid "MakerLab version to generate this 3mf."
 msgstr ""
 
 msgid "metadata name list"
 msgstr ""
 
-msgid "metadata name list added into 3mf"
+msgid "metadata name list added into 3mf."
 msgstr ""
 
 msgid "metadata value list"
 msgstr ""
 
-msgid "metadata value list added into 3mf"
+msgid "metadata value list added into 3mf."
 msgstr ""
 
 msgid "Allow 3mf with newer version to be sliced"
@@ -14975,7 +15744,7 @@ msgstr ""
 msgid "Index of the current layer. One-based (i.e. first layer is number 1)."
 msgstr ""
 
-msgid "Layer z"
+msgid "Layer Z"
 msgstr ""
 
 msgid ""
@@ -14983,7 +15752,7 @@ msgid ""
 "layer."
 msgstr ""
 
-msgid "Maximal layer z"
+msgid "Maximal layer Z"
 msgstr ""
 
 msgid "Height of the last layer above the print bed."
@@ -15072,9 +15841,6 @@ msgstr ""
 
 msgid "Unknown file format. Input file must have .3mf or .zip.amf extension."
 msgstr ""
-
-msgid "Canceled"
-msgstr "Megszakítva"
 
 msgid "load_obj: failed to parse"
 msgstr ""
@@ -15174,8 +15940,13 @@ msgid ""
 "Start value: >= %.1f\n"
 "End value: <= %.1f\n"
 "End value: > Start value\n"
-"Value step: >= %.3f)"
+"Value step: >= %.3f"
 msgstr ""
+"Kérjük, érvényes értékeket adj meg:\n"
+"Kezdő érték: >= %.1f\n"
+"Végérték: <= %.1f\n"
+"Végérték: > Kezdő érték\n"
+"Lépésköz: >=) %.3f"
 
 msgid "The name cannot be empty."
 msgstr "A név nem lehet üres."
@@ -15653,8 +16424,12 @@ msgid ""
 "Please input valid values:\n"
 "Start PA: >= 0.0\n"
 "End PA: > Start PA\n"
-"PA step: >= 0.001)"
+"PA step: >= 0.001"
 msgstr ""
+"Kérjük, adj meg érvényes értékeket:\n"
+"Kezdő PA: >= 0.0\n"
+"Befejező PA: > Start PA\n"
+"PA lépcső: >= 0.001)"
 
 msgid "Temperature calibration"
 msgstr "Hőmérséklet kalibrálás"
@@ -15696,7 +16471,7 @@ msgid ""
 "Please input valid values:\n"
 "Start temp: <= 350\n"
 "End temp: >= 170\n"
-"Start temp > End temp + 5)"
+"Start temp > End temp + 5"
 msgstr ""
 
 msgid "Max volumetric speed test"
@@ -15710,9 +16485,9 @@ msgstr "Befejező volumetrikus sebesség: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 0 \n"
+"start > 0\n"
 "step >= 0\n"
-"end > start + step)"
+"end > start + step"
 msgstr ""
 
 msgid "VFA test"
@@ -15726,9 +16501,9 @@ msgstr "Befejező sebesség: "
 
 msgid ""
 "Please input valid values:\n"
-"start > 10 \n"
+"start > 10\n"
 "step >= 0\n"
-"end > start + step)"
+"end > start + step"
 msgstr ""
 
 msgid "Start retraction length: "
@@ -15755,9 +16530,6 @@ msgstr ""
 msgid "Frequency settings"
 msgstr ""
 
-msgid "hz"
-msgstr ""
-
 msgid "Damp: "
 msgstr ""
 
@@ -15767,8 +16539,8 @@ msgid ""
 msgstr ""
 
 msgid ""
-"Please input valid values\n"
-"(0 < FreqStart < FreqEnd < 500"
+"Please input valid values:\n"
+"(0 < FreqStart < FreqEnd < 500)"
 msgstr ""
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
@@ -15787,8 +16559,8 @@ msgid "Note: Use previously calculated frequencies."
 msgstr ""
 
 msgid ""
-"Please input valid values\n"
-"(0 < Freq < 500"
+"Please input valid values:\n"
+"(0 < Freq < 500)"
 msgstr ""
 
 msgid ""
@@ -15811,7 +16583,7 @@ msgid "Note: Lower values = sharper corners but slower speeds"
 msgstr ""
 
 msgid ""
-"Please input valid values\n"
+"Please input valid values:\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
 
@@ -15871,8 +16643,8 @@ msgstr "Sorban áll"
 msgid "Uploading"
 msgstr "Feltöltés"
 
-msgid "Cancelling"
-msgstr ""
+msgid "Canceling"
+msgstr "Megszakítás"
 
 msgid "Error uploading to print host"
 msgstr ""
@@ -16327,8 +17099,8 @@ msgstr ""
 
 #, c-format, boost-format
 msgid ""
-"The file: %s \n"
-"may have been opened by another program. \n"
+"The file: %s\n"
+"may have been opened by another program.\n"
 "Please close it and try again."
 msgstr ""
 
@@ -16661,7 +17433,7 @@ msgstr ""
 msgid "Could not connect to Repetier"
 msgstr "Nem sikerült csatlakozni a Repetierhez"
 
-msgid "Note: Repetier version 0.90.0 ir higher is required."
+msgid "Note: Repetier version 0.90.0 or higher is required."
 msgstr ""
 
 #, boost-format
@@ -16903,23 +17675,11 @@ msgstr ""
 msgid "User cancelled."
 msgstr ""
 
-msgid "Head diameter"
-msgstr "Fej átmérő"
-
 msgid "Max angle"
 msgstr ""
 
 msgid "Detection radius"
 msgstr ""
-
-msgid "Remove selected points"
-msgstr "Kijelölt pontok eltávolítása"
-
-msgid "Remove all"
-msgstr ""
-
-msgid "Auto-generate points"
-msgstr "Pontok automatikus generálása"
 
 msgid "Add a brim ear"
 msgstr ""
@@ -17037,6 +17797,15 @@ msgid "Please connect to a Phrozen printer first."
 msgstr ""
 
 msgid "Failed to start calibration. Please check the connection and try again."
+msgstr ""
+
+msgid "Firmware restarting..."
+msgstr ""
+
+msgid "Firmware restart complete."
+msgstr ""
+
+msgid "Firmware restart failed. Please power-cycle the printer."
 msgstr ""
 
 msgid ""
@@ -17431,75 +18200,77 @@ msgstr ""
 "Tudtad, hogy a vetemedésre hajlamos anyagok (például ABS) nyomtatásakor a "
 "tárgyasztal hőmérsékletének növelése csökkentheti a vetemedés valószínűségét?"
 
-#~ msgid ""
-#~ "Too small max volumetric speed.\n"
-#~ "Reset to 0.5."
-#~ msgstr ""
-#~ "Túl alacsony max. volumetrikus sebesség.\n"
-#~ "Az értéke 0,5-re állt vissza"
+#~ msgid "Alt + Shift + Enter"
+#~ msgstr "Alt + Shift + Enter"
 
-#~ msgid ""
-#~ "Too small layer height.\n"
-#~ "Reset to 0.2."
-#~ msgstr ""
-#~ "Túl alacsony rétegmagasság.\n"
-#~ "Visszaállítva 0,2-re"
+#~ msgid "Left mouse button:"
+#~ msgstr "Bal egérgomb:"
 
-#~ msgid ""
-#~ "Too small ironing spacing.\n"
-#~ "Reset to 0.1."
-#~ msgstr ""
-#~ "Túl kicsi vasalási térköz.\n"
-#~ "Visszaállítva 0,1-re"
+#~ msgid "Right mouse button:"
+#~ msgstr "Jobb egérgomb:"
+
+#~ msgid "Shift + Left mouse button:"
+#~ msgstr "Shift + bal egérgomb"
+
+#~ msgid "Shift + Right mouse button:"
+#~ msgstr "Shift + jobb egérgomb:"
+
+#~ msgid "⌘+Shift+G"
+#~ msgstr "⌘+Shift+G"
+
+#~ msgid "Ctrl+Shift+G"
+#~ msgstr "Ctrl+Shift+G"
+
+#~ msgid "Shift+A"
+#~ msgstr "Shift+A"
+
+#~ msgid "Shift+Tab"
+#~ msgstr "Shift+Tab"
+
+#~ msgid "⌘+Any arrow"
+#~ msgstr "⌘+Bármilyen nyíl gomb"
+
+#~ msgid "⌥+Left mouse button"
+#~ msgstr "⌥+Bal egérgomb"
+
+#~ msgid "⌘+Left mouse button"
+#~ msgstr "⌘+Bal egérgomb"
+
+#~ msgid "Ctrl+Any arrow"
+#~ msgstr "Ctrl+Bármelyik nyílgomb"
+
+#~ msgid "Alt+Left mouse button"
+#~ msgstr "Alt+bal egérgomb"
+
+#~ msgid "Ctrl+Left mouse button"
+#~ msgstr "Ctrl+Bal egérgomb"
+
+#~ msgid "Shift+Left mouse button"
+#~ msgstr "Shift+Bal egérgomb"
+
+#~ msgid "Shift+Any arrow"
+#~ msgstr "Shift+Bármelyik nyílgomb"
+
+#~ msgid "⌘+Mouse wheel"
+#~ msgstr "⌘+Egérgörgő"
+
+#~ msgid "⌥+Mouse wheel"
+#~ msgstr "⌥+Egérgörgő"
+
+#~ msgid "Ctrl+Mouse wheel"
+#~ msgstr "Ctrl+Egérgörgő"
+
+#~ msgid "Alt+Mouse wheel"
+#~ msgstr "Alt+Egérgörgő"
+
+#~ msgid "Shift+Mouse wheel"
+#~ msgstr "Shift+Egérgörgő"
 
 #~ msgid "Open Network Test"
 #~ msgstr "Hálózati teszt megnyitása"
 
-#~ msgid "Print speed of ironing lines."
-#~ msgstr "A vasalási vonalak nyomtatási sebessége"
-
-#~ msgid "The diameter of nozzle."
-#~ msgstr "Fúvóka átmérője"
-
-#~ msgid "The distance from the skirt to the brim or the object."
-#~ msgstr "A szoknyától a peremig vagy tárgyig mért távolság"
-
-#~ msgid "Wipe tower rotation angle with respect to X axis."
-#~ msgstr "Törlőtorony forgatási szöge az x-tengelyhez képest."
-
-#, c-format, boost-format
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "Start value: >= %.1f\n"
-#~ "End value: <= %.1f\n"
-#~ "End value: > Start value\n"
-#~ "Value step: >= %.3f"
-#~ msgstr ""
-#~ "Kérjük, érvényes értékeket adj meg:\n"
-#~ "Kezdő érték: >= %.1f\n"
-#~ "Végérték: <= %.1f\n"
-#~ "Végérték: > Kezdő érték\n"
-#~ "Lépésköz: >=) %.3f"
-
-#~ msgid ""
-#~ "Please input valid values:\n"
-#~ "Start PA: >= 0.0\n"
-#~ "End PA: > Start PA\n"
-#~ "PA step: >= 0.001"
-#~ msgstr ""
-#~ "Kérjük, adj meg érvényes értékeket:\n"
-#~ "Kezdő PA: >= 0.0\n"
-#~ "Befejező PA: > Start PA\n"
-#~ "PA lépcső: >= 0.001)"
-
-#~ msgid "Canceling"
-#~ msgstr "Megszakítás"
-
 #~ msgid "Set Position"
 #~ msgstr "Pozíció beállítása"
-
-#~ msgid "%"
-#~ msgstr "%"
 
 #, boost-format
 #~ msgid "%1%"
@@ -17580,9 +18351,6 @@ msgstr ""
 
 #~ msgid "Ramming settings"
 #~ msgstr "Tömörítési beállítások"
-
-#~ msgid "Profile dependencies"
-#~ msgstr "Profilfüggőségek"
 
 #~ msgid "the Configuration package is incompatible with the current APP."
 #~ msgstr ""
