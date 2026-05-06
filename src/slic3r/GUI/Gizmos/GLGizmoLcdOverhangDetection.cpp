@@ -455,6 +455,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     ImGui::PopStyleVar(1);
 
     // Layer height hint — updates immediately when accuracy level changes
+    if ( m_bDebugMode )
     {
         const float lh = accuracy_to_layer_height(m_detection_accuracy);
         char buf[32];
@@ -462,7 +463,7 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
         ImGui::AlignTextToFramePadding();
         m_imgui->text(buf);
     }
-
+    #if 0
     // Row 3: Model label
     ImGui::AlignTextToFramePadding();
     m_imgui->text(m_desc.at("model"));
@@ -511,7 +512,8 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     } else {
         ImGui::Dummy(ImVec2(bracket_button_width, ImGui::GetFrameHeight()));
     }
-    
+    #endif
+
     // Row 5: Overhang Area label
     ImGui::AlignTextToFramePadding();
     m_imgui->text(m_desc.at("overhang_area"));
@@ -533,9 +535,9 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
     
     // Overhang area text (centered)
     wxString overhang_text = wxString::Format("%d/%d", m_current_overhang_area_index, m_total_overhang_areas);
-    float overhang_text_width = m_imgui->calc_text_size(overhang_text).x;
-    available_width = ImGui::GetContentRegionAvail().x - button_width * 2 - ImGui::GetStyle().ItemSpacing.x * 2;
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (available_width - overhang_text_width) * 0.5f);
+    float overhang_text_width       = m_imgui->calc_text_size(overhang_text).x;
+    float overhang_available_width  = ImGui::GetContentRegionAvail().x - button_width * 2 - ImGui::GetStyle().ItemSpacing.x * 2;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (overhang_available_width - overhang_text_width) * 0.5f);
     m_imgui->text(overhang_text);
     
     ImGui::SameLine();
@@ -563,14 +565,11 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
 
     ImGui::SameLine();
 
-    if (m_imgui->button(m_desc.at("detect_all"))) {
-        // TODO: Implement detect all functionality
-    }
-    const float detect_all_w = ImGui::GetItemRectSize().x;
+    // Each button independently scales its own text width × 1.3.
+    const float padding_x    = 2.f * ImGui::GetStyle().FramePadding.x;
+    const float detect_btn_w = (m_imgui->calc_text_size(m_desc.at("detect_selected")).x + padding_x) * 1.3f;
 
-    ImGui::SameLine();
-
-    if (m_imgui->button(m_desc.at("detect_selected"))) {
+    if (m_imgui->button(m_desc.at("detect_selected"), detect_btn_w, 0.f)) {
         const SLAPrint* sla_print = m_parent.sla_print();
         if (sla_print && m_current_model_index < (int)sla_print->objects().size()) {
             const SLAPrintObject* po = sla_print->objects()[m_current_model_index];
@@ -593,17 +592,16 @@ void GLGizmoLcdOverhangDetection::on_render_input_window(float x, float y, float
             }
         }
     }
-    const float detect_selected_w = ImGui::GetItemRectSize().x;
 
-    // Next row: align under the buttons (after the tooltip icon) and make width == (Detect all + spacing + Detect selected).
+    // Next row: tooltip icon gap + add_overhang_supports scaled independently.
     const float scale            = m_parent.get_scale();
     const float tooltip_icon_w   = 25.f * scale;
-    const float two_buttons_w    = detect_all_w + ImGui::GetStyle().ItemSpacing.x + detect_selected_w;
+    const float add_supports_btn_w = (m_imgui->calc_text_size(m_desc.at("add_overhang_supports")).x + padding_x) * 1.3f;
 
     ImGui::Dummy(ImVec2(tooltip_icon_w, 0.f));
     ImGui::SameLine();
     const bool can_add = !m_overhang_area_index_map.empty();
-    if (m_imgui->button(m_desc.at("add_overhang_supports"), ImVec2(two_buttons_w, 0.f), can_add)) {
+    if (m_imgui->button(m_desc.at("add_overhang_supports"), ImVec2(add_supports_btn_w, 0.f), can_add)) {
         generate_island_support_points();
     }
 
