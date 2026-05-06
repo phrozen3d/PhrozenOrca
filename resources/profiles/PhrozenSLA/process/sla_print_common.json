@@ -30,5 +30,7 @@
     "support_pillar_connection_mode": "zigzag",
     "support_pillar_widening_factor": "0",
     "generate_support": "0",
-    "support_small_pillar_diameter_percent": "60%"
+    "support_small_pillar_diameter_percent": "60%",
+    "print_time_compensation": "0",
+    "layer_print_time_compensation": "0"
 }

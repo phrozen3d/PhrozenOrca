@@ -118,8 +118,12 @@ void TextInput::SetLabelColor(StateColor const &color)
 
 void TextInput::SetTextColor(StateColor const& color)
 {
-    text_color= color;
+    text_color = color;
     state_handler.update_binds();
+    if (text_ctrl) {
+        text_ctrl->SetForegroundColour(text_color.colorForStates(state_handler.states()));
+        text_ctrl->Refresh();
+    }
 }
 
 void TextInput::Rescale()

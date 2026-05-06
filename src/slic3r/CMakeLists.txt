@@ -328,6 +328,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/ObjColorDialog.cpp
     GUI/ObjColorDialog.hpp
     GUI/WipeTowerDialog.cpp
+    GUI/LayerPrintTimeCompensationDialog.cpp
+    GUI/LayerPrintTimeCompensationDialog.hpp
     GUI/RammingChart.cpp
     GUI/RammingChart.hpp
     GUI/RemovableDriveManager.cpp

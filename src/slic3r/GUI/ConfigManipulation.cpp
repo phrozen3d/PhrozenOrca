@@ -983,6 +983,11 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
         config->has("bottom_tolerance_compensation") && config->opt_bool("bottom_tolerance_compensation");
     toggle_field("bottom_tolerance_compensation_a", is_bottom_tolerance_compensation);
     toggle_field("bottom_tolerance_compensation_b", is_bottom_tolerance_compensation);
+
+    if (config->has("print_time_compensation")) {
+        const bool ptc = config->opt_bool("print_time_compensation");
+        toggle_line("layer_print_time_compensation", ptc);
+    }
 #pragma endregion
 }
 

@@ -1,8 +1,10 @@
 #include "PhrozenPRZ.hpp"
 
+#include <cmath>
 #include <ctime>
 #include <functional>
 #include <ostream>
+#include <limits>
 #include <sstream>
 #include <iomanip>
 
@@ -37,6 +39,22 @@ static int cfg_i(const DynamicPrintConfig &cfg, const std::string &key, int def 
     if (cfg.has(key))
         if (auto *opt = cfg.option(key))
             return opt->getInt();
+    return def;
+}
+
+static bool cfg_bool(const DynamicPrintConfig &cfg, const std::string &key, bool def = false)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key))
+            return opt->getBool();
+    return def;
+}
+
+static double cfg_double(const DynamicPrintConfig &cfg, const std::string &key, double def = 0.)
+{
+    if (cfg.has(key))
+        if (auto *opt = cfg.option(key))
+            return opt->getFloat();
     return def;
 }
 
@@ -151,6 +169,21 @@ int calculate_prz_print_time(int                       total_layers,
              * (nt + lod + rtbl + t_n_motion + rtal + rtr);
 
     return static_cast<int>(total_s);
+}
+
+int adjusted_prz_print_time_seconds(int total_layers, const DynamicPrintConfig &cfg)
+{
+    const int base = calculate_prz_print_time(total_layers, cfg);
+    if (!cfg_bool(cfg, "print_time_compensation", false) || total_layers <= 0)
+        return base;
+    const double c   = cfg_double(cfg, "layer_print_time_compensation", 0.);
+    const double adj = static_cast<double>(base) + c * static_cast<double>(total_layers);
+    long long       r  = std::llround(adj);
+    if (r < 0)
+        r = 0;
+    if (r > static_cast<long long>(std::numeric_limits<int>::max()))
+        r = std::numeric_limits<int>::max();
+    return static_cast<int>(r);
 }
 
 // ---------------------------------------------------------------------------
@@ -435,7 +468,7 @@ static void prz_header(std::string              &fh,
     // Advance_Mode (0 = normal, 1 byte)
     { fh += '\0'; layerContent_position_offset += 1; }
     // PrintTimes (estimated, seconds)
-    { int v = calculate_prz_print_time(static_cast<int>(print.print_layers().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
+    { int v = adjusted_prz_print_time_seconds(static_cast<int>(print.print_layers().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
     // TotalVolume / TotalWeight / TotalPrice (from print statistics)
     {
         const SLAPrintStatistics &stats = print.print_statistics();

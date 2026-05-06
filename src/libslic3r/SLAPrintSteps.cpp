@@ -1368,7 +1368,7 @@ void SLAPrint::Steps::merge_slices_and_eval_stats() {
     print_statistics.fast_layers_count = fast_layers;
     print_statistics.slow_layers_count = slow_layers;
 
-    print_statistics.prz_print_time_s = calculate_prz_print_time(
+    print_statistics.prz_print_time_s = adjusted_prz_print_time_seconds(
         static_cast<int>(printer_input.size()),
         m_print->full_print_config()
     );

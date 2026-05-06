@@ -20,4 +20,8 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
 // rasterization if total_layers is known (e.g. printer_input.size()).
 int calculate_prz_print_time(int total_layers, const DynamicPrintConfig &cfg);
 
+// Same base model as above, plus optional per-layer time compensation from print settings
+// when "print_time_compensation" is enabled: result = base + layer_print_time_compensation * N.
+int adjusted_prz_print_time_seconds(int total_layers, const DynamicPrintConfig &cfg);
+
 } // namespace Slic3r

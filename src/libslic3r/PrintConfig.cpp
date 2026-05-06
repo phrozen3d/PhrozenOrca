@@ -6966,6 +6966,22 @@ void PrintConfigDef::init_sla_params()
     def->sidetext = "mm";
     def->set_default_value(new ConfigOptionFloat(0));
 
+    def           = this->add("print_time_compensation", coBool);
+    def->label    = L("Print Time Compensation");
+    def->category = L("Advanced");
+    def->tooltip  = L("When enabled, adds layer-based compensation to the estimated print time (PRZ model).");
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("layer_print_time_compensation", coFloat);
+    def->label    = L("Layer Print Time Compensation");
+    def->category = L("Advanced");
+    def->tooltip  = L("Per-layer time adjustment in seconds. Total adjustment is this value times layer count when Print Time Compensation is enabled.");
+    // No sidetext: combined Option + Line.widget rows skip build_field() (see OptionsGroup::activate_line);
+    // empty sidetext keeps OG_CustomCtrl::render on the null-safe branch (same pattern as filament_ramming_parameters).
+    def->min      = -864000.0;
+    def->max      = 864000.0;
+    def->set_default_value(new ConfigOptionFloat(0));
+
     // Support
 
     def                = this->add("contact_type", coEnum);

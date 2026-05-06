@@ -968,6 +968,8 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "bottom_tolerance_compensation",
     "bottom_tolerance_compensation_a",
     "bottom_tolerance_compensation_b",
+    "print_time_compensation",
+    "layer_print_time_compensation",
     "contact_type",
     "support_point_diameter",
     "support_contact_type",

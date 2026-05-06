@@ -663,6 +663,8 @@ public:
     ~TabSLAPrint() {}
 
 	ogStaticText* m_support_object_elevation_description_line = nullptr;
+	// Read-only display (2 decimals) for layer_print_time_compensation; value comes from calculator dialog or preset.
+	TextInput*    m_layer_print_time_compensation_display     = nullptr;
 
     void		build() override;
 	void		reload_config() override;

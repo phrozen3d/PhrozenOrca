@@ -1546,6 +1546,8 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionBool, bottom_tolerance_compensation))
     ((ConfigOptionFloat, bottom_tolerance_compensation_a))
     ((ConfigOptionFloat, bottom_tolerance_compensation_b))
+    ((ConfigOptionBool, print_time_compensation))
+    ((ConfigOptionFloat, layer_print_time_compensation))
 
     ((ConfigOptionEnum<ContactType>, contact_type))
     ((ConfigOptionFloat, support_point_diameter))

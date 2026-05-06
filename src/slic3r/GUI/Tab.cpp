@@ -14,6 +14,7 @@
 
 #include <wx/app.h>
 #include <wx/button.h>
+#include <wx/textctrl.h>
 #include <wx/scrolwin.h>
 #include <wx/sizer.h>
 
@@ -43,6 +44,7 @@
 #include "EditGCodeDialog.hpp"
 #include "MsgDialog.hpp"
 #include "SupportPreviewHelpDialog.hpp"
+#include "LayerPrintTimeCompensationDialog.hpp"
 #include "Notebook.hpp"
 
 #include "Widgets/Label.hpp"
@@ -6869,27 +6871,40 @@ void TabSLAPrint::build()
 
     // Advanced
     page     = add_options_page(L("Advanced"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
-    optgroup = page->new_optgroup(L("Advance"), L"PhrozenImages_Resin/param_advanced", 26);
-    optgroup->append_single_option_line("bottom_light_pwm", "123");
-    optgroup->append_single_option_line("light_pwm", "123");
-    optgroup->append_single_option_line("picture_grayscale", "123");
-    optgroup->append_single_option_line("anti_aliasing", "123");
-    optgroup->append_single_option_line("gray_scale_level", "123");
-    optgroup->append_single_option_line("image_blur_enable", "123");
-    optgroup->append_single_option_line("image_blur_pixel", "123");
-    optgroup->append_single_option_line("anti_aliasing_level", "123");
-    optgroup->append_single_option_line("shrinkage_compensation", "123");
-    optgroup->append_single_option_line("shrinkage_compensation_x", "123");
-    optgroup->append_single_option_line("shrinkage_compensation_y", "123");
-    optgroup->append_single_option_line("shrinkage_compensation_z", "123");
-    auto append_tolerance_ab_with_diagram = [](ConfigOptionsGroupShp og, const std::string& svg_primary, const std::string& svg_fallback, const char* opt_key_a, const char* opt_key_b) {
+    // Advanced layout tweak:
+    // - move checkbox / field column further left (about +6px from previous tuning; em-based)
+    // - shrink field width by ~10px (wider default - 1 em)
+    optgroup = page->new_optgroup(L("Advance"), L"PhrozenImages_Resin/param_advanced", 24);
+    const int advanced_field_em = std::max(1, Field::def_width_wider() - 1);
+    auto append_advanced_option = [optgroup, advanced_field_em](const char* key) {
+        Option o = optgroup->get_option(key);
+        if (o.opt.type != coBool && o.opt.type != coBools)
+            o.opt.width = advanced_field_em;
+        // Choice for anti_aliasing still tends to render wider in some themes; clamp one more em.
+        if (std::string(key) == "anti_aliasing")
+            o.opt.width = std::max(1, advanced_field_em - 1);
+        optgroup->append_single_option_line(o);
+    };
+    append_advanced_option("bottom_light_pwm");
+    append_advanced_option("light_pwm");
+    append_advanced_option("picture_grayscale");
+    append_advanced_option("anti_aliasing");
+    append_advanced_option("gray_scale_level");
+    append_advanced_option("image_blur_enable");
+    append_advanced_option("image_blur_pixel");
+    append_advanced_option("anti_aliasing_level");
+    append_advanced_option("shrinkage_compensation");
+    append_advanced_option("shrinkage_compensation_x");
+    append_advanced_option("shrinkage_compensation_y");
+    append_advanced_option("shrinkage_compensation_z");
+    auto append_tolerance_ab_with_diagram = [advanced_field_em](ConfigOptionsGroupShp og, const std::string& svg_primary, const std::string& svg_fallback, const char* opt_key_a, const char* opt_key_b) {
         const int label_em = 3;
 
         Option opt_a = og->get_option(opt_key_a);
         Option opt_b = og->get_option(opt_key_b);
         // Force identical field width to keep a/b inputs vertically aligned.
-        opt_a.opt.width = Field::def_width_wider();
-        opt_b.opt.width = Field::def_width_wider();
+        opt_a.opt.width = advanced_field_em;
+        opt_b.opt.width = advanced_field_em;
 
         // OG_CustomCtrl 用 near_label 控制項寬度來推欄位 h_pos；wxStaticBitmap 實際寬度常與空白 panel 不一致，
         // 會讓 b 列輸入框偏左。兩列都用同像素大小的 wxPanel 當外框，圖只放在 a 列 panel 內。
@@ -6945,6 +6960,38 @@ void TabSLAPrint::build()
 
     optgroup->append_single_option_line("bottom_tolerance_compensation", "123");
     append_tolerance_ab_with_diagram(optgroup, "Bottom Tolerance Compensation", "Tolerance Compensation", "bottom_tolerance_compensation_a", "bottom_tolerance_compensation_b");
+
+    optgroup->append_single_option_line("print_time_compensation", "123");
+    create_line_with_widget(optgroup.get(), "layer_print_time_compensation", "123", [this, advanced_field_em](wxWindow *parent) {
+        auto *sizer = new wxBoxSizer(wxHORIZONTAL);
+        const double v0 = m_config->has("layer_print_time_compensation") ? m_config->opt_float("layer_print_time_compensation") : 0.;
+        // Keep width compact so the trailing settings icon is always visible.
+        const int    fld_w = advanced_field_em * wxGetApp().em_unit();
+        m_layer_print_time_compensation_display =
+            new TextInput(parent, wxString::Format("%.2f", v0), _L("s"), wxEmptyString, wxDefaultPosition,
+                          wxSize(fld_w, -1), wxTE_READONLY | wxTE_RIGHT);
+        wxGetApp().UpdateDarkUI(m_layer_print_time_compensation_display, false, true);
+        sizer->Add(m_layer_print_time_compensation_display, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, parent->FromDIP(6));
+
+        auto *btn = new ScalableButton(parent, wxID_ANY, "settings", wxEmptyString,
+                                       wxSize(parent->FromDIP(22), parent->FromDIP(22)), wxDefaultPosition,
+                                       wxBU_EXACTFIT | wxNO_BORDER, true);
+        btn->SetMinSize(wxSize(parent->FromDIP(22), parent->FromDIP(22)));
+        btn->SetMaxSize(wxSize(parent->FromDIP(22), parent->FromDIP(22)));
+        btn->SetToolTip(_L("Layer Print Time Compensation Settings"));
+        btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+            const double cur = m_config->opt_float("layer_print_time_compensation");
+            LayerPrintTimeCompensationDialog dlg(this, cur);
+            if (dlg.ShowModal() == wxID_OK) {
+                load_key_value("layer_print_time_compensation", dlg.layer_compensation_result_s());
+                if (m_layer_print_time_compensation_display && m_layer_print_time_compensation_display->GetTextCtrl())
+                    m_layer_print_time_compensation_display->GetTextCtrl()->SetValue(
+                        wxString::Format("%.2f", m_config->opt_float("layer_print_time_compensation")));
+            }
+        });
+        sizer->Add(btn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, parent->FromDIP(2));
+        return sizer;
+    });
 
     // Support
     page = add_options_page(L("Support"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
@@ -7037,10 +7084,25 @@ void TabSLAPrint::reload_config()
     if (m_config->has("bottom_retract_distance") && m_config->has("retract_distance"))
         ConfigManipulation::sync_sla_retract_primary_distances(m_config);
     Tab::reload_config();
+    if (m_layer_print_time_compensation_display && m_layer_print_time_compensation_display->GetTextCtrl()) {
+        const double v = m_config->has("layer_print_time_compensation") ? m_config->opt_float("layer_print_time_compensation") : 0.;
+        m_layer_print_time_compensation_display->GetTextCtrl()->SetValue(wxString::Format("%.2f", v));
+    }
 }
 
 void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& value)
 {
+    int prev_scroll_x = 0;
+    int prev_scroll_y = 0;
+    const bool preserve_scroll = (opt_key == "print_time_compensation" && m_page_view);
+    if (preserve_scroll)
+        m_page_view->GetViewStart(&prev_scroll_x, &prev_scroll_y);
+    if (preserve_scroll) {
+        m_page_view->Freeze();
+        if (m_parent)
+            m_parent->Freeze();
+    }
+
     // Distance page edits may trigger ConfigManipulation::apply() (reload_config + update),
     // which can rebuild tree selection and fall back to first page ("Layer").
     const int      prev_sel_index  = m_tabctrl ? m_tabctrl->GetSelection() : -1;
@@ -7063,6 +7125,20 @@ void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& 
         }
     }
     Tab::on_value_change(opt_key, value);
+
+    if (preserve_scroll && m_page_view) {
+        m_page_view->Scroll(prev_scroll_x, prev_scroll_y);
+        wxTheApp->CallAfter([this, prev_scroll_x, prev_scroll_y]() {
+            if (!wxGetApp().checked_tab(this))
+                return;
+            if (!m_page_view)
+                return;
+            m_page_view->Scroll(prev_scroll_x, prev_scroll_y);
+            m_page_view->Thaw();
+            if (m_parent)
+                m_parent->Thaw();
+        });
+    }
 
     if (!prev_sel_title.empty() && m_tabctrl && m_parent && m_parent->is_active_and_shown_tab(this)) {
         const int cur_sel = m_tabctrl->GetSelection();
@@ -7163,7 +7239,8 @@ void TabSLAPrint::clear_pages()
 {
     Tab::clear_pages();
 
-    m_support_object_elevation_description_line = nullptr;
+    m_support_object_elevation_description_line  = nullptr;
+    m_layer_print_time_compensation_display        = nullptr;
 }
 
 ConfigManipulation Tab::get_config_manipulation()
