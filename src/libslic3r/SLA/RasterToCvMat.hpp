@@ -44,5 +44,9 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
     uint8_t                        gray_hi    = 255,
     int                            blur_pixel = 0);
 
+// Apply picture_grayscale proportional scaling to a CV_8UC1 Mat in-place.
+// Each pixel p is mapped to round(p * level / 255). level==255 is a no-op.
+void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level);
+
 } // namespace sla
 } // namespace Slic3r

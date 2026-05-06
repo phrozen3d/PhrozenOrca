@@ -105,5 +105,15 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
     return result;
 }
 
+void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level)
+{
+    if (level == 255) return;
+    uint8_t lut_data[256];
+    for (int i = 0; i < 256; ++i)
+        lut_data[i] = static_cast<uint8_t>((static_cast<unsigned>(i) * level + 127u) / 255u);
+    cv::Mat lut_mat(1, 256, CV_8UC1, lut_data);
+    cv::LUT(mat, lut_mat, mat);
+}
+
 } // namespace sla
 } // namespace Slic3r

@@ -90,6 +90,7 @@
 #include "Tab.hpp"
 #include "Jobs/OrientJob.hpp"
 #include "Jobs/ArrangeJob.hpp"
+#include "Jobs/ExportPRZJob.hpp"
 #include "Jobs/FillBedJob.hpp"
 #include "Jobs/RotoptimizeJob.hpp"
 #include "Jobs/SLAImportJob.hpp"
@@ -12428,35 +12429,21 @@ void Plater::export_prz(bool prefer_removable)
     if (! output_path.empty()) {
         bool path_on_removable_media = removable_drive_manager.set_and_verify_last_save_path(output_path.string());
 
-        if (sla_print().layer_images().empty()) {
-            show_error(this, _L("No sliced layer images found. Please slice the model before exporting."));
+        if (!sla_print().is_step_done(slapsRasterize) || !sla_print().raster_params().has_value()) {
+            show_error(this, _L("No raster parameters found. Please slice the model before exporting."));
             return;
         }
 
-        try {
-            ThumbnailData thumb;
-            {
-                const ThumbnailsParams params = { {}, false, true, true, true,
-                    p->partplate_list.get_curr_plate_index() };
-                p->generate_thumbnail(thumb, 290, 290, params, Camera::EType::Ortho);
-            }
-            std::string prz_data = Slic3r::generate_prz(sla_print(), thumb.is_valid() ? &thumb : nullptr);
-            std::ofstream ofs(output_path.string(), std::ios::binary);
-            if (!ofs) {
-                show_error(this, _L("Cannot open file for writing:") + "\n" + output_path.string());
-                return;
-            }
-            ofs.write(prz_data.data(), static_cast<std::streamsize>(prz_data.size()));
-            if (!ofs) {
-                show_error(this, _L("Failed to write PRZ file:") + "\n" + output_path.string());
-                return;
-            }
-        } catch (const std::exception &ex) {
-            show_error(this, ex.what(), false);
-            return;
+        ThumbnailData thumb;
+        {
+            const ThumbnailsParams tparams = { {}, false, true, true, true,
+                p->partplate_list.get_curr_plate_index() };
+            p->generate_thumbnail(thumb, 290, 290, tparams, Camera::EType::Ortho);
         }
 
-        appconfig.update_last_output_dir(output_path.parent_path().string(), path_on_removable_media);
+        auto job = std::make_unique<ExportPRZJob>(
+            this, sla_print(), std::move(thumb), output_path, path_on_removable_media);
+        replace_job(get_ui_job_worker(), std::move(job));
     }
 }
 

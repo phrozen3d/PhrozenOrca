@@ -819,6 +819,9 @@ bool SLAPrint::invalidate_step(SLAPrintStep step)
         invalidated |= this->invalidate_all_steps();
     }
 
+    if (step == slapsRasterize)
+        m_raster_params = std::nullopt;
+
     return invalidated;
 }
 

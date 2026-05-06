@@ -23,7 +23,7 @@ namespace GUI {
 
 class IMSlider;
 
-// Right-pane SLA layer preview: shows raster from SLAPrint::layer_images (PRZ pipeline) or vector fallback.
+// Right-pane SLA layer preview: on-demand single-layer rasterization (Strategy A) or vector fallback.
 class SLASlice2DCanvas : public wxPanel
 {
 public:

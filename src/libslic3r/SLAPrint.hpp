@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <opencv2/core.hpp>
 #include "PrintBase.hpp"
@@ -473,6 +474,22 @@ struct SLAPrintStatistics
 // This alias maintains backward compatibility with existing code.
 using SLAArchive = SLAArchiveWriter;
 
+// Snapshot of all parameters needed to rasterize any single layer on-demand.
+// All fields are value types (no pointers, no references) — safe to copy and
+// store independently of the config objects that originally produced them.
+struct SLARasterParams {
+    sla::Resolution        res;
+    sla::PixelDim          pxdim;
+    sla::RasterBase::Trafo trafo;
+    double                 gamma             = 1.0;
+    int                    aa_steps          = 0;
+    uint8_t                gray_lo           = 0;
+    uint8_t                gray_hi           = 255;
+    int                    blur_pixel        = 0;
+    Point                  shift;             // bed → display coordinate translation
+    uint8_t                picture_grayscale = 255;
+};
+
 /**
  * @brief This class is the high level FSM for the SLA printing process.
  *
@@ -595,6 +612,11 @@ public:
     // White (255) = exposed area, Black (0) = background.
     const std::vector<cv::Mat>& layer_images() const { return m_layer_images; }
 
+    // Rasterization parameter snapshot set during slapsRasterize.
+    // Has a value iff is_step_done(slapsRasterize) and parameters were captured.
+    // Reset to nullopt whenever slapsRasterize is invalidated.
+    const std::optional<SLARasterParams>& raster_params() const { return m_raster_params; }
+
     void set_printer(SLAArchive *archiver);
 
 private:
@@ -634,8 +656,11 @@ private:
     std::vector<PrintLayer>         m_printer_input;
 
     // cv::Mat images generated per layer after slicing (CV_8UC1, grayscale).
-    // Populated at the end of slapsRasterize step.
+    // No longer populated — kept as empty vector for ABI compatibility.
     std::vector<cv::Mat>            m_layer_images;
+
+    // Rasterization parameter snapshot captured at the end of slapsRasterize.
+    std::optional<SLARasterParams>  m_raster_params;
 
     // The archive object which collects the raster images after slicing
     SLAArchive                     *m_printer = nullptr;

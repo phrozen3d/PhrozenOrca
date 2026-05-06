@@ -1381,24 +1381,7 @@ void SLAPrint::Steps::rasterize()
 {
     if(canceled() || !m_print->m_printer) return;
 
-    // coefficient to map the rasterization state (0-99) to the allocated
-    // portion (slot) of the process state
-    double sd = (100 - max_objstatus) / 100.0;
-
-    // slot is the portion of 100% that is realted to rasterization
-    unsigned slot = PRINT_STEP_LEVELS[slapsRasterize];
-
-    // pst: previous state
-    double pst = current_status();
-
-    double increment = (slot * sd) / m_print->m_printer_input.size();
-    double dstatus = current_status();
-
-    sla::ccr::SpinningMutex slck;
-    using Lock = std::lock_guard<sla::ccr::SpinningMutex>;
-
-    // Compute bed→display shift so the rasterized PNGs are centered on the
-    // display, matching the cv::Mat pipeline (Pipeline 2) below.
+    // Compute bed→display shift used as the bed→display translation in SLARasterParams.
     Points bed_pts;
     bed_pts.reserve(m_print->printer_config().printable_area.values.size());
     for (const Vec2d &v : m_print->printer_config().printable_area.values)
@@ -1409,39 +1392,9 @@ void SLAPrint::Steps::rasterize()
     const Point  display_center{scaled(display_cx), scaled(display_cy)};
     const Point  raster_shift = display_center - bed_bb.center();
 
-    // procedure to process one height level. This will run in parallel
-    auto lvlfn =
-        [this, &slck, increment, &dstatus, &pst, raster_shift]
-        (sla::RasterBase& raster, size_t idx)
-    {
-        PrintLayer& printlayer = m_print->m_printer_input[idx];
-        if(canceled()) return;
-
-        for (ExPolygon poly : printlayer.transformed_slices()) {
-            poly.translate(raster_shift);
-            raster.draw(poly);
-        }
-
-        // Status indication guarded with the spinlock
-        {
-            Lock lck(slck);
-            dstatus += increment;
-            double st = std::round(dstatus);
-            if(st > pst) {
-                report_status(st, PRINT_STEP_LABELS(slapsRasterize));
-                pst = st;
-            }
-        }
-    };
-
-    // last minute escape
     if(canceled()) return;
 
-    // Print all the layers in parallel
-    m_print->m_printer->draw_layers(m_print->m_printer_input.size(), lvlfn,
-                                    [this]() { return canceled(); }, ex_tbb);
-
-    // Build cv::Mat images for each layer (for downstream processing)
+    // Extract rasterization parameter snapshot for on-demand use (PRZ export, GUI preview).
     if (!canceled()) {
         const SLAPrinterConfig &cfg = m_print->printer_config();
 
@@ -1453,21 +1406,20 @@ void SLAPrint::Steps::rasterize()
         auto orient = cfg.display_orientation.value == sladoPortrait
             ? sla::RasterBase::roPortrait
             : sla::RasterBase::roLandscape;
-        if (orient == sla::RasterBase::roPortrait) { std::swap(w, h); std::swap(pw, ph); }
+        // For portrait mode: only swap the resolution (image shape), NOT the physical dimensions.
+        // expolygons_to_cvmat with flipXY=true already swaps polygon x↔y axes internally,
+        // so pxdim must keep the landscape ratios (display_width/pixels_x, display_height/pixels_y).
+        sla::PixelDim pxdim{w / pw, h / ph};
+        if (orient == sla::RasterBase::roPortrait) { std::swap(pw, ph); }
 
         sla::Resolution res{pw, ph};
-        sla::PixelDim   pxdim{w / pw, h / ph};
         sla::RasterBase::Trafo trafo{orient,
             {cfg.display_mirror_x.getBool(), cfg.display_mirror_y.getBool()}};
         double gamma = cfg.gamma_correction.getFloat();
 
-        // When anti-aliasing is disabled, force gamma=0 so the rasterizer
-        // uses threshold rendering (agg::gamma_threshold) instead of AA.
         if (cfg.anti_aliasing.value == spNone)
             gamma = 0.0;
 
-        // Gray scale level post-processing parameters.
-        // Only applied when anti_aliasing == spGrayScaleLevel.
         int     aa_steps = 0;
         uint8_t gray_lo  = 0;
         uint8_t gray_hi  = 255;
@@ -1477,7 +1429,7 @@ void SLAPrint::Steps::rasterize()
             if (auto *aa_lvl = full_cfg.option<ConfigOptionInt>("anti_aliasing_level"))
                 aa_steps = std::max(1, aa_lvl->getInt());
             else
-                aa_steps = 4; // default
+                aa_steps = 4;
             if (auto *gsl = full_cfg.option<ConfigOptionInts>("gray_scale_level");
                     gsl && gsl->values.size() >= 2) {
                 gray_lo = (uint8_t)std::clamp(gsl->values[0], 0, 255);
@@ -1485,67 +1437,29 @@ void SLAPrint::Steps::rasterize()
             }
         }
 
-        // Compute the translation needed to map bed coordinates → display coordinates.
-        // Instance shifts are in bed world coordinates (bed_shape space).
-        // After portrait swap: w = original display_height, h = original display_width.
-        // flipXY (portrait) swaps polygon x↔y when mapping to pixels, so:
-        //   polygon X axis aligns with original display_width  → center = cfg.display_width/2
-        //   polygon Y axis aligns with original display_height → center = cfg.display_height/2
-        // For landscape: display_cx = w, display_cy = h (no swap).
-        Points bed_pts;
-        bed_pts.reserve(cfg.printable_area.values.size());
-        for (const Vec2d &v : cfg.printable_area.values)
-            bed_pts.emplace_back(scaled(v.x()), scaled(v.y()));
-        BoundingBox bed_bb(bed_pts);
-        const Point bed_center = bed_bb.center();
-
-        // cfg.display_width/height are pre-swap physical dimensions.
-        const double display_cx = cfg.display_width.getFloat()  / 2.0;
-        const double display_cy = cfg.display_height.getFloat() / 2.0;
-        const Point  display_center{scaled(display_cx), scaled(display_cy)};
-        const Point  shift = display_center - bed_center;
-
-        std::vector<ExPolygons> all_layers;
-        all_layers.reserve(m_print->m_printer_input.size());
-        for (const PrintLayer &layer : m_print->m_printer_input) {
-            ExPolygons polys = layer.transformed_slices();
-            for (ExPolygon &ep : polys)
-                ep.translate(shift);
-            all_layers.push_back(std::move(polys));
-        }
-
-        // Gaussian blur post-processing (applied after all AA stages)
         int blur_pixel = 0;
         {
             const DynamicPrintConfig &full_cfg = m_print->full_print_config();
             if (auto *blur_en = full_cfg.option<ConfigOptionBool>("image_blur_enable");
                     blur_en && blur_en->getBool()) {
                 if (auto *blur_px = full_cfg.option<ConfigOptionEnum<ImageBlurPixel>>("image_blur_pixel"))
-                    blur_pixel = blur_px->getInt() + 2;  // enum 0–6 → pixel 2–8
+                    blur_pixel = blur_px->getInt() + 2;
             }
         }
 
-        m_print->m_layer_images =
-            sla::expolygons_layers_to_cvmat(all_layers, res, pxdim, trafo, gamma,
-                                            aa_steps, gray_lo, gray_hi, blur_pixel);
-
-        // Apply picture_grayscale proportional scaling (all pixels, always, post-AA)
-        // pixel = pixel * picture_grayscale / 255 (rounded)
-        {
-            const unsigned pg = static_cast<unsigned>(
-                std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
-            if (pg < 255u) {
-                uint8_t lut[256];
-                for (int i = 0; i < 256; i++)
-                    lut[i] = static_cast<uint8_t>((i * pg + 127u) / 255u);
-                for (cv::Mat &img : m_print->m_layer_images) {
-                    uint8_t  *data  = img.data;
-                    const int total = img.rows * img.cols;
-                    for (int j = 0; j < total; ++j)
-                        data[j] = lut[data[j]];
-                }
-            }
-        }
+        SLARasterParams rp;
+        rp.res               = res;
+        rp.pxdim             = pxdim;
+        rp.trafo             = trafo;
+        rp.gamma             = gamma;
+        rp.aa_steps          = aa_steps;
+        rp.gray_lo           = gray_lo;
+        rp.gray_hi           = gray_hi;
+        rp.blur_pixel        = blur_pixel;
+        rp.shift             = raster_shift;
+        rp.picture_grayscale = static_cast<uint8_t>(
+            std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
+        m_print->m_raster_params = rp;
     }
 }
 

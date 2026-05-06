@@ -1,6 +1,8 @@
 #include "PhrozenPRZ.hpp"
 
 #include <ctime>
+#include <functional>
+#include <ostream>
 #include <sstream>
 #include <iomanip>
 
@@ -12,6 +14,10 @@
 #include <libslic3r/PrintConfig.hpp>
 #include <libslic3r/Config.hpp>
 #include <libslic3r/libslic3r.h>
+#include <libslic3r/SLA/RasterToCvMat.hpp>
+
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
 
 namespace Slic3r {
 
@@ -43,7 +49,7 @@ static std::string cfg_s(const DynamicPrintConfig &cfg, const std::string &key)
 }
 
 // ---------------------------------------------------------------------------
-// Helper: write a big-endian value of sizeof(T) bytes into fh
+// Helper: write a big-endian value of sizeof(T) bytes into fh / out
 // ---------------------------------------------------------------------------
 template<typename T>
 static void write_be(std::string &fh, T val)
@@ -52,6 +58,15 @@ static void write_be(std::string &fh, T val)
     const char *c = reinterpret_cast<const char *>(&val);
     for (int i = N - 1; i >= 0; --i)
         fh += c[i];
+}
+
+template<typename T>
+static void write_be(std::ostream &out, T val)
+{
+    const int N = sizeof(T);
+    const char *c = reinterpret_cast<const char *>(&val);
+    for (int i = N - 1; i >= 0; --i)
+        out.put(c[i]);
 }
 
 // ---------------------------------------------------------------------------
@@ -321,7 +336,7 @@ static void prz_header(std::string              &fh,
     }
     // Total layers
     {
-        int total = static_cast<int>(print.layer_images().size());
+        int total = static_cast<int>(print.print_layers().size());
         write_be(fh, total);
         layerContent_position_offset += 4;
     }
@@ -420,7 +435,7 @@ static void prz_header(std::string              &fh,
     // Advance_Mode (0 = normal, 1 byte)
     { fh += '\0'; layerContent_position_offset += 1; }
     // PrintTimes (estimated, seconds)
-    { int v = calculate_prz_print_time(static_cast<int>(print.layer_images().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
+    { int v = calculate_prz_print_time(static_cast<int>(print.print_layers().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
     // TotalVolume / TotalWeight / TotalPrice (from print statistics)
     {
         const SLAPrintStatistics &stats = print.print_statistics();
@@ -564,15 +579,23 @@ static void prz_layer_content(std::string              &fh,
 
 // ---------------------------------------------------------------------------
 // Main entry point  (mirrors Slicer::getPRZString2)
-// encode_pixels replaced by direct cv::Mat pixel scan ??no intermediate vector
+// Batched on-demand rasterization: BATCH_SZ layers rasterized in parallel,
+// RLE-encoded sequentially, streamed directly to out — bounded memory, no
+// large intermediate buffer.
 // ---------------------------------------------------------------------------
-std::string generate_prz(const SLAPrint &print, const ThumbnailData *thumb)
+void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData *thumb,
+                  std::function<bool(int)> progress)
 {
-    const auto &layer_images = print.layer_images();
-    if (layer_images.empty())
-        return {};
+    if (!print.raster_params().has_value())
+        return;
 
-    const DynamicPrintConfig &cfg = print.full_print_config();
+    const SLARasterParams    &rp     = *print.raster_params();
+    const DynamicPrintConfig &cfg    = print.full_print_config();
+    const auto               &layers = print.print_layers();
+    const size_t              N      = layers.size();
+
+    if (N == 0)
+        return;
 
     static constexpr uchar BLACK = 0x00;
     static constexpr uchar WHITE = 0xc0;
@@ -580,107 +603,143 @@ std::string generate_prz(const SLAPrint &print, const ThumbnailData *thumb)
     static constexpr uchar BYTE_NUMBER[4]      = { 0x00, 0x10, 0x20, 0x30 };
     static constexpr int   CONTINUOUS_BOUND[4] = { 1 << 4, 1 << 12, 1 << 20, 1 << 28 };
     static constexpr int   BOUND_0             = 0x0f;
+    constexpr size_t       BATCH_SZ            = 8;
 
-    std::string out;
-    out.reserve(64 * 1024 * 1024);
-
-    prz_header(out, print, cfg, thumb);
-
-    const size_t layerSize = layer_images.size();
-
-    for (size_t lid = 0; lid < layerSize; ++lid) {
-        prz_layer_content(out, print, cfg, lid);
-
-        const cv::Mat &img = layer_images[lid]; // CV_8UC1, row-major
-        const int total    = img.rows * img.cols;
-        const uchar *data  = img.data;
-
-        int sum = 0;
-        std::string przByte;
-        przByte.reserve(static_cast<size_t>(total) / 2 + 8);
-
-        przByte += static_cast<char>(0x55); // layer head
-
-        // Write one RLE run (color, count) directly into przByte
-        auto flush_run = [&](uchar color, int count) {
-            const char *c_count = reinterpret_cast<const char *>(&count);
-
-            if (color == 0x00 || color == 0xff) {
-                uchar base = (color == 0x00) ? BLACK : WHITE;
-                for (int bid = 0; bid < 4; ++bid) {
-                    if (count < CONTINUOUS_BOUND[bid]) {
-                        uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
-                        count >>= 4;
-                        sum += static_cast<int>(byte0);
-                        przByte += static_cast<char>(byte0);
-                        for (int i = bid; i >= 1; --i) {
-                            przByte += c_count[i - 1];
-                            sum += static_cast<int>(static_cast<uchar>(c_count[i - 1]));
-                        }
-                        break;
-                    }
-                }
-            } else {
-                for (int bid = 0; bid < 4; ++bid) {
-                    if (count < CONTINUOUS_BOUND[bid]) {
-                        uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
-                        count >>= 4;
-                        sum += static_cast<int>(byte0);
-                        przByte += static_cast<char>(byte0);
-                        sum += static_cast<int>(color);
-                        przByte += static_cast<char>(color);
-                        for (int i = bid; i >= 1; --i) {
-                            przByte += c_count[i - 1];
-                            sum += static_cast<int>(static_cast<uchar>(c_count[i - 1]));
-                        }
-                        break;
-                    }
-                }
-            }
-        };
-
-        // Scan pixels directly ??no intermediate encode_pixels vector
-        if (total > 0) {
-            uchar cur   = data[0];
-            int   count = 1;
-            for (int i = 1; i < total; ++i) {
-                uchar px = data[i];
-                if (px == cur) {
-                    ++count;
-                } else {
-                    flush_run(cur, count);
-                    cur   = px;
-                    count = 1;
-                }
-            }
-            flush_run(cur, count);
-        }
-
-        // Checksum byte
-        uchar checksum = static_cast<uchar>((~sum) & 0xff);
-        przByte += static_cast<char>(checksum);
-
-        // Layer data size prefix (4 bytes big-endian int)
-        {
-            int sz = static_cast<int>(przByte.size());
-            write_be(out, sz);
-        }
-        out += przByte;
-
-        // CR LF after layer pixel data
-        out += '\r'; out += '\n';
-
-        // DLP end tag on last layer
-        if (lid == layerSize - 1) {
-            const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
-                                   0x00, 0x00, 0x00,
-                                   0x44, 0x4C, 0x50, 0x00 };
-            for (int i = 0; i < 11; ++i)
-                out += tag[i];
-        }
+    // Write header (~1.2 KB) to a local buffer, then flush immediately
+    {
+        std::string hdr;
+        hdr.reserve(2048);
+        prz_header(hdr, print, cfg, thumb);
+        out.write(hdr.data(), static_cast<std::streamsize>(hdr.size()));
     }
 
-    return out;
+    for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
+        const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
+        const size_t batch_n   = batch_end - batch_start;
+
+        // [A] Collect ExPolygons and apply bed→display shift translation
+        std::vector<ExPolygons> batch_polys(batch_n);
+        for (size_t i = 0; i < batch_n; ++i) {
+            batch_polys[i] = layers[batch_start + i].transformed_slices();
+            for (ExPolygon &ep : batch_polys[i])
+                ep.translate(rp.shift);
+        }
+
+        // [B] TBB parallel rasterize + picture_grayscale LUT
+        std::vector<cv::Mat> batch_mats(batch_n);
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_n),
+            [&](const tbb::blocked_range<size_t> &r) {
+                for (size_t i = r.begin(); i < r.end(); ++i) {
+                    batch_mats[i] = sla::expolygons_to_cvmat(
+                        batch_polys[i], rp.res, rp.pxdim, rp.trafo,
+                        rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
+                    sla::apply_picture_grayscale_lut(batch_mats[i], rp.picture_grayscale);
+                }
+            });
+
+        // [C] Sequential RLE encode → stream to disk → release
+        for (size_t i = 0; i < batch_n; ++i) {
+            const size_t lid = batch_start + i;
+
+            // Write per-layer metadata header (~60 bytes) directly to stream
+            {
+                std::string lc;
+                prz_layer_content(lc, print, cfg, lid);
+                out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
+            }
+
+            const cv::Mat &img = batch_mats[i]; // CV_8UC1, row-major
+            const int total    = img.rows * img.cols;
+            const uchar *data  = img.data;
+
+            int sum = 0;
+            std::string przByte;
+            przByte.reserve(static_cast<size_t>(total) / 2 + 8);
+
+            przByte += static_cast<char>(0x55); // layer head
+
+            // Write one RLE run (color, count) directly into przByte
+            auto flush_run = [&](uchar color, int count) {
+                const char *c_count = reinterpret_cast<const char *>(&count);
+
+                if (color == 0x00 || color == 0xff) {
+                    uchar base = (color == 0x00) ? BLACK : WHITE;
+                    for (int bid = 0; bid < 4; ++bid) {
+                        if (count < CONTINUOUS_BOUND[bid]) {
+                            uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
+                            count >>= 4;
+                            sum += static_cast<int>(byte0);
+                            przByte += static_cast<char>(byte0);
+                            for (int k = bid; k >= 1; --k) {
+                                przByte += c_count[k - 1];
+                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    for (int bid = 0; bid < 4; ++bid) {
+                        if (count < CONTINUOUS_BOUND[bid]) {
+                            uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
+                            count >>= 4;
+                            sum += static_cast<int>(byte0);
+                            przByte += static_cast<char>(byte0);
+                            sum += static_cast<int>(color);
+                            przByte += static_cast<char>(color);
+                            for (int k = bid; k >= 1; --k) {
+                                przByte += c_count[k - 1];
+                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
+                            }
+                            break;
+                        }
+                    }
+                }
+            };
+
+            // Scan pixels directly — no intermediate encode_pixels vector
+            if (total > 0) {
+                uchar cur   = data[0];
+                int   count = 1;
+                for (int j = 1; j < total; ++j) {
+                    uchar px = data[j];
+                    if (px == cur) {
+                        ++count;
+                    } else {
+                        flush_run(cur, count);
+                        cur   = px;
+                        count = 1;
+                    }
+                }
+                flush_run(cur, count);
+            }
+
+            // Checksum byte
+            uchar checksum = static_cast<uchar>((~sum) & 0xff);
+            przByte += static_cast<char>(checksum);
+
+            // Write: [4-byte big-endian size][przByte][CRLF] directly to stream
+            write_be(out, static_cast<int>(przByte.size()));
+            out.write(przByte.data(), static_cast<std::streamsize>(przByte.size()));
+            out.put('\r'); out.put('\n');
+
+            // DLP end tag on last layer
+            if (lid == N - 1) {
+                const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
+                                       0x00, 0x00, 0x00,
+                                       0x44, 0x4C, 0x50, 0x00 };
+                out.write(tag, 11);
+            }
+
+            batch_mats[i].release();
+        }
+
+        // Report progress after each batch and honour cancellation
+        if (progress) {
+            int pct = static_cast<int>((batch_end * 100) / N);
+            if (!progress(pct))
+                return;
+        }
+    }
 }
 
 } // namespace Slic3r

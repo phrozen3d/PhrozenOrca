@@ -391,6 +391,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/Jobs/OrientJob.cpp
     GUI/Jobs/RotoptimizeJob.hpp
     GUI/Jobs/RotoptimizeJob.cpp
+    GUI/Jobs/ExportPRZJob.hpp
+    GUI/Jobs/ExportPRZJob.cpp
     GUI/Jobs/FillBedJob.hpp
     GUI/Jobs/FillBedJob.cpp
     GUI/Jobs/SLAImportJob.hpp

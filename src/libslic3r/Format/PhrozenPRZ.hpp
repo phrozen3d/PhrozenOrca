@@ -1,6 +1,7 @@
 #pragma once
 
-#include <string>
+#include <functional>
+#include <iosfwd>
 #include "libslic3r/GCode/ThumbnailData.hpp"
 
 namespace Slic3r {
@@ -8,10 +9,11 @@ namespace Slic3r {
 class SLAPrint;
 class DynamicPrintConfig;
 
-// Generate a complete PRZ format binary string from a finished SLAPrint.
-// m_layer_images must already be populated (call after slapsRasterize).
-// Optionally pass a rendered thumbnail (RGBA) to embed as PRZ preview images.
-std::string generate_prz(const SLAPrint &print, const ThumbnailData *thumb = nullptr);
+// Stream a complete PRZ file directly to out — no intermediate buffer.
+// raster_params() must have a value (call after slapsRasterize completes).
+// progress(pct) is called after each batch with pct in [0,100]; return false to abort.
+void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData *thumb = nullptr,
+                  std::function<bool(int)> progress = nullptr);
 
 // Calculate estimated print time in seconds using the full physics model
 // (exposure + lift/retract motion + rest times). Can be called before

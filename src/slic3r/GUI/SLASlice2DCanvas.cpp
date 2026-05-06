@@ -10,6 +10,7 @@
 #include "IMSlider.hpp"
 #include "GUI_Colors.hpp"
 #include "libslic3r/SLAPrint.hpp"
+#include "libslic3r/SLA/RasterToCvMat.hpp"
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/ExPolygon.hpp"
 #include "libslic3r/Color.hpp"
@@ -97,7 +98,7 @@ Transform3d ortho_2d(double left, double right, double bottom, double top)
 }
 
 // Match the left 3D preview: bed footprint uses printable_area (bed XY), not the LCD buffer after
-// display_orientation swap. Raster layer_images are still in "panel" orientation; we rotate in
+// display_orientation swap. On-demand raster mats are generated in "panel" orientation; we rotate in
 // render_texture_letterbox when sladoPortrait so the slice aligns with this aspect.
 static double platform_aspect_w_over_h(const SLAPrint* print)
 {
@@ -591,8 +592,6 @@ void SLASlice2DCanvas::render_texture_letterbox(int portal_w, int portal_h)
 
     const bool portrait_lcd =
         m_print != nullptr && m_print->printer_config().display_orientation.value == sladoPortrait;
-    // layer_images are stored like SLAPrintSteps (swapped dims in portrait). For a portal sized to
-    // bed XY, the axis-aligned footprint after a 90° on-screen rotation uses h:w as aspect.
     const double aspect_img = portrait_lcd ? double(m_tex_h) / double(m_tex_w)
                                            : double(m_tex_w) / double(m_tex_h);
     const double aspect_vp  = double(portal_w) / double(portal_h);
@@ -779,30 +778,38 @@ void SLASlice2DCanvas::render()
 
     glsafe(::glViewport(vx, vy, pw, ph));
 
-    // Hide raster/vector slice until slapsRasterize finishes (layer_images + consistent preview).
+    // Show raster preview only when slapsRasterize is done and raster params are available.
+    // Strategy A: rasterize the current layer on-demand and cache by layer index.
     const bool slice_geometry_ready =
-        m_print != nullptr && m_print->is_step_done(slapsRasterize);
+        m_print != nullptr &&
+        m_print->is_step_done(slapsRasterize) &&
+        m_print->raster_params().has_value();
     if (!slice_geometry_ready) {
         if (m_tex_id != 0) {
             destroy_texture();
             m_cached_layer = -1;
         }
+        render_vector_fallback(pw, ph);
     } else {
         bool drew = false;
-        const auto& limgs = m_print->layer_images();
-        if (!limgs.empty() && m_layer_idx >= 0 && size_t(m_layer_idx) < limgs.size()) {
-            const cv::Mat& m = limgs[size_t(m_layer_idx)];
-            if (!m.empty() && m.type() == CV_8UC1) {
-                if (m_cached_layer != m_layer_idx) {
-                    destroy_texture();
-                    m_cached_layer = m_layer_idx;
-                    if (sla_layer_mat_has_visible_ink(m))
-                        upload_grayscale_texture(m.ptr<unsigned char>(), m.cols, m.rows);
-                }
-                if (m_tex_id != 0) {
-                    render_texture_letterbox(pw, ph);
-                    drew = true;
-                }
+        if (m_layer_idx >= 0 && size_t(m_layer_idx) < m_print->print_layers().size()) {
+            if (m_cached_layer != m_layer_idx) {
+                destroy_texture();
+                m_cached_layer = m_layer_idx;
+                const SLARasterParams &rp = *m_print->raster_params();
+                ExPolygons polys = m_print->print_layers()[size_t(m_layer_idx)].transformed_slices();
+                for (ExPolygon &ep : polys)
+                    ep.translate(rp.shift);
+                cv::Mat mat = sla::expolygons_to_cvmat(polys, rp.res, rp.pxdim, rp.trafo,
+                    rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
+                sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
+                if (sla_layer_mat_has_visible_ink(mat))
+                    upload_grayscale_texture(mat.ptr<unsigned char>(), mat.cols, mat.rows);
+                // mat released here as it goes out of scope
+            }
+            if (m_tex_id != 0) {
+                render_texture_letterbox(pw, ph);
+                drew = true;
             }
         }
 
