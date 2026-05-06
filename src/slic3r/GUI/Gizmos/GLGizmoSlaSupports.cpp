@@ -919,8 +919,8 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         draw_view_btn(_u8L("Structure").c_str(), m_show_support_structure, [&](){
             m_show_support_structure = true;
             show_sla_supports(true);
-            if (m_normal_cache.empty()) auto_generate();
-            else                        reslice_until_step(slaposPad);
+            if (!m_normal_cache.empty())
+                reslice_until_step(slaposPad);
         });
         ImGui::SameLine();
         draw_view_btn(_u8L("Points").c_str(), !m_show_support_structure, [&](){
@@ -952,7 +952,6 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
             Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support density change");
             mo->config.set(density_key, (int)density);
             wxGetApp().obj_list()->update_and_show_object_settings_item();
-            auto_generate();
             sp_density_dragging = false;
         }
 
@@ -964,7 +963,6 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
             density = std::clamp(display_density, 50.f, 200.f);
             mo->config.set(density_key, (int)density);
             wxGetApp().obj_list()->update_and_show_object_settings_item();
-            auto_generate();
         }
         ImGui::PopItemWidth();
     }
@@ -995,7 +993,11 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
             if (!was_editing) switch_to_editing_mode();
             select_point(AllPoints);
             delete_selected_points(true);
-            if (!was_editing) editing_mode_apply_changes();
+            if (!was_editing) {
+                Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Remove all support points");
+                apply_remove_all();
+                disable_editing_mode();
+            }
         }
         m_imgui->disabled_end();
 
@@ -1267,7 +1269,14 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
                 mo_apply->sla_points_status = sla::PointsStatus::UserModified;
                 mo_apply->sla_support_points.clear();
                 mo_apply->sla_support_points = m_normal_cache;
-                reslice_until_step(slaposSupportPoints);
+                if (m_normal_cache.empty()) {
+                    // Empty + UserModified would trigger SLAPrint::validate() error if resliced.
+                    // Clear support/pad volumes directly so Structure view shows no residual mesh.
+                    clear_support_volumes();
+                    m_parent.set_as_dirty();
+                } else {
+                    reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
+                }
             }
         }
 
@@ -1555,6 +1564,22 @@ void GLGizmoSlaSupports::editing_mode_apply_changes()
         // Step 4.2: use inherited reslice_until_step() instead of removed reslice_SLA_supports().
         reslice_until_step(slaposSupportPoints);
     }
+}
+
+
+
+void GLGizmoSlaSupports::apply_remove_all()
+{
+    // Commit empty support-point state to model without triggering reslice/validate.
+    // Callers handle the snapshot; this function only syncs data and clears the mesh.
+    m_normal_cache.clear();
+    ModelObject* mo = m_c->selection_info()->model_object();
+    mo->sla_points_status = sla::PointsStatus::UserModified;
+    mo->sla_support_points.clear();
+    // Remove support/pad volumes from the gizmo's volume collection so the Structure
+    // view shows no residual mesh after all points have been removed.
+    clear_support_volumes();
+    m_parent.set_as_dirty();
 }
 
 

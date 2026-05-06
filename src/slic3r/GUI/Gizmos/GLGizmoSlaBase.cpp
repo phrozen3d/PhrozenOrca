@@ -174,20 +174,27 @@ void GLGizmoSlaBase::update_volumes()
             backend_mesh.transform(po_trafo_inverse);
             add_volume(backend_mesh, 0, true);
 
-            // supports mesh
-            TriangleMesh supports_mesh = po->support_mesh();
-            if (!supports_mesh.empty()) {
-                // Note: MultipleBeds translate removed — see above.
-                supports_mesh.transform(po_trafo_inverse);
-                add_volume(supports_mesh, -int(slaposSupportTree));
-            }
+            // supports mesh and pad mesh.
+            // Skip when the user explicitly cleared all support points without reslicing
+            // (Remove All path). The pipeline cache in SLAPrintObject may still hold the
+            // old tree from a previous generation; mo->sla_support_points is the
+            // authoritative source of truth for whether a stale tree should be hidden.
+            const bool user_cleared_all = (mo->sla_points_status == sla::PointsStatus::UserModified
+                                            && mo->sla_support_points.empty());
+            if (!user_cleared_all) {
+                TriangleMesh supports_mesh = po->support_mesh();
+                if (!supports_mesh.empty()) {
+                    // Note: MultipleBeds translate removed — see above.
+                    supports_mesh.transform(po_trafo_inverse);
+                    add_volume(supports_mesh, -int(slaposSupportTree));
+                }
 
-            // pad mesh
-            TriangleMesh pad_mesh = po->pad_mesh();
-            if (!pad_mesh.empty()) {
-                // Note: MultipleBeds translate removed — see above.
-                pad_mesh.transform(po_trafo_inverse);
-                add_volume(pad_mesh, -int(slaposPad));
+                TriangleMesh pad_mesh = po->pad_mesh();
+                if (!pad_mesh.empty()) {
+                    // Note: MultipleBeds translate removed — see above.
+                    pad_mesh.transform(po_trafo_inverse);
+                    add_volume(pad_mesh, -int(slaposPad));
+                }
             }
         }
     }
@@ -218,6 +225,21 @@ void GLGizmoSlaBase::update_volumes()
     }
 
     register_volume_raycasters_for_picking();
+}
+
+void GLGizmoSlaBase::clear_support_volumes()
+{
+    GLVolumePtrs& vols = m_volumes.volumes;
+    GLVolumePtrs remaining;
+    for (GLVolume* v : vols) {
+        if (v->is_sla_support() || v->is_sla_pad())
+            delete v;
+        else
+            remaining.push_back(v);
+    }
+    vols = std::move(remaining);
+    // Raycasters are registered only for model volumes (not support/pad),
+    // so no raycaster re-registration is needed after removing support/pad volumes.
 }
 
 void GLGizmoSlaBase::render_volumes()

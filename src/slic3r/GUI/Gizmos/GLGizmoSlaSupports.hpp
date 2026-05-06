@@ -139,6 +139,9 @@ private:
     void unselect_point(int i);
     void editing_mode_apply_changes();
     void editing_mode_discard_changes();
+    // Commit "no support points" state to model without triggering reslice/validation.
+    // Used by both Auto and Manual Remove All handlers.
+    void apply_remove_all();
     void reload_cache();
     void get_data_from_backend();
     void auto_generate();

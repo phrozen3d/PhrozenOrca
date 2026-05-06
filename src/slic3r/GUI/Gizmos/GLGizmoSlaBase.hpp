@@ -39,6 +39,9 @@ protected:
 
     void update_volumes();
     void render_volumes();
+    // Remove support and pad volumes from m_volumes without running the SLA pipeline.
+    // Used by Remove All to clear visual residual without triggering SLAPrint::validate().
+    void clear_support_volumes();
 
     void register_volume_raycasters_for_picking();
     void unregister_volume_raycasters_for_picking();

@@ -756,11 +756,10 @@ StringObjectException SLAPrint::validate(StringObjectException *exception, Polyg
         const ModelObject *mo = po->model_object();
         bool supports_en = po->config().generate_support.getBool();
 
-        if(supports_en &&
-           mo->sla_points_status == sla::PointsStatus::UserModified &&
-           mo->sla_support_points.empty())
-            return {L("Cannot proceed without support points! "
-                     "Add support points or disable support generation."), po};
+        // Note: UserModified + empty support points is a valid state when the user
+        // intentionally cleared all support points via Remove All. The pipeline
+        // handles this gracefully (no tree = valid). The old guard is removed to
+        // allow Remove All without triggering this error during background re-validation.
 
         sla::SupportTreeConfig cfg = make_support_cfg(po->config());
 
