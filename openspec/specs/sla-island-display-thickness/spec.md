@@ -28,6 +28,12 @@ The island overlay mesh SHALL be an extruded solid (`P3N3` layout, `gouraud_ligh
 - **THEN** each perimeter vertex SHALL be positioned at `centroid + (original_vertex - centroid) * m_island_overlay_scale`
 - **THEN** the mesh SHALL cover a larger area than the raw island contour
 
+#### Scenario: Correct world-space position under all instance transforms
+- **WHEN** the model instance has any combination of scale, rotation (X/Y/Z), translation, or shrinkage compensation
+- **THEN** all overlay, highlight, and original-contour meshes SHALL appear at the correct world-space position aligned with the model
+- **THEN** the coordinate conversion SHALL use `correction = inst_matrix * po.trafo().inverse()` applied to print-space contour points
+- **THEN** all vertex Z values SHALL be derived from the same centroid-based world-Z reference to avoid inter-layer Z-offset from XY→Z coupling in the correction matrix
+
 ### Requirement: Original flat contour always visible
 
 A separate flat polygon mesh SHALL be rendered for ALL islands using the original (unscaled) contour. This mesh SHALL always be visible regardless of model geometry (depth test disabled for this pass).

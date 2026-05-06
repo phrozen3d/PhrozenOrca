@@ -37,6 +37,12 @@ When the Island Detection Gizmo is active and island contour data is valid, `GLG
 - **THEN** the orange flat contour SHALL always be visible regardless of camera angle
 - **THEN** the yellow/gray extruded solid side walls SHALL be visible from oblique viewing angles
 
+#### Scenario: Visualization correct under all instance transforms
+- **WHEN** the model instance has scale, rotation (X/Y/Z tilt), Z-axis rotation, translation, or any combination thereof
+- **THEN** all three visual layers SHALL appear at the world-space position matching the rendered model
+- **THEN** the coordinate conversion SHALL apply `correction = instances[0]->get_matrix() * po.trafo().inverse()` to convert print-space contour points to world space
+- **THEN** the flat original contour SHALL share the same world-Z reference as the extruded solid top face (derived from centroid to avoid XY→Z coupling artifacts)
+
 #### Scenario: Render passes and GL state
 - **WHEN** island contour meshes are rendered
 - **THEN** Pass 1 (extruded solids) SHALL use `gouraud_light` shader with `GL_DEPTH_TEST` ON and `GL_CULL_FACE` ON

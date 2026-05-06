@@ -138,6 +138,35 @@ Vec3d world_hit = trafo * m_rr.hit.cast<double>();
 
 這是 additive 變更（只增加可見度），不影響其他繼承 `GLGizmoPainterBase` 的 gizmo（FdmSupports, Seam, MmuSegmentation, FuzzySkin）。
 
+### D13：Print space → World space 座標轉換（修正版）
+
+**問題根因：** `m_mesh_to_slice` 是由 `csg::model_to_csgmesh(*po.model_object(), po.trafo(), ...)` 建立，其中 `po.trafo() = sla_trafo()` 包含：
+- Instance 的 X/Y rotation（傾斜）
+- Instance 的 scale
+- Z elevation（支撐高度）
+- Shrinkage compensation（`S_corr`）
+- **但不含** XY translation（被歸零）和 Z rotation（被歸零）
+
+因此 contour 的 XY/Z 均在 **print space**（po.trafo() 已套用）。
+
+**初版修法（不完整）：** 只加 `instances[0]->get_transformation().get_offset().xy`。
+這對「純平移」和「X/Y tilt」正確，但在下列情況失敗：
+- **Z rotation**：po.trafo() 把 R_z 歸零，inst_matrix 有真實 R_z → correction 仍包含 R_z，需套用
+- **Scale + Z rotation 組合**：兩者殘差疊加，導致 XY 位置錯誤
+- **Shrinkage compensation (S_corr ≠ 1)**：po.trafo() 含 S_corr，inst_matrix 不含 → XY 需除以 S_corr
+
+**正確修法：**
+```cpp
+const Transform3d correction = inst_matrix * po.trafo().inverse();
+Vec3d world = correction * Vec3d(px, py, ic.print_z);
+```
+
+這是完整的 print space → world space 轉換，涵蓋所有 transform 組合。
+
+**Z 座標的一致性：** `correction * (px, py, print_z).z` 依賴 XY 輸入（當 correction 含 XY→Z coupling 時）。Flat original contour 用重心 `(cx, cy)` 計算參考 Z，與 extruded solid 保持一致，避免兩層 Z 不同。
+
+套用範圍：`rebuild_island_overlay_mesh()`, `rebuild_island_original_mesh()`, `rebuild_island_highlight_mesh()`, `focus_camera_on_island()`。
+
 ## Key Parameters (current defaults)
 
 | 參數 | 預設值 | 說明 |
