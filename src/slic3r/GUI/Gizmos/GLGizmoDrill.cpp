@@ -33,7 +33,7 @@ GLGizmoDrill::GLGizmoDrill(GLCanvas3D& parent, const std::string& icon_filename,
 bool GLGizmoDrill::on_init()
 {
     m_shortcut_key = WXK_CONTROL_D;
-    m_desc["preview"]          = _(L("Preview"));
+    m_desc["apply"]            = _(L("Apply"));
     m_desc["diameter"]         = _(L("Diameter"));
     m_desc["depth"]            = _(L("Depth"));
     m_desc["remove_selected"]  = _(L("Remove selected"));
@@ -55,8 +55,25 @@ void GLGizmoDrill::data_changed(bool is_serializing)
     const ModelObject* mo = m_c->selection_info()->model_object();
     if (m_state == On && mo) {
         if (m_old_mo_id != mo->id()) {
+            // Restore previous object's holes to applied baseline before switching.
+            if (m_stash_initialized) {
+                for (ModelObject* old_obj : wxGetApp().plater()->model().objects)
+                    if (old_obj->id() == m_old_mo_id) {
+                        old_obj->sla_drain_holes = m_holes_stash;
+                        break;
+                    }
+            }
+            // Snapshot new object's current holes as this session's baseline.
+            m_holes_stash = mo->sla_drain_holes;
+            m_stash_initialized = true;
             reload_cache();
             m_old_mo_id = mo->id();
+        } else if (is_serializing && m_stash_initialized) {
+            // Undo/Redo changed holes on the same object; keep session baseline in sync.
+            m_holes_stash = mo->sla_drain_holes;
+            reload_cache();
+            unregister_hole_raycasters_for_picking();
+            // register_hole_raycasters_for_picking() is called by the common path below.
         }
 
         const int required_step = get_min_sla_print_object_step();
@@ -441,6 +458,8 @@ void GLGizmoDrill::update_hole_raycasters_for_picking_transform()
             assert(!m_hole_raycasters.empty());
 
             const GLVolume* vol = m_parent.get_selection().get_first_volume();
+            if (!vol)
+                return;  // Selection not ready (e.g. during Undo/Redo); transforms update next frame.
             Geometry::Transformation transformation(vol->get_instance_transformation());
 
             auto *mo_upd = m_c->selection_info()->model_object();
@@ -573,7 +592,7 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     const float btn_w = std::max(
         std::max(m_imgui->calc_text_size(m_desc.at("remove_selected")).x,
                  m_imgui->calc_text_size(m_desc.at("remove_all")).x),
-        m_imgui->calc_text_size(m_desc.at("preview")).x
+        m_imgui->calc_text_size(m_desc.at("apply")).x
     ) + fp + m_imgui->scaled(1.f);
 
     // push_toolbar_style before set_next_window_pos/begin so WindowRounding etc. take effect.
@@ -716,8 +735,10 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
         // Row 5: [indent = icon width] | Preview | Reset direction
         ImGui::Dummy(ImVec2(button_size.x, 0.f)); // aligned to icon width
         ImGui::SameLine();
-        if (ImGui::Button((m_desc.at("preview") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
-            reslice_until_step(slaposDrillHoles); // same call as old UI
+        if (ImGui::Button((m_desc.at("apply") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f))) {
+            reslice_until_step(slaposDrillHoles);
+            m_holes_stash = mo->sla_drain_holes;  // update applied baseline
+        }
     } // end Row 4-5 help icon block
 
     ImGui::PopStyleVar(1);       // end ItemSpacing override (+1 var popped, net var stack balanced)
@@ -801,6 +822,11 @@ void GLGizmoDrill::on_set_state()
         return;
 
     if (m_state == On) {
+        // Ensure clean stash state for a new Drill session.
+        // m_old_mo_id is intentionally NOT reset here: data_changed() will detect the object-switch
+        // via m_old_mo_id != mo->id() and set up the stash correctly. Keeping the last known ID
+        // lets on_set_state(Off)'s fallback search find the object if selection_info() is unavailable.
+        m_stash_initialized = false;
         if (!selected_print_object_exists(m_parent, _L("Selected object has to be on the active bed."))) {
             m_state = Off;
             return;
@@ -808,6 +834,20 @@ void GLGizmoDrill::on_set_state()
     }
 
     if (m_state == Off && m_old_state != Off) {
+        // Restore holes to the applied baseline (last Apply, or entry state if never applied).
+        if (m_stash_initialized) {
+            ModelObject* mo_restore = nullptr;
+            if (m_c->selection_info())
+                mo_restore = m_c->selection_info()->model_object();
+            if (!mo_restore) {
+                for (ModelObject* obj : wxGetApp().plater()->model().objects)
+                    if (obj->id() == m_old_mo_id) { mo_restore = obj; break; }
+            }
+            if (mo_restore)
+                mo_restore->sla_drain_holes = m_holes_stash;
+            m_stash_initialized = false;
+        }
+        m_old_mo_id = ObjectID{};
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
         m_c->instances_hider()->set_hide_full_scene(false);
     }

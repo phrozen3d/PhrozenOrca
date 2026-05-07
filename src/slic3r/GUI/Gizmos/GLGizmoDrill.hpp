@@ -76,6 +76,7 @@ private:
 
     bool m_wait_for_up_event = false;
     bool m_selection_empty = true;
+    bool m_stash_initialized = false;
     EState m_old_state = Off;
 
     bool is_mesh_point_clipped(const Vec3d& point) const;
