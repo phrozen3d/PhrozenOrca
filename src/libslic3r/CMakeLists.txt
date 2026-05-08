@@ -409,6 +409,8 @@ set(lisbslic3r_sources
     SLA/RasterToPolygons.cpp
     SLA/RasterToCvMat.hpp
     SLA/RasterToCvMat.cpp
+    SLA/RasterCache.hpp
+    SLA/RasterCache.cpp
     SLA/ConcaveHull.hpp
     SLA/ConcaveHull.cpp
     SLA/Hollowing.hpp
