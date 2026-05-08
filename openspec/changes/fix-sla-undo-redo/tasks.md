@@ -89,9 +89,9 @@ cmake --build . --target libslic3r_tests --config RelWithDebInfo 2>&1 | Out-File
 
 ## 9. 手動行為驗證
 
-- [ ] 9.1 在 Hollow gizmo 中按 Hollow 兩次，undo 兩次，確認 hollowing 參數正確還原
-- [ ] 9.2 在 Hollow gizmo 中按 Hollow 後離開至 prepare，執行 undo，確認 config 還原且 SLA 重算
-- [ ] 9.3 在 Drill gizmo 中調整 diameter slider，放開後 undo，確認所有選取洞的 radius 還原
-- [ ] 9.4 在 Drill gizmo 中連續修改 diameter 和 depth，undo 兩次，確認各自獨立還原
-- [ ] 9.5 確認 add/delete/move 洞的 undo 行為未受影響
-- [ ] 9.6 在 SlaSupports gizmo 執行 undo/redo，確認現有功能未退化
+- [x] 9.1 在 Hollow gizmo 中按 Hollow 兩次，undo 兩次，確認 hollowing 參數正確還原
+- [x] 9.2 在 Hollow gizmo 中按 Hollow 後離開至 prepare，執行 undo，確認 config 還原且 SLA 重算
+- [x] 9.3 在 Drill gizmo 中調整 diameter slider，放開後 undo，確認所有選取洞的 radius 還原
+- [x] 9.4 在 Drill gizmo 中連續修改 diameter 和 depth，undo 兩次，確認各自獨立還原
+- [x] 9.5 確認 add/delete/move 洞的 undo 行為未受影響
+- [x] 9.6 在 SlaSupports gizmo 執行 undo/redo，確認現有功能未退化

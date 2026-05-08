@@ -74,7 +74,8 @@ private:
     void begin_size_change(float old_radius, float old_height);
     void apply_size_change(const std::string& snapshot_name);
 
-    Vec3f m_hole_before_drag = Vec3f::Zero();
+    Vec3f m_hole_before_drag        = Vec3f::Zero();
+    Vec3f m_hole_normal_before_drag = Vec3f::Zero();
     sla::DrainHoles m_holes_in_drilled_mesh;
 
     sla::DrainHoles m_holes_stash;

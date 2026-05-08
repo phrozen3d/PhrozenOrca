@@ -875,10 +875,13 @@ void GLGizmoDrill::on_start_dragging()
     if (m_hover_id != -1) {
         select_point(NoPoints);
         select_point(m_hover_id);
-        m_hole_before_drag = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].pos;
+        m_hole_before_drag        = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].pos;
+        m_hole_normal_before_drag = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].normal;
     }
-    else
-        m_hole_before_drag = Vec3f::Zero();
+    else {
+        m_hole_before_drag        = Vec3f::Zero();
+        m_hole_normal_before_drag = Vec3f::Zero();
+    }
 }
 
 
@@ -886,17 +889,21 @@ void GLGizmoDrill::on_stop_dragging()
 {
     sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
     if (m_hover_id != -1) {
-        Vec3f backup = drain_holes[m_hover_id].pos;
+        Vec3f backup        = drain_holes[m_hover_id].pos;
+        Vec3f backup_normal = drain_holes[m_hover_id].normal;
 
         if (m_hole_before_drag != Vec3f::Zero()
-         && backup != m_hole_before_drag)
+         && (backup != m_hole_before_drag || backup_normal != m_hole_normal_before_drag))
         {
-            drain_holes[m_hover_id].pos = m_hole_before_drag;
+            drain_holes[m_hover_id].pos    = m_hole_before_drag;
+            drain_holes[m_hover_id].normal = m_hole_normal_before_drag;
             Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Move drainage hole");
-            drain_holes[m_hover_id].pos = backup;
+            drain_holes[m_hover_id].pos    = backup;
+            drain_holes[m_hover_id].normal = backup_normal;
         }
     }
-    m_hole_before_drag = Vec3f::Zero();
+    m_hole_before_drag        = Vec3f::Zero();
+    m_hole_normal_before_drag = Vec3f::Zero();
 }
 
 

@@ -426,6 +426,8 @@ void ObjectClipper::set_position_by_ratio(double pos, bool keep_normal, bool ver
 {
     const ModelObject* mo = get_pool()->selection_info()->model_object();
     int active_inst = get_pool()->selection_info()->get_active_instance();
+    if (!mo || active_inst < 0 || active_inst >= (int)mo->instances.size())
+        return;
     double z_shift = get_pool()->selection_info()->get_sla_shift();
 
     Vec3d normal;
