@@ -18,8 +18,15 @@
 #include <libslic3r/libslic3r.h>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+#include <thread>
+
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
+#include <tbb/task_arena.h>
 
 namespace Slic3r {
 
@@ -646,133 +653,248 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
         out.write(hdr.data(), static_cast<std::streamsize>(hdr.size()));
     }
 
-    for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
-        const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
-        const size_t batch_n   = batch_end - batch_start;
+    // -----------------------------------------------------------------------
+    // Producer-Consumer pipeline
+    //
+    // Producer thread: [A] collect ExPolygons + [B] TBB rasterize → queue.push
+    // Consumer (this thread): queue.pop → [E] RLE encode + stream write + release
+    //
+    // Overlap: while Consumer encodes batch k, Producer rasterizes batch k+1.
+    // QUEUE_DEPTH = 2 keeps peak memory ≤ 3 × BATCH_SZ × ~23 MB ≈ 552 MB.
+    // -----------------------------------------------------------------------
+    constexpr size_t QUEUE_DEPTH = 2;
+    using Batch = std::vector<cv::Mat>;
+    std::queue<Batch>       batch_queue;
+    std::mutex              queue_mutex;
+    std::condition_variable queue_cv_not_full;
+    std::condition_variable queue_cv_not_empty;
+    bool                    producer_done      = false;
+    std::exception_ptr      producer_exception = nullptr;
+    std::atomic<bool>       cancelled{false};
 
-        // [A] Collect ExPolygons and apply bed→display shift translation
-        std::vector<ExPolygons> batch_polys(batch_n);
-        for (size_t i = 0; i < batch_n; ++i) {
-            batch_polys[i] = layers[batch_start + i].transformed_slices();
-            for (ExPolygon &ep : batch_polys[i])
-                ep.translate(rp.shift);
-        }
+    auto producer_lambda = [&]() {
+        try {
+            for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
+                // Task 4.4: check cancellation before each batch
+                if (cancelled.load())
+                    break;
 
-        // [B] TBB parallel rasterize + picture_grayscale LUT
-        std::vector<cv::Mat> batch_mats(batch_n);
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_n),
-            [&](const tbb::blocked_range<size_t> &r) {
-                for (size_t i = r.begin(); i < r.end(); ++i) {
-                    batch_mats[i] = sla::expolygons_to_cvmat(
-                        batch_polys[i], rp.res, rp.pxdim, rp.trafo,
-                        rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
-                    sla::apply_picture_grayscale_lut(batch_mats[i], rp.picture_grayscale);
+                const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
+                const size_t batch_n   = batch_end - batch_start;
+
+                // [A] Collect ExPolygons and apply bed→display shift translation
+                std::vector<ExPolygons> batch_polys(batch_n);
+                for (size_t i = 0; i < batch_n; ++i) {
+                    batch_polys[i] = layers[batch_start + i].transformed_slices();
+                    for (ExPolygon &ep : batch_polys[i])
+                        ep.translate(rp.shift);
                 }
-            });
 
-        // [C] Sequential RLE encode → stream to disk → release
-        for (size_t i = 0; i < batch_n; ++i) {
-            const size_t lid = batch_start + i;
+                // [B] TBB parallel rasterize inside a limited arena (Task 5.1):
+                // reserve 2 logical cores for the UI event loop and the Consumer thread.
+                std::vector<cv::Mat> batch_mats(batch_n);
+                {
+                    int max_tbb = std::max(1, tbb::this_task_arena::max_concurrency());
+                    tbb::task_arena arena(max_tbb);
+                    arena.execute([&] {
+                        tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_n),
+                            [&](const tbb::blocked_range<size_t> &r) {
+                                for (size_t i = r.begin(); i < r.end(); ++i) {
+                                    batch_mats[i] = sla::expolygons_to_cvmat(
+                                        batch_polys[i], rp.res, rp.pxdim, rp.trafo,
+                                        rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
+                                        rp.blur_pixel);
+                                    sla::apply_picture_grayscale_lut(batch_mats[i],
+                                                                     rp.picture_grayscale);
+                                }
+                            });
+                    });
+                }
 
-            // Write per-layer metadata header (~60 bytes) directly to stream
+                // Push batch to queue; block until Consumer drains a slot (Task 2.3)
+                {
+                    std::unique_lock<std::mutex> lk(queue_mutex);
+                    queue_cv_not_full.wait(lk, [&] {
+                        return batch_queue.size() < QUEUE_DEPTH || cancelled.load();
+                    });
+                    if (cancelled.load()) {
+                        // Task 4.5: woken by Consumer cancel — release mats to avoid leak
+                        for (auto &mat : batch_mats) mat.release();
+                        break;
+                    }
+                    batch_queue.push(std::move(batch_mats));
+                }
+                queue_cv_not_empty.notify_one();
+            }
+        } catch (...) {
+            // Task 4.1: capture exception; signal Consumer
             {
+                std::lock_guard<std::mutex> lk(queue_mutex);
+                producer_exception = std::current_exception();
+                producer_done = true;
+            }
+            queue_cv_not_empty.notify_one();
+            return;
+        }
+        // Task 2.4: normal completion
+        {
+            std::lock_guard<std::mutex> lk(queue_mutex);
+            producer_done = true;
+        }
+        queue_cv_not_empty.notify_one();
+    };
+
+    // Task 2.5
+    std::thread producer_thread(producer_lambda);
+
+    // Release all cv::Mat instances still in the queue (cancel / exception paths)
+    auto drain_queue = [&] {
+        std::lock_guard<std::mutex> lk(queue_mutex);
+        while (!batch_queue.empty()) {
+            for (auto &mat : batch_queue.front()) mat.release();
+            batch_queue.pop();
+        }
+    };
+
+    // Task 4.2: accumulate producer exception for re-throw after join
+    std::exception_ptr consumer_rethrow = nullptr;
+    size_t batch_start_consumer = 0;
+    try {
+        while (true) {
+            // Task 3.1: wait for a batch or producer completion
+            Batch batch;
+            {
+                std::unique_lock<std::mutex> lk(queue_mutex);
+                queue_cv_not_empty.wait(lk, [&] {
+                    return !batch_queue.empty() || producer_done;
+                });
+                if (producer_exception) {
+                    consumer_rethrow = producer_exception;
+                    break;
+                }
+                if (batch_queue.empty()) // producer_done + empty queue → all done
+                    break;
+                batch = std::move(batch_queue.front());
+                batch_queue.pop();
+            }
+            // Task 3.1: wake Producer now that a slot opened
+            queue_cv_not_full.notify_one();
+
+            const size_t batch_n   = batch.size();
+            const size_t batch_end = batch_start_consumer + batch_n;
+
+            // Task 3.2: sequential RLE encode + write + release per layer
+            for (size_t i = 0; i < batch_n; ++i) {
+                const size_t lid = batch_start_consumer + i;
+
                 std::string lc;
                 prz_layer_content(lc, print, cfg, lid);
                 out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
-            }
 
-            const cv::Mat &img = batch_mats[i]; // CV_8UC1, row-major
-            const int total    = img.rows * img.cols;
-            const uchar *data  = img.data;
+                const cv::Mat &img = batch[i];
+                const int total    = img.rows * img.cols;
+                const uchar *data  = img.data;
 
-            int sum = 0;
-            std::string przByte;
-            przByte.reserve(static_cast<size_t>(total) / 2 + 8);
+                int sum = 0;
+                std::string przByte;
+                przByte.reserve(static_cast<size_t>(total) / 2 + 8);
+                przByte += static_cast<char>(0x55);
 
-            przByte += static_cast<char>(0x55); // layer head
+                auto flush_run = [&](uchar color, int count) {
+                    const char *c_count = reinterpret_cast<const char *>(&count);
 
-            // Write one RLE run (color, count) directly into przByte
-            auto flush_run = [&](uchar color, int count) {
-                const char *c_count = reinterpret_cast<const char *>(&count);
-
-                if (color == 0x00 || color == 0xff) {
-                    uchar base = (color == 0x00) ? BLACK : WHITE;
-                    for (int bid = 0; bid < 4; ++bid) {
-                        if (count < CONTINUOUS_BOUND[bid]) {
-                            uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
-                            count >>= 4;
-                            sum += static_cast<int>(byte0);
-                            przByte += static_cast<char>(byte0);
-                            for (int k = bid; k >= 1; --k) {
-                                przByte += c_count[k - 1];
-                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
+                    if (color == 0x00 || color == 0xff) {
+                        uchar base = (color == 0x00) ? BLACK : WHITE;
+                        for (int bid = 0; bid < 4; ++bid) {
+                            if (count < CONTINUOUS_BOUND[bid]) {
+                                uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
+                                count >>= 4;
+                                sum += static_cast<int>(byte0);
+                                przByte += static_cast<char>(byte0);
+                                for (int k = bid; k >= 1; --k) {
+                                    przByte += c_count[k - 1];
+                                    sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
+                                }
+                                break;
                             }
-                            break;
                         }
-                    }
-                } else {
-                    for (int bid = 0; bid < 4; ++bid) {
-                        if (count < CONTINUOUS_BOUND[bid]) {
-                            uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
-                            count >>= 4;
-                            sum += static_cast<int>(byte0);
-                            przByte += static_cast<char>(byte0);
-                            sum += static_cast<int>(color);
-                            przByte += static_cast<char>(color);
-                            for (int k = bid; k >= 1; --k) {
-                                przByte += c_count[k - 1];
-                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
-                            }
-                            break;
-                        }
-                    }
-                }
-            };
-
-            // Scan pixels directly — no intermediate encode_pixels vector
-            if (total > 0) {
-                uchar cur   = data[0];
-                int   count = 1;
-                for (int j = 1; j < total; ++j) {
-                    uchar px = data[j];
-                    if (px == cur) {
-                        ++count;
                     } else {
-                        flush_run(cur, count);
-                        cur   = px;
-                        count = 1;
+                        for (int bid = 0; bid < 4; ++bid) {
+                            if (count < CONTINUOUS_BOUND[bid]) {
+                                uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
+                                count >>= 4;
+                                sum += static_cast<int>(byte0);
+                                przByte += static_cast<char>(byte0);
+                                sum += static_cast<int>(color);
+                                przByte += static_cast<char>(color);
+                                for (int k = bid; k >= 1; --k) {
+                                    przByte += c_count[k - 1];
+                                    sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
+                                }
+                                break;
+                            }
+                        }
                     }
+                };
+
+                if (total > 0) {
+                    uchar cur   = data[0];
+                    int   count = 1;
+                    for (int j = 1; j < total; ++j) {
+                        uchar px = data[j];
+                        if (px == cur) {
+                            ++count;
+                        } else {
+                            flush_run(cur, count);
+                            cur   = px;
+                            count = 1;
+                        }
+                    }
+                    flush_run(cur, count);
                 }
-                flush_run(cur, count);
+
+                uchar checksum = static_cast<uchar>((~sum) & 0xff);
+                przByte += static_cast<char>(checksum);
+
+                write_be(out, static_cast<int>(przByte.size()));
+                out.write(przByte.data(), static_cast<std::streamsize>(przByte.size()));
+                out.put('\r'); out.put('\n');
+
+                if (lid == N - 1) {
+                    const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
+                                           0x00, 0x00, 0x00,
+                                           0x44, 0x4C, 0x50, 0x00 };
+                    out.write(tag, 11);
+                }
+
+                batch[i].release();
             }
 
-            // Checksum byte
-            uchar checksum = static_cast<uchar>((~sum) & 0xff);
-            przByte += static_cast<char>(checksum);
+            batch_start_consumer = batch_end;
 
-            // Write: [4-byte big-endian size][przByte][CRLF] directly to stream
-            write_be(out, static_cast<int>(przByte.size()));
-            out.write(przByte.data(), static_cast<std::streamsize>(przByte.size()));
-            out.put('\r'); out.put('\n');
-
-            // DLP end tag on last layer
-            if (lid == N - 1) {
-                const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
-                                       0x00, 0x00, 0x00,
-                                       0x44, 0x4C, 0x50, 0x00 };
-                out.write(tag, 11);
+            // Task 3.3 / 3.4: progress + cancellation — only Consumer calls progress (SPSC)
+            if (progress) {
+                int pct = static_cast<int>((batch_end * 100) / N);
+                if (!progress(pct)) {
+                    cancelled.store(true);
+                    queue_cv_not_full.notify_all(); // Task 4.5: wake Producer if blocked
+                    break;
+                }
             }
-
-            batch_mats[i].release();
         }
-
-        // Report progress after each batch and honour cancellation
-        if (progress) {
-            int pct = static_cast<int>((batch_end * 100) / N);
-            if (!progress(pct))
-                return;
-        }
+    } catch (...) {
+        cancelled.store(true);
+        queue_cv_not_full.notify_all();
+        drain_queue();
+        producer_thread.join(); // Task 4.3
+        throw;
     }
+
+    drain_queue();             // no-op on normal finish; releases leftover mats on cancel
+    producer_thread.join();    // Task 4.3: always join
+
+    if (consumer_rethrow)
+        std::rethrow_exception(consumer_rethrow); // Task 4.2: propagate producer exception
 }
 
 } // namespace Slic3r
