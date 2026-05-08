@@ -1,6 +1,7 @@
 #include "SLAPrint.hpp"
 #include "SLAPrintSteps.hpp"
 #include "Format/SLAArchiveWriter.hpp"
+#include "SLA/RasterCache.hpp"
 
 #include "ClipperUtils.hpp"
 #include "Geometry.hpp"
@@ -818,8 +819,10 @@ bool SLAPrint::invalidate_step(SLAPrintStep step)
         invalidated |= this->invalidate_all_steps();
     }
 
-    if (step == slapsRasterize)
-        m_raster_params = std::nullopt;
+    if (step == slapsRasterize) {
+        m_raster_params    = std::nullopt;
+        m_raster_cache_key = "";
+    }
 
     return invalidated;
 }
@@ -828,6 +831,9 @@ void SLAPrint::process(long long *time_cost_with_cache, bool use_cache)
 {
     if (m_objects.empty())
         return;
+
+    // Task 7.1: clean up stale disk cache entries at the start of each print session
+    sla::RasterCache::cleanup_old(7);
 
     name_tbb_thread_pool_threads_set_locale();
 

@@ -17,6 +17,9 @@
 #include <libslic3r/Config.hpp>
 #include <libslic3r/libslic3r.h>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
+#include <libslic3r/SLA/RasterCache.hpp>
+
+#include <boost/log/trivial.hpp>
 
 #include <atomic>
 #include <condition_variable>
@@ -636,6 +639,58 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
 
     if (N == 0)
         return;
+
+    // Task 6: Cache hit path — runs before any write to out so fallback is clean
+    {
+        const std::string cache_hash = print.raster_cache_key();
+        if (!cache_hash.empty()) {
+            sla::RasterCacheKey cache_key{cache_hash,
+                                         sla::RasterCache::base_dir() / cache_hash};
+            if (sla::RasterCache::is_valid(cache_key, N)) {
+                try {
+                    // Task 6.1-6.2: write header then stream all layers from disk
+                    {
+                        std::string hdr;
+                        hdr.reserve(2048);
+                        prz_header(hdr, print, cfg, thumb);
+                        out.write(hdr.data(), static_cast<std::streamsize>(hdr.size()));
+                    }
+                    for (size_t lid = 0; lid < N; ++lid) {
+                        std::string lc;
+                        prz_layer_content(lc, print, cfg, lid);
+                        out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
+
+                        // Task 6.3: read RLE bytes from disk cache
+                        std::string rle_bytes = sla::RasterCache::read_layer(cache_key, lid);
+                        write_be(out, static_cast<int>(rle_bytes.size()));
+                        out.write(rle_bytes.data(),
+                                  static_cast<std::streamsize>(rle_bytes.size()));
+                        out.put('\r'); out.put('\n');
+
+                        if (lid == N - 1) {
+                            const char tag[11] = { 0x00, 0x00, 0x00, 0x07,
+                                                   0x00, 0x00, 0x00,
+                                                   0x44, 0x4C, 0x50, 0x00 };
+                            out.write(tag, 11);
+                        }
+
+                        if (progress) {
+                            int pct = static_cast<int>((lid + 1) * 100 / N);
+                            if (!progress(pct))
+                                return;
+                        }
+                    }
+                    return; // Cache hit complete
+                } catch (const std::exception &e) {
+                    // Task 6.4: log and fall through to pipeline rasterization
+                    BOOST_LOG_TRIVIAL(warning)
+                        << "Cache read failed: " << e.what()
+                        << " — falling back to rasterization";
+                }
+            }
+        }
+    }
+    // Task 6.5: existing Pipeline code below is preserved unchanged
 
     static constexpr uchar BLACK = 0x00;
     static constexpr uchar WHITE = 0xc0;

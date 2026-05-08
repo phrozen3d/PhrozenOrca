@@ -4,6 +4,7 @@
 #include <wx/panel.h>
 
 #include <chrono>
+#include <memory>
 
 #include "GLModel.hpp"
 #include "libslic3r/ExPolygon.hpp"
@@ -12,6 +13,8 @@ class wxGLCanvas;
 class wxPaintEvent;
 class wxSizeEvent;
 class wxMouseEvent;
+class wxTimer;
+class wxTimerEvent;
 
 struct ImGuiContext;
 
@@ -48,6 +51,7 @@ private:
     void on_gl_mouse_motion(wxMouseEvent& evt);
     void on_gl_mouse_button(wxMouseEvent& evt);
     void on_gl_leave(wxMouseEvent& evt);
+    void on_hq_timer(wxTimerEvent& evt);
 
     void render();
     void ensure_sla_imgui_context(ImGuiContext* main_ctx);
@@ -87,6 +91,11 @@ private:
 
     GLModel m_vector_model;
     int m_vector_cached_layer{ -1 };
+
+    // Debounce: hold fast vector preview while layers are changing, switch to
+    // high-quality expolygons_to_cvmat 200 ms after the last layer change.
+    std::unique_ptr<wxTimer> m_hq_timer;
+    bool m_layer_interactive{ false };
 };
 
 } // namespace GUI
