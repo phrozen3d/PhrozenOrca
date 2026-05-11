@@ -3,6 +3,10 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include <agg/agg_blur.h>
+#include <agg/agg_pixfmt_gray.h>
+#include <agg/agg_rendering_buffer.h>
+
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 
@@ -71,11 +75,17 @@ cv::Mat expolygons_to_cvmat(
         }
     }
 
-    // Gaussian blur: applied after AA/gray-scale post-processing.
-    // blur_pixel is the actual pixel count (2–8); kernel size = (blur_pixel*2+1).
+    // Stack blur: O(radius) separable algorithm, replaces cv::GaussianBlur.
+    // blur_pixel is the radius (2–8); applied after AA/gray-scale post-processing.
     if (blur_pixel >= 2) {
-        const int k = blur_pixel * 2 + 1;
-        cv::GaussianBlur(mat, mat, cv::Size(k, k), 0);
+        agg::rendering_buffer rbuf(mat.data,
+                                   static_cast<unsigned>(mat.cols),
+                                   static_cast<unsigned>(mat.rows),
+                                   mat.cols);
+        agg::pixfmt_gray8 pixf(rbuf);
+        agg::stack_blur_gray8(pixf,
+                              static_cast<unsigned>(blur_pixel),
+                              static_cast<unsigned>(blur_pixel));
     }
 
     return mat;

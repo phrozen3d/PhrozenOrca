@@ -24,8 +24,8 @@
 
 ## 4. Stack Blur 取代 Gaussian Blur
 
-- [ ] 4.1 在 `src/libslic3r/SLA/RasterToCvMat.cpp` 頂部加入 `#include <agg/agg_blur.h>`
-- [ ] 4.2 將 lines 74–79 的 `cv::GaussianBlur` 實作替換為 `agg::rendering_buffer` + `agg::pixfmt_gray8` + `agg::stack_blur_gray8(pixf, rp.blur_pixel, rp.blur_pixel)`（保留 `blur_pixel >= 2` 的 guard 條件）
+- [x] 4.1 在 `src/libslic3r/SLA/RasterToCvMat.cpp` 頂部加入 `#include <agg/agg_blur.h>`
+- [x] 4.2 將 lines 74–79 的 `cv::GaussianBlur` 實作替換為 `agg::rendering_buffer` + `agg::pixfmt_gray8` + `agg::stack_blur_gray8(pixf, rp.blur_pixel, rp.blur_pixel)`（保留 `blur_pixel >= 2` 的 guard 條件）
 - [ ] 4.3 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤（AGG 標頭路徑正確）
 - [ ] 4.4 視覺驗證：在 slicer 中對含支撐結構的 SLA 模型切片，啟用 blur（例如 sp4），目視確認切層預覽中模糊效果存在且無明顯銳利偽像，品質可接受
 

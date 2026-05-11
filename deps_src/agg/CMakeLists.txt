@@ -8,6 +8,7 @@ target_include_directories(agg INTERFACE
 )
 
 target_sources(agg INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/agg_blur.h
     ${CMAKE_CURRENT_SOURCE_DIR}/agg_array.h
     ${CMAKE_CURRENT_SOURCE_DIR}/agg_basics.h
     ${CMAKE_CURRENT_SOURCE_DIR}/agg_bezier_arc.h
