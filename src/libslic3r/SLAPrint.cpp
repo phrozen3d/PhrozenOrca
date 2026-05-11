@@ -1423,7 +1423,7 @@ void SLAPrint::StatusReporter::operator()(SLAPrint &         p,
                                           unsigned           flags,
                                           const std::string &logmsg)
 {
-    m_st = st;
+    m_st.store(st);
     BOOST_LOG_TRIVIAL(info)
         << st << "% " << msg << (logmsg.empty() ? "" : ": ") << logmsg
         << log_memory_info();

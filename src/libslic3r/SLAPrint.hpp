@@ -1,6 +1,7 @@
 #ifndef slic3r_SLAPrint_hpp_
 #define slic3r_SLAPrint_hpp_
 
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <optional>
@@ -670,7 +671,7 @@ private:
 
     class StatusReporter
     {
-        double m_st = 0;
+        std::atomic<double> m_st{0.0};
 
     public:
         void operator()(SLAPrint &         p,
@@ -679,7 +680,7 @@ private:
                         unsigned           flags = SlicingStatus::DEFAULT,
                         const std::string &logmsg = "");
 
-        double status() const { return m_st; }
+        double status() const { return m_st.load(); }
     } m_report_status;
 
 	friend SLAPrintObject;

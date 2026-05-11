@@ -18,8 +18,8 @@
 
 ## 3. StatusReporter::m_st Data Race 修正
 
-- [ ] 3.1 在 `src/libslic3r/SLAPrint.hpp` 將 `StatusReporter::m_st` 型別由 `double` 改為 `std::atomic<double>`
-- [ ] 3.2 逐一確認 `m_st` 的所有讀寫點均兼容 atomic 語意（store/load，不使用複合賦值運算子）
+- [x] 3.1 在 `src/libslic3r/SLAPrint.hpp` 將 `StatusReporter::m_st` 型別由 `double` 改為 `std::atomic<double>`
+- [x] 3.2 逐一確認 `m_st` 的所有讀寫點均兼容 atomic 語意（store/load，不使用複合賦值運算子）
 - [ ] 3.3 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤
 
 ## 4. Stack Blur 取代 Gaussian Blur
