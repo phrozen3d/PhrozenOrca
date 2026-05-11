@@ -431,14 +431,21 @@ void GLGizmoDrill::register_hole_raycasters_for_picking()
 
     init_cylinder_model();
 
-    const CommonGizmosDataObjects::SelectionInfo* info = m_c->selection_info();
-    if (info != nullptr && !info->model_object()->sla_drain_holes.empty()) {
-        const sla::DrainHoles& drain_holes = info->model_object()->sla_drain_holes;
-        for (int i = 0; i < (int)drain_holes.size(); ++i) {
-            m_hole_raycasters.emplace_back(m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cylinder.mesh_raycaster, Transform3d::Identity()));
-        }
-        update_hole_raycasters_for_picking_transform();
+    // Use Selection directly instead of m_c->selection_info() to avoid stale/dangling
+    // ModelObject pointer during undo/redo restore (m_c is refreshed after this call).
+    const Selection& sel = m_parent.get_selection();
+    const int obj_idx = sel.get_object_idx();
+    const Model* model = sel.get_model();
+    if (obj_idx < 0 || model == nullptr || obj_idx >= (int)model->objects.size())
+        return;
+    const ModelObject* mo = model->objects[obj_idx];
+    if (mo == nullptr || mo->sla_drain_holes.empty())
+        return;
+    const sla::DrainHoles& drain_holes = mo->sla_drain_holes;
+    for (int i = 0; i < (int)drain_holes.size(); ++i) {
+        m_hole_raycasters.emplace_back(m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cylinder.mesh_raycaster, Transform3d::Identity()));
     }
+    update_hole_raycasters_for_picking_transform();
 }
 
 void GLGizmoDrill::unregister_hole_raycasters_for_picking()
@@ -767,9 +774,20 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
 
 void GLGizmoDrill::on_render_input_window(float x, float y, float bottom_limit)
 {
+    if (!m_c->selection_info())
+        return;
     ModelObject* mo = m_c->selection_info()->model_object();
     if (!mo)
         return;
+    // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
+    // the model. Compare against the current selection before passing mo to render functions.
+    {
+        const Selection& sel = m_parent.get_selection();
+        const int obj_idx = sel.get_object_idx();
+        if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
+            || mo != sel.get_model()->objects[obj_idx])
+            return;
+    }
 
     bool first_run = true;
 

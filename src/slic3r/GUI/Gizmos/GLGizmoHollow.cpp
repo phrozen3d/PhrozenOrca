@@ -96,6 +96,8 @@ void GLGizmoHollow::on_render()
     }
     const Selection& selection = m_parent.get_selection();
     const CommonGizmosDataObjects::SelectionInfo* sel_info = m_c->selection_info();
+    if (!sel_info)
+        return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
 
     // If current m_c->m_model_object does not match selection, ask GLCanvas3D to turn us off
     if (m_state == On
@@ -181,10 +183,20 @@ std::vector<std::pair<const ConfigOption*, const ConfigOptionDef*>>
 GLGizmoHollow::get_config_options(const std::vector<std::string>& keys) const
 {
     std::vector<std::pair<const ConfigOption*, const ConfigOptionDef*>> out;
+    if (!m_c->selection_info())
+        return out;
     const ModelObject* mo = m_c->selection_info()->model_object();
-
     if (!mo)
         return out;
+    // Stale detection: if SelectionInfo references a different object than the current
+    // selection, the pointer may be dangling (undo replaced the model). Skip this frame.
+    {
+        const Selection& sel = m_parent.get_selection();
+        const int obj_idx = sel.get_object_idx();
+        if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
+            || mo != sel.get_model()->objects[obj_idx])
+            return out;
+    }
 
     const DynamicPrintConfig& object_cfg = mo->config.get();
     const DynamicPrintConfig& print_cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
@@ -210,9 +222,20 @@ GLGizmoHollow::get_config_options(const std::vector<std::string>& keys) const
 
 void GLGizmoHollow::on_render_input_window(float x, float y, float bottom_limit)
 {
+    if (!m_c->selection_info())
+        return;
     ModelObject* mo = m_c->selection_info()->model_object();
     if (!mo)
         return;
+    // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
+    // the model. Compare against the current selection before dereferencing mo->config.
+    {
+        const Selection& sel = m_parent.get_selection();
+        const int obj_idx = sel.get_object_idx();
+        if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
+            || mo != sel.get_model()->objects[obj_idx])
+            return;
+    }
 
     // Clamp y so the panel stays on screen
     y = std::min(y, bottom_limit - m_imgui->scaled(20.0f));

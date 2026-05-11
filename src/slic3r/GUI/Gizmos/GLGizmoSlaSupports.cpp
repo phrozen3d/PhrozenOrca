@@ -692,10 +692,20 @@ void GLGizmoSlaSupports::on_render_input_window(float x, float y, float bottom_l
         m_icons = init_support_icons(m_icon_manager, ImVec2{width, width});
     }
 
-    ModelObject* mo = m_c->selection_info()->model_object();
-
-    if (! mo)
+    if (!m_c->selection_info())
         return;
+    ModelObject* mo = m_c->selection_info()->model_object();
+    if (!mo)
+        return;
+    // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
+    // the model. Compare against the current selection before passing mo to render functions.
+    {
+        const Selection& sel = m_parent.get_selection();
+        const int obj_idx = sel.get_object_idx();
+        if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
+            || mo != sel.get_model()->objects[obj_idx])
+            return;
+    }
 
     (void)bottom_limit;
 
@@ -1760,6 +1770,8 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
 
     const Selection& selection = m_parent.get_selection();
     const GLVolume* vol = selection.get_first_volume();
+    if (!vol)
+        return;  // Selection not ready (e.g. during Undo/Redo before set_deserialized()); transforms update next frame.
     const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
     const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
 
