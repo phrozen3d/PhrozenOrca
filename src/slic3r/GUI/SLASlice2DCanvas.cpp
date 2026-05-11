@@ -26,7 +26,6 @@
 #include <imgui/imgui.h>
 
 #include <wx/glcanvas.h>
-#include <wx/timer.h>
 #include <algorithm>
 #include <cmath>
 
@@ -231,11 +230,6 @@ SLASlice2DCanvas::SLASlice2DCanvas(wxWindow* parent)
     m_gl->Bind(wxEVT_RIGHT_UP, &SLASlice2DCanvas::on_gl_mouse_button, this);
     m_gl->Bind(wxEVT_MIDDLE_DOWN, &SLASlice2DCanvas::on_gl_mouse_button, this);
     m_gl->Bind(wxEVT_MIDDLE_UP, &SLASlice2DCanvas::on_gl_mouse_button, this);
-
-    // Task 10.3: debounce timer — fires 200 ms after the last layer change
-    m_hq_timer = std::make_unique<wxTimer>();
-    m_hq_timer->SetOwner(this);
-    Bind(wxEVT_TIMER, &SLASlice2DCanvas::on_hq_timer, this);
 }
 
 SLASlice2DCanvas::~SLASlice2DCanvas()
@@ -382,22 +376,7 @@ void SLASlice2DCanvas::set_sla_print(const SLAPrint* print)
 
 void SLASlice2DCanvas::set_view_layer_index(int idx)
 {
-    const int new_idx = std::max(0, idx);
-    if (new_idx != m_layer_idx) {
-        // Task 10.4: mark interactive and (re)start the 200 ms debounce timer
-        m_layer_interactive = true;
-        if (m_hq_timer)
-            m_hq_timer->StartOnce(200);
-    }
-    m_layer_idx = new_idx;
-    if (m_gl != nullptr)
-        m_gl->Refresh();
-}
-
-void SLASlice2DCanvas::on_hq_timer(wxTimerEvent& /*evt*/)
-{
-    // Task 10.5: debounce window expired — switch back to high-quality rendering
-    m_layer_interactive = false;
+    m_layer_idx = std::max(0, idx);
     if (m_gl != nullptr)
         m_gl->Refresh();
 }
@@ -810,9 +789,6 @@ void SLASlice2DCanvas::render()
             destroy_texture();
             m_cached_layer = -1;
         }
-        render_vector_fallback(pw, ph);
-    } else if (m_layer_interactive) {
-        // Task 10.6: debounce window active — use fast vector preview to stay smooth
         render_vector_fallback(pw, ph);
     } else {
         bool drew = false;

@@ -617,10 +617,6 @@ public:
     // Reset to nullopt whenever slapsRasterize is invalidated.
     const std::optional<SLARasterParams>& raster_params() const { return m_raster_params; }
 
-    // 8-char hex CRC32 key set by slapsRasterize; empty if no valid cache exists.
-    // Used by generate_prz() to locate disk-cached RLE layer files for fast export.
-    const std::string& raster_cache_key() const { return m_raster_cache_key; }
-
     void set_printer(SLAArchive *archiver);
 
 private:
@@ -665,9 +661,6 @@ private:
 
     // Rasterization parameter snapshot captured at the end of slapsRasterize.
     std::optional<SLARasterParams>  m_raster_params;
-
-    // 8-char hex CRC32 key written by slapsRasterize; cleared on invalidation.
-    std::string                     m_raster_cache_key;
 
     // The archive object which collects the raster images after slicing
     SLAArchive                     *m_printer = nullptr;
