@@ -43,14 +43,14 @@
 
 ## 6. generate_prz() 快取命中路徑重寫
 
-- [ ] 6.1 在 `src/libslic3r/Format/PhrozenPRZ.cpp` 的 `generate_prz()` 快取命中分支中宣告 `constexpr int EXPORT_BATCH = 8` 及 `tbb::task_arena arena(EXPORT_BATCH)`
-- [ ] 6.2 以批次迴圈取代現有 on-demand 光柵化程式碼：以 `EXPORT_BATCH` 為步長迭代 N 層，每批次透過 `arena.execute([&]{ tbb::parallel_for(...) })` 平行執行：`RasterCache::read_layer` → `cv::imdecode(buf, cv::IMREAD_GRAYSCALE)` → RLE 編碼 → 結果暫存至 `rle_results[i]`
-- [ ] 6.3 批次平行階段完成後，以循序迴圈 append `rle_results[i]` 至 `std::ostream &out`，每層寫完後呼叫 `rle_results[i].clear()` 立即釋放（保序 + OOM 防護）
-- [ ] 6.4 確認例外傳播路徑：`read_layer` 拋出時例外傳至 `ExportPRZJob` 捕捉，顯示錯誤訊息並中止，不產生損壞的 PRZ 檔案
-- [ ] 6.5 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤
-- [ ] 6.6 輸出正確性驗證：以重構前的參考 PRZ 檔案為基準，比對重構後匯出的 PRZ 逐層 RLE 資料是否一致（hex diff 或 layer-by-layer 目視比對）
-- [ ] 6.7 記憶體驗證：匯出 360 層 13320×5120 PRZ 期間，確認記憶體峰值 ≤ 650 MB
-- [ ] 6.8 取消功能驗證：匯出進行中點擊取消，確認作業中止且不留下損壞的 PRZ 檔案於磁碟
+- [x] 6.1 在 `src/libslic3r/Format/PhrozenPRZ.cpp` 的 `generate_prz()` 快取命中分支中宣告 `constexpr int EXPORT_BATCH = 8` 及 `tbb::task_arena arena(EXPORT_BATCH)`
+- [x] 6.2 以批次迴圈取代現有 on-demand 光柵化程式碼：以 `EXPORT_BATCH` 為步長迭代 N 層，每批次透過 `arena.execute([&]{ tbb::parallel_for(...) })` 平行讀取 `.rle` 快取 raw bytes → 結果暫存至 `rle_results[i]`（不需要 cv::imdecode 或重新編碼，快取已為原生 PRZ-RLE 格式）
+- [x] 6.3 批次平行階段完成後，以循序迴圈 append `rle_results[i]` 至 `std::ostream &out`，每層寫完後呼叫 `rle_results[i].clear()` + `shrink_to_fit()` 立即釋放（保序 + OOM 防護）
+- [x] 6.4 確認例外傳播路徑：`read_layer` 拋出時例外傳至 `ExportPRZJob` 捕捉，顯示錯誤訊息並中止，不產生損壞的 PRZ 檔案
+- [x] 6.5 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤
+- [x] 6.6 輸出正確性驗證：以重構前的參考 PRZ 檔案為基準，比對重構後匯出的 PRZ 逐層 RLE 資料是否一致（hex diff 或 layer-by-layer 目視比對）
+- [x] 6.7 記憶體驗證：匯出 360 層 13320×5120 PRZ 期間，確認記憶體峰值 ≤ 650 MB
+- [x] 6.8 取消功能驗證：匯出進行中點擊取消，確認作業中止且不留下損壞的 PRZ 檔案於磁碟
 
 ## 7. 最終整合驗收與提交
 

@@ -20,6 +20,9 @@
 
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
+#include <tbb/task_arena.h>
+
+#include <libslic3r/SLA/RasterCache.hpp>
 
 namespace Slic3r {
 
@@ -646,6 +649,69 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
         out.write(hdr.data(), static_cast<std::streamsize>(hdr.size()));
     }
 
+    // ---------------------------------------------------------------------------
+    // Cache-hit fast path: stream pre-encoded PRZ-RLE bytes directly to output.
+    // No rasterization, no decoding — just parallel disk reads + sequential write.
+    // ---------------------------------------------------------------------------
+    {
+        sla::RasterCacheKey cache_key = sla::RasterCache::compute_key(rp, layers);
+        if (sla::RasterCache::is_valid(cache_key)) {
+            constexpr int EXPORT_BATCH = 8;
+            tbb::task_arena arena(EXPORT_BATCH);
+
+            for (size_t batch_start = 0; batch_start < N;
+                 batch_start += static_cast<size_t>(EXPORT_BATCH)) {
+                const size_t batch_end =
+                    std::min(batch_start + static_cast<size_t>(EXPORT_BATCH), N);
+                const size_t batch_n = batch_end - batch_start;
+
+                // Parallel read: each .rle file holds the ready-made przByte payload
+                std::vector<std::string> rle_results(batch_n);
+                arena.execute([&] {
+                    tbb::parallel_for(
+                        tbb::blocked_range<size_t>(0, batch_n),
+                        [&](const tbb::blocked_range<size_t> &r) {
+                            for (size_t i = r.begin(); i < r.end(); ++i)
+                                rle_results[i] = sla::RasterCache::read_layer(
+                                    cache_key, batch_start + i);
+                        });
+                });
+
+                // Sequential write + immediate release (OOM guard)
+                for (size_t i = 0; i < batch_n; ++i) {
+                    const size_t lid = batch_start + i;
+                    {
+                        std::string lc;
+                        prz_layer_content(lc, print, cfg, lid);
+                        out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
+                    }
+                    write_be(out, static_cast<int>(rle_results[i].size()));
+                    out.write(rle_results[i].data(),
+                              static_cast<std::streamsize>(rle_results[i].size()));
+                    out.put('\r');
+                    out.put('\n');
+                    if (lid == N - 1) {
+                        const char tag[11] = {0x00, 0x00, 0x00, 0x07, 0x00,
+                                              0x00, 0x00, 0x44, 0x4C, 0x50, 0x00};
+                        out.write(tag, 11);
+                    }
+                    rle_results[i].clear();
+                    rle_results[i].shrink_to_fit();
+                }
+
+                if (progress) {
+                    int pct = static_cast<int>((batch_end * 100) / N);
+                    if (!progress(pct))
+                        return;
+                }
+            }
+            return;
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cache-miss path: on-demand rasterization (existing implementation)
+    // ---------------------------------------------------------------------------
     for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
         const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
         const size_t batch_n   = batch_end - batch_start;
