@@ -54,7 +54,7 @@
 
 ## 7. 最終整合驗收與提交
 
-- [ ] 7.1 端對端流程：首次切片（wall time ≤ 50s）→ 同模型再次切片（應 < 2s 快取命中，不重新光柵化）→ 匯出 PRZ → 確認 PRZ 可正常使用
-- [ ] 7.2 執行 SLA 測試套件：`cd build && ctest -R sla_print --output-on-failure`，確認零失敗
-- [ ] 7.3 死碼清理驗證：搜尋 `RleEncode`、舊 producer-consumer 符號，確認已完全移除，無殘留
-- [ ] 7.4 提交 Phase 2–6 所有變更：以單一 commit 提交，message 包含實測速度基準數據（例如 `feat: parallel PNG rasterize pipeline, 120s → Xs`）
+- [x] 7.1 端對端流程：首次切片（wall time ≤ 50s）→ 同模型再次切片（應 < 2s 快取命中，不重新光柵化）→ 匯出 PRZ → 確認 PRZ 可正常使用
+- [x] 7.2 執行 SLA 測試套件：`cd build && ctest -R sla_print --output-on-failure`，確認零失敗
+- [x] 7.3 死碼清理驗證：搜尋 `RleEncode`、舊 producer-consumer 符號，確認已完全移除，無殘留
+- [x] 7.4 提交 Phase 2–6 所有變更：以單一 commit 提交，message 包含實測速度基準數據（例如 `feat: parallel PNG rasterize pipeline, 120s → Xs`）
