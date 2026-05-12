@@ -24,16 +24,31 @@ public:
         const SLARasterParams                  &rp,
         const std::vector<SLAPrint::PrintLayer> &printer_input);
 
-    // Write one layer's PNG bytes atomically via temp-file + rename.
-    // Creates key.dir if needed. Filename: layer_{lid:04d}.png
-    static void write_layer(const RasterCacheKey &key, size_t lid,
-                            const std::string    &png_bytes);
+    // Create the cache directory. MUST be called once (single-threaded) before
+    // any parallel write_layer() calls to avoid concurrent create_directories
+    // contention on Windows NTFS.
+    static void ensure_dir(const RasterCacheKey &key);
 
-    // Read one layer's PNG bytes; throws std::runtime_error on failure.
-    // Filename: layer_{lid:04d}.png
+    // Write one layer's PRZ-RLE bytes to layer_{lid:04d}.rle.
+    // REQUIRES: ensure_dir(key) has already been called.
+    // Each lid produces a unique filename; concurrent calls for different lids
+    // are safe without locks.
+    static void write_layer(const RasterCacheKey &key, size_t lid,
+                            const char           *data,
+                            size_t                size);
+    static void write_layer(const RasterCacheKey &key, size_t lid,
+                            const std::string    &rle_bytes);
+
+    // Write the "cache_complete" sentinel after all layers are written.
+    // is_valid() returns true only after this is called.
+    static void mark_complete(const RasterCacheKey &key);
+
+    // Read one layer's PRZ-RLE bytes; throws std::runtime_error on failure.
+    // Filename: layer_{lid:04d}.rle
     static std::string read_layer(const RasterCacheKey &key, size_t lid);
 
-    // Quick sentinel check: returns true iff layer_0000.png exists in key.dir.
+    // Returns true iff the "cache_complete" sentinel exists in key.dir,
+    // indicating a fully-written cache.
     static bool is_valid(const RasterCacheKey &key);
 
     // Delete cache subdirectories older than max_age_days; silent on errors.
@@ -44,7 +59,7 @@ public:
 
 private:
     // Bump this whenever the cache format changes to invalidate old entries.
-    static constexpr int CACHE_VERSION = 2;
+    static constexpr int CACHE_VERSION = 3;
 };
 
 } // namespace sla

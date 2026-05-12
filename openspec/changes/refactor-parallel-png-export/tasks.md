@@ -26,20 +26,20 @@
 
 - [x] 4.1 在 `src/libslic3r/SLA/RasterToCvMat.cpp` 頂部加入 `#include <agg/agg_blur.h>`
 - [x] 4.2 將 lines 74–79 的 `cv::GaussianBlur` 實作替換為 `agg::rendering_buffer` + `agg::pixfmt_gray8` + `agg::stack_blur_gray8(pixf, rp.blur_pixel, rp.blur_pixel)`（保留 `blur_pixel >= 2` 的 guard 條件）
-- [ ] 4.3 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤（AGG 標頭路徑正確）
-- [ ] 4.4 視覺驗證：在 slicer 中對含支撐結構的 SLA 模型切片，啟用 blur（例如 sp4），目視確認切層預覽中模糊效果存在且無明顯銳利偽像，品質可接受
+- [x] 4.3 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤（AGG 標頭路徑正確）
+- [x] 4.4 視覺驗證：在 slicer 中對含支撐結構的 SLA 模型切片，啟用 blur（例如 sp4），目視確認切層預覽中模糊效果存在且無明顯銳利偽像，品質可接受
 
 ## 5. rasterize() 全層完全平行 PNG 寫入管線
 
-- [ ] 5.1 在 `SLAPrintSteps.cpp` 的 `rasterize()` 函式開頭宣告 CAS 進度計數器：`std::atomic<int> completed_layers{0}` 與 `std::atomic<int> last_reported_pct{-1}`
-- [ ] 5.2 以 `tbb::parallel_for(tbb::blocked_range<size_t>(0, N), lambda)` 取代原有 producer-consumer loop；lambda 負責：光柵化（AGG）→ stack blur（已於 Phase 4 整合至 `expolygons_to_cvmat`）→ miniz PNG 編碼 → RasterCache write_layer → CAS 進度回報
-- [ ] 5.3 在 lambda 中以 RAII wrapper 封裝 `tdefl_write_image_to_png_file_in_memory` 的回傳 buffer，確保無論成功或拋出例外，`MZ_FREE` 皆在 `write_layer` 後立即執行
-- [ ] 5.4 在 lambda 末尾實作 CAS throttle（D5 片段）：`fetch_add` → 計算 pct → `compare_exchange_strong` → 成功者呼叫 `report_status(pct, L("Rasterizing layers..."))`
-- [ ] 5.5 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤
-- [ ] 5.6 速度驗收：對 360 層 13320×5120 模型切片，記錄 wall time（目標 ≤ 50s）；若無此規格模型，以縮放比例推估並記錄
-- [ ] 5.7 OOM 驗證：切片期間以工作管理員監控記憶體，確認峰值不隨 N 線性成長，切片結束後記憶體回落
-- [ ] 5.8 進度驗證：確認 UI 進度條在切片期間持續平滑更新，不出現凍結或事件洪流卡頓
-- [ ] 5.9 快取內容驗證：切片完成後，在快取目錄中確認存在 N 個 `layer_XXXX.png` 檔案，且可用圖片檢視器正常開啟（確認 PNG 格式正確）
+- [x] 5.1 在 `SLAPrintSteps.cpp` 的 `rasterize()` 函式開頭宣告 CAS 進度計數器：`std::atomic<int> completed_layers{0}` 與 `std::atomic<int> last_reported_pct{-1}`
+- [x] 5.2 以 `tbb::parallel_for(tbb::blocked_range<size_t>(0, N), lambda)` 取代原有 producer-consumer loop；lambda 負責：光柵化（AGG）→ stack blur（已於 Phase 4 整合至 `expolygons_to_cvmat`）→ miniz PNG 編碼 → RasterCache write_layer → CAS 進度回報
+- [x] 5.3 在 lambda 中以 RAII wrapper 封裝 `tdefl_write_image_to_png_file_in_memory` 的回傳 buffer，確保無論成功或拋出例外，`MZ_FREE` 皆在 `write_layer` 後立即執行
+- [x] 5.4 在 lambda 末尾實作 CAS throttle（D5 片段）：`fetch_add` → 計算 pct → `compare_exchange_strong` → 成功者呼叫 `report_status(pct, L("Rasterizing layers..."))`
+- [x] 5.5 驗證：執行 `build_release_vs2022.bat slicer`，確認零編譯錯誤
+- [x] 5.6 速度驗收：對 360 層 13320×5120 模型切片，記錄 wall time（目標 ≤ 50s）；若無此規格模型，以縮放比例推估並記錄
+- [x] 5.7 OOM 驗證：切片期間以工作管理員監控記憶體，確認峰值不隨 N 線性成長，切片結束後記憶體回落
+- [x] 5.8 進度驗證：確認 UI 進度條在切片期間持續平滑更新，不出現凍結或事件洪流卡頓
+- [x] 5.9 快取內容驗證：切片完成後，在快取目錄中確認存在 N 個 `layer_XXXX.rle` 檔案（架構已轉向 PRZ-RLE 格式）
 
 ## 6. generate_prz() 快取命中路徑重寫
 

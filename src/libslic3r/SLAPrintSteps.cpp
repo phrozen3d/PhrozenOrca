@@ -25,8 +25,16 @@
 #include <libslic3r/Format/PhrozenPRZ.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
+#include <libslic3r/SLA/RasterCache.hpp>
 
 #include <libslic3r/ClipperUtils.hpp>
+
+#include <atomic>
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
+#include <tbb/partitioner.h>
+#include <tbb/task_arena.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include <boost/log/trivial.hpp>
 
@@ -1460,6 +1468,193 @@ void SLAPrint::Steps::rasterize()
         rp.picture_grayscale = static_cast<uint8_t>(
             std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
         m_print->m_raster_params = rp;
+    }
+
+    // Phase 5: full-parallel PNG rasterization into RasterCache
+    {
+        auto       &printer_input = m_print->m_printer_input;
+        const auto &rp            = *m_print->m_raster_params;
+        const size_t N            = printer_input.size();
+
+        if (N == 0 || canceled()) return;
+
+        sla::RasterCacheKey cache_key =
+            sla::RasterCache::compute_key(rp, printer_input);
+
+        if (sla::RasterCache::is_valid(cache_key)) {
+            BOOST_LOG_TRIVIAL(info)
+                << "SLA rasterize: cache hit " << cache_key.hash;
+            return;
+        }
+
+        BOOST_LOG_TRIVIAL(info)
+            << "SLA rasterize: cache miss, rasterizing " << N << " layers";
+
+        // Create the cache directory exactly once before the parallel loop.
+        // Calling create_directories from every thread (inside write_layer) causes
+        // severe NTFS MFT-entry lock contention on Windows, effectively serializing
+        // all I/O and stalling progress around the 50-60% mark.
+        sla::RasterCache::ensure_dir(cache_key);
+
+        // 5.1 CAS progress counters
+        std::atomic<int> completed_layers{0};
+        std::atomic<int> last_reported_pct{-1};
+
+        // PRZ-RLE encoding constants — identical to those in generate_prz().
+        // static constexpr avoids lambda-capture requirements.
+        static constexpr uchar RLE_BLACK          = 0x00;
+        static constexpr uchar RLE_WHITE          = 0xc0;
+        static constexpr uchar RLE_GRAY           = 0x40;
+        static constexpr uchar RLE_BYTE_NUMBER[4] = { 0x00, 0x10, 0x20, 0x30 };
+        static constexpr int   RLE_CONT_BOUND[4]  = { 1 << 4, 1 << 12, 1 << 20, 1 << 28 };
+        static constexpr int   RLE_BOUND_0        = 0x0f;
+
+        // 5.2 Cap concurrency to control cv::Mat memory pressure.
+        // At 13320×5120, each layer's Mat is ~65 MB.
+        // 8 threads × 65 MB = 520 MB working set — no paging, no heap contention.
+        // RLE encoding is orders of magnitude faster than PNG so CPU is no longer
+        // the bottleneck; the arena exists purely to bound peak memory.
+        constexpr int RASTERIZE_CONCURRENCY = 8;
+        tbb::task_arena raster_arena(RASTERIZE_CONCURRENCY);
+
+        // 5.2a Thread-local storage: each of the 8 arena threads allocates its
+        // cv::Mat (65 MB) and rle_buf (~34 MB worst-case) exactly once on first use,
+        // then reuses both buffers for every subsequent layer on that thread.
+        // Eliminates all per-layer malloc/free: previously ~100 MB of transient
+        // allocations per layer caused CRT heap lock contention at the 55% peak.
+        struct TLSData {
+            cv::Mat           mat;
+            std::vector<char> rle_buf;
+        };
+        tbb::enumerable_thread_specific<TLSData> tls;
+
+        raster_arena.execute([&] {
+            tbb::parallel_for(
+                tbb::blocked_range<size_t>(0, N, /*grain_size=*/1),
+                [&](const tbb::blocked_range<size_t> &range) {
+                    for (size_t lid = range.begin(); lid < range.end(); ++lid) {
+                        throw_if_canceled();
+
+                        ExPolygons polys = printer_input[lid].transformed_slices();
+                        for (ExPolygon &ep : polys)
+                            ep.translate(rp.shift);
+
+                        // Reuse thread-local Mat and RLE buffer — no malloc after first layer.
+                        TLSData        &tls_data = tls.local();
+                        cv::Mat        &mat      = tls_data.mat;
+                        std::vector<char> &rle_buf = tls_data.rle_buf;
+
+                        sla::expolygons_to_cvmat(
+                            mat, polys, rp.res, rp.pxdim, rp.trafo,
+                            rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
+                            rp.blur_pixel);
+
+                        sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
+
+                        // 5.3 PRZ-RLE encode — no DEFLATE, no PNG checksums.
+                        // Produces the same przByte layout as generate_prz() so
+                        // Phase 6 can stream cached bytes directly to the PRZ output.
+                        const int    total = mat.rows * mat.cols;
+                        const uchar *data  = mat.data;
+
+                        // Worst case: every pixel is its own gray run → 2 bytes each
+                        // + 1 header + 1 checksum. Reserve once; subsequent layers reuse.
+                        const size_t rle_cap = static_cast<size_t>(total) * 2 + 16;
+                        if (rle_buf.size() < rle_cap)
+                            rle_buf.resize(rle_cap);
+
+                        size_t rle_pos = 0;
+                        rle_buf[rle_pos++] = static_cast<char>(0x55); // PRZ layer head
+                        int sum = 0;
+
+                        auto flush_run = [&](uchar color, int count) {
+                            const char *c = reinterpret_cast<const char *>(&count);
+                            if (color == 0x00 || color == 0xff) {
+                                uchar base = (color == 0x00) ? RLE_BLACK : RLE_WHITE;
+                                for (int bid = 0; bid < 4; ++bid) {
+                                    if (count < RLE_CONT_BOUND[bid]) {
+                                        uchar b0 = base + RLE_BYTE_NUMBER[bid] +
+                                                   (count & RLE_BOUND_0);
+                                        count >>= 4;
+                                        sum += static_cast<int>(b0);
+                                        rle_buf[rle_pos++] = static_cast<char>(b0);
+                                        for (int k = bid; k >= 1; --k) {
+                                            rle_buf[rle_pos++] = c[k - 1];
+                                            sum += static_cast<int>(
+                                                static_cast<uchar>(c[k - 1]));
+                                        }
+                                        break;
+                                    }
+                                }
+                            } else {
+                                for (int bid = 0; bid < 4; ++bid) {
+                                    if (count < RLE_CONT_BOUND[bid]) {
+                                        uchar b0 = RLE_GRAY + RLE_BYTE_NUMBER[bid] +
+                                                   (count & RLE_BOUND_0);
+                                        count >>= 4;
+                                        sum += static_cast<int>(b0);
+                                        rle_buf[rle_pos++] = static_cast<char>(b0);
+                                        rle_buf[rle_pos++] = static_cast<char>(color);
+                                        sum += static_cast<int>(color);
+                                        for (int k = bid; k >= 1; --k) {
+                                            rle_buf[rle_pos++] = c[k - 1];
+                                            sum += static_cast<int>(
+                                                static_cast<uchar>(c[k - 1]));
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        };
+
+                        if (total > 0) {
+                            uchar cur   = data[0];
+                            int   count = 1;
+                            for (int j = 1; j < total; ++j) {
+                                uchar px = data[j];
+                                if (px == cur) {
+                                    ++count;
+                                } else {
+                                    flush_run(cur, count);
+                                    cur   = px;
+                                    count = 1;
+                                }
+                            }
+                            flush_run(cur, count);
+                        }
+
+                        rle_buf[rle_pos++] = static_cast<char>(
+                            static_cast<uchar>((~sum) & 0xff)); // checksum
+
+                        // Both mat and rle_buf are TLS — do NOT free them.
+                        // They persist across all layers on this thread.
+
+                        sla::RasterCache::write_layer(
+                            cache_key, lid, rle_buf.data(), rle_pos);
+
+                        // 5.4 CAS throttle: at most one report_status per 1% increment
+                        int done = completed_layers.fetch_add(
+                                       1, std::memory_order_relaxed) + 1;
+                        int pct  = static_cast<int>(done * 100 /
+                                       static_cast<int>(N));
+                        int prev = last_reported_pct.load(
+                                       std::memory_order_relaxed);
+                        if (pct > prev &&
+                            last_reported_pct.compare_exchange_strong(
+                                prev, pct,
+                                std::memory_order_relaxed,
+                                std::memory_order_relaxed)) {
+                            report_status(pct, L("Rasterizing layers..."));
+                        }
+                    }
+                },
+                tbb::auto_partitioner{});
+        });
+
+        // Write the completion sentinel after all layers are fully written.
+        // is_valid() now checks for this file, so a process killed mid-rasterize
+        // cannot leave a partially-written cache that appears valid on next run.
+        sla::RasterCache::mark_complete(cache_key);
     }
 }
 

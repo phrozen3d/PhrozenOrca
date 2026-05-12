@@ -60,30 +60,52 @@ RasterCacheKey RasterCache::compute_key(
     return {hash, base_dir() / hash};
 }
 
-void RasterCache::write_layer(const RasterCacheKey &key, size_t lid,
-                              const std::string    &png_bytes)
+void RasterCache::ensure_dir(const RasterCacheKey &key)
 {
+    // Call this ONCE (single-threaded) before any parallel write_layer() calls.
+    // Doing create_directories inside write_layer() from many threads causes
+    // severe NTFS directory-lock contention on Windows, serializing all I/O.
     fs::create_directories(key.dir);
+}
 
+void RasterCache::write_layer(const RasterCacheKey &key, size_t lid,
+                              const char *data, size_t size)
+{
+    // Direct write — caller must call ensure_dir() first; no temp+rename.
+    // Each lid maps to a unique filename so concurrent calls for different
+    // lids never collide.
     std::ostringstream name;
-    name << "layer_" << std::setw(4) << std::setfill('0') << lid << ".png";
-
-    fs::path tmp_path  = key.dir / (name.str() + ".tmp");
+    name << "layer_" << std::setw(4) << std::setfill('0') << lid << ".rle";
     fs::path dest_path = key.dir / name.str();
 
-    {
-        std::ofstream f(tmp_path.string(), std::ios::binary | std::ios::trunc);
-        if (!f)
-            throw std::runtime_error("RasterCache: cannot open " + tmp_path.string());
-        f.write(png_bytes.data(), static_cast<std::streamsize>(png_bytes.size()));
-    }
-    fs::rename(tmp_path, dest_path);
+    std::ofstream f(dest_path.string(), std::ios::binary | std::ios::trunc);
+    if (!f)
+        throw std::runtime_error("RasterCache: cannot open " + dest_path.string());
+    f.write(data, static_cast<std::streamsize>(size));
+}
+
+void RasterCache::write_layer(const RasterCacheKey &key, size_t lid,
+                              const std::string    &rle_bytes)
+{
+    write_layer(key, lid, rle_bytes.data(), rle_bytes.size());
+}
+
+void RasterCache::mark_complete(const RasterCacheKey &key)
+{
+    // Write a zero-byte sentinel after all layers are fully written.
+    // is_valid() checks for this file, not layer_0000.png, so a partial write
+    // (process killed mid-rasterize) never looks like a valid cache.
+    fs::path sentinel = key.dir / "cache_complete";
+    std::ofstream f(sentinel.string(), std::ios::binary | std::ios::trunc);
+    if (!f)
+        BOOST_LOG_TRIVIAL(warning)
+            << "RasterCache: could not write sentinel " << sentinel.string();
 }
 
 std::string RasterCache::read_layer(const RasterCacheKey &key, size_t lid)
 {
     std::ostringstream name;
-    name << "layer_" << std::setw(4) << std::setfill('0') << lid << ".png";
+    name << "layer_" << std::setw(4) << std::setfill('0') << lid << ".rle";
     fs::path p = key.dir / name.str();
 
     std::ifstream f(p.string(), std::ios::binary);
@@ -96,9 +118,10 @@ std::string RasterCache::read_layer(const RasterCacheKey &key, size_t lid)
 
 bool RasterCache::is_valid(const RasterCacheKey &key)
 {
+    // Check for the sentinel written by mark_complete(), not layer_0000.png.
+    // This prevents a process-killed partial cache from appearing valid.
     try {
-        fs::path sentinel = key.dir / "layer_0000.png";
-        return fs::exists(sentinel) && fs::file_size(sentinel) > 0;
+        return fs::exists(key.dir / "cache_complete");
     } catch (...) {
         return false;
     }

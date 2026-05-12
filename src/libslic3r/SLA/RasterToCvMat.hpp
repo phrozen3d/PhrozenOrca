@@ -30,6 +30,22 @@ cv::Mat expolygons_to_cvmat(
     uint8_t                  gray_hi    = 255,
     int                      blur_pixel = 0);
 
+// In-place variant: rasterizes directly into dst, reusing its existing memory
+// if the Mat is already the correct size (rows==height_px, cols==width_px,
+// CV_8UC1, continuous). Only allocates on the first call per thread when used
+// with tbb::enumerable_thread_specific<cv::Mat>.
+void expolygons_to_cvmat(
+    cv::Mat                 &dst,
+    const ExPolygons        &polys,
+    const Resolution        &res,
+    const PixelDim          &pxdim,
+    const RasterBase::Trafo &trafo      = {},
+    double                   gamma      = 1.0,
+    int                      aa_steps   = 0,
+    uint8_t                  gray_lo    = 0,
+    uint8_t                  gray_hi    = 255,
+    int                      blur_pixel = 0);
+
 // Convert all layers to cv::Mat images in parallel.
 // layer_polys[i] is the merged ExPolygons for layer i.
 // Returns one CV_8UC1 cv::Mat per layer, in the same index order.
