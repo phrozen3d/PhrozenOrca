@@ -821,6 +821,23 @@ bool GLGizmosManager::on_char(wxKeyEvent& evt)
 
             break;
         }
+#ifdef __APPLE__
+        case 'z':
+        case 'Z':
+#else /* __APPLE__ */
+        case WXK_CONTROL_Z:
+#endif /* __APPLE__ */
+        {
+            // When Drill gizmo has pending (unapplied) changes, intercept Ctrl+Z to discard
+            // those changes instead of triggering global undo. If no pending changes, fall
+            // through and let the canvas handle global undo normally.
+            if (m_current == Drill) {
+                GLGizmoDrill* drill = dynamic_cast<GLGizmoDrill*>(m_gizmos[Drill].get());
+                if (drill && drill->discard_pending_changes())
+                    processed = true;
+            }
+            break;
+        }
         }
     }
     else if (!evt.HasModifiers()) {

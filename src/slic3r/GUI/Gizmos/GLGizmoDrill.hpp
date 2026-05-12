@@ -44,6 +44,10 @@ public:
     /// <returns>Return True when use the information otherwise False.</returns>
     bool on_mouse(const wxMouseEvent &mouse_event) override;
 
+    // Pending-changes detection and discard — used by GLGizmosManager::on_char() for Ctrl+Z interception.
+    bool has_pending_changes() const;
+    bool discard_pending_changes();
+
 protected:
     bool on_init() override;
     void on_render() override;
@@ -65,8 +69,9 @@ private:
     float m_new_hole_height = 6.f;
     mutable std::vector<bool> m_selected; // which holes are currently selected
 
-    // Tracks hole sizes before a slider/input drag begins, so we can
-    // restore them before taking a TakeSnapshot (same pattern as GLGizmoBrimEars).
+    // Tracks hole sizes at the start of a slider/input drag, used as the guard condition
+    // (both == 0.f means no drag in progress). No TakeSnapshot is taken — size changes
+    // are pending in m_working_holes until the user presses Apply.
     float            m_radius_before_change = 0.f;
     float            m_height_before_change = 0.f;
     sla::DrainHoles  m_holes_before_change;
@@ -78,7 +83,8 @@ private:
     Vec3f m_hole_normal_before_drag = Vec3f::Zero();
     sla::DrainHoles m_holes_in_drilled_mesh;
 
-    sla::DrainHoles m_holes_stash;
+    sla::DrainHoles m_working_holes;      // pending preview working set; only Apply commits this to sla_drain_holes
+    sla::DrainHoles m_last_resliced_holes; // applied holes at the last DrillHoles reslice; compared after Undo/Redo to avoid over-triggering reslice
 
     std::map<std::string, wxString> m_desc;
 
@@ -86,7 +92,6 @@ private:
 
     bool m_wait_for_up_event = false;
     bool m_selection_empty = true;
-    bool m_stash_initialized = false;
     EState m_old_state = Off;
 
     bool is_mesh_point_clipped(const Vec3d& point) const;
