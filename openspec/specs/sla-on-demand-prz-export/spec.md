@@ -1,24 +1,28 @@
 # Spec: SLA On-Demand PRZ 批次匯出
 
-## Requirement: generate_prz 採批次並行 On-Demand 光柵化
+## Requirement: generate_prz 採雙路徑匯出（快取命中 / 快取未命中）
 
-`generate_prz()` SHALL 不再讀取 `print.layer_images()`，改為以批次大小 `BATCH_SZ = 8` 迭代 `print.print_layers()`，每批次 TBB 平行呼叫 `expolygons_to_cvmat()`，編碼完成後立即釋放 `cv::Mat`。
+`generate_prz()` SHALL 依 `RasterCache::is_valid()` 決定執行路徑：
 
-### Scenario: PRZ 匯出成功且輸出與舊版一致
-- **WHEN** 使用者點擊匯出 PRZ，且 `raster_params().has_value()` 為 `true`
-- **THEN** 輸出的 PRZ 檔案中每層的 RLE 編碼像素資料，與舊版（透過 `m_layer_images`）產生的結果完全相同
+**快取命中路徑**：以批次大小 `EXPORT_BATCH = 8` 迭代所有 N 層，每批次以 `tbb::task_arena(EXPORT_BATCH)` 限制並行數，平行呼叫 `RasterCache::read_layer` 讀取原生 PRZ-RLE bytes（`.rle` 檔案）至 `rle_results[]`；再循序寫入 per-layer header（`prz_layer_content`）、4-byte BE 長度、RLE payload、CRLF，最後一層附加 DLP end tag；每層寫完後立即 `clear()` + `shrink_to_fit()`；不執行光柵化、不使用 `cv::imdecode`。
+
+**快取未命中路徑**：以批次大小 `BATCH_SZ = 8` 迭代 `print.print_layers()`，TBB 平行呼叫 `expolygons_to_cvmat()` on-demand 光柵化，RLE 編碼後串流輸出，`cv::Mat` 立即釋放。
+
+### Scenario: 快取命中時 PRZ 匯出成功且輸出 Bit-Perfect
+- **WHEN** 使用者點擊匯出 PRZ，且 `RasterCache::is_valid()` 為 `true`
+- **THEN** 輸出的 PRZ 檔案中每層的 RLE 編碼像素資料，與重構前版本產生的結果完全相同（bit-perfect）
 
 ### Scenario: 批次邊界正確處理
-- **WHEN** 切層總數不為 BATCH_SZ 整數倍（例如 100 層，最後一批為 4 層）
+- **WHEN** 切層總數不為 EXPORT_BATCH 整數倍（例如 100 層，最後一批為 4 層）
 - **THEN** 最後一批正確處理剩餘層數，不發生越界存取或遺漏層
 
-### Scenario: 每層 cv::Mat 在 RLE 編碼後立即釋放
-- **WHEN** 第 i 層的 RLE 編碼完成
-- **THEN** `batch_mats[i].release()` 被呼叫，記憶體即時歸還，不等待批次或匯出結束
+### Scenario: 批次內各層 RLE 在循序寫入後立即釋放
+- **WHEN** 第 i 批次的循序 append 完成
+- **THEN** `rle_results[i].clear()` 與 `shrink_to_fit()` 被呼叫，記憶體即時歸還，不等待整個匯出結束
 
 ### Scenario: 記憶體峰值符合預期
-- **WHEN** 匯出 100 層 Mega 8K 解析度的 PRZ
-- **THEN** `cv::Mat` 相關記憶體峰值 ≤ `BATCH_SZ × 約 23 MB = 約 184 MB`（相較舊版 ~2.3 GB）
+- **WHEN** 匯出 360 層 13320×5120 解析度的 PRZ（快取命中路徑）
+- **THEN** 同一批次同時存在記憶體中的資料量 ≤ `EXPORT_BATCH × ~5 MB（RLE）≈ 40 MB`；峰值遠低於 650 MB
 
 ---
 
