@@ -65,20 +65,11 @@ private:
     float m_new_hole_height = 6.f;
     mutable std::vector<bool> m_selected; // which holes are currently selected
 
-    // Tracks hole sizes before a slider/input drag begins, so we can
-    // restore them before taking a TakeSnapshot (same pattern as GLGizmoBrimEars).
-    float            m_radius_before_change = 0.f;
-    float            m_height_before_change = 0.f;
-    sla::DrainHoles  m_holes_before_change;
-
-    void begin_size_change(float old_radius, float old_height);
-    void apply_size_change(const std::string& snapshot_name);
+    sla::DrainHoles m_working_holes; // pending session working set; only Apply writes to ModelObject
 
     Vec3f m_hole_before_drag        = Vec3f::Zero();
     Vec3f m_hole_normal_before_drag = Vec3f::Zero();
     sla::DrainHoles m_holes_in_drilled_mesh;
-
-    sla::DrainHoles m_holes_stash;
 
     std::map<std::string, wxString> m_desc;
 
@@ -86,7 +77,6 @@ private:
 
     bool m_wait_for_up_event = false;
     bool m_selection_empty = true;
-    bool m_stash_initialized = false;
     EState m_old_state = Off;
 
     bool is_mesh_point_clipped(const Vec3d& point) const;

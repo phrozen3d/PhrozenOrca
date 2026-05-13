@@ -55,22 +55,13 @@ void GLGizmoDrill::data_changed(bool is_serializing)
     const ModelObject* mo = m_c->selection_info()->model_object();
     if (m_state == On && mo) {
         if (m_old_mo_id != mo->id()) {
-            // Restore previous object's holes to applied baseline before switching.
-            if (m_stash_initialized) {
-                for (ModelObject* old_obj : wxGetApp().plater()->model().objects)
-                    if (old_obj->id() == m_old_mo_id) {
-                        old_obj->sla_drain_holes = m_holes_stash;
-                        break;
-                    }
-            }
-            // Snapshot new object's current holes as this session's baseline.
-            m_holes_stash = mo->sla_drain_holes;
-            m_stash_initialized = true;
+            // New object: initialize working set from committed model state.
+            m_working_holes = mo->sla_drain_holes;
             reload_cache();
             m_old_mo_id = mo->id();
-        } else if (is_serializing && m_stash_initialized) {
-            // Undo/Redo changed holes on the same object; keep session baseline in sync.
-            m_holes_stash = mo->sla_drain_holes;
+        } else if (is_serializing) {
+            // Undo/Redo restored sla_drain_holes via cereal; rebuild working set to match.
+            m_working_holes = mo->sla_drain_holes;
             reload_cache();
             unregister_hole_raycasters_for_picking();
             // register_hole_raycasters_for_picking() is called by the common path below.
@@ -163,7 +154,7 @@ void GLGizmoDrill::render_points(const Selection& selection)
     shader->set_uniform("projection_matrix", camera.get_projection_matrix());
 
     ColorRGBA render_color;
-    const sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    const sla::DrainHoles& drain_holes = m_working_holes;
     const size_t cache_size = drain_holes.size();
 
     for (size_t i = 0; i < cache_size; ++i) {
@@ -247,12 +238,10 @@ bool GLGizmoDrill::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_posi
         if (m_selection_empty) {
             std::pair<Vec3f, Vec3f> pos_and_normal;
             if (unproject_on_mesh(mouse_position, pos_and_normal)) {
-                Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add drainage hole");
-
-                mo->sla_drain_holes.emplace_back(pos_and_normal.first,
-                                                -pos_and_normal.second, m_new_hole_radius, m_new_hole_height);
+                m_working_holes.emplace_back(pos_and_normal.first,
+                                            -pos_and_normal.second, m_new_hole_radius, m_new_hole_height);
                 m_selected.push_back(false);
-                assert(m_selected.size() == mo->sla_drain_holes.size());
+                assert(m_selected.size() == m_working_holes.size());
                 m_parent.set_as_dirty();
                 m_wait_for_up_event = true;
                 unregister_hole_raycasters_for_picking();
@@ -273,8 +262,8 @@ bool GLGizmoDrill::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_posi
         Geometry::Transformation trafo = mo->instances[active_inst]->get_transformation();
         trafo.set_offset(trafo.get_offset() + Vec3d(0., 0., m_c->selection_info()->get_sla_shift()));
         std::vector<Vec3d> points;
-        for (unsigned int i=0; i<mo->sla_drain_holes.size(); ++i)
-            points.push_back(trafo.get_matrix() * mo->sla_drain_holes[i].pos.cast<double>());
+        for (unsigned int i=0; i<m_working_holes.size(); ++i)
+            points.push_back(trafo.get_matrix() * m_working_holes[i].pos.cast<double>());
 
         std::vector<Vec3f> points_inside;
         std::vector<unsigned int> points_idxs = m_selection_rectangle.contains(points);
@@ -357,8 +346,7 @@ bool GLGizmoDrill::gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_posi
 
 void GLGizmoDrill::delete_selected_points()
 {
-    Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Delete drainage hole");
-    sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    sla::DrainHoles& drain_holes = m_working_holes;
 
     for (unsigned int idx=0; idx<drain_holes.size(); ++idx) {
         if (m_selected[idx]) {
@@ -438,10 +426,9 @@ void GLGizmoDrill::register_hole_raycasters_for_picking()
     const Model* model = sel.get_model();
     if (obj_idx < 0 || model == nullptr || obj_idx >= (int)model->objects.size())
         return;
-    const ModelObject* mo = model->objects[obj_idx];
-    if (mo == nullptr || mo->sla_drain_holes.empty())
+    if (model->objects[obj_idx] == nullptr || m_working_holes.empty())
         return;
-    const sla::DrainHoles& drain_holes = mo->sla_drain_holes;
+    const sla::DrainHoles& drain_holes = m_working_holes;
     for (int i = 0; i < (int)drain_holes.size(); ++i) {
         m_hole_raycasters.emplace_back(m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cylinder.mesh_raycaster, Transform3d::Identity()));
     }
@@ -460,7 +447,7 @@ void GLGizmoDrill::update_hole_raycasters_for_picking_transform()
 {
     const CommonGizmosDataObjects::SelectionInfo* info = m_c->selection_info();
     if (info != nullptr) {
-        const sla::DrainHoles& drain_holes = info->model_object()->sla_drain_holes;
+        const sla::DrainHoles& drain_holes = m_working_holes;
         if (!drain_holes.empty()) {
             assert(!m_hole_raycasters.empty());
 
@@ -630,33 +617,26 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // final clamp [0.1, 60]: allows keyboard input beyond slider range, protects against nonsense.
     // If current value exceeds slider range, handle visually saturates at the endpoint.
     float display_diam = m_new_hole_radius * 2.f;       // shared by slider and InputFloat below
-    float pre_radius   = m_new_hole_radius;             // save before slider may change it
     if (draw_custom_slider("##sl_diameter", display_diam, 1.f, 25.f, 0.1f, 60.f, slider_w, is_input_enabled())) {
         m_new_hole_radius = display_diam / 2.f;         // slider: immediate apply, every frame
-        begin_size_change(pre_radius, m_new_hole_height); // no-op after first call
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
-                    mo->sla_drain_holes[idx].radius = m_new_hole_radius; // radius only
+                    m_working_holes[idx].radius = m_new_hole_radius; // radius only
             m_parent.set_as_dirty();
         }
     }
-    if (ImGui::IsItemDeactivated())
-        apply_size_change("Change hole radius");
     ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
     ImGui::InputFloat("##ph_diameter", &display_diam, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
-    if (ImGui::IsItemActivated() && is_input_enabled())
-        begin_size_change(m_new_hole_radius, m_new_hole_height);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
         m_new_hole_radius = std::clamp(display_diam, 0.1f, 60.f) / 2.f;  // final clamp [0.1, 60]
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
-                    mo->sla_drain_holes[idx].radius = m_new_hole_radius; // radius only
+                    m_working_holes[idx].radius = m_new_hole_radius; // radius only
             m_parent.set_as_dirty();
         }
-        apply_size_change("Change hole radius");
     }
     ImGui::PopItemWidth();
 
@@ -669,33 +649,26 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
     // slider range [0, 10]: common drag range (matches old Hollow UI).
     // final clamp [0, 100]: allows keyboard input beyond slider range, protects against nonsense.
     float display_depth = m_new_hole_height;            // shared by slider and InputFloat below
-    float pre_height    = m_new_hole_height;            // save before slider may change it
     if (draw_custom_slider("##sl_depth", display_depth, 0.f, 10.f, 0.f, 100.f, slider_w, is_input_enabled())) {
         m_new_hole_height = display_depth;              // slider: immediate apply, every frame
-        begin_size_change(m_new_hole_radius, pre_height); // no-op after first call
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
-                    mo->sla_drain_holes[idx].height = m_new_hole_height; // height only
+                    m_working_holes[idx].height = m_new_hole_height; // height only
             m_parent.set_as_dirty();
         }
     }
-    if (ImGui::IsItemDeactivated())
-        apply_size_change("Change hole depth");
     ImGui::SameLine();
     ImGui::PushItemWidth(value_box_w);
     ImGui::InputFloat("##ph_depth", &display_depth, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
-    if (ImGui::IsItemActivated() && is_input_enabled())
-        begin_size_change(m_new_hole_radius, m_new_hole_height);
     if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
         m_new_hole_height = std::clamp(display_depth, 0.f, 100.f);
         if (!m_selection_empty) {
             for (size_t idx = 0; idx < m_selected.size(); ++idx)
                 if (m_selected[idx])
-                    mo->sla_drain_holes[idx].height = m_new_hole_height; // height only
+                    m_working_holes[idx].height = m_new_hole_height; // height only
             m_parent.set_as_dirty();
         }
-        apply_size_change("Change hole depth");
     }
     ImGui::PopItemWidth();
 
@@ -750,15 +723,16 @@ void GLGizmoDrill::render_new_drill_panel(float x, float y, float legacy_panel_h
         ImGui::SameLine();
         // Guard: same condition as old UI disabled_begin for "remove all"
         if (ImGui::Button((m_desc.at("remove_all") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f)))
-            if (is_input_enabled() && !mo->sla_drain_holes.empty())
+            if (is_input_enabled() && !m_working_holes.empty())
                 remove_all = true;        // post-render block in on_render_input_window handles deletion
 
-        // Row 5: [indent = icon width] | Preview | Reset direction
+        // Row 5: [indent = icon width] | Apply
         ImGui::Dummy(ImVec2(button_size.x, 0.f)); // aligned to icon width
         ImGui::SameLine();
         if (ImGui::Button((m_desc.at("apply") + "##new").ToUTF8().data(), ImVec2(btn_w, 0.f))) {
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Apply drain holes");
+            mo->sla_drain_holes = m_working_holes;
             reslice_until_step(slaposDrillHoles);
-            m_holes_stash = mo->sla_drain_holes;  // update applied baseline
         }
     } // end Row 4-5 help icon block
 
@@ -854,11 +828,8 @@ void GLGizmoDrill::on_set_state()
         return;
 
     if (m_state == On) {
-        // Ensure clean stash state for a new Drill session.
-        // m_old_mo_id is intentionally NOT reset here: data_changed() will detect the object-switch
-        // via m_old_mo_id != mo->id() and set up the stash correctly. Keeping the last known ID
-        // lets on_set_state(Off)'s fallback search find the object if selection_info() is unavailable.
-        m_stash_initialized = false;
+        // m_old_mo_id is intentionally NOT reset here: data_changed() detects the object-switch
+        // via m_old_mo_id != mo->id() and initializes m_working_holes from mo->sla_drain_holes.
         if (!selected_print_object_exists(m_parent, _L("Selected object has to be on the active bed."))) {
             m_state = Off;
             return;
@@ -866,19 +837,9 @@ void GLGizmoDrill::on_set_state()
     }
 
     if (m_state == Off && m_old_state != Off) {
-        // Restore holes to the applied baseline (last Apply, or entry state if never applied).
-        if (m_stash_initialized) {
-            ModelObject* mo_restore = nullptr;
-            if (m_c->selection_info())
-                mo_restore = m_c->selection_info()->model_object();
-            if (!mo_restore) {
-                for (ModelObject* obj : wxGetApp().plater()->model().objects)
-                    if (obj->id() == m_old_mo_id) { mo_restore = obj; break; }
-            }
-            if (mo_restore)
-                mo_restore->sla_drain_holes = m_holes_stash;
-            m_stash_initialized = false;
-        }
+        // Discard pending working set. mo->sla_drain_holes is never written during the session,
+        // so the model already holds the correct committed state — no restore needed.
+        m_working_holes.clear();
         m_old_mo_id = ObjectID{};
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
         m_c->instances_hider()->set_hide_full_scene(false);
@@ -893,8 +854,8 @@ void GLGizmoDrill::on_start_dragging()
     if (m_hover_id != -1) {
         select_point(NoPoints);
         select_point(m_hover_id);
-        m_hole_before_drag        = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].pos;
-        m_hole_normal_before_drag = m_c->selection_info()->model_object()->sla_drain_holes[m_hover_id].normal;
+        m_hole_before_drag        = m_working_holes[m_hover_id].pos;
+        m_hole_normal_before_drag = m_working_holes[m_hover_id].normal;
     }
     else {
         m_hole_before_drag        = Vec3f::Zero();
@@ -905,20 +866,14 @@ void GLGizmoDrill::on_start_dragging()
 
 void GLGizmoDrill::on_stop_dragging()
 {
-    sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
     if (m_hover_id != -1) {
-        Vec3f backup        = drain_holes[m_hover_id].pos;
-        Vec3f backup_normal = drain_holes[m_hover_id].normal;
-
-        if (m_hole_before_drag != Vec3f::Zero()
-         && (backup != m_hole_before_drag || backup_normal != m_hole_normal_before_drag))
+        if (m_hole_before_drag == Vec3f::Zero()
+         || (m_working_holes[m_hover_id].pos    == m_hole_before_drag
+          && m_working_holes[m_hover_id].normal == m_hole_normal_before_drag))
         {
-            drain_holes[m_hover_id].pos    = m_hole_before_drag;
-            drain_holes[m_hover_id].normal = m_hole_normal_before_drag;
-            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Move drainage hole");
-            drain_holes[m_hover_id].pos    = backup;
-            drain_holes[m_hover_id].normal = backup_normal;
+            // No actual move — nothing to do.
         }
+        // else: position already updated in m_working_holes by on_dragging(); no snapshot needed.
     }
     m_hole_before_drag        = Vec3f::Zero();
     m_hole_normal_before_drag = Vec3f::Zero();
@@ -931,9 +886,8 @@ void GLGizmoDrill::on_dragging(const UpdateData &data)
     std::pair<Vec3f, Vec3f> pos_and_normal;
     if (!unproject_on_mesh(data.mouse_pos.cast<double>(), pos_and_normal))
         return;
-    sla::DrainHoles &drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
-    drain_holes[m_hover_id].pos    = pos_and_normal.first;
-    drain_holes[m_hover_id].normal = -pos_and_normal.second;
+    m_working_holes[m_hover_id].pos    = pos_and_normal.first;
+    m_working_holes[m_hover_id].normal = -pos_and_normal.second;
 }
 
 
@@ -957,50 +911,9 @@ void GLGizmoDrill::on_save(cereal::BinaryOutputArchive& ar) const
 }
 
 
-void GLGizmoDrill::begin_size_change(float old_radius, float old_height)
-{
-    if (m_radius_before_change == 0.f && m_height_before_change == 0.f) {
-        m_radius_before_change = old_radius;
-        m_height_before_change = old_height;
-        m_holes_before_change  = m_c->selection_info()->model_object()->sla_drain_holes;
-    }
-}
-
-void GLGizmoDrill::apply_size_change(const std::string& snapshot_name)
-{
-    if (m_radius_before_change == 0.f && m_height_before_change == 0.f)
-        return;
-
-    ModelObject* mo = m_c->selection_info()->model_object();
-    auto& holes = mo->sla_drain_holes;
-
-    // Restore old values so TakeSnapshot captures the pre-change state.
-    float new_radius = m_new_hole_radius;
-    float new_height = m_new_hole_height;
-    holes = m_holes_before_change;
-
-    Plater::TakeSnapshot snapshot(wxGetApp().plater(), snapshot_name);
-
-    // Re-apply new values to selected holes.
-    m_new_hole_radius = new_radius;
-    m_new_hole_height = new_height;
-    for (size_t idx = 0; idx < holes.size(); ++idx) {
-        if (m_selected.size() > idx && m_selected[idx]) {
-            holes[idx].radius = new_radius;
-            holes[idx].height = new_height;
-        }
-    }
-    m_parent.set_as_dirty();
-
-    m_radius_before_change = 0.f;
-    m_height_before_change = 0.f;
-    m_holes_before_change.clear();
-}
-
-
 void GLGizmoDrill::select_point(int i)
 {
-    const sla::DrainHoles& drain_holes = m_c->selection_info()->model_object()->sla_drain_holes;
+    const sla::DrainHoles& drain_holes = m_working_holes;
 
     if (i == AllPoints || i == NoPoints) {
         m_selected.assign(m_selected.size(), i == AllPoints);
@@ -1037,16 +950,13 @@ void GLGizmoDrill::unselect_point(int i)
 void GLGizmoDrill::reload_cache()
 {
     m_selected.clear();
-    m_selected.assign(m_c->selection_info()->model_object()->sla_drain_holes.size(), false);
+    m_selected.assign(m_working_holes.size(), false);
 }
 
 
 void GLGizmoDrill::on_set_hover_id()
 {
-    if (m_c->selection_info()->model_object() == nullptr)
-        return;
-
-    if (int(m_c->selection_info()->model_object()->sla_drain_holes.size()) <= m_hover_id)
+    if (int(m_working_holes.size()) <= m_hover_id)
         m_hover_id = -1;
 }
 
