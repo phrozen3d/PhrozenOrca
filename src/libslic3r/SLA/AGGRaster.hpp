@@ -148,7 +148,41 @@ public:
         }
         m_renderer.color(foreground);
         clear(background);
-        
+
+        m_rasterizer.gamma(gammafn);
+    }
+
+    // External buffer overload: m_buf stays empty (no heap allocation);
+    // m_rbuf wraps the caller-owned external_buf directly.
+    template<class GammaFn>
+    AGGRaster(const Resolution &res,
+              const PixelDim &  pd,
+              const Trafo &     trafo,
+              const TColor &    foreground,
+              const TColor &    background,
+              GammaFn &&        gammafn,
+              TValue*           external_buf)
+        : m_resolution(res)
+        , m_pxdim_scaled(SCALING_FACTOR, SCALING_FACTOR)
+        , m_buf{}
+        , m_rbuf(external_buf,
+                 unsigned(res.width_px),
+                 unsigned(res.height_px),
+                 int(res.width_px * PixelRenderer::num_components))
+        , m_pixrenderer(m_rbuf)
+        , m_raw_renderer(m_pixrenderer)
+        , m_renderer(m_raw_renderer)
+        , m_trafo(trafo)
+    {
+        assert(external_buf != nullptr);
+        assert(pd.w_mm != 0 && pd.h_mm != 0);
+        if (pd.w_mm != 0 && pd.h_mm != 0) {
+            m_pxdim_scaled.w_mm /= pd.w_mm;
+            m_pxdim_scaled.h_mm /= pd.h_mm;
+        }
+        m_renderer.color(foreground);
+        clear(background);
+
         m_rasterizer.gamma(gammafn);
     }
     
@@ -168,6 +202,8 @@ public:
     }
     
     void clear(const TColor color) { m_raw_renderer.clear(color); }
+
+    size_t internal_capacity() const { return m_buf.capacity(); }
 };
 
 /*
@@ -197,11 +233,27 @@ public:
                Colors<TColor>::Black,
                std::forward<GammaFn>(fn))
     {}
+
+    // External buffer overload: passes caller-owned buffer to AGGRaster base.
+    template<class GammaFn>
+    RasterGrayscaleAA(const Resolution        &res,
+                      const PixelDim          &pd,
+                      const RasterBase::Trafo &trafo,
+                      GammaFn                &&fn,
+                      TValue*                  external_buf)
+        : Base(res,
+               pd,
+               trafo,
+               Colors<TColor>::White,
+               Colors<TColor>::Black,
+               std::forward<GammaFn>(fn),
+               external_buf)
+    {}
     
     uint8_t read_pixel(size_t col, size_t row) const
     {
         static_assert(std::is_same<TValue, uint8_t>::value, "Not grayscale pix");
-        
+        assert(!Base::m_buf.empty() && "read_pixel() requires internal buffer mode");
         uint8_t px;
         Base::m_buf[row * Base::resolution().width_px + col].get(px);
         return px;

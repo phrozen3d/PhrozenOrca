@@ -1,9 +1,12 @@
 #include "RasterToCvMat.hpp"
 #include "libslic3r/SLA/RasterBase.hpp"
+#include "libslic3r/BoundingBox.hpp"
+#include "AGGRaster.hpp"
 
 #include <opencv2/imgproc.hpp>
 
 #include <agg/agg_blur.h>
+#include <agg/agg_gamma_functions.h>
 #include <agg/agg_pixfmt_gray.h>
 #include <agg/agg_rendering_buffer.h>
 
@@ -12,6 +15,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 
 namespace Slic3r {
@@ -78,6 +82,86 @@ static void fill_polygon_fast(
     const cv::Point *ptr  = contour_buf.data();
     int              npts = static_cast<int>(contour_buf.size());
     cv::fillPoly(dst, &ptr, &npts, 1, cv::Scalar(color));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Pixel-space ROI computation
+// ---------------------------------------------------------------------------
+
+struct PixelROI {
+    int x0, y0, x1, y1;
+    RasterBase::Trafo new_trafo;
+    int roi_w() const { return x1 - x0; }
+    int roi_h() const { return y1 - y0; }
+};
+
+// Compute the tight pixel-space ROI for the given ExPolygons, with:
+//   2.1  World BBox → pixel BBox  (flipXY axis swap applied)
+//   2.2  mirror_x / mirror_y pixel-axis flip with lo/hi swap
+//   2.3  blur_pixel outward expansion + image-bounds clamp → {x0,y0,x1,y1}
+//   2.4  Trafo center correction for the ROI-local AGGRaster
+//
+// sx = SCALING_FACTOR / pxdim.w_mm
+// sy = SCALING_FACTOR / pxdim.h_mm
+// cx = trafo.center_x * sx   (full-image AGGRaster X translation in pixels)
+// cy = trafo.center_y * sy
+// W, H = full image width / height in pixels
+static PixelROI compute_pixel_roi(
+    const ExPolygons        &polys,
+    double sx, double sy, double cx, double cy,
+    bool flipXY, bool mirror_x, bool mirror_y,
+    int W, int H,
+    int blur_pixel,
+    const RasterBase::Trafo &trafo)
+{
+    // 2.1: World BBox → pixel BBox (applying flipXY axis swap)
+    const BoundingBox bb = get_extents(polys);
+    double px_lo, px_hi, py_lo, py_hi;
+    if (flipXY) {
+        // Portrait: first pixel axis ← world Y, second ← world X
+        px_lo = bb.min.y() * sy + cx;  px_hi = bb.max.y() * sy + cx;
+        py_lo = bb.min.x() * sx + cy;  py_hi = bb.max.x() * sx + cy;
+    } else {
+        px_lo = bb.min.x() * sx + cx;  px_hi = bb.max.x() * sx + cx;
+        py_lo = bb.min.y() * sy + cy;  py_hi = bb.max.y() * sy + cy;
+    }
+
+    // 2.2: mirror_x / mirror_y — reflect about image centre, swap lo/hi
+    if (mirror_x) {
+        double new_lo = W - px_hi;
+        px_hi         = W - px_lo;
+        px_lo         = new_lo;
+    }
+    if (mirror_y) {
+        double new_lo = H - py_hi;
+        py_hi         = H - py_lo;
+        py_lo         = new_lo;
+    }
+
+    // 2.3: blur_pixel outward expansion + clamp to image bounds
+    const int x0 = std::max(0, static_cast<int>(std::floor(px_lo)) - blur_pixel);
+    const int y0 = std::max(0, static_cast<int>(std::floor(py_lo)) - blur_pixel);
+    const int x1 = std::min(W, static_cast<int>(std::ceil(px_hi))  + blur_pixel);
+    const int y1 = std::min(H, static_cast<int>(std::ceil(py_hi))  + blur_pixel);
+    assert(x0 >= 0 && x1 <= W && y0 >= 0 && y1 <= H);
+
+    const int roi_w = x1 - x0;
+    const int roi_h = y1 - y0;
+
+    // 2.4: Trafo center correction for ROI-local AGGRaster
+    // Derivation in design.md §Step 3.  Only center_x/center_y change; all
+    // other Trafo fields (mirror_*, flipXY) remain identical.
+    RasterBase::Trafo new_trafo = trafo;
+    if (!mirror_x)
+        new_trafo.center_x = static_cast<coord_t>(trafo.center_x - x0 / sx);
+    else
+        new_trafo.center_x = static_cast<coord_t>(trafo.center_x + (roi_w - W + x0) / sx);
+    if (!mirror_y)
+        new_trafo.center_y = static_cast<coord_t>(trafo.center_y - y0 / sy);
+    else
+        new_trafo.center_y = static_cast<coord_t>(trafo.center_y + (roi_h - H + y0) / sy);
+
+    return {x0, y0, x1, y1, new_trafo};
 }
 
 // ---------------------------------------------------------------------------
@@ -228,26 +312,69 @@ void expolygons_to_cvmat(
     }
 
     // Slow path: AGG sub-pixel AA.
-    auto raster = create_raster_grayscale_aa(res, pxdim, gamma, trafo);
 
-    for (const ExPolygon &poly : polys)
-        raster->draw(poly);
+    // Task 1.1 — TLS pixel buffer: backs the ROI-local external-buffer AGGRaster.
+    // Capacity is retained across layers within the same thread (no per-layer Heap alloc).
+    thread_local std::vector<uint8_t> small_buf;
 
-    // Encode directly into dst.data — no intermediate 65 MB vector, no clone.
-    raster->encode([&dst](const void *ptr, size_t w, size_t h, size_t) {
-        std::memcpy(dst.data, ptr, w * h);
-        return EncodedRaster{};
-    });
+    // Task 1.2 — Explicit full-frame zero before any ROI write.
+    // Only the ROI sub-region is written in Phase 3; without this memset, pixels
+    // outside the ROI carry residual data from the previous layer.
+    std::memset(dst.data, 0, static_cast<size_t>(cols) * static_cast<size_t>(rows));
 
+    // Task 3.1 — Fast exit: empty layer → all-black frame, no raster work.
+    if (polys.empty()) return;
+
+    // Compute pixel-space ROI covering all polygons (includes blur expansion).
+    const double sx = SCALING_FACTOR / pxdim.w_mm;
+    const double sy = SCALING_FACTOR / pxdim.h_mm;
+    const double cx = trafo.center_x * sx;
+    const double cy = trafo.center_y * sy;
+
+    const PixelROI roi = compute_pixel_roi(
+        polys, sx, sy, cx, cy,
+        trafo.flipXY, trafo.mirror_x, trafo.mirror_y,
+        cols, rows, blur_pixel, trafo);
+
+    const int roi_w = roi.roi_w();
+    const int roi_h = roi.roi_h();
+
+    // S2 guard: geometry entirely outside the image → ROI degenerates to zero area.
+    if (roi_w <= 0 || roi_h <= 0) return;
+
+    // Task 3.2 — Resize TLS buffer to ROI dimensions; construct AGGRaster on the stack
+    // using the external-buffer overload (m_buf stays empty → zero Heap allocation).
+    // Gamma branching mirrors create_raster_grayscale_aa:
+    //   gamma > 0  → gamma_power(gamma)
+    //   otherwise  → gamma_threshold(0.5)
+    small_buf.resize(static_cast<size_t>(roi_w) * static_cast<size_t>(roi_h));
+
+    auto do_render = [&](auto gamma_fn) {
+        RasterGrayscaleAA raster(
+            Resolution{static_cast<size_t>(roi_w), static_cast<size_t>(roi_h)},
+            pxdim, roi.new_trafo, std::move(gamma_fn), small_buf.data());
+
+        // Task 3.3 — Draw all polygons; pixel data lands in small_buf (no encode, no memcpy).
+        for (const ExPolygon &poly : polys)
+            raster.draw(poly);
+
+        assert(raster.internal_capacity() == 0);
+    };
+
+    if (gamma > 0)
+        do_render(agg::gamma_power(gamma));
+    else
+        do_render(agg::gamma_threshold(0.5));
+
+    // Task 3.4 — AA quantization scans only the ROI buffer (roi_w × roi_h, not W × H).
     if (aa_steps > 0) {
         const double gray_interval = 255.0 / double(aa_steps);
         const double range         = double(gray_hi) - double(gray_lo);
         const bool   need_remap    = (gray_lo != 0 || gray_hi != 255);
-        uint8_t     *data          = dst.data;
-        const int    total         = dst.rows * dst.cols;
+        const int    total         = roi_w * roi_h;
 
         for (int i = 0; i < total; ++i) {
-            uint8_t &c = data[i];
+            uint8_t &c = small_buf[i];
             if (c == 0 || c == 255) continue;
 
             c = (uint8_t)std::round(
@@ -258,16 +385,23 @@ void expolygons_to_cvmat(
         }
     }
 
+    // Task 3.5 — Stack blur over ROI only; stride = roi_w (not full image width W).
     if (blur_pixel >= 2) {
-        agg::rendering_buffer rbuf(dst.data,
-                                   static_cast<unsigned>(dst.cols),
-                                   static_cast<unsigned>(dst.rows),
-                                   dst.cols);
+        agg::rendering_buffer rbuf(small_buf.data(),
+                                   static_cast<unsigned>(roi_w),
+                                   static_cast<unsigned>(roi_h),
+                                   roi_w);
         agg::pixfmt_gray8 pixf(rbuf);
         agg::stack_blur_gray8(pixf,
                               static_cast<unsigned>(blur_pixel),
                               static_cast<unsigned>(blur_pixel));
     }
+
+    // Task 3.6 — Row-by-row blit from ROI buffer into dst at origin (x0, y0).
+    for (int y = 0; y < roi_h; ++y)
+        std::memcpy(dst.data + (roi.y0 + y) * cols + roi.x0,
+                    small_buf.data() + y * roi_w,
+                    static_cast<size_t>(roi_w));
 }
 
 std::vector<cv::Mat> expolygons_layers_to_cvmat(
