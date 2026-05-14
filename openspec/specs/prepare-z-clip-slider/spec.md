@@ -1,12 +1,9 @@
-# Spec: Prepare View Global Z-Clip Slider（修訂版 v2）
+# Spec: Prepare View Global Z-Clip Slider（修訂版 v3）
 
 ## 功能描述
 
-在 SLA 的 Prepare（3D）view 右側新增一個**常駐全域雙 bar Z 軸截面 Slider**。
-外觀與行為和 Preview 的 layer slider 一致（垂直雙 bar）。
-使用者不需進入特定 Gizmo 即可即時預覽截面效果；
-進入 Hollow / Drill / SLA Support 模式時，gizmo 不再顯示自己的 "View clipping" slider，
-由此全域 slider 統一控制截面。
+在 SLA 的 Prepare（3D）view 右側使用與 Preview 相同的 **`IMSlider` 垂直雙拇指層滑桿**（非自繪連續 mm 滑桿）。
+層 Z 由**全場景 max Z** 與 **SLA 列印 `layer_height` + 材料 `initial_layer_height`** 估算；進入 Hollow / Drill / SLA Support 時改為右側 **單柄 gizmo 滑桿**（沿用舊自繪），此時隱藏 `IMSlider`。
 
 ---
 
@@ -16,42 +13,37 @@
 
 | 條件 | 結果 |
 |------|------|
-| `CanvasView3D` + `ptSLA`（任何 Gizmo 狀態）| Slider **顯示** |
+| `CanvasView3D` + `ptSLA`、非 Gizmo | **`IMSlider` 顯示** |
+| `CanvasView3D` + `ptSLA`、Gizmo（Hollow/Drill/Support）| **單柄自繪滑桿**（`IMSlider` 隱藏）|
 | `CanvasPreview` | Slider **隱藏**（Preview 有自己的 layer slider）|
 | `ptFFF` 任何狀態 | Slider **永不顯示** |
 | 無物件載入（空場景）| Slider **顯示**（range 使用預設值，無視覺效果）|
 
-> **v2 修訂**：移除「需選取 SLA 物件」的條件，改為 SLA 模式常駐顯示。
+> **v3**：非 Gizmo 時為 `IMSlider`；Gizmo 時為單柄自繪。仍無需選取物件即可顯示（空場景亦顯示）。
 
-### SLA-2：Slider 外觀與操作
+### SLA-2：Slider 外觀與操作（非 Gizmo）
 
-- **位置**：畫布右側浮動，與 Preview layer slider 相同位置
-- **方向**：垂直雙 bar
-  - top bar（z_high）：從頂部往下拖——截掉模型頂部
-  - bottom bar（z_low）：從底部往上拖——截掉模型底部
-- **標籤**：無；懸停 tooltip 顯示當前 Z 高度（mm）
-- **初始值**：bottom=0，top=scene_max_z（無截面，顯示完整模型）
-- **兩 bar 皆在端點時**：`m_use_clipping_planes = false`，截面完全取消
+- **元件**：`GCodeViewer::get_layers_slider()`（`IMSlider`），與 Preview 左側 3D 相同渲染管線。
+- **方向**：垂直雙拇指；滾輪以**層索引**為步進（與 Preview 一致）。
+- **額外 UI**（Prepare 專用）：滑桿左側獨立欄位顯示**當前層（1-based）**與**當前高度（mm）**；**▲ / ▼** 按鈕分離排版，不與拇指熱區重疊。
+- **單層**：雙拇指同一索引時，可見區間為該層 \[z_{i-1}, z_i\]（首層 z_{-1}=0）；其餘語意對齊 Preview `on_sla_layer_slider_changed` 之雙平面邏輯。
+- **初始值**：下拇指 = 第一層、上拇指 = 最後一層（顯示完整模型，無截面）。
 
-### SLA-3：Range 計算（全場景 max Z）
+### SLA-3：Range 與層 Z 列表
 
 ```
-scene_max_z = 所有 ModelObject 在世界座標的 bounding_box().max.z()
-              （含 instance transform，取所有物件聯集最大值）
-              若場景無物件或計算結果 <= 0 → scene_max_z = 50.0（預設值）
+scene_max_z = 與 v2 相同（全場景 max Z，空場景 50 mm）
 
-slider range:
-  bottom bar（z_low）∈ [0.0, z_high]
-  top bar（z_high）  ∈ [z_low, scene_max_z]
+層頂 Z 列表 zs[]（估算）：
+  zs[0] = initial_layer_height（材料預設）
+  zs[k] = zs[k-1] + layer_height（列印預設），直到 zs[last] >= scene_max_z
 
-截面計算：
-  ClippingPlane[0] = ClippingPlane(+UnitZ, -z_low)   // 截掉 z < z_low
-  ClippingPlane[1] = ClippingPlane(-UnitZ,  z_high)  // 截掉 z > z_high
+滑桿索引 i 對應 zs[i]；截面計算：
+  - 下索引 = 上索引 = i：層 i 單層 slab（見 SLA-2）
+  - 下索引 lo < 上索引 hi：與 Preview 相同（lo=0 時底平面 ClipsNothing；hi=max 時頂平面 ClipsNothing）
 ```
 
-> **v2 修訂**：
-> - 下限固定為 Z=0（非物件 bbox min Z）
-> - 上限為**場景所有物件** max Z（非選取物件）
+> **v3**：連續 mm 拖曳已移除；Gizmo 內仍為單柄比例滑桿（舊 `_render_prepare_clip_slider` 之 gizmo 分支）。
 
 ### SLA-4：雙系統同步
 
@@ -143,3 +135,17 @@ slider range:
 - Preview tab 行為變更
 - 截面狀態持久化（存入 3mf 檔案）
 - 場景物件新增/刪除後 scene_max_z 即時動態調整（初版可在每次 render 前更新）
+
+---
+
+## Delta 合併紀錄（change: `resin-prepare-layer-slider-align-preview`，2026-05-14）
+
+以下為封存前自 `openspec/changes/.../specs/prepare-z-clip-slider/spec.md` 合併之摘要；實質條文已反映於上文 **v3** 之 SLA-1～SLA-3、驗收表。
+
+| Delta 區塊 | 合併方式 |
+|------------|----------|
+| REMOVED：舊 SLA-2（連續 mm 雙 bar）、舊 SLA-3（連續 Z range） | 已由 v3 **SLA-2／SLA-3**（`IMSlider`、離散 `zs[]`）取代 |
+| ADDED：Prepare 與 Preview 共用 `IMSlider`、離散層 Z、層序／高度顯示、單層與按鈕熱區、裁剪語意對齊 Preview | 已併入 **SLA-1、SLA-2、SLA-3** 與驗收 **T1～T4** |
+| MODIFIED：SLA-1 顯示條件、SLA-8 與 Preview 隔離 | 已併入 **SLA-1**（含 Gizmo 列）與 **SLA-8** |
+
+若需完整 REMOVED/ADDED/MODIFIED 原文，見封存目錄內之 `specs/prepare-z-clip-slider/spec.md`。

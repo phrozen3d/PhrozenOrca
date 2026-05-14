@@ -111,8 +111,11 @@ set(SLIC3R_GUI_SOURCES
     GUI/GLShader.hpp
     GUI/GLCanvas3D.hpp
     GUI/GLCanvas3D.cpp
+    GUI/GLCanvas3D_SlaPrepareSlider.cpp
     GUI/SceneRaycaster.hpp
     GUI/SceneRaycaster.cpp
+    GUI/SlaPrepareLayers.hpp
+    GUI/SlaPrepareLayers.cpp
     GUI/OpenGLManager.hpp
     GUI/OpenGLManager.cpp
     GUI/Selection.hpp

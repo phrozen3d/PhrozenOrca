@@ -140,6 +140,11 @@ public:
     bool IsShown() const { return m_visible; }
     void set_on_change_callback(std::function<void()> cb) { m_on_change_callback = std::move(cb); }
 
+    // Resin Prepare: IMSlider-only extras (nav column, layer readout). Does not affect Preview when false.
+    void set_sla_prepare_mode(bool prepare) { m_sla_prepare_mode = prepare; }
+    bool sla_prepare_mode() const { return m_sla_prepare_mode; }
+    void set_sla_prepare_height_base(double z_bottom) { m_sla_prepare_height_base = z_bottom; }
+
 protected:
     void add_custom_gcode(std::string custom_gcode);
     void add_code_as_tick(Type type, int selected_extruder = -1);
@@ -167,6 +172,9 @@ protected:
     bool is_wipe_tower_layer(int tick) const;
 
 private:
+    std::string sla_prepare_label_for_tick(int tick) const;
+    void        sla_prepare_step_layer(int delta);
+
     std::string get_label(int tick, LabelType label_type = ltHeightWithLayer);
     double get_double_value(const SelectedSlider& selection);
     int    get_tick_from_value(double value, bool force_lower_bound = false);
@@ -194,6 +202,9 @@ private:
     bool m_render_as_disabled{ false };
     bool m_visible { true };                     // Step 2.5: controls render() visibility
     std::function<void()> m_on_change_callback;  // Step 2.5: fired on value change (SLA only)
+
+    bool   m_sla_prepare_mode = false;
+    double m_sla_prepare_height_base = 0.0;
 
     SelectedSlider m_selection;
     bool m_is_one_layer       = false;

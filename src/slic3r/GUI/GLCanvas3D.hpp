@@ -5,6 +5,7 @@
 #include <memory>
 #include <chrono>
 #include <cstdint>
+#include <vector>
 
 #include "GLToolbar.hpp"
 #include "Event.hpp"
@@ -541,7 +542,9 @@ private:
     // Stage 1: Prepare view global Z-clip slider (SLA only)
     double m_prepare_clip_z_low  = 0.0;   // bottom clipping plane Z (mm)
     double m_prepare_clip_z_high = -1.0;  // top clipping plane Z (-1 = uninitialized)
-    double m_prepare_scene_max_z = 50.0;  // cached: scene volumes max Z (mm)
+    double m_prepare_scene_min_z = 0.0;   // cached: printable convex-hull min Z (mm, world)
+    double m_prepare_scene_max_z = 50.0;  // cached: printable convex-hull max Z (mm, world)
+    std::vector<double> m_sla_prepare_layers_z; // layer top Z (mm) for Prepare IMSlider
     // Stage 1.5: DrawList slider drag state
     bool m_prepare_dragging_high = false; // true while user drags the High handle
     bool m_prepare_dragging_low  = false; // true while user drags the Low handle
@@ -823,6 +826,7 @@ public:
     const std::array<ClippingPlane, 2> &get_clipping_planes() const { return m_clipping_planes; };
     double get_prepare_scene_max_z() const { return m_prepare_scene_max_z; }
     double get_prepare_clip_z_high()  const { return m_prepare_clip_z_high; }
+    void   update_sla_prepare_layers_slider();
     // Public wrapper used by GLGizmosManager for prepare-clip ObjectClipper sync
     PrinterTechnology get_printer_technology() const { return current_printer_technology(); }
     // Gizmo slider mode API – called by GLGizmosManager on gizmo enter/exit
@@ -1233,6 +1237,7 @@ private:
     void _update_prepare_scene_max_z();
     void _on_prepare_clip_changed(double z_low, double z_high);
     void _render_prepare_clip_slider();
+    void _apply_sla_prepare_clip_from_layers_slider();
     //BBS: GUI refactor: adjust main toolbar position
     bool _render_orient_menu(float left, float right, float bottom, float top);
     bool _render_arrange_menu(float left, float right, float bottom, float top);

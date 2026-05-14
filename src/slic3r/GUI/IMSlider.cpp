@@ -7,6 +7,10 @@
 #endif
 #include <imgui/imgui_internal.h>
 
+#include <algorithm>
+#include <cstdio>
+#include <limits>
+
 namespace Slic3r {
 
 namespace GUI {
@@ -18,7 +22,9 @@ inline double miscalculation() { return scale_(scale_(1)); }
 
 static const float  LEFT_MARGIN       = 13.0f + 100.0f;  // avoid thumbnail toolbar
 static const float  HORIZONTAL_SLIDER_WINDOW_HEIGHT  = 64.0f;
-static const float  VERTICAL_SLIDER_WINDOW_WIDTH     = 160.0f;
+static const float  VERTICAL_SLIDER_WINDOW_WIDTH      = 160.0f;
+// Extra width in SLA Prepare so layer/z labels left of the groove stay inside the window.
+static const float  VERTICAL_SLIDER_PREPARE_EXTRA_W  = 96.0f;
 static const float  GROOVE_WIDTH      = 12.0f;
 static const ImVec2 ONE_LAYER_MARGIN  = ImVec2(20.0f, 20.0f);
 static const ImVec2 ONE_LAYER_BUTTON_SIZE  = ImVec2(56.0f, 56.0f);
@@ -879,7 +885,138 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
 
     const float  text_frame_rounding = 2.0f * scale * m_scale;
     const ImVec2 text_padding        = ImVec2(5.0f, 2.0f) * m_scale;
+    // SLA Prepare: compact padding, thin orange outline (no fill), 2px corner radius (scaled).
+    const ImVec2 sla_prepare_text_pad       = ImVec2(4.0f, 2.0f) * scale * m_scale;
+    const float  sla_prepare_font_scale     = std::clamp(0.82f * scale, 0.72f, 0.92f);
+    const float  sla_prepare_frame_round     = 2.0f * m_scale;
+    const float  sla_prepare_border_thick    = 1.25f * m_scale;
     const ImVec2 triangle_offsets[3] = {ImVec2(2.0f, 0.0f) * m_scale, ImVec2(0.0f, 8.0f) * m_scale, ImVec2(9.0f, 0.0f) * m_scale};
+
+    auto clamp_prepare_label_in_window = [&](ImVec2& text_start, ImRect& text_rect) {
+        if (!m_sla_prepare_mode || m_values.empty())
+            return;
+        const float clip_left = window->InnerClipRect.Min.x + 8.0f * m_scale;
+        if (text_rect.Min.x < clip_left) {
+            const float dx = clip_left - text_rect.Min.x;
+            text_start.x += dx;
+            text_rect.Min.x += dx;
+            text_rect.Max.x += dx;
+        }
+    };
+
+    enum class SlaPrepBoxAnchor { BottomAtY, TopAtY, CenterAtY };
+
+    auto sla_prepare_nav_button = [&](const char* btn_id, const ImVec2& pos, float sz, ImGuiDir dir) -> bool {
+        const ImGuiID id = window->GetID(btn_id);
+        const ImRect  bb(pos, pos + ImVec2(sz, sz));
+        ImGui::ItemSize(bb);
+        if (!ImGui::ItemAdd(bb, id))
+            return false;
+
+        bool hovered = false;
+        bool held    = false;
+        const bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags_PressedOnClick);
+        if (hovered || held)
+            window->DrawList->AddRectFilled(bb.Min, bb.Max, IM_COL32(255, 124, 63, 36), sla_prepare_frame_round);
+        window->DrawList->AddRect(bb.Min, bb.Max, BRAND_COLOR, sla_prepare_frame_round, 0, sla_prepare_border_thick);
+
+        const ImVec2 center = bb.GetCenter();
+        const float  ah       = sz * 0.26f;
+        const float  aw       = sz * 0.34f;
+        if (dir == ImGuiDir_Up)
+            ImGui::RenderArrowPointingAt(window->DrawList, ImVec2(center.x, center.y - ah * 0.35f),
+                ImVec2(aw, ah), ImGuiDir_Up, BRAND_COLOR);
+        else
+            ImGui::RenderArrowPointingAt(window->DrawList, ImVec2(center.x, center.y + ah * 0.35f),
+                ImVec2(aw, ah), ImGuiDir_Down, BRAND_COLOR);
+        return pressed;
+    };
+
+    auto path_sla_prepare_box = [&](const ImRect& rect, bool connector_upper) {
+        const float r = std::min(sla_prepare_frame_round, 0.5f * std::min(rect.GetWidth(), rect.GetHeight()) - 0.5f);
+        const float tab_half = 3.5f * m_scale;
+        const float tab_ext  = 5.f * scale * m_scale;
+        const float tab_anchor_y = connector_upper
+            ? (rect.Max.y - sla_prepare_text_pad.y * 0.85f)
+            : (rect.Min.y + sla_prepare_text_pad.y * 0.85f);
+        const ImVec2 tip(rect.Max.x + tab_ext, tab_anchor_y);
+        const ImVec2 n0(rect.Max.x, tab_anchor_y - tab_half);
+        const ImVec2 n1(rect.Max.x, tab_anchor_y + tab_half);
+
+        ImDrawList* dl = window->DrawList;
+        dl->PathClear();
+        dl->PathLineTo(ImVec2(rect.Min.x + r, rect.Min.y));
+        dl->PathLineTo(ImVec2(rect.Max.x - r, rect.Min.y));
+        dl->PathLineTo(ImVec2(rect.Max.x, rect.Min.y + r));
+        dl->PathLineTo(n0);
+        dl->PathLineTo(tip);
+        dl->PathLineTo(n1);
+        dl->PathLineTo(ImVec2(rect.Max.x, rect.Max.y - r));
+        dl->PathLineTo(ImVec2(rect.Max.x - r, rect.Max.y));
+        dl->PathLineTo(ImVec2(rect.Min.x + r, rect.Max.y));
+        dl->PathLineTo(ImVec2(rect.Min.x, rect.Max.y - r));
+        dl->PathLineTo(ImVec2(rect.Min.x, rect.Min.y + r));
+    };
+
+    auto draw_sla_prepare_box_outline = [&](const ImRect& rect, bool connector_upper) {
+        path_sla_prepare_box(rect, connector_upper);
+        window->DrawList->PathFillConvex(BACKGROUND_COLOR_LIGHT);
+        path_sla_prepare_box(rect, connector_upper);
+        window->DrawList->PathStroke(BRAND_COLOR, ImDrawFlags_Closed, sla_prepare_border_thick);
+    };
+
+    float prepare_interactive_min_x = std::numeric_limits<float>::max();
+
+    auto draw_sla_prepare_focus_box = [&](const std::string& label, const char* nav_up_id, const char* nav_dn_id,
+        float handle_min_x, float anchor_y, SlaPrepBoxAnchor anchor, bool connector_upper) {
+        ImGui::SetWindowFontScale(sla_prepare_font_scale);
+
+        const size_t      nl    = label.find('\n');
+        const std::string line_a = nl == std::string::npos ? label : label.substr(0, nl);
+        const std::string line_b = nl == std::string::npos ? std::string() : label.substr(nl + 1);
+        const ImVec2      s1    = ImGui::CalcTextSize(line_a.empty() ? " " : line_a.c_str());
+        const ImVec2      s2    = line_b.empty() ? ImVec2(0, 0) : ImGui::CalcTextSize(line_b.c_str());
+        const float       line_gap = 1.f * m_scale;
+        const float       btn_sz   = std::max(8.f * scale * m_scale, 7.f * m_scale);
+        const float       btn_vgap = 1.f * m_scale;
+        const float       text_nav_gap = 2.f * scale * m_scale;
+        const float       text_w = std::max(s1.x, line_b.empty() ? s1.x : s2.x);
+        const float       text_h = s1.y + (line_b.empty() ? 0.f : line_gap + s2.y);
+        const float       nav_h  = btn_sz * 2.f + btn_vgap;
+        const float       inner_h = std::max(text_h, nav_h);
+        const ImVec2      inner(text_w + text_nav_gap + btn_sz, inner_h);
+        const ImVec2      box_size = inner + sla_prepare_text_pad * 2.f;
+
+        float box_min_y = anchor_y;
+        if (anchor == SlaPrepBoxAnchor::BottomAtY)
+            box_min_y = anchor_y - box_size.y;
+        else if (anchor == SlaPrepBoxAnchor::CenterAtY)
+            box_min_y = anchor_y - box_size.y * 0.5f;
+
+        const float tab_ext = 5.f * scale * m_scale;
+        ImVec2 text_start(handle_min_x - box_size.x - tab_ext, box_min_y);
+        ImRect text_rect(text_start, text_start + box_size);
+        clamp_prepare_label_in_window(text_start, text_rect);
+        text_rect = ImRect(text_start, text_start + box_size);
+        prepare_interactive_min_x = std::min(prepare_interactive_min_x, text_rect.Min.x);
+
+        draw_sla_prepare_box_outline(text_rect, connector_upper);
+
+        const ImVec2 txt_pos = text_start + sla_prepare_text_pad;
+        ImGui::RenderText(txt_pos, line_a.c_str());
+        if (!line_b.empty())
+            ImGui::RenderText(txt_pos + ImVec2(0, s1.y + line_gap), line_b.c_str());
+
+        const float nav_x  = text_rect.Max.x - sla_prepare_text_pad.x - btn_sz;
+        const float nav_y0 = text_rect.Min.y + sla_prepare_text_pad.y + (inner_h - nav_h) * 0.5f;
+        if (sla_prepare_nav_button(nav_up_id, ImVec2(nav_x, nav_y0), btn_sz, ImGuiDir_Up))
+            sla_prepare_step_layer(1);
+        if (sla_prepare_nav_button(nav_dn_id, ImVec2(nav_x, nav_y0 + btn_sz + btn_vgap), btn_sz, ImGuiDir_Down))
+            sla_prepare_step_layer(-1);
+
+        ImGui::SetWindowFontScale(1.0f);
+    };
+
     ImVec2 text_content_size;
     ImVec2 text_size;
 
@@ -893,26 +1030,11 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
     const ImRect bg_rect = ImRect(groove.Min - ImVec2(6.0f, 6.0f) * m_scale, groove.Max + ImVec2(6.0f, 6.0f) * m_scale);
     const float mid_x = groove.GetCenter().x;
 
-    // set mouse active region.
-    const ImRect active_region = ImRect(ImVec2(draw_region.Min.x + 35.0f * m_scale, draw_region.Min.y), draw_region.Max);
-    bool hovered = ImGui::ItemHoverable(active_region, id) && !ImGui::ItemHoverable(m_tick_rect, id);
-    if (hovered && context.IO.MouseDown[0]) {
-        ImGui::SetActiveID(id, window);
-        ImGui::SetFocusID(id, window);
-        ImGui::FocusWindow(window);
-    }
-
-    // draw background
-    draw_background_and_groove(bg_rect, groove);
-
-    // Processing interacting
-    // set scrollable region
     const ImRect region = ImRect(bg_rect.Min + ImVec2(0.0f, handle_radius), bg_rect.Max - ImVec2(0.0f, handle_radius));
     const ImRect higher_slideable_region = ImRect(region.Min, region.Max - ImVec2(0, handle_radius));
     const ImRect lower_slideable_region = ImRect(region.Min + ImVec2(0, handle_radius), region.Max);
     const ImRect one_slideable_region = region;
 
-    // initialize the handles.
     float higher_handle_pos = get_pos_from_value(v_min, v_max, *higher_value, higher_slideable_region);
     ImRect higher_handle = ImRect(mid_x - handle_radius, higher_handle_pos - handle_radius, mid_x + handle_radius, higher_handle_pos + handle_radius);
 
@@ -921,11 +1043,39 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
 
     ImRect one_handle = ImRect(higher_handle.Min - ImVec2(one_handle_offset, 0), higher_handle.Max - ImVec2(one_handle_offset, 0));
 
+    // Prepare: show layer readout only while the window is focused (not on passive slider hover).
+    const bool sla_prepare_focus_ctx = m_sla_prepare_mode &&
+        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
+    bool hovered = false;
+    if (!m_sla_prepare_mode) {
+        const ImRect active_region =
+            ImRect(ImVec2(draw_region.Min.x + 35.0f * m_scale, draw_region.Min.y), draw_region.Max);
+        hovered = ImGui::ItemHoverable(active_region, id) && !ImGui::ItemHoverable(m_tick_rect, id);
+        if (hovered && context.IO.MouseDown[0]) {
+            ImGui::SetActiveID(id, window);
+            ImGui::SetFocusID(id, window);
+            ImGui::FocusWindow(window);
+        }
+    }
+
+    auto prepare_begin_handle_drag = [&](const ImRect& handle) {
+        if (!m_sla_prepare_mode)
+            return;
+        if (ImGui::ItemHoverable(handle, id) && context.IO.MouseDown[0]) {
+            ImGui::SetActiveID(id, window);
+            ImGui::SetFocusID(id, window);
+            ImGui::FocusWindow(window);
+        }
+    };
+
+    // draw background
+    draw_background_and_groove(bg_rect, groove);
+
     bool value_changed = false;
     if (!one_layer_flag) 
     {
-        // select higher handle by default
-        static bool h_selected = (selection == ssHigher);
+        bool h_selected = (selection == ssHigher);
         if (ImGui::ItemHoverable(higher_handle, id) && context.IO.MouseClicked[0]) {
             selection = ssHigher; 
             h_selected = true;
@@ -934,6 +1084,8 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
             selection = ssLower; 
             h_selected = false;
         }
+        prepare_begin_handle_drag(higher_handle);
+        prepare_begin_handle_drag(lower_handle);
 
         // update handle position and value
         if (h_selected)
@@ -1000,37 +1152,54 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
         }
 
         // draw higher label
-        auto text_utf8 = into_u8(higher_label);
-        text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
-        text_size = text_content_size + text_padding * 2;
-        ImVec2 text_start = ImVec2(higher_handle.Min.x - text_size.x - triangle_offsets[2].x, higher_handle_center.y - text_size.y);
-        ImRect text_rect(text_start, text_start + text_size);
-        ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
-        ImVec2 pos_1 = text_rect.Max - triangle_offsets[0];
-        ImVec2 pos_2 = pos_1 - triangle_offsets[1];
-        ImVec2 pos_3 = pos_1 + triangle_offsets[2];
-        window->DrawList->AddTriangleFilled(pos_1, pos_2, pos_3, white_bg);
-        ImGui::RenderText(text_start + text_padding, higher_label.c_str());
+        {
+            if (m_sla_prepare_mode && !m_values.empty() && selection == ssHigher && sla_prepare_focus_ctx) {
+                draw_sla_prepare_focus_box(higher_label, "##sla_up_h", "##sla_dn_h", higher_handle.Min.x,
+                    higher_handle_center.y, SlaPrepBoxAnchor::BottomAtY, true);
+            } else if (!m_sla_prepare_mode || m_values.empty()) {
+                auto text_utf8 = into_u8(higher_label);
+                text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
+                text_size         = text_content_size + text_padding * 2;
+                ImVec2 text_start =
+                    ImVec2(higher_handle.Min.x - text_size.x - triangle_offsets[2].x, higher_handle_center.y - text_size.y);
+                ImRect text_rect = ImRect(text_start, text_start + text_size);
+                ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
+                ImVec2 pos_1 = text_rect.Max - triangle_offsets[0];
+                ImVec2 pos_2 = pos_1 - triangle_offsets[1];
+                ImVec2 pos_3 = pos_1 + triangle_offsets[2];
+                window->DrawList->AddTriangleFilled(pos_1, pos_2, pos_3, white_bg);
+                ImGui::RenderText(text_start + text_padding, higher_label.c_str());
+            }
+        }
         // draw lower label
-        text_utf8 = into_u8(lower_label);
-        text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
-        text_size = text_content_size + text_padding * 2;
-        text_start        = ImVec2(lower_handle.Min.x - text_size.x - triangle_offsets[2].x, lower_handle_center.y);
-        text_rect = ImRect(text_start, text_start + text_size);
-        ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
-        pos_1 = ImVec2(text_rect.Max.x, text_rect.Min.y) - triangle_offsets[0];
-        pos_2 = pos_1 + triangle_offsets[1];
-        pos_3 = pos_1 + triangle_offsets[2];
-        window->DrawList->AddTriangleFilled(pos_1, pos_2, pos_3, white_bg);
-        ImGui::RenderText(text_start + text_padding, lower_label.c_str());
-        
-        // draw mouse position
-        if (hovered) {
+        {
+            if (m_sla_prepare_mode && !m_values.empty() && selection == ssLower && sla_prepare_focus_ctx) {
+                draw_sla_prepare_focus_box(lower_label, "##sla_up_l", "##sla_dn_l", lower_handle.Min.x,
+                    lower_handle_center.y, SlaPrepBoxAnchor::TopAtY, false);
+            } else if (!m_sla_prepare_mode || m_values.empty()) {
+                auto text_utf8 = into_u8(lower_label);
+                text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
+                text_size         = text_content_size + text_padding * 2;
+                ImVec2 text_start = ImVec2(lower_handle.Min.x - text_size.x - triangle_offsets[2].x, lower_handle_center.y);
+                ImRect text_rect   = ImRect(text_start, text_start + text_size);
+                ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
+                ImVec2 pos_1 = ImVec2(text_rect.Max.x, text_rect.Min.y) - triangle_offsets[0];
+                ImVec2 pos_2 = pos_1 + triangle_offsets[1];
+                ImVec2 pos_3 = pos_1 + triangle_offsets[2];
+                window->DrawList->AddTriangleFilled(pos_1, pos_2, pos_3, white_bg);
+                ImGui::RenderText(text_start + text_padding, lower_label.c_str());
+            }
+        }
+
+        // draw mouse position (Prepare: no tick bars / tooltip)
+        if (hovered && !m_sla_prepare_mode) {
             draw_tick_on_mouse_position(h_selected ? higher_slideable_region : lower_slideable_region);
         }
     }
     if (one_layer_flag) 
     {
+        prepare_begin_handle_drag(one_handle);
+
         // update handle position
         value_changed = slider_behavior(id, one_slideable_region, v_min, v_max,
             higher_value, &one_handle, ImGuiSliderFlags_Vertical,
@@ -1060,18 +1229,35 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
         window->DrawList->AddLine(handle_center + ImVec2(0.0f, -0.5f * line_length), handle_center + ImVec2(0.0f, 0.5f * line_length), white_bg, line_width);
 
         // draw label
-        auto text_utf8 = into_u8(higher_label);
-        text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
-        text_size = text_content_size + text_padding * 2;
-        ImVec2 text_start = ImVec2(one_handle.Min.x - text_size.x, handle_center.y - 0.5 * text_size.y);
-        ImRect text_rect = ImRect(text_start, text_start + text_size);
-        ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
-        ImGui::RenderText(text_start + text_padding, higher_label.c_str());
-        
-        // draw mouse position
-        if (hovered) {
+        ImRect text_rect;
+        const bool one_layer_prepare_show = m_sla_prepare_mode && !m_values.empty() && sla_prepare_focus_ctx &&
+            (ImGui::GetActiveID() == id || ImGui::ItemHoverable(one_handle, id));
+        if (one_layer_prepare_show) {
+            draw_sla_prepare_focus_box(higher_label, "##sla_up_o", "##sla_dn_o", one_handle.Min.x, handle_center.y,
+                SlaPrepBoxAnchor::CenterAtY, false);
+        } else if (!m_sla_prepare_mode || m_values.empty()) {
+            auto text_utf8 = into_u8(higher_label);
+            text_content_size = ImGui::CalcTextSize(text_utf8.c_str());
+            text_size         = text_content_size + text_padding * 2;
+            ImVec2 text_start = ImVec2(one_handle.Min.x - text_size.x, handle_center.y - 0.5f * text_size.y);
+            text_rect         = ImRect(text_start, text_start + text_size);
+            ImGui::RenderFrame(text_rect.Min, text_rect.Max, white_bg, false, text_frame_rounding);
+            ImGui::RenderText(text_start + text_padding, higher_label.c_str());
+        }
+        // draw mouse position (Prepare: no tick bars / tooltip)
+        if (hovered && !m_sla_prepare_mode) {
             draw_tick_on_mouse_position(one_slideable_region);
         }
+    }
+
+    if (m_sla_prepare_mode) {
+        const float handle_hit_min_x = mid_x - handle_radius - 2.f * m_scale;
+        float       interactive_min_x = handle_hit_min_x;
+        if (prepare_interactive_min_x < std::numeric_limits<float>::max() * 0.5f)
+            interactive_min_x = std::min(interactive_min_x, prepare_interactive_min_x);
+        const float hole_w = std::max(0.f, interactive_min_x - window->Pos.x);
+        if (hole_w > 0.5f)
+            ImGui::SetWindowHitTestHole(window, window->Pos, ImVec2(hole_w, size.y));
     }
 
     return value_changed;
@@ -1118,7 +1304,9 @@ bool IMSlider::render(int canvas_width, int canvas_height)
         }
         imgui.end();
     } else {
-        ImVec2 size = ImVec2(VERTICAL_SLIDER_WINDOW_WIDTH * m_scale, 0.8f * canvas_height);
+        const float vslider_w =
+            (VERTICAL_SLIDER_WINDOW_WIDTH + (m_sla_prepare_mode ? VERTICAL_SLIDER_PREPARE_EXTRA_W : 0.f)) * m_scale;
+        ImVec2 size = ImVec2(vslider_w, 0.8f * canvas_height);
         imgui.set_next_window_pos(canvas_width, 0.5f * static_cast<float>(canvas_height), ImGuiCond_Always, 1.0f, 0.5f);
         imgui.begin(std::string("laysers_slider"), windows_flag);
 
@@ -1126,8 +1314,15 @@ bool IMSlider::render(int canvas_width, int canvas_height)
 
         int higher_value = GetHigherValue();
         int lower_value = GetLowerValue();
-        std::string higher_label = get_label(m_higher_value);
-        std::string lower_label  = get_label(m_lower_value);
+        std::string higher_label;
+        std::string lower_label;
+        if (m_sla_prepare_mode && !m_values.empty()) {
+            higher_label = sla_prepare_label_for_tick(m_higher_value);
+            lower_label  = sla_prepare_label_for_tick(m_lower_value);
+        } else {
+            higher_label = get_label(m_higher_value);
+            lower_label  = get_label(m_lower_value);
+        }
         int temp_higher_value    = higher_value;
         int temp_lower_value     = lower_value;
         if (vertical_slider("laysers_slider", &higher_value, &lower_value, higher_label, lower_label, GetMinValue(), GetMaxValue(),
@@ -1482,9 +1677,17 @@ void IMSlider::set_scale(float scale)
 void IMSlider::on_mouse_wheel(wxMouseEvent& evt) {
     auto moves_slider_window = ImGui::FindWindowByName("moves_slider");
     auto layers_slider_window = ImGui::FindWindowByName("laysers_slider");
-    if (!moves_slider_window || !layers_slider_window) {
-        BOOST_LOG_TRIVIAL(info) << "Couldn't find slider window";
-        return;
+    // View3D Resin Prepare renders only the vertical layers slider (no moves_slider window).
+    if (is_horizontal()) {
+        if (!moves_slider_window || !layers_slider_window) {
+            BOOST_LOG_TRIVIAL(info) << "Couldn't find slider window";
+            return;
+        }
+    } else {
+        if (!layers_slider_window) {
+            BOOST_LOG_TRIVIAL(info) << "Couldn't find layers slider window";
+            return;
+        }
     }
 
     float wheel = 0.0f;
@@ -1688,6 +1891,41 @@ std::array<int, 2> IMSlider::get_active_extruders_for_tick(int tick) const
     }
 
     return extruders;
+}
+
+std::string IMSlider::sla_prepare_label_for_tick(int tick) const
+{
+    if (m_values.empty())
+        return {};
+    const int t = std::clamp(tick, m_min_value, m_max_value);
+    char      zbuf[48];
+    const double height_mm = std::max(0.0, m_values[size_t(t)] - m_sla_prepare_height_base);
+    std::snprintf(zbuf, sizeof(zbuf), "%.2f mm", height_mm);
+    return into_u8(_L("Layer")) + " " + std::to_string(t + 1) + "\n" + zbuf;
+}
+
+void IMSlider::sla_prepare_step_layer(int delta)
+{
+    if (delta == 0)
+        return;
+
+    const SelectedSlider keep = m_selection;
+    if (is_one_layer() || GetLowerValue() == GetHigherValue()) {
+        const int v = std::clamp(GetHigherValue() + delta, m_min_value, m_max_value);
+        m_lower_value     = v;
+        m_higher_value    = v;
+        m_one_layer_value = v;
+    } else if (keep == ssHigher) {
+        m_higher_value = std::clamp(GetHigherValue() + delta, m_min_value, m_max_value);
+        correct_higher_value();
+    } else {
+        m_lower_value = std::clamp(GetLowerValue() + delta, m_min_value, m_max_value);
+        correct_lower_value();
+    }
+    m_selection = keep;
+    set_as_dirty();
+    if (m_on_change_callback)
+        m_on_change_callback();
 }
 
 }

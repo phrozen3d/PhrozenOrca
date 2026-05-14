@@ -5750,6 +5750,12 @@ void GCodeViewer::render_slider(int canvas_width, int canvas_height) {
     m_layers_slider->render(canvas_width, canvas_height);
 }
 
+void GCodeViewer::render_layers_slider_only(int canvas_width, int canvas_height)
+{
+    if (m_layers_slider != nullptr)
+        m_layers_slider->render(canvas_width, canvas_height);
+}
+
 #if ENABLE_GCODE_VIEWER_STATISTICS
 void GCodeViewer::render_statistics()
 {

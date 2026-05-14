@@ -8974,7 +8974,7 @@ bool Plater::priv::can_split_to_objects() const
 
 bool Plater::priv::can_split_to_volumes() const
 {
-    return (printer_technology != ptSLA) && q->can_split(false);
+    return q->can_split(false);
 }
 
 bool Plater::priv::can_arrange() const
@@ -13994,6 +13994,9 @@ void Plater::on_config_change(const DynamicPrintConfig &config)
 
     if (update_scheduled)
         update();
+
+    if (this->printer_technology() == ptSLA)
+        this->get_view3D_canvas3D()->update_sla_prepare_layers_slider();
 
     // Ensure both MainFrame is loaded AND Plater is fully initialized before triggering background process
     // This prevents crashes during startup when loading SLA presets (m_plater may not be created yet)

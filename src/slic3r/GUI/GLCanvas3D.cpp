@@ -28,11 +28,14 @@
 #include "GUI_Colors.hpp"
 #include "Mouse3DController.hpp"
 #include "I18N.hpp"
+#include "SlaPrepareLayers.hpp"
 #include "NotificationManager.hpp"
 #include "format.hpp"
 #include "DailyTips.hpp"
 
 #include "slic3r/GUI/Gizmos/GLGizmoPainterBase.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmosCommon.hpp"
+#include "slic3r/GUI/MeshUtils.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "slic3r/Utils/MacDarkMode.hpp"
 
@@ -2869,6 +2872,8 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
 
     // and force this canvas to be redrawn.
     m_dirty = true;
+
+    update_sla_prepare_layers_slider();
 }
 
 void GLCanvas3D::load_shells(const Print& print, bool force_previewing)
@@ -3066,14 +3071,19 @@ void GLCanvas3D::on_idle(wxIdleEvent& evt)
     m_dirty |= imgui_requires_extra_frame;
 #endif // ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
 
-    // Stage 1: SLA prepare view 需要持續渲染以保持 Z-clip slider 的 ImGui 視窗存活。
-    // render() 中途被中斷（遞迴呼叫或排版變更）時，_render_prepare_clip_slider()
-    // 不會被執行，導致 request_extra_frame() 鏈結斷掉。
-    // 在 on_idle 層級直接維持 m_dirty 與 m_extra_frame_requested，
-    // 可確保即使單次 render 失敗，下一個 idle 仍會重試。
+    // SLA gizmo: custom single-handle clip slider needs continuous frames.
+    // Resin Prepare IMSlider: rely on ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT requires_extra_frame.
     if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA) {
-        m_dirty = true;
-        request_extra_frame();
+        if (m_slider_in_gizmo_mode) {
+            m_dirty = true;
+            request_extra_frame();
+        }
+#if ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
+        else if (wxGetApp().imgui()->requires_extra_frame()) {
+            m_dirty = true;
+            request_extra_frame();
+        }
+#endif // ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
     }
 
     if (!m_dirty)
@@ -4796,6 +4806,8 @@ void GLCanvas3D::do_move(const std::string& snapshot_type)
     reset_sequential_print_clearance();
 
     m_dirty = true;
+    if (current_printer_technology() == ptSLA)
+        update_sla_prepare_layers_slider();
 }
 
 void GLCanvas3D::do_rotate(const std::string& snapshot_type)
@@ -4890,6 +4902,8 @@ void GLCanvas3D::do_rotate(const std::string& snapshot_type)
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_ROTATED));
 
     m_dirty = true;
+    if (current_printer_technology() == ptSLA)
+        update_sla_prepare_layers_slider();
 }
 
 void GLCanvas3D::do_scale(const std::string& snapshot_type)
@@ -4975,6 +4989,8 @@ void GLCanvas3D::do_scale(const std::string& snapshot_type)
         post_event(SimpleEvent(EVT_GLCANVAS_INSTANCE_SCALED));
 
     m_dirty = true;
+    if (current_printer_technology() == ptSLA)
+        update_sla_prepare_layers_slider();
 }
 
 void GLCanvas3D::do_center()
@@ -7634,12 +7650,17 @@ void GLCanvas3D::_render_overlays()
     //_render_view_toolbar();
     _render_paint_toolbar();
 
-    // Stage 1: Prepare view global Z-clip slider (SLA only, always visible)
+    // SLA: gizmo-only custom clip handle; Prepare uses GCodeViewer IMSlider (after gizmos).
     _render_prepare_clip_slider();
 
     //BBS: GUI refactor: GLToolbar
     //move gizmos behind of main
     _render_gizmos_overlay();
+
+    if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA && !m_slider_in_gizmo_mode) {
+        const Size cnv_sz = get_canvas_size();
+        m_gcode_viewer.render_layers_slider_only(std::max(10, cnv_sz.get_width()), std::max(10, cnv_sz.get_height()));
+    }
 
     if (m_layers_editing.last_object_id >= 0 && m_layers_editing.object_max_z() > 0.0f)
         m_layers_editing.render_overlay(*this);
@@ -8732,7 +8753,7 @@ void GLCanvas3D::_render_camera_target()
             m_camera_target.axis[i].reset();
 
             GLModel::Geometry init_data;
-            init_data.format = { GLModel::Geometry::EPrimitiveType::Lines, GLModel::Geometry::EVertexLayout::P3, GLModel::Geometry::EIndexType::USHORT };
+            init_data.format = { GLModel::Geometry::EPrimitiveType::Lines, GLModel::Geometry::EVertexLayout::P3 };
             init_data.color = (i == X) ? ColorRGBA::X() : ((i == Y) ? ColorRGBA::Y() : ColorRGBA::Z());
             init_data.reserve_vertices(2);
             init_data.reserve_indices(2);
@@ -8777,11 +8798,26 @@ void GLCanvas3D::_render_sla_slices()
     if (!m_use_clipping_planes || current_printer_technology() != ptSLA)
         return;
 
+    const bool is_prepare_view = (m_canvas_type == ECanvasType::CanvasView3D);
     const SLAPrint* print = this->sla_print();
-    const PrintObjects& print_objects = print->objects();
-    if (print_objects.empty())
-        // nothing to render, return
+
+    // Prepare：與 Preview 同一條件 — 僅在 slaposSliceSupports 完成後繪製 SLAPrint 切片帽；未完成則不繪製帽面。
+    bool prepare_same_as_preview_slice = false;
+    if (is_prepare_view && print != nullptr && !print->objects().empty()) {
+        for (const SLAPrintObject* po : print->objects()) {
+            if (po != nullptr && po->is_step_done(slaposSliceSupports) && !po->get_slice_index().empty()) {
+                prepare_same_as_preview_slice = true;
+                break;
+            }
+        }
+    }
+    if (is_prepare_view && (!prepare_same_as_preview_slice || print == nullptr || print->objects().empty()))
         return;
+
+    if (!is_prepare_view && (print == nullptr || print->objects().empty()))
+        return;
+
+    const PrintObjects& print_objects = print->objects();
 
     double clip_min_z = -m_clipping_planes[0].get_data()[3];
     double clip_max_z = m_clipping_planes[1].get_data()[3];
@@ -8835,7 +8871,8 @@ void GLCanvas3D::_render_sla_slices()
         };
 
         if ((!bottom_obj_triangles.is_initialized() || !bottom_sup_triangles.is_initialized() ||
-            !top_obj_triangles.is_initialized() || !top_sup_triangles.is_initialized()) && !obj->get_slice_index().empty()) {
+            !top_obj_triangles.is_initialized() || !top_sup_triangles.is_initialized()) &&
+            !obj->get_slice_index().empty()) {
             double layer_height         = print->default_object_config().layer_height.value;
             double initial_layer_height = print->material_config().initial_layer_height.value;
             bool   left_handed          = obj->is_left_handed();
@@ -8849,7 +8886,7 @@ void GLCanvas3D::_render_sla_slices()
             const SliceRecord& slice_low  = obj->closest_slice_to_print_level(key_low, coord_t(SCALED_EPSILON));
             const SliceRecord& slice_high = obj->closest_slice_to_print_level(key_high, coord_t(SCALED_EPSILON));
 
-            // Offset to avoid OpenGL Z fighting between the object's horizontal surfaces and the triangluated surfaces of the cuts.
+            // Offset to avoid OpenGL Z fighting between shell surfaces and cap faces.
             double plane_shift_z = 0.002;
 
             if (slice_low.is_valid()) {
@@ -8858,10 +8895,12 @@ void GLCanvas3D::_render_sla_slices()
                 // calculate model bottom cap
                 // calculate model bottom cap
                 if (!bottom_obj_triangles.is_initialized() && !obj_bottom.empty())
-                    init_model(bottom_obj_triangles, triangulate_expolygons_3d(obj_bottom, clip_min_z - plane_shift_z, !left_handed), { 1.0f, 0.37f, 0.0f, 1.0f });
+                    init_model(bottom_obj_triangles, triangulate_expolygons_3d(obj_bottom, clip_min_z - plane_shift_z, !left_handed),
+                               ColorRGBA{ 1.0f, 0.37f, 0.0f, 1.0f });
                 // calculate support bottom cap
                 if (!bottom_sup_triangles.is_initialized() && !sup_bottom.empty())
-                    init_model(bottom_sup_triangles, triangulate_expolygons_3d(sup_bottom, clip_min_z - plane_shift_z, !left_handed), { 1.0f, 0.0f, 0.37f, 1.0f });
+                    init_model(bottom_sup_triangles, triangulate_expolygons_3d(sup_bottom, clip_min_z - plane_shift_z, !left_handed),
+                               ColorRGBA{ 1.0f, 0.0f, 0.37f, 1.0f });
             }
 
             if (slice_high.is_valid()) {
@@ -8870,10 +8909,12 @@ void GLCanvas3D::_render_sla_slices()
                 // calculate model top cap
                 // calculate model top cap
                 if (!top_obj_triangles.is_initialized() && !obj_top.empty())
-                    init_model(top_obj_triangles, triangulate_expolygons_3d(obj_top, clip_max_z + plane_shift_z, left_handed), { 1.0f, 0.37f, 0.0f, 1.0f });
+                    init_model(top_obj_triangles, triangulate_expolygons_3d(obj_top, clip_max_z + plane_shift_z, left_handed),
+                               ColorRGBA{ 1.0f, 0.37f, 0.0f, 1.0f });
                 // calculate support top cap
                 if (!top_sup_triangles.is_initialized() && !sup_top.empty())
-                    init_model(top_sup_triangles, triangulate_expolygons_3d(sup_top, clip_max_z + plane_shift_z, left_handed), { 1.0f, 0.0f, 0.37f, 1.0f });
+                    init_model(top_sup_triangles, triangulate_expolygons_3d(sup_top, clip_max_z + plane_shift_z, left_handed),
+                               ColorRGBA{ 1.0f, 0.0f, 0.37f, 1.0f });
             }
         }
 
@@ -8912,17 +8953,39 @@ void GLCanvas3D::_render_selection_sidebar_hints()
 
 void GLCanvas3D::_update_prepare_scene_max_z()
 {
-    // Compute max Z of all model volumes in world coordinates.
+    // World-axis Z envelope from transformed convex hulls (matches World coordinates Size Z).
+    double min_z = 0.0;
     double max_z = 0.0;
-    for (const GLVolume* vol : m_volumes.volumes) {
-        if (vol == nullptr)
-            continue;
-        const BoundingBoxf3 bb = vol->transformed_bounding_box();
-        max_z = std::max(max_z, bb.max.z());
-    }
-    if (max_z <= 0.0)
-        max_z = 50.0;  // default when scene is empty
+    bool   found = false;
+    auto merge_printable_volume_z = [&](const GLVolume *vol) {
+        if (vol == nullptr || !vol->is_active || vol->is_modifier || vol->is_wipe_tower)
+            return;
+        const BoundingBoxf3 &bb = vol->transformed_convex_hull_bounding_box();
+        if (!bb.defined)
+            return;
+        if (!found) {
+            min_z = bb.min.z();
+            max_z = bb.max.z();
+            found = true;
+        } else {
+            min_z = std::min(min_z, bb.min.z());
+            max_z = std::max(max_z, bb.max.z());
+        }
+    };
 
+    if (!m_selection.is_empty()) {
+        for (unsigned int volume_idx : m_selection.get_volume_idxs())
+            merge_printable_volume_z(m_selection.get_volume(volume_idx));
+    } else {
+        for (const GLVolume *vol : m_volumes.volumes)
+            merge_printable_volume_z(vol);
+    }
+    if (!found || max_z <= min_z) {
+        min_z = 0.0;
+        max_z = 50.0;  // default when scene is empty
+    }
+
+    m_prepare_scene_min_z = min_z;
     m_prepare_scene_max_z = max_z;
 
     // Initialize z_high on first call or when scene grows taller.
@@ -8985,6 +9048,9 @@ void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
     m_saved_clip_z_low  = m_prepare_clip_z_low;
     m_saved_clip_z_high = m_prepare_clip_z_high;
 
+    if (m_gcode_viewer.get_layers_slider() != nullptr)
+        m_gcode_viewer.get_layers_slider()->Hide();
+
     m_slider_in_gizmo_mode = true;
     m_gizmo_obj_z_min      = obj_z_min;
     m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
@@ -9021,6 +9087,24 @@ void GLCanvas3D::exit_gizmo_slider_mode()
                                 ? m_prepare_scene_max_z
                                 : m_saved_clip_z_high;
     _on_prepare_clip_changed(m_saved_clip_z_low, restore_high);
+
+    IMSlider* sl = m_gcode_viewer.get_layers_slider();
+    if (sl != nullptr && !m_sla_prepare_layers_z.empty()) {
+        sl->Show();
+        int hi = 0;
+        const double ztarget = m_prepare_clip_z_high;
+        for (int i = 0; i < (int)m_sla_prepare_layers_z.size(); ++i) {
+            if (m_sla_prepare_layers_z[i] <= ztarget + 1e-3)
+                hi = i;
+        }
+        const int maxp = (int)m_sla_prepare_layers_z.size() - 1;
+        sl->SetMaxValue(maxp);
+        sl->SetLowerValue(0);
+        sl->SetHigherValue(std::clamp(hi, 0, maxp));
+        sl->SetSelectionSpan(0, maxp);
+        _apply_sla_prepare_clip_from_layers_slider();
+    }
+
     set_as_dirty();
 }
 
@@ -9030,6 +9114,8 @@ void GLCanvas3D::_render_prepare_clip_slider()
     if (m_canvas_type != ECanvasType::CanvasView3D)
         return;
     if (current_printer_technology() != ptSLA)
+        return;
+    if (!m_slider_in_gizmo_mode)
         return;
 
     // Refresh scene max Z each frame (cheap: just iterates volumes).
