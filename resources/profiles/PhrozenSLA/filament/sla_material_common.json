@@ -6,7 +6,6 @@
     "version": "1.0.3",
     "name": "sla_material_common",
     "compatible_printers_condition": "",
-    "exposure_time": "12",
     "initial_exposure_time": "45",
     "initial_layer_height": "0.05",
     "material_correction": [

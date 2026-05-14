@@ -163,17 +163,18 @@ ArrangePolygon get_instance_arrange_poly(ModelInstance* instance, const Slic3r::
     // For by-layer printing, need to shrink bed a little, so the support won't go outside bed.
     // We set it to 5mm because that's how much a normal support will grow by default.
     // normal support 5mm, other support 22mm, no support 0mm
-    auto supp_type_ptr = obj->get_config_value<ConfigOptionBool>(config, "enable_support");
-    auto support_type_ptr = obj->get_config_value<ConfigOptionEnum<SupportType>>(config, "support_type");
-    auto support_type = support_type_ptr->value;
-    auto enable_support = supp_type_ptr->getBool();
-    int support_int = support_type_ptr->getInt();
-
-    if (enable_support && (support_type == stNormalAuto || support_type == stNormal))
-        ap.brim_width = 6.0;
-    else if (enable_support) {
-        ap.brim_width = 24.0; // 2*MAX_BRANCH_RADIUS_FIRST_LAYER
-        ap.has_tree_support = true;
+    // FFF-only: SLA / resin print config has no enable_support or support_type.
+    const ConfigOptionBool* supp_type_ptr = obj->get_config_value<ConfigOptionBool>(config, "enable_support");
+    const ConfigOptionEnum<SupportType>* support_type_ptr = obj->get_config_value<ConfigOptionEnum<SupportType>>(config, "support_type");
+    if (supp_type_ptr && support_type_ptr) {
+        const SupportType support_type = support_type_ptr->value;
+        const bool        enable_support = supp_type_ptr->getBool();
+        if (enable_support && (support_type == stNormalAuto || support_type == stNormal))
+            ap.brim_width = 6.0;
+        else if (enable_support) {
+            ap.brim_width = 24.0; // 2*MAX_BRANCH_RADIUS_FIRST_LAYER
+            ap.has_tree_support = true;
+        }
     }
 
     auto size = obj->instance_convex_hull_bounding_box(instance).size();

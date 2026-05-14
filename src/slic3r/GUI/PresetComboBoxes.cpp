@@ -831,6 +831,14 @@ static void run_wizard(ConfigWizard::StartPage sp)
     wxGetApp().run_wizard(ConfigWizard::RR_USER, sp);
 }
 
+// Match Plater sidebar gear: FDM uses BBL_MODELS_ONLY, resin uses BBL_LCD_PRINTER_ONLY (card UI).
+static ConfigWizard::StartPage wizard_printer_pick_start_page()
+{
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA
+        ? ConfigWizard::SP_SLA_PRINTERS
+        : ConfigWizard::SP_PRINTERS;
+}
+
 void PlaterPresetComboBox::OnSelect(wxCommandEvent &evt)
 {
     auto selected_item = evt.GetSelection();
@@ -850,7 +858,7 @@ void PlaterPresetComboBox::OnSelect(wxCommandEvent &evt)
         //else {
             ConfigWizard::StartPage sp = ConfigWizard::SP_WELCOME;
             switch (marker) {
-            case LABEL_ITEM_WIZARD_PRINTERS: sp = ConfigWizard::SP_PRINTERS; break;
+            case LABEL_ITEM_WIZARD_PRINTERS: sp = wizard_printer_pick_start_page(); break;
             case LABEL_ITEM_WIZARD_FILAMENTS: sp = ConfigWizard::SP_FILAMENTS; break;
             case LABEL_ITEM_WIZARD_MATERIALS: sp = ConfigWizard::SP_MATERIALS; break;
             default: break;
@@ -955,8 +963,13 @@ void PlaterPresetComboBox::show_add_menu()
     wxMenu* menu = new wxMenu();
 
     append_menu_item(menu, wxID_ANY, _L("Add/Remove presets"), "",
-        [](wxCommandEvent&) {
-            wxTheApp->CallAfter([]() { run_wizard(ConfigWizard::SP_PRINTERS); });
+        [this](wxCommandEvent&) {
+            ConfigWizard::StartPage sp = ConfigWizard::SP_PRINTERS;
+            if (m_type == Preset::TYPE_FILAMENT)
+                sp = ConfigWizard::SP_FILAMENTS;
+            else if (m_type == Preset::TYPE_PRINTER)
+                sp = wizard_printer_pick_start_page();
+            wxTheApp->CallAfter([sp]() { run_wizard(sp); });
         }, "menu_edit_preset", menu, []() { return true; }, wxGetApp().plater());
 
     wxGetApp().plater()->PopupMenu(menu);
@@ -980,8 +993,13 @@ void PlaterPresetComboBox::show_edit_menu()
 #endif //__linux__
 
     append_menu_item(menu, wxID_ANY, _L("Add/Remove presets"), "",
-        [](wxCommandEvent&) {
-            wxTheApp->CallAfter([]() { run_wizard(ConfigWizard::SP_PRINTERS); });
+        [this](wxCommandEvent&) {
+            ConfigWizard::StartPage sp = ConfigWizard::SP_PRINTERS;
+            if (m_type == Preset::TYPE_FILAMENT)
+                sp = ConfigWizard::SP_FILAMENTS;
+            else if (m_type == Preset::TYPE_PRINTER)
+                sp = wizard_printer_pick_start_page();
+            wxTheApp->CallAfter([sp]() { run_wizard(sp); });
         }, "menu_edit_preset", menu, []() { return true; }, wxGetApp().plater());
 
     wxGetApp().plater()->PopupMenu(menu);
@@ -1257,7 +1275,7 @@ void TabPresetComboBox::OnSelect(wxCommandEvent &evt)
         // BBS: Add/Remove filaments
         ConfigWizard::StartPage sp = ConfigWizard::SP_WELCOME;
         switch (marker) {
-        case LABEL_ITEM_WIZARD_PRINTERS: sp = ConfigWizard::SP_PRINTERS; break;
+        case LABEL_ITEM_WIZARD_PRINTERS: sp = wizard_printer_pick_start_page(); break;
         case LABEL_ITEM_WIZARD_FILAMENTS: sp = ConfigWizard::SP_FILAMENTS; break;
         case LABEL_ITEM_WIZARD_MATERIALS: sp = ConfigWizard::SP_MATERIALS; break;
         default: break;

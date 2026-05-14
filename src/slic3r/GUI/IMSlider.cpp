@@ -855,10 +855,6 @@ void IMSlider::draw_tick_on_mouse_position(const ImRect& slideable_region) {
     ImRect tick_right = ImRect(slideable_region.GetCenter().x + tick_offset.y, tick_pos - tick_width, slideable_region.GetCenter().x + tick_offset.x, tick_pos);
     ImGui::RenderFrame(tick_left.Min, tick_left.Max, tick_clr, false);
     ImGui::RenderFrame(tick_right.Min, tick_right.Max, tick_clr, false);
-    
-    // draw layer time
-    std::string label = get_label(tick, ltEstimatedTime);
-    show_tooltip(label);
 }
 
 bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower_value, std::string& higher_label, std::string& lower_label,int v_min, int v_max, const ImVec2& size, SelectedSlider& selection, bool one_layer_flag, float scale)

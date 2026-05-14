@@ -2408,6 +2408,11 @@ DynamicPrintConfig PresetBundle::full_sla_config() const
     out.apply(this->sla_prints.get_edited_preset().config);
     out.apply(this->sla_materials.get_edited_preset().config);
     out.apply(this->printers.get_edited_preset().config);
+    // `exposure_time` exists on both sla_materials (Prusa SLAMaterialConfig, code default often 3s)
+    // and sla_prints (Phrozen process JSON under resources/.../process/). Prefer the print/process
+    // preset so 3MF project_settings and slicing match the SLA Print Settings JSON the user edits.
+    if (const ConfigOption *co = this->sla_prints.get_edited_preset().config.option("exposure_time"))
+        out.set_key_value("exposure_time", co->clone());
     // There are no project configuration values as of now, the project_config is reserved for FFF printers.
 //    out.apply(this->project_config);
 
