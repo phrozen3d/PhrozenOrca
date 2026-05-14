@@ -692,7 +692,9 @@ bool SLAPrinterSettingsDialog::sync_local_to_tab(bool show_errors)
         Vec2d(min_x + size_x, min_y + size_y),
         Vec2d(min_x,          min_y + size_y)
     };
-    cfg.set_key_value("printable_area", new ConfigOptionPoints(points));
+    cfg.set_key_value("printable_area",  new ConfigOptionPoints(points));
+    cfg.set_key_value("display_width",   new ConfigOptionFloat(size_x));
+    cfg.set_key_value("display_height",  new ConfigOptionFloat(size_y));
     cfg.set_key_value("printable_height", new ConfigOptionFloat(size_z));
     apply_mirror_mode(cfg, m_mirror_choice->GetSelection() == 1 ? MirrorMode::DLP : MirrorMode::LCD);
 
