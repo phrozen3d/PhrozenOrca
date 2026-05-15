@@ -1093,10 +1093,25 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
 {
     update_data();
     m_serializing = false;
-    if (m_current == SlaSupports
-     && snapshot.snapshot_data.flags & UndoRedo::SnapshotData::RECALCULATE_SLA_SUPPORTS)
-        // Step 4.2: reslice_SLA_supports() removed, use inherited reslice_until_step() instead.
-        dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get())->reslice_until_step(slaposSupportPoints, true);
+    if (m_current == SlaSupports) {
+        GLGizmoSlaSupports* sla_gizmo = dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get());
+        // Reload display cache so rendered points match the restored mo->sla_support_points.
+        // data_changed() only triggers reload_cache() when the model-object ID changes; this
+        // covers the common case where the same object is undone/redone while gizmo is active.
+        // Guard against editing mode: in-session undo uses the gizmo stack and m_editing_cache
+        // is restored via serialization — do not overwrite it with normal_cache here.
+        if (!sla_gizmo->is_in_editing_mode()) {
+            sla_gizmo->reload_cache();
+            // Plater::priv::update_after_undo_redo() calls this->update() BEFORE calling
+            // gizmos_manager.update_after_undo_redo(), so the canvas repaint triggered by
+            // update() uses the stale m_normal_cache. Mark the canvas dirty again so the
+            // next paint cycle uses the freshly reloaded cache.
+            m_parent.set_as_dirty();
+        }
+        if (snapshot.snapshot_data.flags & UndoRedo::SnapshotData::RECALCULATE_SLA_SUPPORTS)
+            // Step 4.2: reslice_SLA_supports() removed, use inherited reslice_until_step() instead.
+            sla_gizmo->reslice_until_step(slaposSupportPoints, true);
+    }
 }
 
 void GLGizmosManager::render_background(float left, float top, float right, float bottom, float border_w, float border_h) const

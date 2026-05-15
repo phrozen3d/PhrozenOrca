@@ -76,6 +76,11 @@ public:
     // support points have been injected into mo->sla_support_points.
     void activate_structure_view();
 
+    // Reload m_normal_cache from mo->sla_support_points.
+    // Public so GLGizmosManager::update_after_undo_redo can sync the display cache
+    // after a main-stack undo/redo while this gizmo is active but not in editing mode.
+    void reload_cache();
+
     bool wants_enter_leave_snapshots() const override { return true; }
     std::string get_gizmo_entering_text() const override { return "Entering SLA support points"; }
     std::string get_gizmo_leaving_text() const override { return "Leaving SLA support points"; }
@@ -142,7 +147,6 @@ private:
     // Commit "no support points" state to model without triggering reslice/validation.
     // Used by both Auto and Manual Remove All handlers.
     void apply_remove_all();
-    void reload_cache();
     void get_data_from_backend();
     void auto_generate();
     void switch_to_editing_mode();

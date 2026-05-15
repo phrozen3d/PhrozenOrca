@@ -9168,8 +9168,20 @@ void Plater::priv::undo()
 {
     const std::vector<UndoRedo::Snapshot> &snapshots = this->undo_redo_stack().snapshots();
     auto it_current = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(this->undo_redo_stack().active_snapshot_time()));
-    // BBS: undo-redo until modify record
-    while (--it_current != snapshots.begin() && !snapshot_modifies_project(*it_current));
+    // BBS: undo-redo until modify record — boundary-safe form.
+    // The original `while (--it_current != begin() && !snapshot_modifies_project(*it_current))`
+    // pre-decrements before checking the boundary: UB when it_current == begin() on entry
+    // (e.g. gizmo editing stack holds only the baseline snapshot after Manual Apply).
+    // This loop checks the boundary AFTER each decrement so begin() is never decremented past.
+    if (it_current == snapshots.begin())
+        return;
+    while (true) {
+        --it_current;
+        if (it_current == snapshots.begin())
+            return;  // hit the baseline snapshot — nothing to undo to
+        if (snapshot_modifies_project(*it_current))
+            break;   // found a project-modifying snapshot
+    }
     if (it_current == snapshots.begin()) return;
     if (get_current_canvas3D()->get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
         if (it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::GizmoAction &&
