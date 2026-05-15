@@ -486,7 +486,7 @@ bool GLGizmoHollow::on_is_selectable() const
 
 std::string GLGizmoHollow::on_get_name() const
 {
-    return _u8L("Hollow and drill");
+    return _u8L("Hollow");
 }
 
 void GLGizmoHollow::on_set_state()

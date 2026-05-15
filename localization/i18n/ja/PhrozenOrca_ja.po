@@ -1469,7 +1469,7 @@ msgid "Flip by Face 2"
 msgstr "面2で反転"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "オーバーハング検出"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + マウスホイール"
@@ -1535,7 +1535,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "ドリル"
 
 msgid "Head diameter"
 msgstr "直径"
@@ -1603,7 +1603,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLAサポートポイント"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9166,13 +9166,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "ギズモ・テキストのエンボス/エングレーブ"
 
 msgid "Gizmo measure"
-msgstr "測る"
+msgstr "測定"
 
 msgid "Gizmo assemble"
-msgstr "組立てる"
+msgstr "組み立て"
 
 msgid "Gizmo brim ears"
-msgstr "ブリム"
+msgstr "ブリムイヤー"
 
 msgid "Zoom in"
 msgstr "ズームイン"
@@ -20361,3 +20361,13 @@ msgstr ""
 
 #~ msgid "Orient the model"
 #~ msgstr "モデルの向きを調整"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "オーバーハング検出"
+
+msgid "Gizmo Drill"
+msgstr "ドリル"
+
+msgid "Gizmo Hollow"
+msgstr "中空化"

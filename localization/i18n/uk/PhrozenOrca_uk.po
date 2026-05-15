@@ -1484,7 +1484,7 @@ msgid "Flip by Face 2"
 msgstr "Перевернути за Гранню 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Виявлення звисів"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + коліщатко миші"
@@ -1550,7 +1550,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Свердління"
 
 msgid "Head diameter"
 msgstr "Діаметр голови"
@@ -1618,7 +1618,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "Точки підтримки SLA"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9396,7 +9396,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Точки підтримки Gizmo SL"
+msgstr "Точки підтримки SLA"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Швид, що фарбується Gizmo FDM"
@@ -9405,13 +9405,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Текстове тиснення/гравіювання Gizmo"
 
 msgid "Gizmo measure"
-msgstr "виміряти Gizmo"
+msgstr "Вимірювання"
 
 msgid "Gizmo assemble"
-msgstr "Зібрати Gizmo"
+msgstr "Збирання"
 
 msgid "Gizmo brim ears"
-msgstr "Краєчки Gizmo"
+msgstr "Крайові вуха"
 
 msgid "Zoom in"
 msgstr "Приблизити"
@@ -20261,3 +20261,13 @@ msgstr ""
 
 #~ msgid "Set the brim type to \"painted\""
 #~ msgstr "Встановіть тип кайми на \"Мальована\""
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Виявлення звисів"
+
+msgid "Gizmo Drill"
+msgstr "Свердління"
+
+msgid "Gizmo Hollow"
+msgstr "Усереднення"

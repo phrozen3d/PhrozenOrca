@@ -2,6 +2,7 @@
 #include "KBShortcutsDialog.hpp"
 #include "I18N.hpp"
 #include "libslic3r/Utils.hpp"
+#include "libslic3r/PrintConfig.hpp"
 #include "GUI.hpp"
 #include "Notebook.hpp"
 #include <wx/scrolwin.h>
@@ -209,6 +210,7 @@ void KBShortcutsDialog::fill_shortcuts()
         m_full_shortcuts.push_back({{_L("Global shortcuts"), ""}, global_shortcuts});
         
         bool swap_mouse_buttons = wxGetApp().app_config->get_bool("swap_mouse_buttons");
+        const bool is_sla = wxGetApp().get_ui_printer_technology() == ptSLA;
 
         Shortcuts plater_shortcuts = {
             { L("Left mouse button"), swap_mouse_buttons ? L("Pan View") : L("Rotate View") },
@@ -250,9 +252,13 @@ void KBShortcutsDialog::fill_shortcuts()
             { "F", L("Gizmo place face on bed") },
             { "C", L("Gizmo cut") },
             { "B", L("Gizmo mesh boolean") },
-            { "H", L("Gizmo FDM paint-on fuzzy skin") },
-            { "L", L("Gizmo SLA support points") },
-            { "P", L("Gizmo FDM paint-on seam") },
+        };
+        plater_shortcuts.push_back({ "H", is_sla ? L("Gizmo Hollow") : L("Gizmo FDM paint-on fuzzy skin") });
+        if (is_sla)
+            plater_shortcuts.push_back({ "D", L("Gizmo Drill") });
+        plater_shortcuts.push_back({ "L", is_sla ? L("Gizmo Overhang Detection") : L("Gizmo Support Painting") });
+        plater_shortcuts.insert(plater_shortcuts.end(), {
+            { "P", is_sla ? L("Gizmo SLA support points") : L("Gizmo FDM paint-on seam") },
             { "T", L("Gizmo text emboss/engrave") },
             { "U", L("Gizmo measure") },
             { "Y", L("Gizmo assemble") },
@@ -260,8 +266,7 @@ void KBShortcutsDialog::fill_shortcuts()
             { "I", L("Zoom in") },
             { "O", L("Zoom out") },
             { L("Tab"), L("Switch between Prepare/Preview") },
-
-        };
+        });
         m_full_shortcuts.push_back({ { _L("Plater"), "" }, plater_shortcuts });
 
         Shortcuts gizmos_shortcuts = {

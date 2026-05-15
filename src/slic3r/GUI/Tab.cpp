@@ -1124,6 +1124,10 @@ void Tab::on_roll_back_value(const bool to_sys /*= true*/)
     // BBS: restore all pages in preset
     // if (!m_active_page) return;
 
+    const wxString prev_page_title = (m_tabctrl && m_parent && m_parent->is_active_and_shown_tab(this))
+        ? get_selected_page_title()
+        : wxString();
+
     int os;
     if (to_sys)	{
         if (!m_is_nonsys_values) return;
@@ -1181,6 +1185,8 @@ void Tab::on_roll_back_value(const bool to_sys /*= true*/)
     update();
     if (m_active_page)
         m_active_page->update_visibility(visibility_mode(), true);
+    if (!prev_page_title.empty())
+        restore_page_selection_by_title(prev_page_title);
 
     // BBS: restore all pages in preset, update_dirty also update combobox
     update_dirty();
@@ -1505,11 +1511,49 @@ static wxString pad_combo_value_for_config(const DynamicPrintConfig &config)
     return config.opt_bool("pad_enable") ? (config.opt_bool("pad_around_object") ? _("Around object") : _("Below object")) : _("None");
 }
 
+wxString Tab::get_selected_page_title() const
+{
+    if (!m_tabctrl)
+        return {};
+    int sel_item = m_tabctrl->GetSelection();
+    if (sel_item < 0 && m_last_select_item >= 0)
+        sel_item = m_last_select_item;
+    if (sel_item >= 0)
+        return m_tabctrl->GetItemText(sel_item);
+    if (m_active_page)
+        return translate_category(m_active_page->title(), m_type);
+    return {};
+}
+
+void Tab::restore_page_selection_by_title(const wxString& title)
+{
+    if (title.empty() || !m_tabctrl || !m_parent || !m_parent->is_active_and_shown_tab(this))
+        return;
+
+    const int cur_sel = m_tabctrl->GetSelection();
+    if (cur_sel >= 0 && m_tabctrl->GetItemText(cur_sel) == title)
+        return;
+
+    int item = m_tabctrl->GetFirstVisibleItem();
+    while (item >= 0) {
+        if (m_tabctrl->GetItemText(item) == title) {
+            m_tabctrl->SelectItem(item);
+            m_last_select_item = item;
+            return;
+        }
+        item = m_tabctrl->GetNextVisible(item);
+    }
+}
+
 void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
 {
     if (wxGetApp().plater() == nullptr) {
         return;
     }
+
+    const wxString prev_page_title = (m_tabctrl && m_parent && m_parent->is_active_and_shown_tab(this))
+        ? get_selected_page_title()
+        : wxString();
 
     if (opt_key == "compatible_prints")
         this->compatible_widget_reload(m_compatible_prints);
@@ -1853,6 +1897,8 @@ void Tab::on_value_change(const std::string& opt_key, const boost::any& value)
     update();
     if(m_active_page)
         m_active_page->update_visibility(visibility_mode(), true);
+    if (!prev_page_title.empty())
+        restore_page_selection_by_title(prev_page_title);
     m_page_view->GetParent()->Layout();
 }
 
@@ -5113,7 +5159,12 @@ void Tab::rebuild_page_tree()
     // BBS: fix new layout, record last select
     if (sel_item < 0)
         sel_item = m_last_select_item;
-    const auto selected = sel_item >= 0 ? m_tabctrl->GetItemText(sel_item) : "";
+
+    wxString selected;
+    if (sel_item >= 0)
+        selected = m_tabctrl->GetItemText(sel_item);
+    else if (m_active_page)
+        selected = translate_category(m_active_page->title(), m_type);
 
     int item = -1;
 
@@ -5147,14 +5198,22 @@ void Tab::rebuild_page_tree()
     m_tabctrl->Unselect();
     // BBS: not select on hide tab
     if (item == -1 && m_parent->is_active_and_shown_tab(this)) {
-        // this is triggered on first load, so we don't disable the sel change event
-        item = m_tabctrl->GetFirstVisibleItem();
+        if (!selected.empty()) {
+            int try_item = m_tabctrl->GetFirstVisibleItem();
+            while (try_item >= 0) {
+                if (m_tabctrl->GetItemText(try_item) == selected) {
+                    item = try_item;
+                    break;
+                }
+                try_item = m_tabctrl->GetNextVisible(try_item);
+            }
+        }
+        if (item == -1)
+            item = m_tabctrl->GetFirstVisibleItem();
     }
     // BBS: fix new layout, record last select
-    if (sel_item == m_last_select_item)
+    if (item >= 0)
         m_last_select_item = item;
-    else
-        m_last_select_item = NULL;
 
     // allow activate page before selection of a page_tree item
     m_disable_tree_sel_changed_event = false;
@@ -5603,10 +5662,22 @@ void Tab::set_expanded(bool value)
 // BBS: new layout
 void Tab::restore_last_select_item()
 {
-    auto item = m_last_select_item;
-    if (item == -1)
-        item = m_tabctrl->GetFirstVisibleItem();
-    m_tabctrl->SelectItem(item);
+    if (!m_tabctrl)
+        return;
+
+    if (m_last_select_item >= 0 && m_last_select_item < m_tabctrl->GetCount()) {
+        m_tabctrl->SelectItem(m_last_select_item);
+        return;
+    }
+
+    if (m_active_page) {
+        restore_page_selection_by_title(translate_category(m_active_page->title(), m_type));
+        return;
+    }
+
+    const int item = m_tabctrl->GetFirstVisibleItem();
+    if (item >= 0)
+        m_tabctrl->SelectItem(item);
 }
 
 void Tab::update_description_lines()
@@ -5750,10 +5821,15 @@ bool Tab::tree_sel_change_delayed(wxCommandEvent& event)
     }
 
     //process logic in the same tab when select treeCtrlItem
-    if (m_active_page == page)
+    if (m_active_page == page) {
+        if (sel_item >= 0)
+            m_last_select_item = sel_item;
         return false;
+    }
 
     m_active_page = page;
+    if (sel_item >= 0)
+        m_last_select_item = sel_item;
 
     auto throw_if_canceled = std::function<void()>([this](){
 #ifdef WIN32
@@ -7247,10 +7323,15 @@ ConfigManipulation Tab::get_config_manipulation()
 {
     auto load_config = [this]()
     {
+        const wxString prev_page_title = (m_tabctrl && m_parent && m_parent->is_active_and_shown_tab(this))
+            ? get_selected_page_title()
+            : wxString();
         update_dirty();
         // Initialize UI components with the config values.
         reload_config();
         update();
+        if (!prev_page_title.empty())
+            restore_page_selection_by_title(prev_page_title);
     };
 
     auto cb_toggle_field = [this](const t_config_option_key& opt_key, bool toggle, int opt_index) {

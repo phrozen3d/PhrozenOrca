@@ -1453,7 +1453,7 @@ msgid "Flip by Face 2"
 msgstr "通過面 2 翻轉"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "懸空檢測"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + 滑鼠滾輪"
@@ -1519,7 +1519,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "鑽孔"
 
 msgid "Head diameter"
 msgstr "頭直徑"
@@ -1587,7 +1587,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA支撐點"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -8953,7 +8953,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr "Gizmo FDM繪製模糊表面"
 
 msgid "Gizmo SLA support points"
-msgstr "SLA 支撐點"
+msgstr "SLA支撐點"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "FDM 塗裝接縫"
@@ -8962,13 +8962,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "浮雕/雕刻文字工具"
 
 msgid "Gizmo measure"
-msgstr "Gizmo "
+msgstr "測量"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo "
+msgstr "組合"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo "
+msgstr "邊緣支撐"
 
 msgid "Zoom in"
 msgstr "放大"
@@ -19534,3 +19534,13 @@ msgstr ""
 
 #~ msgid "Sphere size"
 #~ msgstr "球體大小"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "懸空檢測"
+
+msgid "Gizmo Drill"
+msgstr "鑽孔"
+
+msgid "Gizmo Hollow"
+msgstr "鏤空"

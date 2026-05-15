@@ -1476,7 +1476,7 @@ msgid "Flip by Face 2"
 msgstr "Apversti pagal paviršių 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Pasvirusio aptikimas"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + pelės ratukas"
@@ -1542,7 +1542,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Gręžimas"
 
 msgid "Head diameter"
 msgstr "Galvutės skersmuo"
@@ -1610,7 +1610,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA atramos taškai"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9366,7 +9366,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo SLA atramų taškai"
+msgstr "SLA atramos taškai"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Gizmo FDM siūlių piešimui"
@@ -9375,13 +9375,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo teksto įspaudimas/graviravimas"
 
 msgid "Gizmo measure"
-msgstr "Gizmo matuoti"
+msgstr "Matavimas"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo surinkimo"
+msgstr "Surinkimas"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo krašto \"ausys\""
+msgstr "Krašto auselės"
 
 msgid "Zoom in"
 msgstr "Padidinti"
@@ -20658,3 +20658,13 @@ msgstr ""
 #, c-format, boost-format
 #~ msgid "Support: propagate branches at layer %d"
 #~ msgstr "Atramos: skleisti šakas sluoksnyje %d"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Pasvirusio aptikimas"
+
+msgid "Gizmo Drill"
+msgstr "Gręžimas"
+
+msgid "Gizmo Hollow"
+msgstr "Tuščiaviduris"

@@ -1437,7 +1437,7 @@ msgid "Flip by Face 2"
 msgstr ""
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Konzol észlelése"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Egérgörgő"
@@ -1503,7 +1503,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Fúrás"
 
 msgid "Head diameter"
 msgstr "Fej átmérő"
@@ -1571,7 +1571,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA támaszpontok"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9054,7 +9054,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo SLA támaszpontok"
+msgstr "SLA támaszpontok"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Gizmo FDM varrat festés"
@@ -9063,13 +9063,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo szöveg dombornyomás/gravírozás"
 
 msgid "Gizmo measure"
-msgstr "Gizmo mérés"
+msgstr "Mérés"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo összeállítás"
+msgstr "Összeszerelés"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo karimás fülek"
+msgstr "Szegélyfülek"
 
 msgid "Zoom in"
 msgstr "Zoom közelítés"
@@ -19124,3 +19124,13 @@ msgstr ""
 
 #~ msgid "Orient the model"
 #~ msgstr "Modell orientációja"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Konzol észlelése"
+
+msgid "Gizmo Drill"
+msgstr "Fúrás"
+
+msgid "Gizmo Hollow"
+msgstr "Üregesítés"

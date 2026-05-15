@@ -1471,7 +1471,7 @@ msgid "Flip by Face 2"
 msgstr "Překlopit podle plochy 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Detekce převisů"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + kolečko myši"
@@ -1537,7 +1537,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Vrtání"
 
 msgid "Head diameter"
 msgstr "Průměr hrotu"
@@ -1605,7 +1605,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA body podpory"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9157,7 +9157,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo SLA podpěrné body"
+msgstr "SLA body podpory"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Gizmo FDM malování pozice švu"
@@ -9166,13 +9166,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo text emboss/gravírování"
 
 msgid "Gizmo measure"
-msgstr "Gizmo měření"
+msgstr "Měření"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo sestavit"
+msgstr "Sestavení"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo uši límce"
+msgstr "Okrajové výstupky"
 
 msgid "Zoom in"
 msgstr "Přiblížit"
@@ -19845,3 +19845,13 @@ msgstr ""
 #~ "Zadejte prosím platné hodnoty:\n"
 #~ "start > 10 kroků >= 0\n"
 #~ "konec > začátek + krok)"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Detekce převisů"
+
+msgid "Gizmo Drill"
+msgstr "Vrtání"
+
+msgid "Gizmo Hollow"
+msgstr "Dutina"

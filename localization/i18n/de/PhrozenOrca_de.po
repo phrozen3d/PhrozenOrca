@@ -1487,7 +1487,7 @@ msgid "Flip by Face 2"
 msgstr "Umdrehen durch Fläche 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Überhang-Erkennung"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Mausrad"
@@ -1553,7 +1553,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Bohren"
 
 msgid "Head diameter"
 msgstr "Kopfdurchmesser"
@@ -1621,7 +1621,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA-Stützpunkte"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9527,7 +9527,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr "FDM Pinsel auf Fuzzy Oberfläche"
 
 msgid "Gizmo SLA support points"
-msgstr "SLA Stützpunkte"
+msgstr "SLA-Stützpunkte"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "FDM Naht aufmalen"
@@ -9536,13 +9536,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Text prägen/gravieren"
 
 msgid "Gizmo measure"
-msgstr "Gizmo messen"
+msgstr "Messen"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo Zusammenbauen"
+msgstr "Zusammenbau"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo mausohren"
+msgstr "Randstützen"
 
 msgid "Zoom in"
 msgstr "Vergrößern"
@@ -22600,3 +22600,13 @@ msgstr ""
 #~ "Zusammenführung der Äste und spart viel Material (Standard), während der "
 #~ "Hybridmodus bei großen überhängenden Flächen eine ähnliche Struktur wie "
 #~ "bei normalen Stützstrukturen erzeugt."
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Überhang-Erkennung"
+
+msgid "Gizmo Drill"
+msgstr "Bohren"
+
+msgid "Gizmo Hollow"
+msgstr "Aushöhlen"

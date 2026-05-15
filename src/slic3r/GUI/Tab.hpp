@@ -411,6 +411,8 @@ public:
 	// BBS: new layout
 	void set_expanded(bool value);
 	void restore_last_select_item();
+	wxString    get_selected_page_title() const;
+	void        restore_page_selection_by_title(const wxString& title);
 
 	static bool validate_custom_gcode(const wxString& title, const std::string& gcode);
 	bool        validate_custom_gcodes();

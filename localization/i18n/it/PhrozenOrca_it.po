@@ -1495,7 +1495,7 @@ msgid "Flip by Face 2"
 msgstr "Capovolgi da Faccia 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Rilevamento sporgenze"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Rotellina del mouse"
@@ -1561,7 +1561,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Foratura"
 
 msgid "Head diameter"
 msgstr "Diametro testa"
@@ -1629,7 +1629,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "Punti di supporto SLA"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9455,7 +9455,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Strumento Punti di supporto SLA"
+msgstr "Punti di supporto SLA"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Strumento Dipingi cucitura FDM"
@@ -9464,13 +9464,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Strumento testo in rilievo/incisione"
 
 msgid "Gizmo measure"
-msgstr "Gizmo misura"
+msgstr "Misura"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo assemblaggio"
+msgstr "Assemblaggio"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo tese ad orecchio"
+msgstr "Orecchie di bordo"
 
 msgid "Zoom in"
 msgstr "Ingrandisci"
@@ -21926,3 +21926,13 @@ msgstr ""
 #~ "inferiore a quella del primo layer di oltre questa soglia. Una "
 #~ "temperatura del piano troppo bassa degli altri layer può causare il "
 #~ "distacco dell'oggetto dal piatto."
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Rilevamento sporgenze"
+
+msgid "Gizmo Drill"
+msgstr "Foratura"
+
+msgid "Gizmo Hollow"
+msgstr "Vuotatura"

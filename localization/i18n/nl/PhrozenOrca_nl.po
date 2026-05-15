@@ -1453,7 +1453,7 @@ msgid "Flip by Face 2"
 msgstr ""
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Overhangdetectie"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + muiswiel"
@@ -1519,7 +1519,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Boren"
 
 msgid "Head diameter"
 msgstr "Kopdiameter"
@@ -1587,7 +1587,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA-ondersteuningspunten"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9197,7 +9197,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo SLA-ondersteuningspunten"
+msgstr "SLA-ondersteuningspunten"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Gizmo FDM seam schilderen"
@@ -9206,13 +9206,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo tekst reliëf/graveren"
 
 msgid "Gizmo measure"
-msgstr "Gizmo maatregel"
+msgstr "Meten"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo monteren"
+msgstr "Assembleren"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo rand oren"
+msgstr "Randoren"
 
 msgid "Zoom in"
 msgstr "Zoom in"
@@ -19573,3 +19573,13 @@ msgstr ""
 
 #~ msgid "Orient the model"
 #~ msgstr "Oriënteer het model"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Overhangdetectie"
+
+msgid "Gizmo Drill"
+msgstr "Boren"
+
+msgid "Gizmo Hollow"
+msgstr "Hol maken"

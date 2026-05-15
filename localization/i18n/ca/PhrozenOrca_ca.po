@@ -1482,7 +1482,7 @@ msgid "Flip by Face 2"
 msgstr "Gira per la cara 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Detecció de voladissos"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Roda del ratolí"
@@ -1548,7 +1548,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Perforació"
 
 msgid "Head diameter"
 msgstr "Diàmetre del cap"
@@ -1616,7 +1616,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "Punts de suport SLA"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9411,7 +9411,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo de Punts de suport SLA"
+msgstr "Punts de suport SLA"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Eina de Pintat de costures FDM"
@@ -9420,13 +9420,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo de text en relleu/gravat"
 
 msgid "Gizmo measure"
-msgstr "Gizmo mesurar"
+msgstr "Mesura"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo ensamblar"
+msgstr "Muntatge"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo orelles de la Vora d'Adherència"
+msgstr "Orelles de vora"
 
 msgid "Zoom in"
 msgstr "Augmentar zoom"
@@ -21093,3 +21093,13 @@ msgstr ""
 
 #~ msgid "End end: "
 #~ msgstr "Final: "
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Detecció de voladissos"
+
+msgid "Gizmo Drill"
+msgstr "Perforació"
+
+msgid "Gizmo Hollow"
+msgstr "Buit"

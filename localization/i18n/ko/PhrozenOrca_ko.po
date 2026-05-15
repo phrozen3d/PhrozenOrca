@@ -1464,7 +1464,7 @@ msgid "Flip by Face 2"
 msgstr "면 2로 뒤집기"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "오버행 감지"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + 마우스 휠"
@@ -1530,7 +1530,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "드릴"
 
 msgid "Head diameter"
 msgstr "헤드 직경"
@@ -1598,7 +1598,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA 지지점"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9150,7 +9150,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr "변형도구 FDM 페인트 온 퍼지 스킨"
 
 msgid "Gizmo SLA support points"
-msgstr "변형도구 서포트 칠하기"
+msgstr "SLA 지지점"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "변형도구 재봉선 칠하기"
@@ -9159,13 +9159,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "변형도구 - 텍스트 엠보싱/인그레이빙"
 
 msgid "Gizmo measure"
-msgstr "변형도구 측정"
+msgstr "측정"
 
 msgid "Gizmo assemble"
-msgstr "변형도구 병합"
+msgstr "조립"
 
 msgid "Gizmo brim ears"
-msgstr "변형도구 브림 귀"
+msgstr "브림 이어"
 
 msgid "Zoom in"
 msgstr "확대"
@@ -21530,3 +21530,13 @@ msgstr ""
 #~ "유효한 값을 입력하십시오:\n"
 #~ "시작 > 10 단계 >= 0\n"
 #~ "끝 > 시작 + 단계)"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "오버행 감지"
+
+msgid "Gizmo Drill"
+msgstr "드릴"
+
+msgid "Gizmo Hollow"
+msgstr "할로우"

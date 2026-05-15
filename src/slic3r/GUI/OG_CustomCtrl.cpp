@@ -478,6 +478,27 @@ void OG_CustomCtrl::OnLeftDown(wxMouseEvent& event)
 {
     const wxPoint pos = event.GetLogicalPosition(wxClientDC(this));
 
+    auto defer_reset = [this](const std::string& opt_key, bool to_sys) {
+        if (!opt_group || !opt_group->sizer)
+            return;
+        OptionsGroup* og = opt_group;
+        wxTheApp->CallAfter([og, opt_key, to_sys]() {
+            if (!og || !og->sizer)
+                return;
+            if (auto* conf_og = dynamic_cast<ConfigOptionsGroup*>(og)) {
+                if (to_sys)
+                    conf_og->back_to_sys_value(opt_key);
+                else
+                    conf_og->back_to_initial_value(opt_key);
+            } else if (Field* field = og->get_field(opt_key)) {
+                if (to_sys)
+                    field->on_back_to_sys_value();
+                else
+                    field->on_back_to_initial_value();
+            }
+        });
+    };
+
     for (const CtrlLine& line : ctrl_lines) {
         if (!line.is_visible) continue;
         if (line.launch_browser())
@@ -489,36 +510,26 @@ void OG_CustomCtrl::OnLeftDown(wxMouseEvent& event)
         for (size_t opt_idx = 0; opt_idx < undo_icons_cnt; opt_idx++) {
             const std::string& opt_key = option_set[opt_idx].opt_id;
             if (is_point_in_rect(pos, line.rects_undo_icon[opt_idx])) {
-                if (line.og_line.has_undo_ui()) {
-                    if (ConfigOptionsGroup* conf_OG = dynamic_cast<ConfigOptionsGroup*>(line.ctrl->opt_group))
-                        conf_OG->back_to_initial_value(opt_key);
-                }
-                else if (Field* field = opt_group->get_field(opt_key))
-                    field->on_back_to_initial_value();
-                event.Skip();
+                defer_reset(opt_key, false);
                 return;
             }
             if (is_point_in_rect(pos, line.rects_undo_to_sys_icon[opt_idx])) {
-                if (line.og_line.has_undo_ui()) {
-                    if (ConfigOptionsGroup* conf_OG = dynamic_cast<ConfigOptionsGroup*>(line.ctrl->opt_group))
-                        conf_OG->back_to_sys_value(opt_key);
-                }
-                else if (Field* field = opt_group->get_field(opt_key))
-                    field->on_back_to_sys_value();
-                event.Skip();
+                defer_reset(opt_key, true);
                 return;
             }
 
             if (opt_idx < line.rects_edit_icon.size() && is_point_in_rect(pos, line.rects_edit_icon[opt_idx])) {
-                if (Field* field = opt_group->get_field(opt_key))
-                    field->on_edit_value();
-                event.Skip();
+                if (opt_group && opt_group->sizer) {
+                    if (Field* field = opt_group->get_field(opt_key))
+                        field->on_edit_value();
+                }
                 return;
             }
         }
     }
 
     SetFocusIgnoringChildren();
+    event.Skip();
 }
 
 void OG_CustomCtrl::OnLeaveWin(wxMouseEvent& event)

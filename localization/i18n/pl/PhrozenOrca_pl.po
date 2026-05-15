@@ -1478,7 +1478,7 @@ msgid "Flip by Face 2"
 msgstr "Obróć względem 2 powierzchni"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Wykrywanie zwisów"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + kółko myszy"
@@ -1544,7 +1544,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Wiercenie"
 
 msgid "Head diameter"
 msgstr "Średnica łącznika"
@@ -9370,7 +9370,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Punkty podpór SLA za pomocą „uchwytów”"
+msgstr "Punkty podpór SLA"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Uchwyt malowania szwu FDM"
@@ -9379,13 +9379,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Uchwyt wytłaczania/grawerowania tekstu"
 
 msgid "Gizmo measure"
-msgstr "Gizmo mierzyć"
+msgstr "Pomiar"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo montować"
+msgstr "Montaż"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo uszy brim"
+msgstr "Uszy brzegu"
 
 msgid "Zoom in"
 msgstr "Przybliżenie"
@@ -22925,3 +22925,13 @@ msgstr ""
 #~ "Proszę podać poprawne wartości:\n"
 #~ "start > 10 kroków >= 0\n"
 #~ "koniec > start + krok)"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Wykrywanie zwisów"
+
+msgid "Gizmo Drill"
+msgstr "Wiercenie"
+
+msgid "Gizmo Hollow"
+msgstr "Wydrążanie"

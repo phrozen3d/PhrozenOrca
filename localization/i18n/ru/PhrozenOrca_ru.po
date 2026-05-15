@@ -1494,7 +1494,7 @@ msgid "Flip by Face 2"
 msgstr "Перевернуть грань 2"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Обнаружение свесов"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Колесо мыши"
@@ -1560,7 +1560,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Сверление"
 
 msgid "Head diameter"
 msgstr "Диаметр уха"
@@ -1628,7 +1628,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "Точки поддержки SLA"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9524,7 +9524,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr ""
 
 msgid "Gizmo SLA support points"
-msgstr "Гизмо точки SLA поддержки"
+msgstr "Точки поддержки SLA"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Гизмо рисования шва (FDM)"
@@ -9533,13 +9533,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Гизмо рельефного/выгравированного текста"
 
 msgid "Gizmo measure"
-msgstr "Гизмо измерения"
+msgstr "Измерение"
 
 msgid "Gizmo assemble"
-msgstr "Гизмо объединения в сборку"
+msgstr "Сборка"
 
 msgid "Gizmo brim ears"
-msgstr "Гизмо каймы «мышиные уши»"
+msgstr "Крайние ушки"
 
 msgid "Zoom in"
 msgstr "Приблизить"
@@ -21016,3 +21016,13 @@ msgstr ""
 
 #~ msgid "Right click to reset value to system default."
 #~ msgstr "Правая кнопка мыши - сброс значения до системного по умолчанию."
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Обнаружение свесов"
+
+msgid "Gizmo Drill"
+msgstr "Сверление"
+
+msgid "Gizmo Hollow"
+msgstr "Полость"

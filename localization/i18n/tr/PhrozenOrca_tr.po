@@ -1475,7 +1475,7 @@ msgid "Flip by Face 2"
 msgstr "Yüzey 2’ye Göre Çevir"
 
 msgid "Overhang Detection"
-msgstr ""
+msgstr "Çıkıntı algılama"
 
 msgid "Alt + Mouse wheel"
 msgstr "Alt + Fare tekerleği"
@@ -1541,7 +1541,7 @@ msgid "Remove hole"
 msgstr ""
 
 msgid "Drill"
-msgstr ""
+msgstr "Delme"
 
 msgid "Head diameter"
 msgstr "Kafa çapı"
@@ -1609,7 +1609,7 @@ msgid ""
 msgstr ""
 
 msgid "SLA Support Points"
-msgstr ""
+msgstr "SLA destek noktaları"
 
 msgid "Do you want to save your manually edited support points?"
 msgstr ""
@@ -9330,7 +9330,7 @@ msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr "Gizmo FDM boyama ile uygulanan pütürlü yüzey"
 
 msgid "Gizmo SLA support points"
-msgstr "Gizmo SLA destek noktaları"
+msgstr "SLA destek noktaları"
 
 msgid "Gizmo FDM paint-on seam"
 msgstr "Gizmo FDM boyalı dikiş"
@@ -9339,13 +9339,13 @@ msgid "Gizmo text emboss/engrave"
 msgstr "Gizmo metin kabartma/kazıma"
 
 msgid "Gizmo measure"
-msgstr "Gizmo ölçüm"
+msgstr "Ölçüm"
 
 msgid "Gizmo assemble"
-msgstr "Gizmo birleştir"
+msgstr "Montaj"
 
 msgid "Gizmo brim ears"
-msgstr "Gizmo lenarlık kulakları"
+msgstr "Kenar kulakları"
 
 msgid "Zoom in"
 msgstr "Yakınlaştır"
@@ -21998,3 +21998,13 @@ msgstr ""
 #~ "Lütfen geçerli değerleri girin:\n"
 #~ "başlangıç > 10 adım >= 0\n"
 #~ "bitiş > başlangıç + adım)"
+
+
+msgid "Gizmo Overhang Detection"
+msgstr "Çıkıntı algılama"
+
+msgid "Gizmo Drill"
+msgstr "Delme"
+
+msgid "Gizmo Hollow"
+msgstr "İç boşaltma"
