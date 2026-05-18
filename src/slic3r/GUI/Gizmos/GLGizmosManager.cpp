@@ -432,9 +432,7 @@ void GLGizmosManager::update_data()
                                    ? get_current()->get_requirements()
                                    : CommonGizmosDataID(0));
 
-    // Gizmo slider mode: detect gizmo enter / exit and notify GLCanvas3D.
-    // On enter → switch right-side slider to object-bbox range + reset to default.
-    // On exit  → restore prepare-mode slider state.
+    // SLA ObjectClipper session: keep Prepare IMSlider visible; cache clip ratio for exit sync.
     if (m_common_gizmos_data && m_parent.get_printer_technology() == ptSLA) {
         auto* oc       = m_common_gizmos_data->object_clipper();
         bool  oc_valid = (oc != nullptr);
@@ -454,14 +452,16 @@ void GLGizmosManager::update_data()
                 obj_z_min = bb.min.z() + z_shift;
                 obj_z_max = bb.max.z() + z_shift;
             }
-            // Switch slider to gizmo mode; initial ratio synced from global prepare slider.
+            // Track session; initial ratio synced from prepare slider (see enter_gizmo_slider_mode).
             m_parent.enter_gizmo_slider_mode(obj_z_min, obj_z_max);
             oc->set_position_by_ratio(m_parent.get_gizmo_clip_ratio(), false);
         }
 
         if (just_left) {
-            // Restore prepare-mode slider.
+            // Restore prepare-mode slider from last known ObjectClipper ratio.
             m_parent.exit_gizmo_slider_mode();
+        } else if (oc_valid && m_parent.sla_oc_clip_slider_session_active()) {
+            m_parent.cache_sla_gizmo_clip_ratio_for_exit(oc->get_position());
         }
     }
 

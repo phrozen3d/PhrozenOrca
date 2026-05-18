@@ -3071,15 +3071,10 @@ void GLCanvas3D::on_idle(wxIdleEvent& evt)
     m_dirty |= imgui_requires_extra_frame;
 #endif // ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
 
-    // SLA gizmo: custom single-handle clip slider needs continuous frames.
     // Resin Prepare IMSlider: rely on ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT requires_extra_frame.
     if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA) {
-        if (m_slider_in_gizmo_mode) {
-            m_dirty = true;
-            request_extra_frame();
-        }
 #if ENABLE_ENHANCED_IMGUI_SLIDER_FLOAT
-        else if (wxGetApp().imgui()->requires_extra_frame()) {
+        if (wxGetApp().imgui()->requires_extra_frame()) {
             m_dirty = true;
             request_extra_frame();
         }
@@ -9041,17 +9036,17 @@ void GLCanvas3D::_on_prepare_clip_changed(double z_low, double z_high)
 
 void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
 {
-    if (m_slider_in_gizmo_mode)
+    if (m_sla_oc_clip_slider_session)
         return;
 
     // Save current prepare-mode slider positions for restore on exit.
     m_saved_clip_z_low  = m_prepare_clip_z_low;
     m_saved_clip_z_high = m_prepare_clip_z_high;
 
-    if (m_gcode_viewer.get_layers_slider() != nullptr)
-        m_gcode_viewer.get_layers_slider()->Hide();
+    // Keep IMSlider visible (same control as before opening Hollow/Drill/Supports).
 
-    m_slider_in_gizmo_mode = true;
+    m_slider_in_gizmo_mode = false;
+    m_sla_oc_clip_slider_session = true;
     m_gizmo_obj_z_min      = obj_z_min;
     m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
 
@@ -9065,16 +9060,15 @@ void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
         m_gizmo_clip_ratio = 0.0;  // global slider at or above object top → no clipping
     }
 
-    // Disable global prepare clipping planes while gizmo manages its own cross-section.
-    m_use_clipping_planes = false;
     set_as_dirty();
 }
 
 void GLCanvas3D::exit_gizmo_slider_mode()
 {
-    if (!m_slider_in_gizmo_mode)
+    if (!m_sla_oc_clip_slider_session)
         return;
 
+    m_sla_oc_clip_slider_session = false;
     m_slider_in_gizmo_mode = false;
 
     // Stage 4.2: Convert gizmo ratio back to absolute Z for the prepare slider,

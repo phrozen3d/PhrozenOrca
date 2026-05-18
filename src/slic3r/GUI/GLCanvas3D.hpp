@@ -551,7 +551,8 @@ private:
     // Stage 2: ObjectClipper sync re-entrancy guard
     bool m_syncing_clipper = false;
     // Gizmo slider mode: right-side slider controls ObjectClipper directly
-    bool   m_slider_in_gizmo_mode = false;  // true while SLA gizmo (Hollow/Drill/Supports) is active
+    bool   m_slider_in_gizmo_mode = false;  // legacy IMSlider hide path (unused: keep IMSlider visible)
+    bool   m_sla_oc_clip_slider_session = false; // SLA Hollow/Drill/Supports: track exit sync for ObjectClipper
     double m_gizmo_obj_z_min      = 0.0;    // selected object bbox z_min in world coords
     double m_gizmo_obj_z_max      = 50.0;   // selected object bbox z_max in world coords
     double m_gizmo_clip_ratio     = 0.0;    // 0 = top (no clip), 1 = bottom (full clip)
@@ -832,6 +833,8 @@ public:
     // Gizmo slider mode API – called by GLGizmosManager on gizmo enter/exit
     void enter_gizmo_slider_mode(double obj_z_min, double obj_z_max);
     void exit_gizmo_slider_mode();
+    void cache_sla_gizmo_clip_ratio_for_exit(double ratio) { m_gizmo_clip_ratio = ratio; }
+    bool sla_oc_clip_slider_session_active() const { return m_sla_oc_clip_slider_session; }
     bool   get_slider_in_gizmo_mode() const { return m_slider_in_gizmo_mode; }
     double get_gizmo_clip_ratio()     const { return m_gizmo_clip_ratio; }
 
