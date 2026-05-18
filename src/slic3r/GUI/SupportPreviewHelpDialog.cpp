@@ -21,14 +21,14 @@ namespace GUI {
 namespace {
 
 // var_dir is resources/images — same convention as ScalableBitmap (no leading "images/").
-static const char* k_svg_sphere = "PhrozenImages_Resin/support_preview_diagram_2_79";
-static const char* k_svg_none   = "PhrozenImages_Resin/support_preview_diagram_2_9";
+static const char* k_svg_sphere = "PhrozenImages_Resin/support_preview_diagram_contactType_sphere";
+static const char* k_svg_none   = "PhrozenImages_Resin/support_preview_diagram_contactType_none";
 
 // Content area: wider than Figma 600 so long English labels fit in side margins without covering the diagram.
 static constexpr int k_canvas_design_w = 760;
 static constexpr int k_canvas_design_h = 400;
 
-// SVG viewBox (support_preview_diagram_2_79.svg / 2_9.svg) — vertical layout uses Figma diagram top + height.
+// SVG viewBox (support_preview_diagram_contactType_sphere.svg / contactType_none.svg) — vertical layout uses Figma diagram top + height.
 static constexpr double k_svg_view_w = 358.469;
 static constexpr double k_svg_view_h = 319.492;
 // Figma: diagram group 2:79 top in frame 2:78 (design px).
