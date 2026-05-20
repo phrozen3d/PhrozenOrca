@@ -47,6 +47,15 @@ static constexpr SupportWeightPreset k_weight_presets[3] = {
 namespace Slic3r {
 namespace GUI {
 
+// Sync per-object generate_support with committed support points so the SLA pipeline
+// runs support_points / support_tree when points exist and skips them when cleared.
+static void sync_generate_support_for_object(ModelObject* mo, bool enable)
+{
+    if (!mo)
+        return;
+    mo->config.set("generate_support", enable);
+}
+
 // Icon loading for the support view-mode toggle (support points vs support structure).
 // Resource path is /images/, not /icons/.
 namespace {
@@ -1287,6 +1296,7 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
                 mo_apply->sla_points_status = sla::PointsStatus::UserModified;
                 mo_apply->sla_support_points.clear();
                 mo_apply->sla_support_points = m_normal_cache;
+                sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
                 // Step 5: Re-enter gizmo stack so subsequent in-session edits stay in the local
                 // undo scope, anchored at the just-applied state. enter_gizmos_stack() asserts
                 // active==main and gizmo stack is empty — both hold after leave_gizmos_stack().
@@ -1300,6 +1310,7 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
                 if (m_normal_cache.empty()) {
                     // Empty + UserModified would trigger SLAPrint::validate() error if resliced.
                     // Clear support/pad volumes directly so Structure view shows no residual mesh.
+                    sync_generate_support_for_object(mo_apply, false);
                     clear_support_volumes();
                     m_parent.set_as_dirty();
                 } else {
@@ -1588,9 +1599,11 @@ void GLGizmoSlaSupports::editing_mode_apply_changes()
         mo->sla_points_status = sla::PointsStatus::UserModified;
         mo->sla_support_points.clear();
         mo->sla_support_points = m_normal_cache;
+        sync_generate_support_for_object(mo, !m_normal_cache.empty());
 
         // Step 4.2: use inherited reslice_until_step() instead of removed reslice_SLA_supports().
-        reslice_until_step(slaposSupportPoints);
+        if (!m_normal_cache.empty())
+            reslice_until_step(slaposSupportPoints);
     }
 }
 
@@ -1604,6 +1617,7 @@ void GLGizmoSlaSupports::apply_remove_all()
     ModelObject* mo = m_c->selection_info()->model_object();
     mo->sla_points_status = sla::PointsStatus::UserModified;
     mo->sla_support_points.clear();
+    sync_generate_support_for_object(mo, false);
     // Remove support/pad volumes from the gizmo's volume collection so the Structure
     // view shows no residual mesh after all points have been removed.
     clear_support_volumes();
@@ -1690,6 +1704,7 @@ void GLGizmoSlaSupports::auto_generate()
 
     if (mo->sla_points_status != sla::PointsStatus::UserModified || m_normal_cache.empty() || dlg.ShowModal() == wxID_YES) {
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Autogenerate support points");
+        sync_generate_support_for_object(mo, true);
         mo->sla_points_status = sla::PointsStatus::Generating;
         // Step 4.2: use inherited reslice_until_step() instead of removed reslice_SLA_supports().
         // m_show_support_structure: if supports structure visible, reslice to slaposPad; otherwise slaposSupportPoints.

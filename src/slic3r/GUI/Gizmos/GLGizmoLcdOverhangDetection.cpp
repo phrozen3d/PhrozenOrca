@@ -1576,6 +1576,8 @@ void GLGizmoLcdOverhangDetection::generate_island_support_points()
 
         // Mark as user-modified: pipeline will use our points only (no auto-gen)
         mo->sla_points_status = sla::PointsStatus::UserModified;
+        if (!mo->sla_support_points.empty())
+            mo->config.set("generate_support", true);
     }
 
     // Switch to SLA support gizmo and force Structure view + support tree build.

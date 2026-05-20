@@ -52,7 +52,6 @@
     "bottom_tolerance_compensation": "0",
     "bottom_tolerance_compensation_a": "0",
     "bottom_tolerance_compensation_b": "0",
-    "generate_support": "1",
     "top_upper_diameter": "0.4",
     "top_contact_depth": "0.4",
     "pinhead_width": "2",

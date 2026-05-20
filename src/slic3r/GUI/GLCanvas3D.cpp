@@ -2396,6 +2396,11 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     }
     if (printer_technology == ptSLA) {
         const SLAPrint* sla_print = this->sla_print();
+        // Prepare (View3D): show support points via the SLA gizmo only; full pillar/pad meshes
+        // are loaded in Preview via _load_sla_shells(). Skip aux meshes here so a full slice
+        // does not leave supports visible after returning from Preview.
+        const bool load_sla_support_pad_in_scene =
+            m_canvas_type != ECanvasType::CanvasView3D;
 #ifndef NDEBUG
         // Verify that the SLAPrint object is synchronized with m_model.
         check_model_ids_equal(*m_model, sla_print->model());
@@ -2410,7 +2415,7 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                         // Consider the DONE step without a valid mesh as invalid for the purpose
                         // of mesh visualization.
                         state.step[istep].state = PrintStateBase::INVALID;
-                    else if (sla_steps[istep] != slaposDrillHoles)
+                    else if (sla_steps[istep] != slaposDrillHoles && load_sla_support_pad_in_scene)
                         for (const ModelInstance* model_instance : print_object->model_object()->instances)
                             // Only the instances, which are currently printable, will have the SLA support structures kept.
                             // The instances outside the print bed will have the GLVolumes of their support structures released.
@@ -2673,7 +2678,10 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                     	// of various concenrs (model vs. 3D print path).
                     	volume.offsets = { state.step[istep].timestamp };
                     }
-                    else if (state.step[istep].state == PrintStateBase::DONE) {
+                    // Support tree / pad: only tracked in aux_volume_state when load_sla_support_pad_in_scene
+                    // (see first SLA block above). On Prepare (View3D) skip — avoids lower_bound miss / crash.
+                    else if (state.step[istep].state == PrintStateBase::DONE
+                             && m_canvas_type != ECanvasType::CanvasView3D) {
                         // Check whether there is an existing auxiliary volume to be updated, or a new auxiliary volume to be created.
 						ModelVolumeState key(state.step[istep].timestamp, instance.instance_id.id);
 						auto it = std::lower_bound(aux_volume_state.begin(), aux_volume_state.end(), key, model_volume_state_lower);

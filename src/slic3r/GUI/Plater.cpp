@@ -6948,8 +6948,14 @@ void Plater::priv::set_current_panel(wxPanel* panel, bool no_slice)
     }
 
     if (current_panel == view3D) {
-        if (old_panel == preview)
+        if (old_panel == preview) {
             preview->get_canvas3d()->unbind_event_handlers();
+            // Resin: drop Preview pillar/pad meshes from Prepare; full supports stay in Preview only.
+            if (printer_technology == ptSLA) {
+                view3D->get_canvas3d()->toggle_sla_auxiliaries_visibility(false);
+                view3D->reload_scene(true);
+            }
+        }
         else if (old_panel == assemble_view) {
             assemble_view->get_canvas3d()->unbind_event_handlers();
 
@@ -7647,9 +7653,13 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(":finished, reload print soon");
         m_is_slicing = false;
         this->preview->reload_print(false);
-        // Resin (SLA): collapse left sidebar after a successful slice (user often stays on 3D until done).
-        if (this->printer_technology == ptSLA && !evt.cancelled() && !has_error)
-            this->collapse_sidebar(true);
+        // Resin (SLA): collapse left sidebar after a full successful slice only.
+        // Partial gizmo reslices (e.g. SLA support points Apply) must keep the sidebar open.
+        if (this->printer_technology == ptSLA && !evt.cancelled() && !has_error) {
+            const SLAPrint *sla_print = this->background_process.sla_print();
+            if (sla_print && sla_print->finished())
+                this->collapse_sidebar(true);
+        }
         /* BBS if in publishing progress */
         if (m_is_publishing) {
             if (m_publish_dlg && !m_publish_dlg->was_cancelled()) {
