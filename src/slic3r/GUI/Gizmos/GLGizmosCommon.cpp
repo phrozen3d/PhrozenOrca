@@ -170,10 +170,13 @@ void InstancesHider::on_update()
             canvas->toggle_model_objects_visibility(true, mo, active_inst);
             canvas->toggle_sla_auxiliaries_visibility(false, mo, active_inst);
         }
-        canvas->set_use_clipping_planes(true);
-        // Some objects may be sinking, do not show whatever is below the bed.
-        canvas->set_clipping_plane(0, ClippingPlane(Vec3d::UnitZ(), z_min));
-        canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), std::numeric_limits<double>::max()));
+        // Prepare IMSlider owns Z band clipping while SLA gizmo session is active.
+        if (!canvas->sla_oc_clip_slider_session_active()) {
+            canvas->set_use_clipping_planes(true);
+            // Some objects may be sinking, do not show whatever is below the bed.
+            canvas->set_clipping_plane(0, ClippingPlane(Vec3d::UnitZ(), z_min));
+            canvas->set_clipping_plane(1, ClippingPlane(-Vec3d::UnitZ(), std::numeric_limits<double>::max()));
+        }
 
 
         std::vector<const TriangleMesh*> meshes;
@@ -352,19 +355,34 @@ void ObjectClipper::on_release()
 
 void ObjectClipper::render_cut(const std::vector<size_t>* ignore_idxs) const
 {
-    if (m_clp_ratio == 0.)
+    const GLCanvas3D* canvas = get_pool()->get_canvas();
+    const auto&       canvas_planes = canvas->get_clipping_planes();
+    const bool        dual_prepare  = canvas->sla_oc_clip_slider_session_active();
+    const bool        bottom_active = dual_prepare
+        && canvas_planes[0].get_data()[3] < std::numeric_limits<double>::max() * 0.5;
+    if (m_clp_ratio == 0. && !bottom_active)
         return;
     const SelectionInfo* sel_info = get_pool()->selection_info();
     const Geometry::Transformation inst_trafo = sel_info->model_object()->instances[sel_info->get_active_instance()]->get_transformation();
     
     std::vector<size_t> ignore_idxs_local = ignore_idxs ? *ignore_idxs : std::vector<size_t>();
 
+    ClippingPlane bottom_limit(ClippingPlane(Vec3d::UnitZ(), -SINKING_Z_THRESHOLD));
+    if (bottom_active)
+        bottom_limit = canvas_planes[0];
+
     for (auto& clipper : m_clippers) {
         Geometry::Transformation trafo = inst_trafo * clipper.second;
         trafo.set_offset(trafo.get_offset() + Vec3d(0., 0., sel_info->get_sla_shift()));
-        clipper.first->set_plane(*m_clp);
+        if (m_clp_ratio != 0.) {
+            clipper.first->set_plane(*m_clp);
+            clipper.first->set_limiting_plane(bottom_limit);
+        } else {
+            const double z_low = -canvas_planes[0].get_data()[3];
+            clipper.first->set_plane(ClippingPlane(-Vec3d::UnitZ(), z_low));
+            clipper.first->set_limiting_plane(ClippingPlane::ClipsNothing());
+        }
         clipper.first->set_transformation(trafo);
-        clipper.first->set_limiting_plane(ClippingPlane(Vec3d::UnitZ(), -SINKING_Z_THRESHOLD));
 		// BBS      
         clipper.first->render_cut({ 0.25f, 0.25f, 0.25f, 1.0f }, &ignore_idxs_local);
         clipper.first->render_contour({ 1.f, 1.f, 1.f, 1.f },  &ignore_idxs_local);

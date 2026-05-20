@@ -452,9 +452,8 @@ void GLGizmosManager::update_data()
                 obj_z_min = bb.min.z() + z_shift;
                 obj_z_max = bb.max.z() + z_shift;
             }
-            // Track session; initial ratio synced from prepare slider (see enter_gizmo_slider_mode).
+            // Track session; clip ratio synced from Prepare IMSlider in enter_gizmo_slider_mode / _apply.
             m_parent.enter_gizmo_slider_mode(obj_z_min, obj_z_max);
-            oc->set_position_by_ratio(m_parent.get_gizmo_clip_ratio(), false);
         }
 
         if (just_left) {

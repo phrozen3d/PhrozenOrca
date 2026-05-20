@@ -252,13 +252,23 @@ void GLGizmoSlaBase::render_volumes()
     shader->set_uniform("emission_factor", 0.0f);
     const Camera& camera = wxGetApp().plater()->get_camera();
 
-    ClippingPlane clipping_plane = (m_c->object_clipper()->get_position() == 0.0) ? ClippingPlane::ClipsNothing() : *m_c->object_clipper()->get_clipping_plane();
-    if (m_c->object_clipper()->get_position() != 0.0)
-        clipping_plane.set_normal(-clipping_plane.get_normal());
-    else
-        // on Linux the clipping plane does not work when using DBL_MAX
-        clipping_plane.set_offset(FLT_MAX);
-    m_volumes.set_clipping_plane(clipping_plane.get_data());
+    // Prepare IMSlider dual handles: world-Z band via z_range (same as main scene).
+    if (m_parent.sla_oc_clip_slider_session_active()) {
+        const std::array<ClippingPlane, 2>& cp = m_parent.get_clipping_planes();
+        m_volumes.set_z_range(static_cast<float>(-cp[0].get_data()[3]), static_cast<float>(cp[1].get_data()[3]));
+        ClippingPlane no_plane = ClippingPlane::ClipsNothing();
+        no_plane.set_offset(FLT_MAX);
+        m_volumes.set_clipping_plane(no_plane.get_data());
+    } else {
+        m_volumes.set_z_range(-FLT_MAX, FLT_MAX);
+        ClippingPlane clipping_plane = (m_c->object_clipper()->get_position() == 0.0) ? ClippingPlane::ClipsNothing() : *m_c->object_clipper()->get_clipping_plane();
+        if (m_c->object_clipper()->get_position() != 0.0)
+            clipping_plane.set_normal(-clipping_plane.get_normal());
+        else
+            // on Linux the clipping plane does not work when using DBL_MAX
+            clipping_plane.set_offset(FLT_MAX);
+        m_volumes.set_clipping_plane(clipping_plane.get_data());
+    }
 
     for (GLVolume* v : m_volumes.volumes) {
         v->is_active = m_show_sla_supports || (!v->is_sla_pad() && !v->is_sla_support());

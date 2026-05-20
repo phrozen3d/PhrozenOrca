@@ -69,12 +69,8 @@ void GLCanvas3D::update_sla_prepare_layers_slider()
 
     sl->set_on_change_callback([this]() { _apply_sla_prepare_clip_from_layers_slider(); });
 
-    if (m_slider_in_gizmo_mode)
-        sl->Hide();
-    else {
-        sl->Show();
-        _apply_sla_prepare_clip_from_layers_slider();
-    }
+    sl->Show();
+    _apply_sla_prepare_clip_from_layers_slider();
 
     set_as_dirty();
 }
@@ -112,31 +108,51 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
         m_prepare_clip_z_high   = full_high ? m_prepare_scene_max_z : z_high_mm;
     };
 
+    double z_low_mm  = 0.0;
+    double z_high_mm = m_prepare_scene_max_z;
+    bool   full_low  = true;
+    bool   full_high = true;
+
     if (low_pos == high_pos) {
-        const double z_bot     = (low_pos == 0) ? 0.0 : zs[low_pos - 1];
-        const double z_top     = zs[low_pos];
-        const bool   full_low  = (low_pos == 0);
-        const bool   full_high = (z_top >= m_prepare_scene_max_z - 1e-6);
-        set_planes_and_state(full_low, full_high, z_bot, z_top);
+        const double z_bot = (low_pos == 0) ? 0.0 : zs[low_pos - 1];
+        const double z_top = zs[low_pos];
+        full_low  = (low_pos == 0);
+        full_high = (z_top >= m_prepare_scene_max_z - 1e-6);
+        z_low_mm  = full_low ? 0.0 : z_bot;
+        z_high_mm = full_high ? m_prepare_scene_max_z : z_top;
+        set_planes_and_state(full_low, full_high, z_low_mm, z_high_mm);
     } else {
-        const double z_low     = zs[low_pos];
-        const double z_high    = zs[high_pos];
-        const bool   full_low  = (low_pos == 0);
-        const bool   full_high = (high_pos == max_pos);
-        set_planes_and_state(full_low, full_high, z_low, z_high);
+        z_low_mm  = zs[low_pos];
+        z_high_mm = zs[high_pos];
+        full_low  = (low_pos == 0);
+        full_high = (high_pos == max_pos);
+        set_planes_and_state(full_low, full_high, z_low_mm, z_high_mm);
     }
 
-    if (!m_syncing_clipper && m_use_clipping_planes && !m_slider_in_gizmo_mode) {
+    if (!m_syncing_clipper) {
         m_syncing_clipper = true;
         auto* pool = m_gizmos.get_common_gizmos_data();
         if (pool) {
             auto* oc = pool->object_clipper();
             if (oc) {
-                const double z_high_eff  = m_prepare_clip_z_high;
-                const double rough_ratio = (m_prepare_scene_max_z > 0.0)
-                    ? std::clamp(1.0 - z_high_eff / m_prepare_scene_max_z, 0.0, 1.0)
-                    : 0.0;
-                oc->set_range_and_pos(Vec3d(0., 0., -1.), z_high_eff, rough_ratio);
+                if (m_sla_oc_clip_slider_session) {
+                    // SLA Support / Hollow / Drill 等：Gizmo 網格用 set_position_by_ratio（物件 Z 比例），
+                    // 與 GLGizmoSlaBase::render_volumes 的 get_position() 語意一致。
+                    const double z_high_eff = full_high
+                        ? m_gizmo_obj_z_max
+                        : std::clamp(z_high_mm, m_gizmo_obj_z_min, m_gizmo_obj_z_max);
+                    const double z_span     = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
+                    m_gizmo_clip_ratio      = (z_span > 1e-6)
+                        ? std::clamp((m_gizmo_obj_z_max - z_high_eff) / z_span, 0.0, 1.0)
+                        : 0.0;
+                    oc->set_position_by_ratio(m_gizmo_clip_ratio, true, true);
+                } else if (m_use_clipping_planes) {
+                    const double z_high_eff  = m_prepare_clip_z_high;
+                    const double rough_ratio = (m_prepare_scene_max_z > 0.0)
+                        ? std::clamp(1.0 - z_high_eff / m_prepare_scene_max_z, 0.0, 1.0)
+                        : 0.0;
+                    oc->set_range_and_pos(Vec3d(0., 0., -1.), z_high_eff, rough_ratio);
+                }
             }
         }
         m_syncing_clipper = false;

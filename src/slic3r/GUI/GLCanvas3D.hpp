@@ -551,8 +551,8 @@ private:
     // Stage 2: ObjectClipper sync re-entrancy guard
     bool m_syncing_clipper = false;
     // Gizmo slider mode: right-side slider controls ObjectClipper directly
-    bool   m_slider_in_gizmo_mode = false;  // legacy IMSlider hide path (unused: keep IMSlider visible)
-    bool   m_sla_oc_clip_slider_session = false; // SLA Hollow/Drill/Supports: track exit sync for ObjectClipper
+    bool   m_slider_in_gizmo_mode = false;  // unused; legacy DrawList slider retired
+    bool   m_sla_oc_clip_slider_session = false; // ObjectClipper gizmos: sync clip ratio on exit
     double m_gizmo_obj_z_min      = 0.0;    // selected object bbox z_min in world coords
     double m_gizmo_obj_z_max      = 50.0;   // selected object bbox z_max in world coords
     double m_gizmo_clip_ratio     = 0.0;    // 0 = top (no clip), 1 = bottom (full clip)

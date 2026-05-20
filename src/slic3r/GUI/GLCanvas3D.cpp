@@ -7645,14 +7645,11 @@ void GLCanvas3D::_render_overlays()
     //_render_view_toolbar();
     _render_paint_toolbar();
 
-    // SLA: gizmo-only custom clip handle; Prepare uses GCodeViewer IMSlider (after gizmos).
-    _render_prepare_clip_slider();
-
     //BBS: GUI refactor: GLToolbar
     //move gizmos behind of main
     _render_gizmos_overlay();
 
-    if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA && !m_slider_in_gizmo_mode) {
+    if (m_canvas_type == ECanvasType::CanvasView3D && current_printer_technology() == ptSLA) {
         const Size cnv_sz = get_canvas_size();
         m_gcode_viewer.render_layers_slider_only(std::max(10, cnv_sz.get_width()), std::max(10, cnv_sz.get_height()));
     }
@@ -9017,9 +9014,7 @@ void GLCanvas3D::_on_prepare_clip_changed(double z_low, double z_high)
 
     set_as_dirty();
 
-    // Stage 2: Sync ObjectClipper when prepare-mode slider moves (not in gizmo mode).
-    // In gizmo mode the slider drives ObjectClipper directly; no sync needed here.
-    if (!m_syncing_clipper && m_use_clipping_planes && !m_slider_in_gizmo_mode) {
+    if (!m_syncing_clipper && m_use_clipping_planes && !m_sla_oc_clip_slider_session) {
         m_syncing_clipper = true;
         auto* pool = m_gizmos.get_common_gizmos_data();
         if (pool) {
@@ -9043,23 +9038,12 @@ void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
     m_saved_clip_z_low  = m_prepare_clip_z_low;
     m_saved_clip_z_high = m_prepare_clip_z_high;
 
-    // Keep IMSlider visible (same control as before opening Hollow/Drill/Supports).
-
     m_slider_in_gizmo_mode = false;
     m_sla_oc_clip_slider_session = true;
     m_gizmo_obj_z_min      = obj_z_min;
     m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
 
-    // Stage 4.1: Sync initial gizmo ratio from current global prepare slider Z.
-    // ratio=0 → top of object (no clip), ratio=1 → bottom (full clip).
-    const double z_range = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
-    if (z_range > 0.0 && m_prepare_clip_z_high < m_gizmo_obj_z_max) {
-        const double z_cur = std::clamp(m_prepare_clip_z_high, m_gizmo_obj_z_min, m_gizmo_obj_z_max);
-        m_gizmo_clip_ratio = (m_gizmo_obj_z_max - z_cur) / z_range;
-    } else {
-        m_gizmo_clip_ratio = 0.0;  // global slider at or above object top → no clipping
-    }
-
+    update_sla_prepare_layers_slider();
     set_as_dirty();
 }
 
@@ -9104,6 +9088,9 @@ void GLCanvas3D::exit_gizmo_slider_mode()
 
 void GLCanvas3D::_render_prepare_clip_slider()
 {
+    // Retired: Prepare 一律使用 IMSlider（含 Overhang / SLA Support 等 Gizmo）。
+    return;
+
     // Only show in SLA prepare view.
     if (m_canvas_type != ECanvasType::CanvasView3D)
         return;

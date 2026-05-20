@@ -21,6 +21,8 @@ uniform mat4 volume_world_matrix;
 
 // Clipping plane - general orientation. Used by the SLA gizmo.
 uniform vec4 clipping_plane;
+// World-Z band clip (Prepare lower/upper slider); x = min Z, y = max Z.
+uniform vec2 z_range;
 
 in vec3 v_position;
 in vec3 v_normal;
@@ -28,7 +30,7 @@ in vec3 v_normal;
 // x = tainted, y = specular;
 out vec2 intensity;
 
-out float clipping_planes_dot;
+out vec3 clipping_planes_dots;
 
 void main()
 {
@@ -49,6 +51,6 @@ void main()
 
     gl_Position = projection_matrix * eye_position;
 
-    // Fill in the scalar for fragment shader clipping. Fragments with this value lower than zero are discarded.
-    clipping_planes_dot = dot(volume_world_matrix * vec4(v_position, 1.0), clipping_plane);
+    vec4 world_pos = volume_world_matrix * vec4(v_position, 1.0);
+    clipping_planes_dots = vec3(dot(world_pos, clipping_plane), world_pos.z - z_range.x, z_range.y - world_pos.z);
 }
