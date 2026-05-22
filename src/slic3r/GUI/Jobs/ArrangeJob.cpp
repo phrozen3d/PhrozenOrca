@@ -432,14 +432,16 @@ void ArrangeJob::prepare()
 
     params = init_arrange_params(m_plater);
 
-    //BBS update extruder params and speed table before arranging
-    const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
-    auto& print = wxGetApp().plater()->get_partplate_list().get_current_fff_print();
-    auto print_config = print.config();
-    int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
+    if (m_plater->printer_technology() != ptSLA) {
+        //BBS update extruder params and speed table before arranging
+        const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
+        auto& print = wxGetApp().plater()->get_partplate_list().get_current_fff_print();
+        auto print_config = print.config();
+        int numExtruders = wxGetApp().preset_bundle->filament_presets.size();
 
-    Model::setExtruderParams(config, numExtruders);
-    Model::setPrintSpeedTable(config, print_config);
+        Model::setExtruderParams(config, numExtruders);
+        Model::setPrintSpeedTable(config, print_config);
+    }
 
     int state = m_plater->get_prepare_state();
     if (state == Job::JobPrepareState::PREPARE_STATE_DEFAULT) {
@@ -522,7 +524,7 @@ void ArrangeJob::process(Ctl &ctl)
     const Slic3r::DynamicPrintConfig& global_config = wxGetApp().preset_bundle->full_config();
     PresetBundle* preset_bundle = wxGetApp().preset_bundle;
     const bool is_bbl = wxGetApp().preset_bundle->is_bbl_vendor();
-    if (is_bbl && params.avoid_extrusion_cali_region && global_config.opt_bool("scan_first_layer"))
+    if (is_bbl && params.avoid_extrusion_cali_region && global_config.has("scan_first_layer") && global_config.opt_bool("scan_first_layer"))
         partplate_list.preprocess_nonprefered_areas(m_unselected, MAX_NUM_PLATES);
 
     update_arrange_params(params, m_plater->config(), m_selected);
@@ -753,6 +755,20 @@ arrangement::ArrangeParams init_arrange_params(Plater *p)
 {
     arrangement::ArrangeParams         params;
     GLCanvas3D::ArrangeSettings       &settings     = p->canvas3D()->get_arrange_settings();
+
+    if (p->printer_technology() == ptSLA) {
+        // SLA: no nozzle/extruder clearance, no wipe tower, no sequential-by-object printing.
+        // printable_height comes from the physical build volume Z axis.
+        params.printable_height                    = p->build_volume().printable_height();
+        params.allow_rotations                     = settings.enable_rotation;
+        params.allow_multi_materials_on_same_plate = settings.allow_multi_materials_on_same_plate;
+        params.avoid_extrusion_cali_region         = settings.avoid_extrusion_cali_region;
+        params.is_seq_print                        = false;
+        params.min_obj_distance                    = scaled(settings.distance);
+        params.align_to_y_axis                     = settings.align_to_y_axis;
+        return params;
+    }
+
     auto                              &print        = wxGetApp().plater()->get_partplate_list().get_current_fff_print();
     const PrintConfig                 &print_config = print.config();
 

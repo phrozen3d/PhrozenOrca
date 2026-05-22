@@ -229,11 +229,23 @@ orientation::OrientMesh OrientJob::get_orient_mesh(ModelInstance* instance)
     auto obj = instance->get_object();
     om.name = obj->name;
     om.mesh = obj->mesh(); // don't know the difference to obj->raw_mesh(). Both seem OK
-    if (obj->config.has("support_threshold_angle"))
-        om.overhang_angle = obj->config.opt_int("support_threshold_angle");
-    else {
-        const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
-        om.overhang_angle = config.opt_int("support_threshold_angle");
+    if (wxGetApp().plater()->printer_technology() == ptSLA) {
+        // SLA: support_critical_angle is coFloat, stored in degrees — same unit as overhang_angle
+        if (obj->config.has("support_critical_angle"))
+            om.overhang_angle = obj->config.opt_float("support_critical_angle");
+        else {
+            const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
+            if (config.option("support_critical_angle"))
+                om.overhang_angle = config.opt_float("support_critical_angle");
+            // else: keep OrientMesh default overhang_angle (30 degrees)
+        }
+    } else {
+        if (obj->config.has("support_threshold_angle"))
+            om.overhang_angle = obj->config.opt_int("support_threshold_angle");
+        else {
+            const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();
+            om.overhang_angle = config.opt_int("support_threshold_angle");
+        }
     }
 
     om.setter = [instance](const OrientMesh& p) {
