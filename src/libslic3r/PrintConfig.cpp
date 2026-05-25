@@ -326,6 +326,13 @@ static const t_config_enum_values s_keys_map_SLADisplayOrientation = {
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLADisplayOrientation)
 
+static const t_config_enum_values s_keys_map_SLAMirrorMode = {
+    {"normal",     slammNormal},
+    {"lcd_mirror", slammLCDMirror},
+    {"dlp_normal", slammDLPNormal}
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(SLAMirrorMode)
+
 static const t_config_enum_values s_keys_map_SLAPillarConnectionMode = {
     {"zigzag",          slapcmZigZag},
     {"cross",           slapcmCross},
@@ -7165,6 +7172,14 @@ void PrintConfigDef::init_sla_params()
     //def->tooltip = L("");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("display_mirror_mode", coEnum);
+    def->enum_keys_map = &ConfigOptionEnum<SLAMirrorMode>::get_enum_values();
+    def->enum_values.push_back("normal");
+    def->enum_values.push_back("lcd_mirror");
+    def->enum_values.push_back("dlp_normal");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionEnum<SLAMirrorMode>(slammLCDMirror));
 
     def = this->add("display_orientation", coEnum);
     //def->label = L("");

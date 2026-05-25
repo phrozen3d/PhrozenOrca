@@ -15,15 +15,18 @@
     "thumbnails": "400x400,800x480",
     "printable_area": [
         "0x0",
-        "330x0",
-        "330x185",
-        "0x185"
+        "330.240x0",
+        "330.240x185.760",
+        "0x185.760"
     ],
     "display_orientation": "portrait",
     "display_pixels_x": "7680",
     "display_pixels_y": "4320",
-    "display_width": "330",
-	"display_height": "185",
+    "display_width": "330.240",
+	"display_height": "185.760",
+    "display_mirror_mode": "normal",
+    "display_mirror_x": "1",
+    "display_mirror_y": "0",
     "printable_height": "300",
     "min_exposure_time": "1",
     "max_exposure_time": "120",

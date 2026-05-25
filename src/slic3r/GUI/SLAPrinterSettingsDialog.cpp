@@ -305,8 +305,9 @@ void SLAPrinterSettingsDialog::build_dialog()
     mirror_label->SetMinSize(wxSize(form_panel->FromDIP(90), -1));
     mirror_row->Add(mirror_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, form_panel->FromDIP(10));
     m_mirror_choice = new wxChoice(form_panel, wxID_ANY);
+    m_mirror_choice->Append("Normal");
     m_mirror_choice->Append("LCD_mirror");
-    m_mirror_choice->Append("DLP_mirror");
+    m_mirror_choice->Append("DLP_normal");
     mirror_row->Add(m_mirror_choice, 0, wxALIGN_CENTER_VERTICAL);
     mirror_row->AddStretchSpacer();
     form_sizer->Add(mirror_row, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, form_panel->FromDIP(12));
@@ -422,7 +423,11 @@ void SLAPrinterSettingsDialog::reload_from_preset()
     const Preset &edited            = printers.get_edited_preset();
     const DynamicPrintConfig &config = edited.config;
 
-    m_mirror_choice->SetSelection(mirror_mode_from_config(config) == MirrorMode::LCD ? 0 : 1);
+    switch (mirror_mode_from_config(config)) {
+        case MirrorMode::Normal:    m_mirror_choice->SetSelection(0); break;
+        case MirrorMode::LCD:       m_mirror_choice->SetSelection(1); break;
+        case MirrorMode::DLPNormal: m_mirror_choice->SetSelection(2); break;
+    }
 
     const int px_x = resolve_profile_int_chain(printers, edited, "display_pixels_x", 2560);
     const int px_y = resolve_profile_int_chain(printers, edited, "display_pixels_y", 1440);
@@ -696,7 +701,13 @@ bool SLAPrinterSettingsDialog::sync_local_to_tab(bool show_errors)
     cfg.set_key_value("display_width",   new ConfigOptionFloat(size_x));
     cfg.set_key_value("display_height",  new ConfigOptionFloat(size_y));
     cfg.set_key_value("printable_height", new ConfigOptionFloat(size_z));
-    apply_mirror_mode(cfg, m_mirror_choice->GetSelection() == 1 ? MirrorMode::DLP : MirrorMode::LCD);
+    MirrorMode mirror_mode = MirrorMode::Normal;
+    switch (m_mirror_choice->GetSelection()) {
+        case 1: mirror_mode = MirrorMode::LCD;      break;
+        case 2: mirror_mode = MirrorMode::DLPNormal; break;
+        default: break;
+    }
+    apply_mirror_mode(cfg, mirror_mode);
 
     tab->load_config(cfg);
     tab->update_tab_ui(true);
@@ -811,16 +822,61 @@ void SLAPrinterSettingsDialog::on_dpi_changed(const wxRect &suggested_rect)
 
 SLAPrinterSettingsDialog::MirrorMode SLAPrinterSettingsDialog::mirror_mode_from_config(const DynamicPrintConfig &config)
 {
-    const bool mirror_x = get_bool_or_default(config, "display_mirror_x", true);
-    const bool mirror_y = get_bool_or_default(config, "display_mirror_y", false);
-    return (!mirror_x && mirror_y) ? MirrorMode::DLP : MirrorMode::LCD;
+    // Prefer explicit mode key (new presets with display_mirror_mode set in JSON).
+    // DynamicPrintConfig::option<T>() returns nullptr when the key is absent from this
+    // config's own storage, so old presets that lack the key correctly reach the bool fallback.
+    if (const auto *mode_opt = config.option<ConfigOptionEnum<SLAMirrorMode>>("display_mirror_mode")) {
+        switch (mode_opt->value) {
+            case slammNormal:    return MirrorMode::Normal;
+            case slammLCDMirror: return MirrorMode::LCD;
+            case slammDLPNormal: return MirrorMode::DLPNormal;
+        }
+    }
+    // Legacy bool fallback for presets that pre-date display_mirror_mode.
+    // Portrait orientation inverts X in RasterBase::Trafo (final_x = !config_x), so we
+    // must convert config bool to final mirror effect before classifying the mode.
+    // DLP_normal cannot be uniquely distinguished from Normal via bools once orientation
+    // is accounted for; both map to final_x=false → shown as Normal.
+    const auto *orient_opt = config.option<ConfigOptionEnum<SLADisplayOrientation>>("display_orientation");
+    const bool is_portrait = !orient_opt || orient_opt->value == sladoPortrait;
+    const bool config_x    = get_bool_or_default(config, "display_mirror_x", true);
+    const bool final_x     = is_portrait ? !config_x : config_x;
+    return final_x ? MirrorMode::LCD : MirrorMode::Normal;
 }
 
 void SLAPrinterSettingsDialog::apply_mirror_mode(DynamicPrintConfig &config, MirrorMode mode)
 {
-    const bool is_lcd = mode == MirrorMode::LCD;
-    config.set_key_value("display_mirror_x", new ConfigOptionBool(is_lcd));
-    config.set_key_value("display_mirror_y", new ConfigOptionBool(!is_lcd));
+    // RasterBase::Trafo inverts X for portrait: final_x = !config_x.
+    // For landscape: final_x = config_x.
+    // Target final X mirror per mode:
+    //   Normal / DLP_normal → false (no X mirror in rasterised output)
+    //   LCD_mirror          → true  (X mirror in rasterised output)
+    // Y mirror is held at false for all current modes.
+    const auto *orient_opt = config.option<ConfigOptionEnum<SLADisplayOrientation>>("display_orientation");
+    const bool is_portrait = !orient_opt || orient_opt->value == sladoPortrait;
+
+    SLAMirrorMode enum_mode;
+    bool target_final_x;
+    switch (mode) {
+        case MirrorMode::LCD:
+            enum_mode      = slammLCDMirror;
+            target_final_x = true;
+            break;
+        case MirrorMode::DLPNormal:
+            enum_mode      = slammDLPNormal;
+            target_final_x = false;
+            break;
+        default:
+            enum_mode      = slammNormal;
+            target_final_x = false;
+            break;
+    }
+    // Portrait: config_x = !final_x  Landscape: config_x = final_x
+    const bool config_x = is_portrait ? !target_final_x : target_final_x;
+
+    config.set_key_value("display_mirror_mode", new ConfigOptionEnum<SLAMirrorMode>(enum_mode));
+    config.set_key_value("display_mirror_x",    new ConfigOptionBool(config_x));
+    config.set_key_value("display_mirror_y",    new ConfigOptionBool(false));
 }
 
 } // namespace GUI

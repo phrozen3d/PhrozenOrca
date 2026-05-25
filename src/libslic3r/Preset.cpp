@@ -1088,7 +1088,7 @@ static std::vector<std::string> s_Preset_sla_printer_options {
     "printer_technology",
     "printable_area","bed_custom_texture", "bed_custom_model", "printable_height",
     "display_width", "display_height", "display_pixels_x", "display_pixels_y",
-    "display_mirror_x", "display_mirror_y",
+    "display_mirror_x", "display_mirror_y", "display_mirror_mode",
     "display_orientation",
     "fast_tilt_time", "slow_tilt_time", "area_fill",
     "relative_correction",

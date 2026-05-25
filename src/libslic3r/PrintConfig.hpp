@@ -232,6 +232,12 @@ enum SLADisplayOrientation {
     sladoPortrait
 };
 
+enum SLAMirrorMode {
+    slammNormal,
+    slammLCDMirror,
+    slammDLPNormal
+};
+
 enum SLAPillarConnectionMode {
     slapcmZigZag,
     slapcmCross,
@@ -511,6 +517,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamPosition)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamScarfType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLADisplayOrientation)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAMirrorMode)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAPillarConnectionMode)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLASupportTreeType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAMaterialSpeed)
@@ -1833,6 +1840,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<SLADisplayOrientation>,display_orientation))
     ((ConfigOptionBool,                       display_mirror_x))
     ((ConfigOptionBool,                       display_mirror_y))
+    ((ConfigOptionEnum<SLAMirrorMode>,        display_mirror_mode))
     ((ConfigOptionFloats,                     relative_correction))
     ((ConfigOptionFloat,                      relative_correction_x))
     ((ConfigOptionFloat,                      relative_correction_y))

@@ -25,8 +25,9 @@ public:
 
 private:
     enum class MirrorMode {
+        Normal,
         LCD,
-        DLP
+        DLPNormal
     };
 
     PlaterPresetComboBox *m_printer_combo { nullptr };
