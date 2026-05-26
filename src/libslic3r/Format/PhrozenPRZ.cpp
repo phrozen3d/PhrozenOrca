@@ -215,17 +215,24 @@ static void prz_header(std::string              &fh,
         for (int i = 0; i < 8; ++i) fh += tag[i];
         layerContent_position_offset += 8;
     }
-    // Software (blank, 32 bytes)
+    // Software name (32 bytes, null-padded)
     {
-        fh.append(32, '\0');
-        layerContent_position_offset += 32;
+        const int sz = 32;
+        std::string s = "PhrozenOrca";
+        s.resize(sz, '\0');
+        fh += s;
+        layerContent_position_offset += sz;
     }
-    // Software version (blank, 24 bytes)
+    // Software version (24 bytes, null-padded) — uses build-time SLIC3R_VERSION macro
     {
-        fh.append(24, '\0');
-        layerContent_position_offset += 24;
+        const int sz = 24;
+        std::string s = SLIC3R_VERSION;
+        s.resize(sz, '\0');
+        fh += s;
+        layerContent_position_offset += sz;
     }
-    // File time (24 bytes)
+    // File time (24 bytes): intentionally preserves real timestamp (not aligned to Chitubox "0").
+    // Orca timestamps have user-visible value for debugging/archiving; firmware does not parse this field.
     {
         const int sz = 24;
         time_t now = time(nullptr);
@@ -266,10 +273,17 @@ static void prz_header(std::string              &fh,
         fh += s;
         layerContent_position_offset += sz;
     }
-    // Anti-aliasing level (2 bytes big-endian short)
+    // AA level mapping: anti_aliasing_level index (0/1/2) → PRZ aaLevel pixels-per-axis (2/4/8)
     {
-        short v = static_cast<short>(cfg_i(cfg, "anti_aliasing_level"));
-        write_be(fh, v);
+        int aa_idx = cfg_i(cfg, "anti_aliasing_level");
+        short aa_level;
+        switch (aa_idx) {
+            case 0:  aa_level = 2; break;
+            case 1:  aa_level = 4; break;
+            case 2:  aa_level = 8; break;
+            default: aa_level = 4; break;
+        }
+        write_be(fh, aa_level);
         layerContent_position_offset += 2;
     }
     // Grey level: gray_scale_level[0] mapped from [0,255] to [0,8]
@@ -284,10 +298,16 @@ static void prz_header(std::string              &fh,
         write_be(fh, v);
         layerContent_position_offset += 2;
     }
-    // Blur level / image_blur_pixel enum (2 bytes)
+    // Blur level: ImageBlurPixel enum int + 2 gives actual pixel count (sp2=0→2, sp3=1→3, …)
+    // Matches Chitubox blurLevel convention (actual pixel count, not enum index).
+    // When blur is disabled, write 0.
     {
-        short v = static_cast<short>(cfg_i(cfg, "image_blur_pixel"));
-        write_be(fh, v);
+        short blur_val = 0;
+        if (auto *en = cfg.option<ConfigOptionBool>("image_blur_enable"); en && en->getBool()) {
+            int raw = cfg_i(cfg, "image_blur_pixel");
+            blur_val = static_cast<short>(raw + 2);
+        }
+        write_be(fh, blur_val);
         layerContent_position_offset += 2;
     }
     // Preview 116?116 (RGB565 big-endian, from rendered thumbnail or PreviewImage_116_116.png or zeros)
@@ -378,20 +398,32 @@ static void prz_header(std::string              &fh,
     }
     // XResolution / YResolution
     {
-        short xr = static_cast<short>(pcfg.display_pixels_y.getInt());
-        short yr = static_cast<short>(pcfg.display_pixels_x.getInt());
+        short xr = static_cast<short>(pcfg.display_pixels_x.getInt());
+        short yr = static_cast<short>(pcfg.display_pixels_y.getInt());
         write_be(fh, xr);
         write_be(fh, yr);
         layerContent_position_offset += 4;
     }
-    // Xmirror (1 byte): mirror_x=false ??1; true ??0
-    { fh += static_cast<char>(pcfg.display_mirror_x.getBool() ? 0 : 1); layerContent_position_offset += 1; }
-    // Ymirror (1 byte): mirror_y=false ??0; true ??1
+    // Xmirror (1 byte): derived from display_mirror_mode enum (韌體硬體鏡像狀態).
+    // lcd_mirror → 1; normal/dlp_normal → 0.
+    // Fallback to display_mirror_x bool for legacy presets without display_mirror_mode.
+    {
+        int xm_val = 0;
+        switch (pcfg.display_mirror_mode.value) {
+            case slammLCDMirror: xm_val = 1; break;
+            case slammNormal:    xm_val = 0; break;
+            case slammDLPNormal: xm_val = 0; break;
+            default:             xm_val = pcfg.display_mirror_x.getBool() ? 1 : 0; break;
+        }
+        fh += static_cast<char>(xm_val);
+        layerContent_position_offset += 1;
+    }
+    // Ymirror (1 byte): false=0, true=1
     { fh += static_cast<char>(pcfg.display_mirror_y.getBool() ? 1 : 0); layerContent_position_offset += 1; }
     // PlatformXLength (4 bytes, float, mm)
-    { float v = static_cast<float>(pcfg.display_height.getFloat());  write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = static_cast<float>(pcfg.display_width.getFloat());  write_be(fh, v); layerContent_position_offset += 4; }
     // PlatformYLength (4 bytes, float, mm)
-    { float v = static_cast<float>(pcfg.display_width.getFloat()); write_be(fh, v); layerContent_position_offset += 4; }
+    { float v = static_cast<float>(pcfg.display_height.getFloat()); write_be(fh, v); layerContent_position_offset += 4; }
     // PlatformZLength (4 bytes, float, mm)
     { float v = static_cast<float>(pcfg.printable_height.getFloat()); write_be(fh, v); layerContent_position_offset += 4; }
     // LayerThickness (4 bytes, float, mm)
@@ -450,20 +482,36 @@ static void prz_header(std::string              &fh,
     { float v = cfg_f(cfg, "retract_speed"); write_be(fh, v); layerContent_position_offset += 4; }
     // BottomLift_second_Dist
     { float v = cfg_f(cfg, "bottom_lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
-    // BottomLift_second_Speed
-    { float v = cfg_f(cfg, "bottom_lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomLift_second_Speed: guard — speed must be 0 when distance is 0
+    {
+        float dist = cfg_f(cfg, "bottom_lift_second_distance");
+        float speed = (dist == 0.f) ? 0.f : cfg_f(cfg, "bottom_lift_second_speed");
+        write_be(fh, speed); layerContent_position_offset += 4;
+    }
     // Lift_second_Dist
     { float v = cfg_f(cfg, "lift_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
-    // Lift_second_Speed
-    { float v = cfg_f(cfg, "lift_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Lift_second_Speed: guard — speed must be 0 when distance is 0
+    {
+        float dist = cfg_f(cfg, "lift_second_distance");
+        float speed = (dist == 0.f) ? 0.f : cfg_f(cfg, "lift_second_speed");
+        write_be(fh, speed); layerContent_position_offset += 4;
+    }
     // BottomRetract_second_Dist
     { float v = cfg_f(cfg, "bottom_retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
-    // BottomRetract_second_Speed
-    { float v = cfg_f(cfg, "bottom_retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // BottomRetract_second_Speed: guard — speed must be 0 when distance is 0
+    {
+        float dist = cfg_f(cfg, "bottom_retract_second_distance");
+        float speed = (dist == 0.f) ? 0.f : cfg_f(cfg, "bottom_retract_second_speed");
+        write_be(fh, speed); layerContent_position_offset += 4;
+    }
     // Retract_second_Dist
     { float v = cfg_f(cfg, "retract_second_distance"); write_be(fh, v); layerContent_position_offset += 4; }
-    // Retract_second_Speed
-    { float v = cfg_f(cfg, "retract_second_speed"); write_be(fh, v); layerContent_position_offset += 4; }
+    // Retract_second_Speed: guard — speed must be 0 when distance is 0
+    {
+        float dist = cfg_f(cfg, "retract_second_distance");
+        float speed = (dist == 0.f) ? 0.f : cfg_f(cfg, "retract_second_speed");
+        write_be(fh, speed); layerContent_position_offset += 4;
+    }
     // BottomLightPwm (2 bytes)
     { short v = static_cast<short>(cfg_i(cfg, "bottom_light_pwm")); write_be(fh, v); layerContent_position_offset += 2; }
     // LightPwm (2 bytes)
@@ -472,18 +520,31 @@ static void prz_header(std::string              &fh,
     { fh += '\0'; layerContent_position_offset += 1; }
     // PrintTimes (estimated, seconds)
     { int v = adjusted_prz_print_time_seconds(static_cast<int>(print.print_layers().size()), cfg); write_be(fh, v); layerContent_position_offset += 4; }
-    // TotalVolume / TotalWeight / TotalPrice (from print statistics)
+    // TotalVolume / TotalWeight / TotalPrice
+    // SLAPrintStatistics.total_weight/total_cost are never filled by the SLA pipeline;
+    // compute from volume + material config (same method as AnycubicSLA.cpp).
     {
         const SLAPrintStatistics &stats = print.print_statistics();
-        float volume = static_cast<float>(stats.objects_used_material + stats.support_used_material);
-        float weight = static_cast<float>(stats.total_weight);
-        float price  = static_cast<float>(stats.total_cost);
-        write_be(fh, volume); layerContent_position_offset += 4;
-        write_be(fh, weight); layerContent_position_offset += 4;
-        write_be(fh, price);  layerContent_position_offset += 4;
+        // volume_ml: objects_used_material / support_used_material are in mm³ (1 cm³ = 1000 mm³ = 1 mL)
+        float volume_ml = static_cast<float>((stats.objects_used_material + stats.support_used_material) / 1000.0);
+        // weight: bottle_weight is in kg, bottle_volume in mL → density g/mL
+        float bw_g  = cfg_f(cfg, "bottle_weight") * 1000.f;
+        float bv_ml = cfg_f(cfg, "bottle_volume");
+        float density = (bv_ml > 0.f) ? bw_g / bv_ml : 1.f;
+        float weight = volume_ml * density;
+        // price: priceUnit = "$/L"; cost proportional to volume share of bottle
+        float bottle_cost = cfg_f(cfg, "bottle_cost");
+        float price = (bv_ml > 0.f) ? (volume_ml * bottle_cost) / bv_ml : 0.f;
+        write_be(fh, volume_ml); layerContent_position_offset += 4;
+        write_be(fh, weight);    layerContent_position_offset += 4;
+        write_be(fh, price);     layerContent_position_offset += 4;
     }
-    // PriceUnit (8 bytes, zeros)
-    { fh.append(8, '\0'); layerContent_position_offset += 8; }
+    // PriceUnit (8 bytes, "$/L" null-padded)
+    {
+        const char pu[8] = { '$', '/', 'L', '\0', '\0', '\0', '\0', '\0' };
+        for (int i = 0; i < 8; ++i) fh += pu[i];
+        layerContent_position_offset += 8;
+    }
     // LayerContent_position_offset (4 bytes, self-referential)
     {
         layerContent_position_offset += 4 + 3;
@@ -562,11 +623,14 @@ static void prz_layer_content(std::string              &fh,
                             : cfg_f(cfg, "lift_second_distance");
         write_be(fh, v);
     }
-    // Lift_Second_Speed
+    // Lift_Second_Speed: guard — speed must be 0 when the corresponding distance is 0
     {
-        float v = is_bottom ? cfg_f(cfg, "bottom_lift_second_speed")
-                            : cfg_f(cfg, "lift_second_speed");
-        write_be(fh, v);
+        float dist = is_bottom ? cfg_f(cfg, "bottom_lift_second_distance")
+                               : cfg_f(cfg, "lift_second_distance");
+        float speed = (dist == 0.f) ? 0.f
+                                    : (is_bottom ? cfg_f(cfg, "bottom_lift_second_speed")
+                                                 : cfg_f(cfg, "lift_second_speed"));
+        write_be(fh, speed);
     }
     // Retract_Dist = lift + lift2 - drop2
     {
@@ -596,10 +660,13 @@ static void prz_layer_content(std::string              &fh,
                             : cfg_f(cfg, "retract_second_distance");
         write_be(fh, v);
     }
-    // Retract_Second_Speed
+    // Retract_Second_Speed: guard — speed must be 0 when the corresponding distance is 0
     {
-        float v = is_bottom ? cfg_f(cfg, "bottom_retract_second_speed")
-                            : cfg_f(cfg, "retract_second_speed");
+        float dist = is_bottom ? cfg_f(cfg, "bottom_retract_second_distance")
+                               : cfg_f(cfg, "retract_second_distance");
+        float v = (dist == 0.f) ? 0.f
+                                : (is_bottom ? cfg_f(cfg, "bottom_retract_second_speed")
+                                             : cfg_f(cfg, "retract_second_speed"));
         write_be(fh, v);
     }
     // LightPwm (short)
@@ -733,6 +800,11 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                         batch_polys[i], rp.res, rp.pxdim, rp.trafo,
                         rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
                     sla::apply_picture_grayscale_lut(batch_mats[i], rp.picture_grayscale);
+                    // Phase 1.5: same R₉₀cw rotation as SLAPrintSteps main path
+                    // (cache-miss fallback must produce identical byte stream).
+                    cv::Mat rotated;
+                    cv::rotate(batch_mats[i], rotated, cv::ROTATE_90_CLOCKWISE);
+                    batch_mats[i] = std::move(rotated);
                 }
             });
 
@@ -747,7 +819,7 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                 out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
             }
 
-            const cv::Mat &img = batch_mats[i]; // CV_8UC1, row-major
+            const cv::Mat &img = batch_mats[i]; // CV_8UC1, row-major, landscape after rotation
             const int total    = img.rows * img.cols;
             const uchar *data  = img.data;
 

@@ -1524,6 +1524,7 @@ void SLAPrint::Steps::rasterize()
         // allocations per layer caused CRT heap lock contention at the 55% peak.
         struct TLSData {
             cv::Mat           mat;
+            cv::Mat           mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
             std::vector<char> rle_buf;
         };
         tbb::enumerable_thread_specific<TLSData> tls;
@@ -1551,11 +1552,18 @@ void SLAPrint::Steps::rasterize()
 
                         sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
 
+                        // Phase 1.5: portrait cv::Mat (rows=display_pixels_x,
+                        // cols=display_pixels_y) → landscape via R₉₀cw so that
+                        // the RLE byte stream has display_pixels_x pixels per row,
+                        // matching PRZ header xr=display_pixels_x (Phase 1 change).
+                        // See design.md §Decision 1.5 for the geometric derivation.
+                        cv::rotate(mat, tls_data.mat_rotated, cv::ROTATE_90_CLOCKWISE);
+
                         // 5.3 PRZ-RLE encode — no DEFLATE, no PNG checksums.
                         // Produces the same przByte layout as generate_prz() so
                         // Phase 6 can stream cached bytes directly to the PRZ output.
-                        const int    total = mat.rows * mat.cols;
-                        const uchar *data  = mat.data;
+                        const int    total = tls_data.mat_rotated.rows * tls_data.mat_rotated.cols;
+                        const uchar *data  = tls_data.mat_rotated.data;
 
                         // Worst case: every pixel is its own gray run → 2 bytes each
                         // + 1 header + 1 checksum. Reserve once; subsequent layers reuse.

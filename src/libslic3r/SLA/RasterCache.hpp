@@ -59,7 +59,7 @@ public:
 
 private:
     // Bump this whenever the cache format changes to invalidate old entries.
-    static constexpr int CACHE_VERSION = 3;
+    static constexpr int CACHE_VERSION = 4; // bumped: RLE bytes now rotated 90° CW (Phase 1.5)
 };
 
 } // namespace sla

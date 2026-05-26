@@ -15,15 +15,15 @@
     "thumbnails": "400x400,800x480",
     "printable_area": [
         "0x0",
-        "211.680x0",
-        "211.680x118.370",
-        "0x118.370"
+        "211.68x0",
+        "211.68x118.37",
+        "0x118.37"
     ],
     "display_orientation": "portrait",
     "display_pixels_x": "15120",
     "display_pixels_y": "6230",
-    "display_width": "211.680",
-	"display_height": "118.370",
+    "display_width": "211.68",
+    "display_height": "118.37",
     "display_mirror_mode": "lcd_mirror",
     "display_mirror_x": "0",
     "display_mirror_y": "0",
