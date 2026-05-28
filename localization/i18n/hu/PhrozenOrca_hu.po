@@ -7678,6 +7678,18 @@ msgstr "A nyomtató nem támogatja a MicroSD kártyára küldést."
 msgid "Slice ok."
 msgstr "Szeletelés kész."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "Napi tippek megtekintése"
 

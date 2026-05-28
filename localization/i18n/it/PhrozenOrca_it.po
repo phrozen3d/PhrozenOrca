@@ -7975,6 +7975,18 @@ msgstr ""
 msgid "Slice ok."
 msgstr "Elaborazione completa."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "Visualizza tutti i consigli giornalieri"
 

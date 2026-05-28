@@ -2382,6 +2382,16 @@ void NotificationManager::set_slicing_progress_hidden()
 	// Slicing progress notification was not found - init it thru plater so correct cancel callback function is appended
 	wxGetApp().plater()->init_notification_manager();
 }
+void NotificationManager::set_slicing_progress_completed_override(const std::string& text)
+{
+	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {
+		if (notification->get_type() == NotificationType::SlicingProgress) {
+			dynamic_cast<SlicingProgressNotification*>(notification.get())->set_completed_override(text);
+			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
+			return;
+		}
+	}
+}
 void NotificationManager::set_slicing_complete_print_time(const std::string& info, bool sidebar_colapsed)
 {
 	for (std::unique_ptr<PopNotification>& notification : m_pop_notifications) {

@@ -8031,6 +8031,18 @@ msgstr "L'imprimante ne prend pas en charge l'envoi vers la carte SD."
 msgid "Slice ok."
 msgstr "Découpe terminée."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "Voir toutes les Astuces quotidiennes"
 

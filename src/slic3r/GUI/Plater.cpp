@@ -2563,6 +2563,14 @@ enum ExportingStatus{
     EXPORTING_TO_LOCAL
 };
 
+// Identifies the active SLA gizmo preview type so on_slicing_update() can
+// suppress the "Slicing: " prefix and dispatch the correct completion/cancel text.
+enum class SlaGizmoPreviewType {
+    None,           // full-slice / export run  — complete: "Slice ok."          cancel: "Slicing Canceled"
+    Support,        // Support gizmo preview    — complete: "Support complete"   cancel: "Support cancelled"
+    HollowOrDrill   // Hollow/Drill gizmo preview — complete: "Hollow/Drill complete" cancel: "Hollow/Drill cancelled"
+};
+
 
 // TODO: listen on dark ui change
 class FloatFrame : public wxAuiFloatingFrame
@@ -2627,6 +2635,12 @@ struct Plater::priv
     PartPlateList partplate_list;
     //BBS: add a flag to ignore cancel event
     bool m_ignore_event{false};
+    // Active SLA gizmo preview type; None during full-slice / export runs.
+    // Drives prefix suppression and completion-text selection in on_slicing_update().
+    SlaGizmoPreviewType m_sla_gizmo_preview_type{SlaGizmoPreviewType::None};
+    bool is_sla_gizmo_preview_active() const {
+        return m_sla_gizmo_preview_type != SlaGizmoPreviewType::None;
+    }
     bool m_slice_all{false};
     bool m_is_slicing {false};
     bool m_is_publishing {false};
@@ -6087,6 +6101,7 @@ void Plater::priv::export_gcode(fs::path output_path, bool output_path_on_remova
     }
 
     // If the SLA processing of just a single object's supports is running, restart slicing for the whole object.
+    m_sla_gizmo_preview_type = SlaGizmoPreviewType::None;
     this->background_process.set_task(PrintBase::TaskParams());
     this->restart_background_process(priv::UPDATE_BACKGROUND_PROCESS_FORCE_EXPORT);
 }
@@ -6119,6 +6134,7 @@ void Plater::priv::export_gcode(fs::path output_path, bool output_path_on_remova
     }
 
     // If the SLA processing of just a single object's supports is running, restart slicing for the whole object.
+    m_sla_gizmo_preview_type = SlaGizmoPreviewType::None;
     this->background_process.set_task(PrintBase::TaskParams());
     this->restart_background_process(priv::UPDATE_BACKGROUND_PROCESS_FORCE_EXPORT);
 }
@@ -7274,10 +7290,25 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
 
 void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
 {
-    BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": event_type %1%, percent %2%, text %3%") % evt.GetEventType() % evt.status.percent % evt.status.text;
     //BBS: add slice project logic
-    std::string title_text = _u8L("Slicing");
-    evt.status.text = title_text + evt.status.text;
+    // For true full-slice runs prepend "Slicing: " prefix.
+    // Gizmo preview partial reslices (Support / Hollow / Drill) show only the phase label.
+    if (m_sla_gizmo_preview_type == SlaGizmoPreviewType::None) {
+        evt.status.text = _u8L("Slicing") + ": " + evt.status.text;
+    }
+    // For preview runs at 100%, set the function-specific completion override so
+    // SlicingProgressNotification shows "Support complete" / "Hollow/Drill complete"
+    // instead of the hardcoded "Slice ok." fallback.
+    if (is_sla_gizmo_preview_active() && evt.status.percent >= 100) {
+        std::string override_text;
+        switch (m_sla_gizmo_preview_type) {
+            case SlaGizmoPreviewType::Support:       override_text = _u8L("Support complete");      break;
+            case SlaGizmoPreviewType::HollowOrDrill: override_text = _u8L("Hollow/Drill complete"); break;
+            default: break;
+        }
+        if (!override_text.empty())
+            notification_manager->set_slicing_progress_completed_override(override_text);
+    }
     if (evt.status.percent >= 0) {
          if (!m_worker.is_idle()) {
             // Avoid a race condition
@@ -7473,6 +7504,10 @@ bool Plater::priv::warnings_dialog()
 void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
 {
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": enter, m_ignore_event %1%, status %2%")%m_ignore_event %evt.status();
+    // Capture preview type before reset — needed to select the correct cancel text below.
+    SlaGizmoPreviewType completed_preview_type = m_sla_gizmo_preview_type;
+    // Clear preview type unconditionally — covers normal finish, user cancel, and error paths.
+    m_sla_gizmo_preview_type = SlaGizmoPreviewType::None;
     //BBS:ignore cancel event for some special case
     if (m_ignore_event)
     {
@@ -7542,7 +7577,13 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
     }
     if (evt.cancelled()) {
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(", cancel event, status: %1%") % evt.status();
-        this->notification_manager->set_slicing_progress_canceled(_u8L("Slicing Canceled"));
+        std::string cancel_text;
+        switch (completed_preview_type) {
+            case SlaGizmoPreviewType::Support:       cancel_text = _u8L("Support cancelled");      break;
+            case SlaGizmoPreviewType::HollowOrDrill: cancel_text = _u8L("Hollow/Drill cancelled"); break;
+            default:                                 cancel_text = _u8L("Slicing Canceled");        break;
+        }
+        this->notification_manager->set_slicing_progress_canceled(cancel_text);
         is_finished = true;
     }
 
@@ -13335,6 +13376,7 @@ void Plater::reslice()
     if (state & priv::UPDATE_BACKGROUND_PROCESS_REFRESH_SCENE)
         this->p->view3D->reload_scene(false);
     // If the SLA processing of just a single object's supports is running, restart slicing for the whole object.
+    this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::None;
     this->p->background_process.set_task(PrintBase::TaskParams());
     // Only restarts if the state is valid.
     //BBS: jusdge the result
@@ -13549,6 +13591,14 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
         task.to_object_step = step;
     }
     this->p->background_process.set_task(task);
+    // Classify this preview run so on_slicing_update() can suppress the prefix and
+    // dispatch the correct completion text.
+    if (step == slaposSupportPoints || step == slaposPad)
+        this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::Support;
+    else if (step == slaposDrillHoles)
+        this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::HollowOrDrill;
+    else
+        this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::HollowOrDrill;
     // and let the background processing start.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
 }

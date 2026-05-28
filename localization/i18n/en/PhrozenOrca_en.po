@@ -7481,6 +7481,18 @@ msgstr "The printer does not support sending to printer MicroSD card."
 msgid "Slice ok."
 msgstr "Slice complete"
 
+msgid "Support complete"
+msgstr "Support complete"
+
+msgid "Hollow/Drill complete"
+msgstr "Hollow/Drill complete"
+
+msgid "Support cancelled"
+msgstr "Support cancelled"
+
+msgid "Hollow/Drill cancelled"
+msgstr "Hollow/Drill cancelled"
+
 msgid "View all Daily tips"
 msgstr ""
 

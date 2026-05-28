@@ -7910,6 +7910,18 @@ msgstr "Drukarka nie obsługuje wysyłania na kartę SD."
 msgid "Slice ok."
 msgstr "Zakończono cięcie modelu."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "Zobacz wszystkie porady dnia"
 

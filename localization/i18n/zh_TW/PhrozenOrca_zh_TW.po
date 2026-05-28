@@ -7567,6 +7567,18 @@ msgstr "該列印設備不支援傳送到 SD 記憶卡。"
 msgid "Slice ok."
 msgstr "切片完成。"
 
+msgid "Support complete"
+msgstr "支撐生成完成"
+
+msgid "Hollow/Drill complete"
+msgstr "挖空/鑽孔完成"
+
+msgid "Support cancelled"
+msgstr "支撐生成已取消"
+
+msgid "Hollow/Drill cancelled"
+msgstr "挖空/鑽孔已取消"
+
 msgid "View all Daily tips"
 msgstr "顯示所有每日提示"
 

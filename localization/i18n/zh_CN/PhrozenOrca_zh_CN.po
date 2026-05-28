@@ -7548,6 +7548,18 @@ msgstr "该打印机不支持发送到打印机SD卡。"
 msgid "Slice ok."
 msgstr "切片完成."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "查看所有每日贴士"
 

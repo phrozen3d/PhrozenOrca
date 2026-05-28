@@ -71,6 +71,7 @@ bool NotificationManager::SlicingProgressNotification::set_progress_state(Notifi
         set_percentage(-1);
         m_has_print_info = false;
         set_export_possible(false);
+        m_completed_override.clear();
         m_sp_state             = state;
         return true;
 	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_BEGAN:
@@ -78,6 +79,7 @@ bool NotificationManager::SlicingProgressNotification::set_progress_state(Notifi
 		set_percentage(-1);
 		m_has_print_info = false;
 		set_export_possible(false);
+		m_completed_override.clear();
 		m_sp_state = state;
         m_current_fade_opacity = 1;
 		return true;
@@ -132,7 +134,9 @@ void NotificationManager::SlicingProgressNotification::set_status_text(const std
 		break;
 	case Slic3r::GUI::NotificationManager::SlicingProgressNotification::SlicingProgressState::SP_COMPLETED:
 	{
-		NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0,  _u8L("Slice ok.") };
+		std::string completed_text = m_completed_override.empty() ? _u8L("Slice ok.") : m_completed_override;
+		m_completed_override.clear();
+		NotificationData data{ NotificationType::SlicingProgress, NotificationLevel::ProgressBarNotificationLevel, 0, completed_text };
 		update(data);
 		m_state = EState::Shown;
 	}

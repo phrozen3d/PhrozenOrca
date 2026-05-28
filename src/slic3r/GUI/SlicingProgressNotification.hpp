@@ -32,6 +32,8 @@ public:
     SlicingProgressState get_progress_state() { return m_sp_state; }
     // sets text of notification - call after setting progress state
     void				set_status_text(const std::string& text);
+    // overrides the completion text shown when entering SP_COMPLETED; empty = use "Slice ok." fallback
+    void                set_completed_override(const std::string& text) { m_completed_override = text; }
     // sets cancel button callback
     void			    set_cancel_callback(std::function<bool()> callback) { m_cancel_callback = callback; }
     bool                has_cancel_callback() const { return m_cancel_callback != nullptr; }
@@ -80,6 +82,7 @@ protected:
     bool				    m_has_print_info{ false };
     std::string             m_print_info;
     bool					m_is_fff{ true };
+    std::string             m_completed_override; // if non-empty, shown instead of "Slice ok." on SP_COMPLETED
 };
 
 }}

@@ -7762,6 +7762,18 @@ msgstr "Tiskárna nepodporuje odesílání na SD kartu tiskárny."
 msgid "Slice ok."
 msgstr "Slicování Dokončeno."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr ""
 

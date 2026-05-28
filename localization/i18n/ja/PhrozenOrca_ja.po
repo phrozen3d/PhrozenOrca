@@ -7734,6 +7734,18 @@ msgstr "このプリンターはSDカードに送信することができませ�
 msgid "Slice ok."
 msgstr "スライス完了"
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "すべての日次ヒントを表示"
 

@@ -7723,6 +7723,18 @@ msgstr "프린터는 프린터 SD 카드로의 전송을 지원하지 않습니�
 msgid "Slice ok."
 msgstr "슬라이스 완료."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "모든 일일 팁 보기"
 

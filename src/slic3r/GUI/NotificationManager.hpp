@@ -263,6 +263,8 @@ public:
 	void set_slicing_progress_canceled(const std::string& text);
 	// hides slicing progress notification imidietly
 	void set_slicing_progress_hidden();
+	// sets a one-shot completion text override; consumed when SP_COMPLETED is entered (empty = use "Slice ok." fallback)
+	void set_slicing_progress_completed_override(const std::string& text);
 	// Add a print time estimate to an existing SlicingProgress notification. Set said notification to SP_COMPLETED state.
 	void set_slicing_complete_print_time(const std::string& info, bool sidebar_colapsed);
 	void set_slicing_progress_export_possible();

@@ -7664,6 +7664,18 @@ msgstr "Skrivaren har inte stöd för att skicka till skrivarens MicroSD kort."
 msgid "Slice ok."
 msgstr "Beredning klar."
 
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
 msgid "View all Daily tips"
 msgstr "Visa alla dagliga tips"
 
