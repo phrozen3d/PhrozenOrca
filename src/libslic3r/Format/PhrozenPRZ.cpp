@@ -525,8 +525,11 @@ static void prz_header(std::string              &fh,
     // compute from volume + material config (same method as AnycubicSLA.cpp).
     {
         const SLAPrintStatistics &stats = print.print_statistics();
-        // volume_ml: objects_used_material / support_used_material are in mm³ (1 cm³ = 1000 mm³ = 1 mL)
-        float volume_ml = static_cast<float>((stats.objects_used_material + stats.support_used_material) / 1000.0);
+        // SLAPrintStatistics stores material in mm³ (1 cm³ = 1000 mm³ = 1 mL).
+        // PRZ TotalVolume field expects mm³ (Chitubox alignment); weight/price formulas keep ml as their calculation base.
+        const double total_mm3  = stats.objects_used_material + stats.support_used_material;
+        const float  volume_mm3 = static_cast<float>(total_mm3);            // PRZ: mm³
+        const float  volume_ml  = static_cast<float>(total_mm3 / 1000.0);   // weight calc base: ml
         // weight: bottle_weight is in kg, bottle_volume in mL → density g/mL
         float bw_g  = cfg_f(cfg, "bottle_weight") * 1000.f;
         float bv_ml = cfg_f(cfg, "bottle_volume");
@@ -535,9 +538,9 @@ static void prz_header(std::string              &fh,
         // price: priceUnit = "$/L"; cost proportional to volume share of bottle
         float bottle_cost = cfg_f(cfg, "bottle_cost");
         float price = (bv_ml > 0.f) ? (volume_ml * bottle_cost) / bv_ml : 0.f;
-        write_be(fh, volume_ml); layerContent_position_offset += 4;
-        write_be(fh, weight);    layerContent_position_offset += 4;
-        write_be(fh, price);     layerContent_position_offset += 4;
+        write_be(fh, volume_mm3); layerContent_position_offset += 4;
+        write_be(fh, weight);     layerContent_position_offset += 4;
+        write_be(fh, price);      layerContent_position_offset += 4;
     }
     // PriceUnit (8 bytes, "$/L" null-padded)
     {
