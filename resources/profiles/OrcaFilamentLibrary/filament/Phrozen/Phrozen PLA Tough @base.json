@@ -1,14 +1,22 @@
 {
-    "type": "filament",
+	"type": "filament",
+    "filament_id": "PRZA07",
+    "from": "system",
+    "is_custom_defined": "0",
+    "instantiation": "false",
+    "version": "0",
+
     "name": "Phrozen PLA Tough @base",
     "inherits": "fdm_filament_pla",
-    "from": "system",
-    "filament_id": "PRZA07",
-    "filament_settings_id": ["Phrozen PLA Tough"],
-    "instantiation": "false", 
-    "filament_vendor": [
-        "Phrozen"
+    "filament_vendor": [ "Phrozen" ],
+    "filament_settings_id": [ "Phrozen PLA Tough" ],
+    "filament_type": [ "PLA" ],
+    "compatible_printers": [
+        "Phrozen Arco 0.2 nozzle",
+        "Phrozen Arco 0.4 nozzle",
+        "Phrozen Arco 0.6 nozzle"
     ],
+
     "activate_air_filtration": [
         "0"
     ],
