@@ -1288,6 +1288,16 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool{ true });
 
+    def = this->add("overhang_0_4_speed", coFloatOrPercent);
+    def->label = "[0%, 10%)";
+    def->category = L("Speed");
+    def->full_label = "[0%, 10%)";
+    def->sidetext = L("mm/s or %");
+    def->ratio_over = "outer_wall_speed";
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
+
     def = this->add("overhang_1_4_speed", coFloatOrPercent);
     def->label = "(10%, 25%)";
     def->category = L("Speed");

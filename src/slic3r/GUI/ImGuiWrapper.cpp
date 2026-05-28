@@ -2556,22 +2556,17 @@ void ImGuiWrapper::pop_common_window_style() {
 }
 
 void ImGuiWrapper::push_confirm_button_style() {
-    if (m_is_dark_mode) {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f / 255.f, 150.f / 255.f, 136.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.f / 255.f, 150.f / 255.f, 136.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, to_ImVec4(decode_color_to_float_array("#267E73")));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(27.f / 255.f, 136.f / 255.f, 68.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(1.f, 1.f, 1.f, 0.88f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 0.88f));
-    }
-    else {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.f / 255.f, 150.f / 255.f, 136.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.f / 255.f, 150.f / 255.f, 136.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, to_ImVec4(decode_color_to_float_array("#FFB08C")));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(27.f / 255.f, 136.f / 255.f, 68.f / 255.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(1.f, 1.f, 1.f, 1.f));
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f));
-    }
+    const ImVec4 confirm_bg     = COL_ORANGE_LIGHT;
+    const ImVec4 confirm_hover  = to_ImVec4(decode_color_to_float_array("#F05E20"));
+    const ImVec4 confirm_active = confirm_hover;
+    const ImVec4 confirm_text   = m_is_dark_mode ? ImVec4(1.f, 1.f, 1.f, 0.88f) : ImVec4(1.f, 1.f, 1.f, 1.f);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, confirm_bg);
+    ImGui::PushStyleColor(ImGuiCol_Border, confirm_bg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, confirm_hover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, confirm_active);
+    ImGui::PushStyleColor(ImGuiCol_CheckMark, confirm_text);
+    ImGui::PushStyleColor(ImGuiCol_Text, confirm_text);
 }
 
 void ImGuiWrapper::pop_confirm_button_style() {
