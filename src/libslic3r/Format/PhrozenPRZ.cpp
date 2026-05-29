@@ -23,6 +23,7 @@
 #include <tbb/task_arena.h>
 
 #include <libslic3r/SLA/RasterCache.hpp>
+#include "PhrozenPRZOrient.hpp"
 
 namespace Slic3r {
 
@@ -407,15 +408,10 @@ static void prz_header(std::string              &fh,
     // Xmirror (1 byte): derived from display_mirror_mode enum (韌體硬體鏡像狀態).
     // lcd_mirror → 1; normal/dlp_normal → 0.
     // Fallback to display_mirror_x bool for legacy presets without display_mirror_mode.
+    // Single source of truth shared with the layer-image orientation flip
+    // (prz_orient_after_rotate) — see PhrozenPRZOrient.hpp.
     {
-        int xm_val = 0;
-        switch (pcfg.display_mirror_mode.value) {
-            case slammLCDMirror: xm_val = 1; break;
-            case slammNormal:    xm_val = 0; break;
-            case slammDLPNormal: xm_val = 0; break;
-            default:             xm_val = pcfg.display_mirror_x.getBool() ? 1 : 0; break;
-        }
-        fh += static_cast<char>(xm_val);
+        fh += static_cast<char>(prz_final_x_mirror(pcfg) ? 1 : 0);
         layerContent_position_offset += 1;
     }
     // Ymirror (1 byte): false=0, true=1
@@ -703,6 +699,12 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
     if (N == 0)
         return;
 
+    // Per-printer final X-mirror state — constant across all layers. Shared
+    // single source of truth with the PRZ header Xmirror byte
+    // (see PhrozenPRZOrient.hpp). Drives the post-rotate orientation flip on the
+    // cache-miss fallback path, identically to the SLAPrintSteps main path.
+    const bool prz_x_mirror = prz_final_x_mirror(print.printer_config());
+
     static constexpr uchar BLACK = 0x00;
     static constexpr uchar WHITE = 0xc0;
     static constexpr uchar GRAY  = 0x40;
@@ -808,6 +810,10 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                     cv::Mat rotated;
                     cv::rotate(batch_mats[i], rotated, cv::ROTATE_90_CLOCKWISE);
                     batch_mats[i] = std::move(rotated);
+                    // Same compensating flip as the SLAPrintSteps main path so the
+                    // cache-miss byte stream matches cache-hit exactly
+                    // (see openspec fix-prz-image-mirror-axis-swap, design.md).
+                    prz_orient_after_rotate(batch_mats[i], prz_x_mirror);
                 }
             });
 

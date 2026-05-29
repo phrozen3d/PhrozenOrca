@@ -23,6 +23,7 @@
 #include <libslic3r/SLA/ZCorrection.hpp>
 #include <libslic3r/Format/SLAArchiveWriter.hpp>
 #include <libslic3r/Format/PhrozenPRZ.hpp>
+#include <libslic3r/Format/PhrozenPRZOrient.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
 #include <libslic3r/SLA/RasterCache.hpp>
@@ -1529,6 +1530,11 @@ void SLAPrint::Steps::rasterize()
         };
         tbb::enumerable_thread_specific<TLSData> tls;
 
+        // Per-printer final X-mirror state — constant across all layers. Shared
+        // single source of truth with the PRZ header Xmirror byte
+        // (see PhrozenPRZOrient.hpp). Drives the post-rotate orientation flip.
+        const bool prz_x_mirror = prz_final_x_mirror(m_print->printer_config());
+
         raster_arena.execute([&] {
             tbb::parallel_for(
                 tbb::blocked_range<size_t>(0, N, /*grain_size=*/1),
@@ -1558,6 +1564,13 @@ void SLAPrint::Steps::rasterize()
                         // matching PRZ header xr=display_pixels_x (Phase 1 change).
                         // See design.md §Decision 1.5 for the geometric derivation.
                         cv::rotate(mat, tls_data.mat_rotated, cv::ROTATE_90_CLOCKWISE);
+
+                        // Compensate the axis projection introduced by the 90° CW
+                        // rotation so the cached layer image matches Chitubox
+                        // per-printer (see openspec fix-prz-image-mirror-axis-swap,
+                        // design.md Decision 1). Same flip is applied at the
+                        // cache-miss site in PhrozenPRZ.cpp to keep bytes identical.
+                        prz_orient_after_rotate(tls_data.mat_rotated, prz_x_mirror);
 
                         // 5.3 PRZ-RLE encode — no DEFLATE, no PNG checksums.
                         // Produces the same przByte layout as generate_prz() so
