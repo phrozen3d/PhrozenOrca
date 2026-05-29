@@ -1486,7 +1486,7 @@ msgid "Add overhang supports"
 msgstr "加入懸空支撐點"
 
 msgid "Hollow"
-msgstr "空心"
+msgstr "鏤空"
 
 msgid "Remove"
 msgstr "移除"
@@ -4322,6 +4322,9 @@ msgstr "總預估"
 
 msgid "Total time"
 msgstr "總時間"
+
+msgid "Total resin"
+msgstr "總樹脂量"
 
 msgid "Total cost"
 msgstr "總成本"
@@ -15172,6 +15175,9 @@ msgstr "底部公差補償"
 
 msgid "Print Time Compensation"
 msgstr "列印時間補償"
+
+msgid "Layer Print Time Compensation"
+msgstr "層列印時間補償"
 
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""

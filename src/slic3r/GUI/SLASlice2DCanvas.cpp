@@ -9,6 +9,7 @@
 #include "GLTexture.hpp"
 #include "IMSlider.hpp"
 #include "GUI_Colors.hpp"
+#include "I18N.hpp"
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/SLA/RasterToCvMat.hpp"
 #include "libslic3r/Tesselate.hpp"
@@ -331,7 +332,7 @@ void SLASlice2DCanvas::render_layers_imgui_overlay(int vp_w, int vp_h)
                 ImGuiWindowFlags_NoSavedSettings;
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.f);
             if (ImGui::Begin("##sla_stats_ovl", nullptr, kStatsFlags)) {
-                ImGui::TextUnformatted("Total estimation");
+                ImGui::Text(_L("Total Estimation").ToUTF8());
                 ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(1.f, 1.f, 1.f, 0.5f));
                 ImGui::Separator();
                 ImGui::PopStyleColor();
@@ -339,12 +340,12 @@ void SLASlice2DCanvas::render_layers_imgui_overlay(int vp_w, int vp_h)
                 char buf[32];
                 const float pad_r = ImGui::GetStyle().WindowPadding.x;
 
-                ImGui::TextUnformatted("Total resin:");
+                ImGui::Text((_L("Total resin") + ":").ToUTF8());
                 snprintf(buf, sizeof(buf), "%.3f ml", total_ml);
                 ImGui::SameLine(win_w - pad_r - ImGui::CalcTextSize(buf).x);
                 ImGui::TextUnformatted(buf);
 
-                ImGui::TextUnformatted("Total  time:");
+                ImGui::Text((_L("Total time") + ":").ToUTF8());
                 snprintf(buf, sizeof(buf), "%dh %dm", hours, mins);
                 ImGui::SameLine(win_w - pad_r - ImGui::CalcTextSize(buf).x);
                 ImGui::TextUnformatted(buf);

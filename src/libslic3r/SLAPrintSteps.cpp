@@ -65,7 +65,7 @@ std::string OBJ_STEP_LABELS(size_t idx)
     switch (idx) {
     case slaposAssembly:             return L("Assembling model from parts");
     case slaposHollowing:            return L("Hollowing model");
-    case slaposDrillHoles:           return L("Drilling holes into model.");
+    case slaposDrillHoles:           return L("Drilling holes into model");
     case slaposObjectSlice:          return L("Slicing model");
     case slaposSupportPoints:        return L("Generating support points");
     case slaposSupportTree:          return L("Generating support tree");

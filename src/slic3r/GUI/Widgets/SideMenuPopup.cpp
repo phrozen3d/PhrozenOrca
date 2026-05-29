@@ -72,31 +72,21 @@ void SidePopup::Popup(wxWindow* focus)
 
 void SidePopup::Create()
 {
-#ifdef __APPLE__
-    // Hide all child windows that are not in btn_list
-    // This prevents buttons created but not added to btn_list from showing
-    // NOTE: This is a temporary workaround for macOS platform-specific behavior.
-    // If more options need to be displayed in the future, this code may need adjustment or removal.
-    bool enableCheckProcess = true;
-    if(enableCheckProcess){
-        wxWindowList& children = GetChildren();
-        for (wxWindowList::iterator it = children.begin(); it != children.end(); ++it) {
-            wxWindow* child = *it;
-            // Check if this child is a SideButton not in btn_list
-            bool in_list = false;
-            for (auto btn : btn_list) {
-                if (child == btn) {
-                    in_list = true;
-                    break;
-                }
-            }
-            if (!in_list) {
-                child->Show(false);
+    // Hide SideButtons that were created but not appended (e.g. conditional menu items).
+    // Without this, orphan controls paint at the default position and overlap the first row.
+    wxWindowList& children = GetChildren();
+    for (wxWindowList::iterator it = children.begin(); it != children.end(); ++it) {
+        wxWindow* child = *it;
+        bool in_list = false;
+        for (auto btn : btn_list) {
+            if (child == btn) {
+                in_list = true;
+                break;
             }
         }
+        child->Show(in_list);
     }
-#endif
-    
+
     wxSizer* sizer = new wxBoxSizer(wxVERTICAL);
 
     int max_width = 0;

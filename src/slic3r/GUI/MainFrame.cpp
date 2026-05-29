@@ -1901,30 +1901,18 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     const std::string               mid = target->config.opt_string("printer_model");
     const std::string               var = target->config.opt_string("printer_variant");
     PresetBundle::PresetPreferences pref{ mid, var, std::string(), std::string() };
-    // Record intended mode before load_selections so toolbar / popup never show a stale label vs. checkmark.
-    cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
     pb->load_selections(*cfg, pref);
     pb->export_selections(*cfg);
+    cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
     cfg->save();
-
+    wxGetApp().load_current_presets(false, true);
     m_plater->set_printer_technology(resin ? ptSLA : ptFFF);
     update_phrozen_mode_button_label();
-    // Rebuild ParamsPanel Process row (TabPrint vs TabSLAPrint) before load_current_presets reload_config,
-    // or Field::window can still point at controls from the wrong / torn-down layout.
-    update_side_preset_ui();
-
-    wxGetApp().load_current_presets(false, true);
     m_plater->sidebar().on_filaments_change(pb->filament_presets.size());
-    // switch_process_tab_for_printer_technology() is already invoked from update_side_preset_ui()
-
+    if (m_param_panel)
+        m_param_panel->switch_process_tab_for_printer_technology();
     if (m_topbar)
         m_topbar->ShowCalibrationButton(!resin);
-
-    if (m_tabpanel && saved_plater_tab >= 0 && m_tabpanel->GetSelection() != saved_plater_tab) {
-        if (saved_plater_tab == TabPosition::tp3DEditor || saved_plater_tab == TabPosition::tpPreview)
-            m_tabpanel->SetSelection(saved_plater_tab);
-    }
-
     Layout();
 }
 
@@ -1932,7 +1920,7 @@ wxBoxSizer* MainFrame::create_phrozen_mode_toolbar()
 {
     wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
     const int   ipx   = FromDIP(10);
-    m_phrozen_mode_btn = new SideButton(this, _L("Phrozen Orca FDM"), wxString("PhrozenImages_Resin/Printer_FDM"), 0, ipx);
+    m_phrozen_mode_btn = new SideButton(this, _L("Phrozen Orca Filament"), wxString("PhrozenImages_Resin/Printer_FDM"), 0, ipx);
 
     m_phrozen_mode_btn->SetCornerRadius(FromDIP(4));
     m_phrozen_mode_btn->SetExtraSize(wxSize(FromDIP(16), FromDIP(10)));
@@ -2151,8 +2139,11 @@ wxBoxSizer* MainFrame::create_side_tools()
                 }
 
 
-                SideButton* print_plate_btn = new SideButton(p, _L("Print plate"), "");
-                print_plate_btn->SetCornerRadius(0);
+                SideButton* print_plate_btn = nullptr;
+                if (bIsFDMMode) {
+                    print_plate_btn = new SideButton(p, _L("Print plate"), "");
+                    print_plate_btn->SetCornerRadius(0);
+                }
 
                 SideButton* send_to_printer_btn = new SideButton(p, _L("Send"), "");
                 send_to_printer_btn->SetCornerRadius(0);
@@ -2163,14 +2154,16 @@ wxBoxSizer* MainFrame::create_side_tools()
                 SideButton* export_all_sliced_file_btn = new SideButton(p, _L("Export all sliced file"), "");
                 export_all_sliced_file_btn->SetCornerRadius(0);
 
-                print_plate_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                    m_print_btn->SetLabel(_L("Print plate"));
-                    m_print_select = ePrintPlate;
-                    m_print_enable = get_enable_print_status();
-                    m_print_btn->Enable(m_print_enable);
-                    this->Layout();
-                    p->Dismiss();
+                if (print_plate_btn) {
+                    print_plate_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Print plate"));
+                        m_print_select = ePrintPlate;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
                     });
+                }
 
                 SideButton* print_all_btn = new SideButton(p, _L("Print all"), "");
                 print_all_btn->SetCornerRadius(0);
@@ -2244,7 +2237,8 @@ wxBoxSizer* MainFrame::create_side_tools()
                     }
                 }
 
-                p->append_button(print_plate_btn);
+                if (print_plate_btn)
+                    p->append_button(print_plate_btn);
                 if (support_print_all) {
                     p->append_button(print_all_btn);
                 }
