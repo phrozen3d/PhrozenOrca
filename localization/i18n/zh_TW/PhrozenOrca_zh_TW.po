@@ -1501,10 +1501,10 @@ msgid "Preview"
 msgstr "預覽"
 
 msgid "Remove selected"
-msgstr ""
+msgstr "移除所有"
 
 msgid "Remove all"
-msgstr "刪除全部"
+msgstr "移除全部"
 
 msgid "Left click:"
 msgstr ""
@@ -1525,7 +1525,7 @@ msgid "Head diameter"
 msgstr "頭直徑"
 
 msgid "Lock supports under new islands"
-msgstr ""
+msgstr "鎖定孤島支撐編輯"
 
 msgid "Remove selected points"
 msgstr "移除選定的點"
@@ -1540,7 +1540,7 @@ msgid "Discard changes"
 msgstr ""
 
 msgid "Support points density"
-msgstr ""
+msgstr "支撐點密度"
 
 msgid "Auto-generate points"
 msgstr "自動產生點"
@@ -1549,28 +1549,28 @@ msgid "Manual editing"
 msgstr ""
 
 msgid "Head Diameter"
-msgstr ""
+msgstr "接觸點直徑"
 
 msgid "Discard"
 msgstr "放棄"
 
 msgid "Auto Support"
-msgstr ""
+msgstr "自動支撐"
 
 msgid "Manual Support"
-msgstr ""
+msgstr "手動支撐"
 
 msgid "Light"
-msgstr ""
+msgstr "細"
 
 msgid "Heavy"
-msgstr ""
+msgstr "粗"
 
 msgid "Structure"
-msgstr ""
+msgstr "支撐結構"
 
 msgid "Points"
-msgstr ""
+msgstr "支撐點"
 
 msgid "Density"
 msgstr "密度"
@@ -4758,7 +4758,7 @@ msgid "Slice plate"
 msgstr "切片單一列印板"
 
 msgid "Export PRZ file"
-msgstr ""
+msgstr "匯出 PRZ 檔案"
 
 msgid "Export G-code file"
 msgstr "匯出 G-code 檔案"
@@ -14961,10 +14961,10 @@ msgid "Waiting Mode During Printing for quality."
 msgstr ""
 
 msgid "Resting time"
-msgstr ""
+msgstr "靜止時間"
 
 msgid "Light off delay"
-msgstr ""
+msgstr "燈滅延遲"
 
 msgid "Rest Time Before Lift"
 msgstr "抬升前的靜止時間"
@@ -15170,6 +15170,9 @@ msgstr ""
 msgid "Bottom Tolerance Compensation"
 msgstr "底部公差補償"
 
+msgid "Print Time Compensation"
+msgstr "列印時間補償"
+
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""
 
@@ -15331,7 +15334,7 @@ msgid "Hollow out a model to have an empty interior"
 msgstr ""
 
 msgid "Wall thickness"
-msgstr ""
+msgstr "壁厚"
 
 msgid "Minimum wall thickness of a hollowed model."
 msgstr ""
