@@ -6966,11 +6966,12 @@ void Plater::priv::set_current_panel(wxPanel* panel, bool no_slice)
     if (current_panel == view3D) {
         if (old_panel == preview) {
             preview->get_canvas3d()->unbind_event_handlers();
-            // Resin: drop Preview pillar/pad meshes from Prepare; full supports stay in Preview only.
-            if (printer_technology == ptSLA) {
-                view3D->get_canvas3d()->toggle_sla_auxiliaries_visibility(false);
+            // Resin: reload View3D scene after returning from Preview so that any
+            // newly computed SLA steps (support-tree, pad) are reflected immediately.
+            // Support visibility is governed by load_sla_support_pad_in_scene in
+            // reload_scene() — supports are shown whenever the Support gizmo is inactive.
+            if (printer_technology == ptSLA)
                 view3D->reload_scene(true);
-            }
         }
         else if (old_panel == assemble_view) {
             assemble_view->get_canvas3d()->unbind_event_handlers();

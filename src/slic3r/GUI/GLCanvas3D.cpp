@@ -2394,13 +2394,21 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
             }
         }
     }
+    // In View3D (Prepare), slaposSupportTree / slaposPad volumes are loaded unless
+    // the SLA Support gizmo is active.  When the gizmo is active it renders its own
+    // editable point preview (render_points / gizmo m_volumes); loading the full
+    // support mesh simultaneously would produce double-rendering.
+    //
+    // When the gizmo is inactive (Move, Rotate, Scale, …), the applied support-tree /
+    // pad volumes are loaded so existing supports remain visible.  Whether any volumes
+    // actually exist is governed by generate_support, sla_points_status, and print-step
+    // completion — if no supports have been applied the steps will not be DONE.
+    const bool sla_gizmo_active =
+        m_gizmos.get_current_type() == GLGizmosManager::EType::SlaSupports;
+    const bool load_sla_support_pad_in_scene =
+        m_canvas_type != ECanvasType::CanvasView3D || !sla_gizmo_active;
     if (printer_technology == ptSLA) {
         const SLAPrint* sla_print = this->sla_print();
-        // Prepare (View3D): show support points via the SLA gizmo only; full pillar/pad meshes
-        // are loaded in Preview via _load_sla_shells(). Skip aux meshes here so a full slice
-        // does not leave supports visible after returning from Preview.
-        const bool load_sla_support_pad_in_scene =
-            m_canvas_type != ECanvasType::CanvasView3D;
 #ifndef NDEBUG
         // Verify that the SLAPrint object is synchronized with m_model.
         check_model_ids_equal(*m_model, sla_print->model());
@@ -2679,9 +2687,9 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
                     	volume.offsets = { state.step[istep].timestamp };
                     }
                     // Support tree / pad: only tracked in aux_volume_state when load_sla_support_pad_in_scene
-                    // (see first SLA block above). On Prepare (View3D) skip — avoids lower_bound miss / crash.
+                    // (see first SLA block above). Skip when flag is false to avoid lower_bound miss / crash.
                     else if (state.step[istep].state == PrintStateBase::DONE
-                             && m_canvas_type != ECanvasType::CanvasView3D) {
+                             && load_sla_support_pad_in_scene) {
                         // Check whether there is an existing auxiliary volume to be updated, or a new auxiliary volume to be created.
 						ModelVolumeState key(state.step[istep].timestamp, instance.instance_id.id);
 						auto it = std::lower_bound(aux_volume_state.begin(), aux_volume_state.end(), key, model_volume_state_lower);
