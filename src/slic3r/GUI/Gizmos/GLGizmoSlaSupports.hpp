@@ -154,6 +154,13 @@ private:
     void ask_about_changes_call_after(std::function<void()> on_yes, std::function<void()> on_no);
     void apply_weight_preset(sla::SupportWeight w);
 
+    // Auto Support: Apply enabled when weight/density differ from last auto_generate (or no points yet).
+    sla::SupportWeight m_applied_auto_weight = sla::SupportWeight::Medium;
+    int                m_applied_auto_density = 100;
+    bool               m_auto_baseline_initialized = false;
+    bool auto_settings_need_apply(const ModelObject* mo) const;
+    void mark_auto_settings_applied(const ModelObject* mo);
+
     // New Support UI panels — rendered below the legacy panel as a preview skeleton.
     void render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);
     void render_manual_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);

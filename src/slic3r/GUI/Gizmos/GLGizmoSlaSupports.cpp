@@ -132,6 +132,7 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
         disable_editing_mode();
         reload_cache();
         m_old_mo_id = mo->id();
+        m_auto_baseline_initialized = false;
     }
 
     // If we triggered autogeneration before, check backend and fetch results if they are there
@@ -788,6 +789,12 @@ static bool sp_draw_custom_slider(const char* id, float& v,
 // ─────────────────────────────────────────────────────────────────────────────
 void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo)
 {
+    // Existing auto-generated points: treat current UI as already applied until user changes preset/density.
+    if (!m_auto_baseline_initialized && mo && !m_normal_cache.empty()) {
+        mark_auto_settings_applied(mo);
+        m_auto_baseline_initialized = true;
+    }
+
     const float scale       = m_parent.get_scale();
     const float gap         = 8.f * scale;
     const float value_box_w = m_imgui->scaled(4.f);
@@ -1021,8 +1028,10 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         m_imgui->disabled_end();
 
         ImGui::SameLine();
+        m_imgui->disabled_begin(!auto_settings_need_apply(mo));
         if (ImGui::Button((_u8L("Apply") + "##sp_auto_apply").c_str(), ImVec2(btn_apply_w, 0.f)))
             auto_generate();
+        m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(); // ItemSpacing
 
@@ -1030,6 +1039,36 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     m_imgui->end();
     ImGui::PopStyleVar(); // WindowPadding (y=0 override)
     ImGuiWrapper::pop_toolbar_style();
+}
+
+
+bool GLGizmoSlaSupports::auto_settings_need_apply(const ModelObject* mo) const
+{
+    if (m_normal_cache.empty())
+        return true;
+
+    const char* density_key = "support_points_density_relative";
+    const auto  opts        = get_config_options({density_key});
+    const int   density     = (opts.empty() || !mo)
+        ? 100
+        : static_cast<const ConfigOptionInt*>(opts[0])->value;
+
+    if (m_new_point_weight != m_applied_auto_weight)
+        return true;
+    if (density != m_applied_auto_density)
+        return true;
+    return false;
+}
+
+void GLGizmoSlaSupports::mark_auto_settings_applied(const ModelObject* mo)
+{
+    m_applied_auto_weight = m_new_point_weight;
+
+    const char* density_key = "support_points_density_relative";
+    const auto  opts        = get_config_options({density_key});
+    m_applied_auto_density  = (opts.empty() || !mo)
+        ? 100
+        : static_cast<const ConfigOptionInt*>(opts[0])->value;
 }
 
 
@@ -1276,6 +1315,7 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
         m_imgui->disabled_end();
 
         ImGui::SameLine();
+        m_imgui->disabled_begin(!unsaved_changes());
         if (ImGui::Button((_u8L("Apply") + "##sp_man_apply").c_str(), ImVec2(btn_apply_w, 0.f))) {
             // Save changes without exiting Manual mode. Does not call editing_mode_apply_changes()
             // because that also calls disable_editing_mode(), which would switch to Auto mode.
@@ -1318,8 +1358,10 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
                 }
             }
         }
+        m_imgui->disabled_end();
 
         ImGui::SameLine();
+        m_imgui->disabled_begin(!unsaved_changes());
         if (ImGui::Button((_u8L("Discard") + "##sp_man_discard").c_str(), ImVec2(btn_discard_w, 0.f))) {
             // Revert editing cache to normal cache without exiting Manual mode. Does not call
             // editing_mode_discard_changes() because that also calls disable_editing_mode().
@@ -1331,6 +1373,7 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
             register_point_raycasters_for_picking();
             m_parent.set_as_dirty();
         }
+        m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(); // ItemSpacing
 
@@ -1416,6 +1459,7 @@ void GLGizmoSlaSupports::on_set_state()
         return;
 
     if (m_state == On && m_old_state != On) { // the gizmo was just turned on
+        m_auto_baseline_initialized = false;
         // Set default head diameter from config.
         const DynamicPrintConfig& cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
         const auto *opt_hfd = cfg.option<ConfigOptionFloat>("support_head_front_diameter");
@@ -1614,6 +1658,7 @@ void GLGizmoSlaSupports::apply_remove_all()
     // Commit empty support-point state to model without triggering reslice/validate.
     // Callers handle the snapshot; this function only syncs data and clears the mesh.
     m_normal_cache.clear();
+    m_auto_baseline_initialized = false;
     ModelObject* mo = m_c->selection_info()->model_object();
     mo->sla_points_status = sla::PointsStatus::UserModified;
     mo->sla_support_points.clear();
@@ -1706,6 +1751,8 @@ void GLGizmoSlaSupports::auto_generate()
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Autogenerate support points");
         sync_generate_support_for_object(mo, true);
         mo->sla_points_status = sla::PointsStatus::Generating;
+        mark_auto_settings_applied(mo);
+        m_auto_baseline_initialized = true;
         // Step 4.2: use inherited reslice_until_step() instead of removed reslice_SLA_supports().
         // m_show_support_structure: if supports structure visible, reslice to slaposPad; otherwise slaposSupportPoints.
         reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
