@@ -15182,6 +15182,21 @@ msgstr "層列印時間補償"
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""
 
+msgid "Layer Print Time Compensation Settings"
+msgstr "圖層列印時間補償設定"
+
+msgid "Software predicts print time"
+msgstr "軟體預估列印時間"
+
+msgid "Actual print time"
+msgstr "實際列印時間"
+
+msgid "Layer count"
+msgstr "層數"
+
+msgid "Layer print time compensation"
+msgstr "層列印時間補償"
+
 msgid "Contact Type"
 msgstr "接觸類型"
 
