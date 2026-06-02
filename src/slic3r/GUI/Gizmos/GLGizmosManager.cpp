@@ -492,8 +492,9 @@ bool GLGizmosManager::handle_shortcut(int key)
         return false;
 
     auto is_key = [pressed_key = key](int gizmo_key) { return (gizmo_key == pressed_key - 64) || (gizmo_key == pressed_key - 96); };
-    // allowe open shortcut even when selection is empty    
+    // allowe open shortcut even when selection is empty
     if (GLGizmoBase* gizmo_emboss = m_gizmos[Emboss].get();
+        gizmo_emboss->is_selectable() && gizmo_emboss->is_activable() &&
         is_key(gizmo_emboss->get_shortcut_key())) {
         dynamic_cast<GLGizmoEmboss *>(gizmo_emboss)->on_shortcut_key();
         return true;

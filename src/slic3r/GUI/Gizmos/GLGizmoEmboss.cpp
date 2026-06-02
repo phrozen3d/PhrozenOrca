@@ -735,6 +735,17 @@ bool GLGizmoEmboss::on_init()
 
 std::string GLGizmoEmboss::on_get_name() const { return _u8L("Emboss"); }
 
+bool GLGizmoEmboss::on_is_selectable() const
+{
+    // Emboss is hidden in SLA mode to avoid conflicts with Hollow and Drill
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+}
+
+bool GLGizmoEmboss::on_is_activable() const
+{
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+}
+
 void GLGizmoEmboss::on_render() {
     // no volume selected
     const Selection &selection = m_parent.get_selection();
