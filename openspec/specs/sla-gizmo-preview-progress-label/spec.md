@@ -32,13 +32,14 @@ Define how progress notifications behave during SLA gizmo partial reslice (previ
 
 ### Requirement: Gizmo preview 成功完成後顯示功能別完成通知
 
-當 Support、Hollow 或 Drill gizmo 的 partial reslice **成功完成**時，右下角進度通知**不得**顯示完整切片的完成訊息「Slice complete」（msgid: "Slice ok."）。通知**應**顯示對應功能的完成文字。
+當 Support、Hollow、Drill 或 Overhang Detection gizmo 的 partial reslice **成功完成**時，右下角進度通知**不得**顯示完整切片的完成訊息「Slice complete」（msgid: "Slice ok."）。通知**應**顯示對應功能的完成文字。
 
 | Preview 類型 | 成功完成顯示文字 |
 |---|---|
 | Support gizmo | "Support complete" |
 | Hollow gizmo | "Hollow/Drill complete" |
 | Drill gizmo | "Hollow/Drill complete" |
+| Overhang Detection gizmo | "Overhang detection complete" |
 
 #### Scenario: Support preview 成功完成顯示 "Support complete"
 - **WHEN** Support gizmo 的 partial reslice 成功完成時
@@ -52,17 +53,22 @@ Define how progress notifications behave during SLA gizmo partial reslice (previ
 - **WHEN** Drill gizmo 的 partial reslice 成功完成時
 - **THEN** 進度通知顯示「Hollow/Drill complete」（或其翻譯），**不顯示**「Slice complete」
 
+#### Scenario: Overhang Detection preview 成功完成顯示 "Overhang detection complete"
+- **WHEN** Overhang Detection gizmo（`GLGizmoLcdOverhangDetection`）的「Detect selected」觸發的 partial reslice 成功完成時
+- **THEN** 進度通知顯示「Overhang detection complete」（或其翻譯），**不顯示**「Slice complete」，**不顯示**「Hollow/Drill complete」
+
 ---
 
 ### Requirement: Gizmo preview 取消後顯示功能別取消通知
 
-當 Support、Hollow 或 Drill gizmo 的 partial reslice 被使用者**取消**時，右下角進度通知**不得**顯示完整切片的取消訊息「Slicing Canceled」。通知**應**顯示對應功能的取消文字。Preview 取消**不得**顯示任何 ... complete 成功文字。
+當 Support、Hollow、Drill 或 Overhang Detection gizmo 的 partial reslice 被使用者**取消**時，右下角進度通知**不得**顯示完整切片的取消訊息「Slicing Canceled」。通知**應**顯示對應功能的取消文字。Preview 取消**不得**顯示任何 ... complete 成功文字。
 
 | Preview 類型 | 取消顯示文字 |
 |---|---|
 | Support gizmo | "Support cancelled" |
 | Hollow gizmo | "Hollow/Drill cancelled" |
 | Drill gizmo | "Hollow/Drill cancelled" |
+| Overhang Detection gizmo | "Overhang detection cancelled" |
 
 #### Scenario: Support preview 取消顯示 "Support cancelled"
 - **WHEN** Support gizmo 的 partial reslice 在完成前被使用者取消時
@@ -75,6 +81,28 @@ Define how progress notifications behave during SLA gizmo partial reslice (previ
 #### Scenario: Drill preview 取消顯示 "Hollow/Drill cancelled"
 - **WHEN** Drill gizmo 的 partial reslice 在完成前被使用者取消時
 - **THEN** 進度通知顯示「Hollow/Drill cancelled」（或其翻譯），**不顯示**「Slicing Canceled」，**不顯示**「Hollow/Drill complete」
+
+#### Scenario: Overhang Detection preview 取消顯示 "Overhang detection cancelled"
+- **WHEN** Overhang Detection gizmo 的 partial reslice 在完成前被使用者取消時
+- **THEN** 進度通知顯示「Overhang detection cancelled」（或其翻譯），**不顯示**「Slicing Canceled」，**不顯示**「Hollow/Drill cancelled」，**不顯示**「Overhang detection complete」
+
+---
+
+### Requirement: Overhang Detection preview 運作中顯示固定「懸空偵測」文字，不顯示 pipeline step label
+
+當 Overhang Detection gizmo 觸發 partial reslice 時，SLA pipeline 內部會依序執行 `slaposHollowing`、`slaposDrillHoles`、`slaposObjectSlice` 等步驟，各步驟對應的 `OBJ_STEP_LABELS()` 輸出（"Hollowing model"、"Drilling holes into model"、"Slicing model"）與懸空偵測操作無關。
+
+右下角進度通知**在整個 partial reslice 執行期間**應固定顯示「Overhang Detecting」（或其翻譯），**不得**顯示任何 SLA pipeline step label，**不得**附加「Slicing: 」前綴。
+
+實作方式：`on_slicing_update()` 中當 `m_sla_gizmo_preview_type == OverhangDetect` 時，完整覆蓋 `evt.status.text = _u8L("Overhang Detecting")`，不拼接 step label。
+
+#### Scenario: Overhang Detection preview 運作中僅顯示 "Overhang Detecting"
+- **WHEN** 使用者觸發 Overhang Detection gizmo 的「Detect selected」操作而啟動 partial reslice 時
+- **THEN** 進度通知在整個執行期間顯示「Overhang Detecting」（或其翻譯），**不顯示**「Hollowing model」，**不顯示**「Drilling holes into model」，**不顯示**「Slicing model」，**不附加**「Slicing: 」前綴
+
+#### Scenario: Overhang Detection preview 後的完整切片不受影響
+- **WHEN** Overhang Detection preview 完成（成功或取消）後，使用者啟動完整切片時
+- **THEN** 完整切片的進度通知正確顯示「Slicing: 」前綴；完成後顯示「Slice complete」；取消後顯示「Slicing Canceled」（preview 狀態無殘留）
 
 ---
 

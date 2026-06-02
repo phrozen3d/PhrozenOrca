@@ -2566,9 +2566,10 @@ enum ExportingStatus{
 // Identifies the active SLA gizmo preview type so on_slicing_update() can
 // suppress the "Slicing: " prefix and dispatch the correct completion/cancel text.
 enum class SlaGizmoPreviewType {
-    None,           // full-slice / export run  — complete: "Slice ok."          cancel: "Slicing Canceled"
-    Support,        // Support gizmo preview    — complete: "Support complete"   cancel: "Support cancelled"
-    HollowOrDrill   // Hollow/Drill gizmo preview — complete: "Hollow/Drill complete" cancel: "Hollow/Drill cancelled"
+    None,            // full-slice / export run  — complete: "Slice ok."                  cancel: "Slicing Canceled"
+    Support,         // Support gizmo preview    — complete: "Support complete"            cancel: "Support cancelled"
+    HollowOrDrill,   // Hollow/Drill gizmo preview — complete: "Hollow/Drill complete"    cancel: "Hollow/Drill cancelled"
+    OverhangDetect   // Overhang Detection preview — complete: "Overhang detection complete" cancel: "Overhang detection cancelled"
 };
 
 
@@ -7296,6 +7297,8 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
     // Gizmo preview partial reslices (Support / Hollow / Drill) show only the phase label.
     if (m_sla_gizmo_preview_type == SlaGizmoPreviewType::None) {
         evt.status.text = _u8L("Slicing") + ": " + evt.status.text;
+    } else if (m_sla_gizmo_preview_type == SlaGizmoPreviewType::OverhangDetect) {
+        evt.status.text = _u8L("Overhang Detecting");
     }
     // For preview runs at 100%, set the function-specific completion override so
     // SlicingProgressNotification shows "Support complete" / "Hollow/Drill complete"
@@ -7303,8 +7306,9 @@ void Plater::priv::on_slicing_update(SlicingStatusEvent &evt)
     if (is_sla_gizmo_preview_active() && evt.status.percent >= 100) {
         std::string override_text;
         switch (m_sla_gizmo_preview_type) {
-            case SlaGizmoPreviewType::Support:       override_text = _u8L("Support complete");      break;
-            case SlaGizmoPreviewType::HollowOrDrill: override_text = _u8L("Hollow/Drill complete"); break;
+            case SlaGizmoPreviewType::Support:        override_text = _u8L("Support complete");             break;
+            case SlaGizmoPreviewType::HollowOrDrill:  override_text = _u8L("Hollow/Drill complete");        break;
+            case SlaGizmoPreviewType::OverhangDetect: override_text = _u8L("Overhang detection complete");  break;
             default: break;
         }
         if (!override_text.empty())
@@ -7580,9 +7584,10 @@ void Plater::priv::on_process_completed(SlicingProcessCompletedEvent &evt)
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(", cancel event, status: %1%") % evt.status();
         std::string cancel_text;
         switch (completed_preview_type) {
-            case SlaGizmoPreviewType::Support:       cancel_text = _u8L("Support cancelled");      break;
-            case SlaGizmoPreviewType::HollowOrDrill: cancel_text = _u8L("Hollow/Drill cancelled"); break;
-            default:                                 cancel_text = _u8L("Slicing Canceled");        break;
+            case SlaGizmoPreviewType::Support:        cancel_text = _u8L("Support cancelled");              break;
+            case SlaGizmoPreviewType::HollowOrDrill:  cancel_text = _u8L("Hollow/Drill cancelled");         break;
+            case SlaGizmoPreviewType::OverhangDetect: cancel_text = _u8L("Overhang detection cancelled");   break;
+            default:                                  cancel_text = _u8L("Slicing Canceled");                break;
         }
         this->notification_manager->set_slicing_progress_canceled(cancel_text);
         is_finished = true;
@@ -13598,6 +13603,8 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
         this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::Support;
     else if (step == slaposDrillHoles)
         this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::HollowOrDrill;
+    else if (step == slaposObjectSlice)
+        this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::OverhangDetect;
     else
         this->p->m_sla_gizmo_preview_type = SlaGizmoPreviewType::HollowOrDrill;
     // and let the background processing start.

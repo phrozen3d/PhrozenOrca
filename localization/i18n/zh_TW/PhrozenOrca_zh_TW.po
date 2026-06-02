@@ -7582,6 +7582,15 @@ msgstr "支撐生成已取消"
 msgid "Hollow/Drill cancelled"
 msgstr "挖空/鑽孔已取消"
 
+msgid "Overhang Detecting"
+msgstr "懸空偵測中"
+
+msgid "Overhang detection complete"
+msgstr "懸空偵測完成"
+
+msgid "Overhang detection cancelled"
+msgstr "懸空偵測已取消"
+
 msgid "View all Daily tips"
 msgstr "顯示所有每日提示"
 

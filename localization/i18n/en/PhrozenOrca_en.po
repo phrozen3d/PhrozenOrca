@@ -7493,6 +7493,15 @@ msgstr "Support cancelled"
 msgid "Hollow/Drill cancelled"
 msgstr "Hollow/Drill cancelled"
 
+msgid "Overhang Detecting"
+msgstr "Overhang Detecting"
+
+msgid "Overhang detection complete"
+msgstr "Overhang detection complete"
+
+msgid "Overhang detection cancelled"
+msgstr "Overhang detection cancelled"
+
 msgid "View all Daily tips"
 msgstr ""
 
