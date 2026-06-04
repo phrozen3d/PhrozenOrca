@@ -70,6 +70,7 @@ protected:
     virtual bool on_init() override;
     virtual std::string on_get_name() const override;
     virtual bool on_is_activable() const override;
+    virtual bool on_is_selectable() const override;
     virtual void on_render() override;
     virtual void on_set_state() override;
     virtual CommonGizmosDataID on_get_requirements() const override;

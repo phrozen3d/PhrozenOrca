@@ -6699,7 +6699,10 @@ bool GLCanvas3D::_init_assemble_view_toolbar()
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLVIEWTOOLBAR_ASSEMBLE)); };
     item.left.render_callback = GLToolbarItem::Default_Render_Callback;
     item.visible = true;
-    item.visibility_callback = []()->bool { return true; };
+    item.visibility_callback = []()->bool {
+        // Hide Assembly View button in SLA/Resin mode — not applicable for resin printing
+        return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+    };
     item.enabling_callback = []()->bool {
         return wxGetApp().plater()->has_assmeble_view();
     };
@@ -8262,6 +8265,8 @@ void GLCanvas3D::_render_assemble_view_toolbar() const
 {
     if (!m_assemble_view_toolbar.is_enabled())
         return;
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA)
+        return;
 
     const Size cnv_size = get_canvas_size();
     const float gizmo_width = m_gizmos.get_scaled_total_width();
@@ -8337,6 +8342,8 @@ void GLCanvas3D::_render_return_toolbar() const
 void GLCanvas3D::_render_separator_toolbar_right() const
 {
     if (!m_separator_toolbar.is_enabled())
+        return;
+    if (wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA)
         return;
 
     const Size cnv_size = get_canvas_size();

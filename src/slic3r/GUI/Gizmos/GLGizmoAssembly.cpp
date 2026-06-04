@@ -64,6 +64,12 @@ bool GLGizmoAssembly::on_is_activable() const
     }
 }
 
+bool GLGizmoAssembly::on_is_selectable() const
+{
+    // Hide Assembly gizmo in SLA/Resin mode — not applicable for resin printing
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+}
+
 void GLGizmoAssembly::on_render_input_window(float x, float y, float bottom_limit)
 {
     static std::optional<Measure::SurfaceFeature> last_feature;

@@ -122,6 +122,12 @@ bool GLGizmoMeshBoolean::on_is_activable() const
     return m_parent.get_selection().is_single_full_instance() && m_parent.get_selection().get_volume_idxs().size() > 1;
 }
 
+bool GLGizmoMeshBoolean::on_is_selectable() const
+{
+    // Hide Mesh Boolean gizmo in SLA/Resin mode — mesh boolean is FDM-only
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+}
+
 void GLGizmoMeshBoolean::on_render()
 {
     if (m_parent.get_selection().get_object_idx() < 0)

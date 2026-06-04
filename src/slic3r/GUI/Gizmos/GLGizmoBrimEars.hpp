@@ -163,7 +163,7 @@ protected:
 
     std::string on_get_name() const override;
     bool on_is_activable() const override;
-    //bool on_is_selectable() const override;
+    bool on_is_selectable() const override;
     virtual CommonGizmosDataID on_get_requirements() const override;
     void on_load(cereal::BinaryInputArchive& ar) override;
     void on_save(cereal::BinaryOutputArchive& ar) const override;

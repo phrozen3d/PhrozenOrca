@@ -33,7 +33,7 @@ namespace GUI
 
 static PrinterTechnology printer_technology()
 {
-    return wxGetApp().preset_bundle->printers.get_selected_preset().printer_technology();
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology();
 }
 
 static int filaments_count()
@@ -592,7 +592,8 @@ wxMenu* MenuFactory::append_submenu_add_handy_model(wxMenu* menu, ModelVolumeTyp
 
     return sub_menu;
 }
-static void append_menu_itemm_add_(const wxString& name, GLGizmosManager::EType gizmo_type, wxMenu *menu, ModelVolumeType type, bool is_submenu_item) {
+static void append_menu_itemm_add_(const wxString& name, GLGizmosManager::EType gizmo_type, wxMenu *menu, ModelVolumeType type, bool is_submenu_item,
+    std::function<bool()> const cb_condition = []() { return true; }, wxWindow* parent = nullptr) {
     auto add_ = [type, gizmo_type](const wxCommandEvent & /*unnamed*/) {
         const GLCanvas3D *canvas = plater()->canvas3D();
         const GLGizmosManager &mng = canvas->get_gizmos_manager();
@@ -632,12 +633,14 @@ static void append_menu_itemm_add_(const wxString& name, GLGizmosManager::EType 
         menu->AppendSeparator();
         auto def_icon_name = (gizmo_type == GLGizmosManager::Emboss) ? "menu_obj_text" : "menu_obj_svg";
         const std::string icon_name = is_submenu_item ? def_icon_name : ADD_VOLUME_MENU_ITEMS[int(type)].second;
-        append_menu_item(menu, wxID_ANY, item_name, "", add_, icon_name, menu);
+        append_menu_item(menu, wxID_ANY, item_name, "", add_, icon_name, menu, cb_condition, parent);
     }
 }
 
 void MenuFactory::append_menu_item_add_text(wxMenu* menu, ModelVolumeType type, bool is_submenu_item/* = true*/){
-    append_menu_itemm_add_(_L("Text"), GLGizmosManager::Emboss, menu, type, is_submenu_item);
+    // Text (Emboss) is disabled in SLA/Resin mode.
+    append_menu_itemm_add_(_L("Text"), GLGizmosManager::Emboss, menu, type, is_submenu_item,
+        []() { return printer_technology() != ptSLA; }, m_parent);
 }
 
 void MenuFactory::append_menu_item_add_svg(wxMenu *menu, ModelVolumeType type, bool is_submenu_item /* = true*/){
@@ -1884,6 +1887,10 @@ void MenuFactory::append_menu_item_per_object_settings(wxMenu* menu)
 
 void MenuFactory::append_menu_item_change_filament(wxMenu* menu)
 {
+    // Filament selection is not applicable in SLA/Resin mode
+    if (printer_technology() == ptSLA)
+        return;
+
     const std::vector<wxString> names = { _L("Change Filament"), _L("Set Filament for selected items") };
     // Delete old menu item
     for (const wxString& name : names) {

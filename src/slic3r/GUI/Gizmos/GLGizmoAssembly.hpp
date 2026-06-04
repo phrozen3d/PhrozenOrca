@@ -27,6 +27,7 @@ protected:
     bool on_init() override;
     std::string on_get_name() const override;
     bool on_is_activable() const override;
+    bool on_is_selectable() const override;
     //void on_render() override;
     //void on_set_state() override;
     virtual void on_render_input_window(float x, float y, float bottom_limit) override;

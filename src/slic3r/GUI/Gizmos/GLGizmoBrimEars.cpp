@@ -843,6 +843,12 @@ bool GLGizmoBrimEars::on_is_activable() const
     return true;
 }
 
+bool GLGizmoBrimEars::on_is_selectable() const
+{
+    // Hide Brim Ears gizmo in SLA/Resin mode — brim ears are FDM-only
+    return wxGetApp().preset_bundle->printers.get_edited_preset().printer_technology() != ptSLA;
+}
+
 std::string GLGizmoBrimEars::on_get_name() const
 {
     if (!on_is_activable() && m_state == EState::Off) {
