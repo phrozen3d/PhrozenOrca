@@ -147,7 +147,7 @@ void GLGizmoSlaBase::update_volumes()
             }
 
             const Geometry::Transformation& inst_trafo = po->model_object()->instances[instance_idx]->get_transformation();
-            const double current_elevation = po->get_current_elevation();
+            const double current_elevation = m_c->selection_info()->get_sla_shift();
 
             auto add_volume = [this, object_idx, instance_idx, &inst_trafo, current_elevation, original_model_color](const TriangleMesh& mesh, int volume_id, bool add_mesh_raycaster = false) {
                 GLVolume* volume = m_volumes.volumes.emplace_back(new GLVolume());
@@ -216,7 +216,7 @@ void GLGizmoSlaBase::update_volumes()
                 new_volume->model.init_from(mesh);
                 new_volume->set_instance_transformation(v->get_instance_transformation());
                 new_volume->set_volume_transformation(v->get_volume_transformation());
-                new_volume->set_sla_shift_z(v->get_sla_shift_z());
+                new_volume->set_sla_shift_z(m_c->selection_info()->get_sla_shift());
                 new_volume->selected = true;  // kept for API compatibility
                 new_volume->color = v->color; // PhrozenOrca: copy original color (selected flag has no visual effect)
                 new_volume->mesh_raycaster = std::make_unique<GUI::MeshRaycaster>(mesh);
@@ -307,25 +307,15 @@ bool GLGizmoSlaBase::unproject_on_mesh(const Vec2d& mouse_pos, std::pair<Vec3f, 
     if (m_volumes.volumes.empty())
         return false;
 
-    // PhrozenOrca: SelectionInfo has no model_instance(). Use model_object() + get_active_instance().
-    auto *mo_inst = m_c->selection_info()->model_object();
-    int inst_idx = m_c->selection_info()->get_active_instance();
-    if (!mo_inst || inst_idx < 0 || inst_idx >= (int)mo_inst->instances.size())
-        return false;
-
-    Transform3d trafo = m_volumes.volumes.front()->world_matrix();
-    if (m_c->selection_info() && m_c->selection_info()->print_object()) {
-        double shift_z = m_c->selection_info()->print_object()->get_current_elevation();
-        trafo = mo_inst->instances[inst_idx]->get_transformation().get_matrix();
-        trafo.translation()(2) += shift_z;
-    }
+    // Use the same transform as gizmo mesh rendering (includes Model Lift Height via sla_shift_z).
+    const Transform3d trafo = m_volumes.volumes.front()->world_matrix();
 
     // The raycaster query
     Vec3f hit;
     Vec3f normal;
     if (m_c->raycaster()->raycaster()->unproject_on_mesh(
         mouse_pos,
-        trafo/*m_volumes.volumes.front()->world_matrix()*/,
+        trafo,
         wxGetApp().plater()->get_camera(),
         hit,
         normal,

@@ -9,6 +9,8 @@
 #include "slic3r/GUI/Plater.hpp"
 
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/Model.hpp"
+#include "libslic3r/libslic3r.h"
 
 #include <GL/glew.h>
 
@@ -114,6 +116,47 @@ bool CommonGizmosDataPool::check_dependencies(CommonGizmosDataID required) const
 
 
 
+float SelectionInfo::elevation_from_config() const
+{
+    const DynamicPrintConfig &cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
+    if (!cfg.has("support_object_elevation"))
+        return 0.f;
+    const bool zero_elv = cfg.has("pad_enable") && cfg.has("pad_around_object")
+        && cfg.opt_bool("pad_enable") && cfg.opt_bool("pad_around_object");
+    return zero_elv ? 0.f : static_cast<float>(cfg.opt_float("support_object_elevation"));
+}
+
+void SelectionInfo::recompute_z_shift()
+{
+    const Selection& selection = get_pool()->get_canvas()->get_selection();
+    if (m_use_config_elevation) {
+        const float lift = elevation_from_config();
+        if (m_model_object) {
+            const int inst = get_active_instance();
+            if (inst >= 0) {
+                // Model Lift Height: offset of the model's lowest point from the platform.
+                const BoundingBoxf3 bb = m_model_object->instance_bounding_box(size_t(inst));
+                m_z_shift = lift - static_cast<float>(bb.min.z());
+                return;
+            }
+        }
+        m_z_shift = lift;
+        return;
+    }
+    if (selection.is_empty()) {
+        m_z_shift = 0.f;
+        return;
+    }
+    m_z_shift = m_print_object ? static_cast<float>(m_print_object->get_current_elevation())
+                             : selection.get_first_volume()->get_sla_shift_z();
+}
+
+void SelectionInfo::set_use_config_elevation(bool use)
+{
+    m_use_config_elevation = use;
+    recompute_z_shift();
+}
+
 void SelectionInfo::on_update()
 {
     const Selection& selection = get_pool()->get_canvas()->get_selection();
@@ -132,14 +175,16 @@ void SelectionInfo::on_update()
             if (sla_print)
                 m_print_object = sla_print->get_print_object_by_model_object_id(m_model_object->id());
         }
-        m_z_shift = m_print_object ? m_print_object->get_current_elevation() : selection.get_first_volume()->get_sla_shift_z();
     }
+    recompute_z_shift();
 }
 
 void SelectionInfo::on_release()
 {
     m_model_object = nullptr;
     m_print_object = nullptr;
+    m_use_config_elevation = false;
+    m_z_shift = 0.f;
 }
 
 int SelectionInfo::get_active_instance() const

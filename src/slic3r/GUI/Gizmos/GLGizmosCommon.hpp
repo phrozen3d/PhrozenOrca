@@ -168,16 +168,21 @@ public:
     const SLAPrintObject* print_object() const { return m_print_object; }
     int get_active_instance() const;
     float get_sla_shift() const { return m_z_shift; }
+    void set_use_config_elevation(bool use);
 
 protected:
     void on_update() override;
     void on_release() override;
 
 private:
+    float elevation_from_config() const;
+    void  recompute_z_shift();
+
     ModelObject* m_model_object = nullptr;
     const SLAPrintObject* m_print_object = nullptr;
     // int m_active_inst = -1;
     float m_z_shift = 0.f;
+    bool  m_use_config_elevation = false;
 };
 
 

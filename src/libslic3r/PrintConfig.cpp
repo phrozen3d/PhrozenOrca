@@ -7677,13 +7677,14 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(10.0));
 
     def = this->add("support_object_elevation", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Model Lift Height");
+    def->category = L("Support");
+    def->tooltip  = L("The vertical offset of the lowest point on the model from the print platform. "
+                      "Notice that this offset would overwrite any original model offset in the Z direction.");
+    def->sidetext = "mm";
     def->min = 0;
     def->max = 150; // This is the max height of print on SL1
-    def->mode = comAdvanced;
+    def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(5.0));
 
     def = this->add("support_points_density_relative", coInt);

@@ -388,6 +388,9 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
     if (! m_c->selection_info())
         return;
 
+    if (m_state == On)
+        m_c->selection_info()->set_use_config_elevation(true);
+
     ModelObject* mo = m_c->selection_info()->model_object();
 
     if (m_state == On && mo && mo->id() != m_old_mo_id) {
@@ -1853,9 +1856,10 @@ void GLGizmoSlaSupports::on_set_state()
             disable_editing_mode(); // so it is not active next time the gizmo opens
             m_old_mo_id = -1;
             // Step 4.2: restore full scene visibility when gizmo actually closes
+            if (m_c && m_c->selection_info())
+                m_c->selection_info()->set_use_config_elevation(false);
             m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
             m_c->instances_hider()->set_hide_full_scene(false);
-            // Note: set_use_shift() not available in PhrozenOrca's SelectionInfo — omitted.
         }
     }
     m_old_state = m_state;

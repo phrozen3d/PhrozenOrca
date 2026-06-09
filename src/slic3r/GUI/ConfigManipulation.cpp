@@ -25,27 +25,14 @@ void ConfigManipulation::sync_support_object_elevation(DynamicPrintConfig* confi
     if (!config || !config->has("support_object_elevation"))
         return;
 
+    // pad_around_object (zero-elevation) mode: elevation is forced to 0 at read time via is_zero_elevation().
     if (config->has("pad_enable") && config->has("pad_around_object") &&
         config->opt_bool("pad_enable") && config->opt_bool("pad_around_object"))
         return;
 
-    if (!config->has("support_head_front_diameter") || !config->has("support_head_back_diameter"))
-        return;
-
-    const double front_r = 0.5 * config->opt_float("support_head_front_diameter");
-    const double back_r  = 0.5 * config->opt_float("support_head_back_diameter");
-    double width = 3.0;
-    if (config->has("support_segment_length"))
-        width = config->opt_float("support_segment_length");
-    else if (config->has("support_head_width"))
-        width = config->opt_float("support_head_width");
-    const double pen = config->has("support_head_penetration")
-        ? config->opt_float("support_head_penetration") : 0.25;
-    const double head_fullwidth = 2. * front_r + width + 2. * back_r - pen;
-
-    auto *elv_opt = config->opt<ConfigOptionFloat>("support_object_elevation");
-    if (elv_opt->value < head_fullwidth)
-        elv_opt->value = head_fullwidth;
+    // Do not clamp Model Lift Height in the UI. Values 1–4 mm must preview distinctly in the SLA
+    // Support Point gizmo. Minimum elevation for support-tree generation is enforced at slice time
+    // in SLAPrint::make_support_cfg().
 }
 
 void ConfigManipulation::apply(DynamicPrintConfig* config, DynamicPrintConfig* new_config)
@@ -1074,6 +1061,12 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
         auto *opt = config->opt<ConfigOptionFloat>("support_segment_length");
         if (opt->value < k_min_cone_diameter)
             opt->value = k_min_cone_diameter;
+    }
+
+    if (config->has("pad_enable") && config->has("pad_around_object")) {
+        const bool show_model_lift_height =
+            !(config->opt_bool("pad_enable") && config->opt_bool("pad_around_object"));
+        toggle_line("support_object_elevation", show_model_lift_height);
     }
 #pragma endregion
 }

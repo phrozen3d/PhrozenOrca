@@ -7162,6 +7162,7 @@ void TabSLAPrint::build()
 
 
     optgroup = page->new_optgroup(L("Raft Setting"), L"PhrozenImages_Resin/param_raft_setting", 15);
+    optgroup->append_single_option_line("support_object_elevation", "123");
     optgroup->append_single_option_line("pad_wall_thickness", "123");
     optgroup->append_single_option_line("pad_brim_size", "123");
     optgroup->append_single_option_line("pad_max_merge_distance", "123");
@@ -7333,7 +7334,17 @@ void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& 
             m_config_manipulation.apply(m_config, &patched);
         }
     }
+
     Tab::on_value_change(opt_key, value);
+
+    if (opt_key == "support_object_elevation" || opt_key == "pad_enable" || opt_key == "pad_around_object") {
+        if (GLCanvas3D *canvas = wxGetApp().plater() ? wxGetApp().plater()->get_view3D_canvas3D() : nullptr) {
+            if (canvas->get_gizmos_manager().is_running()) {
+                canvas->get_gizmos_manager().update_data();
+                canvas->set_as_dirty();
+            }
+        }
+    }
 
     if (preserve_scroll && m_page_view) {
         m_page_view->Scroll(prev_scroll_x, prev_scroll_y);
