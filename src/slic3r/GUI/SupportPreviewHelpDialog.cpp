@@ -84,7 +84,7 @@ static const AnnotationSpec k_sphere_annotations[] = {
 static const AnnotationSpec k_none_annotations[] = {
     { 70, AnnotationSide::LeftOfDiagram, L("Contact Depth"), 0 },
     { 150, AnnotationSide::LeftOfDiagram, L("Pillar Diameter"), 0 },
-    { 299, AnnotationSide::LeftOfDiagram, L(""Bottom Contact Diameter), 0 },
+    {299, AnnotationSide::LeftOfDiagram, L("Bottom Contact Diameter"), 0},
     { 326, AnnotationSide::LeftOfDiagram, L("Raft Thickness"), 0 },
     { 76, AnnotationSide::RightOfDiagram, L("Upper Diameter"), 0 },
     { 127, AnnotationSide::CenterOnDiagram, L("Segment Length"), 0 },
