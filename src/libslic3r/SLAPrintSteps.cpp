@@ -27,6 +27,7 @@
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
 #include <libslic3r/SLA/RasterCache.hpp>
+#include <opencv2/imgproc.hpp>   // cv::resize for preview thumbnail downsample
 
 #include <libslic3r/ClipperUtils.hpp>
 
@@ -1523,9 +1524,11 @@ void SLAPrint::Steps::rasterize()
         // Eliminates all per-layer malloc/free: previously ~100 MB of transient
         // allocations per layer caused CRT heap lock contention at the 55% peak.
         struct TLSData {
-            cv::Mat           mat;
-            cv::Mat           mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
-            std::vector<char> rle_buf;
+            cv::Mat            mat;
+            cv::Mat            mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
+            std::vector<char>  rle_buf;
+            cv::Mat            thumb;       // downsampled preview (panel orient.), reused per layer
+            std::vector<uchar> thumb_rle;   // gray-RLE-encoded thumb bytes, reused per layer
         };
         tbb::enumerable_thread_specific<TLSData> tls;
 
@@ -1556,6 +1559,37 @@ void SLAPrint::Steps::rasterize()
                             rp.blur_pixel);
 
                         sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
+
+                        // Preview thumbnail (sla-preview-thumb-cache): capture from the
+                        // panel-orientation `mat` AFTER the picture_grayscale LUT and BEFORE
+                        // the PRZ-only cv::rotate / X-mirror below, so the thumb is a drop-in
+                        // for the GUI preview path (which applies its own display rotation and
+                        // must NOT re-apply the LUT). Downsample so the long edge ≤ 4096
+                        // (< 16 M px GL texture cap). thumb/thumb_rle are TLS — reused per layer,
+                        // never freed (same zero-malloc contract as mat/rle_buf above).
+                        // Encoded with the lightweight gray-RLE (NOT OpenCV imgcodecs/PNG, which
+                        // would drag a second libjpeg-turbo into the link → LNK2005).
+                        {
+                            constexpr int THUMB_MAX_EDGE = 4096;
+                            const int     long_edge = std::max(mat.cols, mat.rows);
+                            const cv::Mat *thumb_src;
+                            if (long_edge > THUMB_MAX_EDGE) {
+                                const double scale = double(THUMB_MAX_EDGE) / double(long_edge);
+                                cv::resize(mat, tls_data.thumb, cv::Size(), scale, scale,
+                                           cv::INTER_AREA);
+                                thumb_src = &tls_data.thumb;
+                            } else {
+                                // Already within the cap — encode the panel mat directly,
+                                // no copy into tls_data.thumb needed.
+                                thumb_src = &mat;
+                            }
+                            sla::RasterCache::rle_encode_gray(
+                                thumb_src->data, thumb_src->cols, thumb_src->rows,
+                                tls_data.thumb_rle);
+                            // write_thumb throws on failure → propagates out of parallel_for →
+                            // mark_complete() is skipped → cache judged invalid (liveness binding).
+                            sla::RasterCache::write_thumb(cache_key, lid, tls_data.thumb_rle);
+                        }
 
                         // Phase 1.5: portrait cv::Mat (rows=display_pixels_x,
                         // cols=display_pixels_y) → landscape via R₉₀cw so that

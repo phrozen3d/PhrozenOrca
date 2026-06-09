@@ -4,9 +4,11 @@
 #include <wx/panel.h>
 
 #include <chrono>
+#include <optional>
 
 #include "GLModel.hpp"
 #include "libslic3r/ExPolygon.hpp"
+#include "libslic3r/SLA/RasterCache.hpp"
 
 class wxGLCanvas;
 class wxPaintEvent;
@@ -23,7 +25,8 @@ namespace GUI {
 
 class IMSlider;
 
-// Right-pane SLA layer preview: on-demand single-layer rasterization (Strategy A) or vector fallback.
+// Right-pane SLA layer preview: reads the per-layer downsampled thumb cache
+// (never rasterizes on the UI thread) or falls back to vector outlines.
 class SLASlice2DCanvas : public wxPanel
 {
 public:
@@ -73,6 +76,9 @@ private:
     const SLAPrint* m_print{ nullptr };
     int m_layer_idx{ 0 };
     int m_cached_layer{ -1 };
+    // Lazily computed once per print binding (emptiness-guarded in render());
+    // used to locate per-layer preview thumbs. Reset in set_sla_print()/reset_print().
+    std::optional<sla::RasterCacheKey> m_cache_key;
     unsigned int m_tex_id{ 0 };
     int m_tex_w{ 0 };
     int m_tex_h{ 0 };

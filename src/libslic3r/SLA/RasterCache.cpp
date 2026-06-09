@@ -5,6 +5,9 @@
 #include <iomanip>
 #include <stdexcept>
 #include <ctime>
+#include <algorithm>
+#include <cstring>
+#include <cstdint>
 
 #include <miniz.h>
 #include <boost/log/trivial.hpp>
@@ -90,6 +93,32 @@ void RasterCache::write_layer(const RasterCacheKey &key, size_t lid,
     write_layer(key, lid, rle_bytes.data(), rle_bytes.size());
 }
 
+void RasterCache::write_thumb(const RasterCacheKey &key, size_t lid,
+                              const unsigned char *png, size_t size)
+{
+    // Direct write — caller must call ensure_dir() first; no temp+rename.
+    // On failure we throw: the exception must propagate out of the parallel
+    // rasterize loop so mark_complete() is never called and the cache is judged
+    // invalid (liveness binding — RLE and thumb live or die together).
+    std::ostringstream name;
+    name << "layer_" << std::setw(4) << std::setfill('0') << lid << "_preview.rle";
+    fs::path dest_path = key.dir / name.str();
+
+    std::ofstream f(dest_path.string(), std::ios::binary | std::ios::trunc);
+    if (!f)
+        throw std::runtime_error("RasterCache: cannot open " + dest_path.string());
+    f.write(reinterpret_cast<const char *>(png),
+            static_cast<std::streamsize>(size));
+    if (!f)
+        throw std::runtime_error("RasterCache: write failed " + dest_path.string());
+}
+
+void RasterCache::write_thumb(const RasterCacheKey             &key, size_t lid,
+                              const std::vector<unsigned char> &png_bytes)
+{
+    write_thumb(key, lid, png_bytes.data(), png_bytes.size());
+}
+
 void RasterCache::mark_complete(const RasterCacheKey &key)
 {
     // Write a zero-byte sentinel after all layers are fully written.
@@ -114,6 +143,92 @@ std::string RasterCache::read_layer(const RasterCacheKey &key, size_t lid)
 
     return std::string(std::istreambuf_iterator<char>(f),
                        std::istreambuf_iterator<char>());
+}
+
+std::vector<unsigned char> RasterCache::read_thumb(const RasterCacheKey &key,
+                                                   size_t                lid)
+{
+    std::ostringstream name;
+    name << "layer_" << std::setw(4) << std::setfill('0') << lid << "_preview.rle";
+    fs::path p = key.dir / name.str();
+
+    std::ifstream f(p.string(), std::ios::binary);
+    if (!f)
+        return {};  // missing/unreadable → empty; GUI falls back to vector preview
+
+    return std::vector<unsigned char>(std::istreambuf_iterator<char>(f),
+                                      std::istreambuf_iterator<char>());
+}
+
+void RasterCache::rle_encode_gray(const unsigned char *data, int w, int h,
+                                  std::vector<unsigned char> &out)
+{
+    out.clear();  // keep capacity → no realloc after the first layer on a thread
+    if (data == nullptr || w <= 0 || h <= 0)
+        return;
+
+    const size_t n = static_cast<size_t>(w) * static_cast<size_t>(h);
+
+    auto put32 = [&out](uint32_t v) {
+        out.push_back(static_cast<unsigned char>( v        & 0xff));
+        out.push_back(static_cast<unsigned char>((v >> 8)  & 0xff));
+        out.push_back(static_cast<unsigned char>((v >> 16) & 0xff));
+        out.push_back(static_cast<unsigned char>((v >> 24) & 0xff));
+    };
+    put32(static_cast<uint32_t>(w));
+    put32(static_cast<uint32_t>(h));
+
+    size_t i = 0;
+    while (i < n) {
+        const unsigned char v = data[i];
+        size_t run = 1;
+        while (i + run < n && data[i + run] == v && run < 255)
+            ++run;
+        out.push_back(v);
+        out.push_back(static_cast<unsigned char>(run));
+        i += run;
+    }
+}
+
+bool RasterCache::rle_decode_gray(const std::vector<unsigned char> &in,
+                                  std::vector<unsigned char> &out,
+                                  int &w, int &h)
+{
+    out.clear();
+    w = 0;
+    h = 0;
+    if (in.size() < 8)
+        return false;
+
+    auto get32 = [&in](size_t off) -> uint32_t {
+        return  static_cast<uint32_t>(in[off])             |
+               (static_cast<uint32_t>(in[off + 1]) << 8)   |
+               (static_cast<uint32_t>(in[off + 2]) << 16)  |
+               (static_cast<uint32_t>(in[off + 3]) << 24);
+    };
+    const uint32_t ww = get32(0);
+    const uint32_t hh = get32(4);
+    const size_t   n  = static_cast<size_t>(ww) * static_cast<size_t>(hh);
+    if (n == 0)
+        return false;
+
+    out.resize(n);
+    size_t pos = 8, o = 0;
+    while (pos + 1 < in.size() && o < n) {
+        const unsigned char v   = in[pos++];
+        const unsigned char run = in[pos++];
+        if (run == 0)
+            return false;
+        const size_t cnt = std::min<size_t>(run, n - o);
+        std::memset(out.data() + o, v, cnt);
+        o += cnt;
+    }
+    if (o != n)
+        return false;
+
+    w = static_cast<int>(ww);
+    h = static_cast<int>(hh);
+    return true;
 }
 
 bool RasterCache::is_valid(const RasterCacheKey &key)

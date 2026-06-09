@@ -12,6 +12,7 @@
 #include "I18N.hpp"
 #include "libslic3r/SLAPrint.hpp"
 #include "libslic3r/SLA/RasterToCvMat.hpp"
+#include "libslic3r/SLA/RasterCache.hpp"
 #include "libslic3r/Tesselate.hpp"
 #include "libslic3r/ExPolygon.hpp"
 #include "libslic3r/Color.hpp"
@@ -29,6 +30,7 @@
 #include <wx/glcanvas.h>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include <boost/log/trivial.hpp>
 
@@ -366,6 +368,7 @@ void SLASlice2DCanvas::set_sla_print(const SLAPrint* print)
 {
     m_print = print;
     m_cached_layer = -1;
+    m_cache_key.reset();  // recomputed lazily in render() once rasterize is done
     m_vector_cached_layer = -1;
     m_vector_model.reset();
     m_zoom     = 1.f;
@@ -388,6 +391,7 @@ void SLASlice2DCanvas::reset_print()
     m_print = nullptr;
     m_layer_idx = 0;
     m_cached_layer = -1;
+    m_cache_key.reset();
     m_vector_cached_layer = -1;
     m_zoom       = 1.f;
     m_pan_px = m_pan_py = 0.f;
@@ -623,17 +627,43 @@ void SLASlice2DCanvas::render_texture_letterbox(int portal_w, int portal_h)
     const float b = to_ndc_y(bottom_px);
     const float t = to_ndc_y(top_px);
 
+    // The thumb is captured in panel orientation AFTER the trafo (mirror_x/mirror_y/flipXY) was
+    // applied by expolygons_to_cvmat, so the on-screen orientation depends on those flags — which
+    // vary per printer profile (e.g. Revo 16K display_mirror_x=0 → trafo.mirror_x=true vs
+    // Mega 8K display_mirror_x=1 → trafo.mirror_x=false). A single hard-coded UV set therefore
+    // cannot be correct for the whole fleet, so we build the UVs dynamically from rp.trafo to always
+    // present the canonical bed view (no mirror). PRZ output is a separate pipeline and unaffected.
+    bool mirror_x = false, mirror_y = false;
+    if (m_print != nullptr && m_print->raster_params().has_value()) {
+        mirror_x = m_print->raster_params()->trafo.mirror_x;
+        mirror_y = m_print->raster_params()->trafo.mirror_y;
+    }
+    auto flip_v = [](GLTexture::Quad_UVs &q) { // screen-vertical flip: swap top/bottom corners
+        std::swap(q.left_bottom, q.left_top);
+        std::swap(q.right_bottom, q.right_top);
+    };
+    auto flip_h = [](GLTexture::Quad_UVs &q) { // screen-horizontal flip: swap left/right corners
+        std::swap(q.left_bottom, q.right_bottom);
+        std::swap(q.left_top, q.right_top);
+    };
+
     if (portrait_lcd) {
-        // 90° CW in texture space: maps panel-tall buffer to bed-horizontal preview (see FullTextureUVs order).
-        static const GLTexture::Quad_UVs uvs_rot90_cw = {
-            {1.0f, 1.0f},
-            {1.0f, 0.0f},
-            {0.0f, 0.0f},
-            {0.0f, 1.0f},
+        // 90° CW base, correct for (trafo.mirror_x == false, trafo.mirror_y == true) — the Mega 8K case.
+        // Under the 90° rotation the mat's column axis (driven by trafo.mirror_x) maps to screen-Y, and
+        // the row axis (trafo.mirror_y) maps to screen-X — hence the cross-coupled flip conditions below.
+        GLTexture::Quad_UVs uvs = {
+            {1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f},
         };
-        GLTexture::render_sub_texture(m_tex_id, l, r, b, t, uvs_rot90_cw);
+        if (mirror_x)  flip_v(uvs); // Revo 16K (trafo.mirror_x=true) needs the screen-vertical flip
+        if (!mirror_y) flip_h(uvs); // by symmetry; no current display_mirror_y=1 printer (see design D7)
+        GLTexture::render_sub_texture(m_tex_id, l, r, b, t, uvs);
     } else {
-        GLTexture::render_texture(m_tex_id, l, r, b, t);
+        // Landscape (no rotation): FullTextureUVs base. No current landscape SLA printer exercises this,
+        // so the conditional flips below are derived by symmetry and remain unverified (design D7 limit).
+        GLTexture::Quad_UVs uvs = GLTexture::FullTextureUVs;
+        if (mirror_x)  flip_h(uvs);
+        if (!mirror_y) flip_v(uvs);
+        GLTexture::render_sub_texture(m_tex_id, l, r, b, t, uvs);
     }
 }
 
@@ -779,12 +809,23 @@ void SLASlice2DCanvas::render()
 
     glsafe(::glViewport(vx, vy, pw, ph));
 
-    // Show raster preview only when slapsRasterize is done and raster params are available.
-    // Strategy A: rasterize the current layer on-demand and cache by layer index.
+    // Lazy, emptiness-guarded cache key: computed at most once per print binding,
+    // AFTER the rasterize step has produced raster_params. The slice-geometry CRC32
+    // is expensive, so it MUST NOT run every frame / every slider move. set_sla_print()
+    // and reset_print() clear m_cache_key so a re-slice recomputes it exactly once.
+    if (m_print != nullptr && !m_cache_key.has_value() &&
+        m_print->is_step_done(slapsRasterize) && m_print->raster_params().has_value()) {
+        m_cache_key = sla::RasterCache::compute_key(*m_print->raster_params(),
+                                                    m_print->print_layers());
+    }
+
+    // Read-only preview: show the per-layer thumb cache only when rasterize is done,
+    // raster params exist, and the cache key has been computed.
     const bool slice_geometry_ready =
         m_print != nullptr &&
         m_print->is_step_done(slapsRasterize) &&
-        m_print->raster_params().has_value();
+        m_print->raster_params().has_value() &&
+        m_cache_key.has_value();
     if (!slice_geometry_ready) {
         if (m_tex_id != 0) {
             destroy_texture();
@@ -797,16 +838,26 @@ void SLASlice2DCanvas::render()
             if (m_cached_layer != m_layer_idx) {
                 destroy_texture();
                 m_cached_layer = m_layer_idx;
-                const SLARasterParams &rp = *m_print->raster_params();
-                ExPolygons polys = m_print->print_layers()[size_t(m_layer_idx)].transformed_slices();
-                for (ExPolygon &ep : polys)
-                    ep.translate(rp.shift);
-                cv::Mat mat = sla::expolygons_to_cvmat(polys, rp.res, rp.pxdim, rp.trafo,
-                    rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
-                sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
-                if (sla_layer_mat_has_visible_ink(mat))
-                    upload_grayscale_texture(mat.ptr<unsigned char>(), mat.cols, mat.rows);
-                // mat released here as it goes out of scope
+                // Decode and upload the cached preview thumbnail (downsampled, gray-RLE).
+                // NEVER rasterize (AGG) or decode the full-res .rle on the UI thread.
+                // picture_grayscale is already baked into the thumb — do NOT re-apply.
+                std::vector<unsigned char> rle =
+                    sla::RasterCache::read_thumb(*m_cache_key, size_t(m_layer_idx));
+                if (!rle.empty()) {
+                    std::vector<unsigned char> gray;
+                    int tw = 0, th = 0;
+                    if (sla::RasterCache::rle_decode_gray(rle, gray, tw, th) &&
+                        tw > 0 && th > 0) {
+                        // Wrap the decoded buffer (no copy); upload_grayscale_texture
+                        // builds its own RGBA copy, so `gray` only needs to outlive this call.
+                        cv::Mat thumb(th, tw, CV_8UC1, gray.data());
+                        if (sla_layer_mat_has_visible_ink(thumb))
+                            upload_grayscale_texture(thumb.ptr<unsigned char>(),
+                                                     thumb.cols, thumb.rows);
+                    }
+                }
+                // thumb missing/empty/malformed → m_tex_id stays 0 → vector fallback below
+                // (never re-triggers AGG on the UI thread).
             }
             if (m_tex_id != 0) {
                 render_texture_letterbox(pw, ph);

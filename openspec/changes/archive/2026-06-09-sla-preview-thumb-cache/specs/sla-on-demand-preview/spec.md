@@ -1,10 +1,4 @@
-# Spec: SLA On-Demand GUI 切層預覽（Strategy A）
-
-## Purpose
-
-定義 SLA 切層 2D 預覽（`SLASlice2DCanvas`）的取像來源與「切片完成」guard:預覽改為只讀降採樣 thumb 快取（見 `sla-preview-thumb-cache`），不再於 render thread 上 on-demand 光柵化，並在快取/參數未就緒時安全退回向量輪廓。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: SLASlice2DCanvas 採同步單層快取預覽（Strategy A）
 
