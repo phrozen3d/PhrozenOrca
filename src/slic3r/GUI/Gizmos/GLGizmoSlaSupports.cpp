@@ -20,14 +20,18 @@
 #include "slic3r/GUI/GUI_ObjectSettings.hpp"
 #include "slic3r/GUI/GUI_ObjectList.hpp"
 #include "slic3r/GUI/Plater.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
 #include "slic3r/GUI/NotificationManager.hpp"
 #include "slic3r/GUI/MsgDialog.hpp"
+#include "libslic3r/libslic3r.h"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/SLAPrint.hpp"
+#include "libslic3r/SLA/SupportTreeMesher.hpp"
+#include "libslic3r/SLA/SupportTreeBuilder.hpp"
+#include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/Utils.hpp" // ScopeGuard
 
-static const double CONE_RADIUS = 0.25;
-static const double CONE_HEIGHT = 0.75;
+#include <array>
 
 struct SupportWeightPreset {
     float pillar_diameter;
@@ -54,6 +58,264 @@ static void sync_generate_support_for_object(ModelObject* mo, bool enable)
     if (!mo)
         return;
     mo->config.set("generate_support", enable);
+}
+
+static const std::array<const char *, 7> k_sla_support_top_opts = {
+    "support_contact_type",
+    "support_contact_diameter",
+    "support_head_penetration",
+    "support_head_front_diameter",
+    "support_head_back_diameter",
+    "support_pillar_diameter",
+    "support_segment_length",
+};
+
+// Live Process tab config (includes edits not yet committed on kill-focus).
+static const DynamicPrintConfig &sla_process_config()
+{
+    if (Tab *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT))
+        if (DynamicPrintConfig *cfg = tab->get_config())
+            return *cfg;
+    return wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
+}
+
+static GLGizmoSlaSupports *active_sla_supports_gizmo()
+{
+    Plater *plater = wxGetApp().plater();
+    if (!plater)
+        return nullptr;
+    GLCanvas3D *canvas = plater->get_view3D_canvas3D();
+    if (!canvas)
+        return nullptr;
+    return dynamic_cast<GLGizmoSlaSupports *>(canvas->get_gizmos_manager().get_gizmo(GLGizmosManager::EType::SlaSupports));
+}
+
+GLGizmoSlaSupports *GLGizmoSlaSupports::active_instance()
+{
+    return active_sla_supports_gizmo();
+}
+
+static bool process_contact_type_is_sphere()
+{
+    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+    if (tab) {
+        Page *page = nullptr;
+        if (Field *field = tab->get_field("support_contact_type", &page)) {
+            const boost::any val = field->get_value();
+            if (!val.empty()) {
+                try {
+                    if (val.type() == typeid(int))
+                        return boost::any_cast<int>(val) == int(spSphere);
+                } catch (const std::exception &) {
+                }
+            }
+        }
+    }
+
+    const DynamicPrintConfig &cfg = sla_process_config();
+    if (const auto *ct = cfg.option<ConfigOptionEnum<ContactType>>("support_contact_type"))
+        if (ct->value == spSphere)
+            return true;
+    const DynamicPrintConfig &preset = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
+    if (const auto *ct = preset.option<ConfigOptionEnum<ContactType>>("support_contact_type"))
+        return ct->value == spSphere;
+    return false;
+}
+
+// Read the latest value from Process tab fields (works even before focus leaves TextCtrl).
+static float process_top_float_live(const char *key, float fallback)
+{
+    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+    if (tab) {
+        Page *page = nullptr;
+        Field *field = tab->get_field(key, &page);
+        if (field) {
+            boost::any val = field->get_value();
+            if (!val.empty()) {
+                try {
+                    if (val.type() == typeid(double))
+                        return float(boost::any_cast<double>(val));
+                    if (val.type() == typeid(int))
+                        return float(boost::any_cast<int>(val));
+                    if (val.type() == typeid(wxString)) {
+                        double parsed = 0.;
+                        if (boost::any_cast<wxString>(val).ToDouble(&parsed))
+                            return float(parsed);
+                    }
+                } catch (const std::exception &) {
+                }
+            }
+        }
+    }
+
+    const DynamicPrintConfig &cfg = sla_process_config();
+    if (cfg.has(key))
+        return float(cfg.opt_float(key));
+    return fallback;
+}
+
+void GLGizmoSlaSupports::flush_process_top_fields_to_config()
+{
+    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+    if (!tab || !tab->get_config())
+        return;
+    // While a support point is selected, Top fields show per-point values — do not overwrite preset.
+    if (GLGizmoSlaSupports *gizmo = active_sla_supports_gizmo()) {
+        if (gizmo->has_selected_support_points())
+            return;
+    }
+
+    DynamicPrintConfig *cfg = tab->get_config();
+    for (const char *key : k_sla_support_top_opts) {
+        // Search all Process pages (not only m_active_page) so values are flushed while the
+        // user places support points from Prepare with another tab/page focused.
+        Page *page = nullptr;
+        Field *field = tab->get_field(key, &page);
+        if (!field)
+            continue;
+        boost::any val = field->get_value();
+        if (val.empty())
+            continue;
+        try {
+            change_opt_value(*cfg, key, val);
+        } catch (const std::exception &) {
+            // Field may still hold a stale type; skip this key.
+        }
+    }
+}
+
+static constexpr float k_min_support_size_mm = 0.01f;
+
+static float clamp_contact_depth(float depth_mm)
+{
+    return depth_mm < k_min_support_size_mm ? k_min_support_size_mm : depth_mm;
+}
+
+static float clamp_support_diameter_mm(float diameter_mm)
+{
+    return diameter_mm < k_min_support_size_mm ? k_min_support_size_mm : diameter_mm;
+}
+
+static float clamp_segment_length_mm(float length_mm)
+{
+    return length_mm < k_min_support_size_mm ? k_min_support_size_mm : length_mm;
+}
+
+static float default_contact_sphere_radius_mm()
+{
+    return clamp_support_diameter_mm(process_top_float_live("support_contact_diameter", 0.8f)) * 0.5f;
+}
+
+// Match slice: manual points use per-point TOP stored at placement/edit; live Process Top is only for the next new point.
+static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selected)
+{
+    if (point_selected)
+        return true;
+    return sp.type == sla::SupportPointType::manual_add && sp.has_explicit_geometry();
+}
+
+// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
+static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point)
+{
+    const float live_seg     = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
+    const float live_pen     = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
+    const double live_upper_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
+    const double live_lower_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
+    const bool   preset_sphere = process_contact_type_is_sphere();
+
+    const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_upper_r;
+
+    double back_r = live_lower_r;
+    if (use_stored_point) {
+        if (sp.head_back_radius_mm >= 0.f)
+            back_r = double(sp.head_back_radius_mm);
+        else if (sp.pillar_radius > 0.f)
+            back_r = double(sp.pillar_radius);
+    }
+
+    const double width_mm = use_stored_point
+        ? double(clamp_segment_length_mm(sla::point_head_width_mm(sp, live_seg)))
+        : double(live_seg);
+
+    double contact_r = 0.;
+    if (use_stored_point) {
+        if (sla::point_uses_contact_sphere(sp, preset_sphere))
+            contact_r = double(sla::point_contact_sphere_radius_mm(sp, default_contact_sphere_radius_mm()));
+    } else if (preset_sphere) {
+        contact_r = double(default_contact_sphere_radius_mm());
+    }
+
+    const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
+        sp, live_pen, float(pin_r), float(contact_r)));
+
+    Vec3d dir = normal.cast<double>();
+    if (dir.squaredNorm() < EPSILON)
+        dir = Vec3d(0., 0., -1.);
+    else
+        dir.normalize();
+
+    sla::Head h(back_r, pin_r, width_mm, mesh_pen, dir, sp.pos.cast<double>());
+    h.r_contact_mm = contact_r;
+    return h;
+}
+
+static void support_top_apply_point(const sla::SupportPoint &sp, DynamicPrintConfig &cfg)
+{
+    const DynamicPrintConfig &preset = sla_process_config();
+
+    const bool preset_sphere = process_contact_type_is_sphere();
+    const bool use_sphere    = sla::point_uses_contact_sphere(sp, preset_sphere);
+
+    cfg.set("support_contact_type", use_sphere ? spSphere : spNone2);
+
+    float contact_d = 0.8f;
+    if (sp.contact_sphere_radius > float(EPSILON))
+        contact_d = sp.contact_sphere_radius * 2.f;
+    else if (const auto *cd = preset.option<ConfigOptionFloat>("support_contact_diameter"))
+        contact_d = float(cd->value);
+    cfg.set("support_contact_diameter", double(contact_d));
+
+    float penetration = 0.2f;
+    if (sp.head_penetration_mm >= 0.f)
+        penetration = sp.head_penetration_mm;
+    else if (const auto *opt = preset.option<ConfigOptionFloat>("support_head_penetration"))
+        penetration = float(opt->value);
+    cfg.set("support_head_penetration", double(penetration));
+
+    cfg.set("support_head_front_diameter", double(clamp_support_diameter_mm(sp.head_front_radius * 2.f)));
+
+    // Pillar diameter: per-point pillar radius override (sp.pillar_radius holds radius, not diameter).
+    // For manual points we always set pillar_radius > 0, but keep a safe fallback anyway.
+    {
+        float pillar_d = 0.f;
+        if (sp.pillar_radius > float(EPSILON))
+            pillar_d = sp.pillar_radius * 2.f;
+        else if (const auto *pd = preset.option<ConfigOptionFloat>("support_pillar_diameter"))
+            pillar_d = float(pd->value);
+        cfg.set("support_pillar_diameter", double(clamp_support_diameter_mm(pillar_d)));
+    }
+
+    float lower_d = 1.f;
+    if (sp.head_back_radius_mm >= 0.f)
+        lower_d = sp.head_back_radius_mm * 2.f;
+    else if (sp.pillar_radius > float(EPSILON))
+        // When lower diameter is unset, geometry can fall back to pillar diameter.
+        // Keep UI consistent with the actual support geometry.
+        lower_d = sp.pillar_radius * 2.f;
+    else if (const auto *opt = preset.option<ConfigOptionFloat>("support_head_back_diameter"))
+        lower_d = float(opt->value);
+    else if (const auto *opt = preset.option<ConfigOptionFloat>("support_pillar_diameter"))
+        lower_d = float(opt->value);
+    cfg.set("support_head_back_diameter", double(clamp_support_diameter_mm(lower_d)));
+
+    float segment_len = 3.f;
+    if (sp.head_width_mm >= 0.f)
+        segment_len = sp.head_width_mm;
+    else if (const auto *opt = preset.option<ConfigOptionFloat>("support_segment_length"))
+        segment_len = float(opt->value);
+    else if (const auto *opt = preset.option<ConfigOptionFloat>("support_head_width"))
+        segment_len = float(opt->value);
+    cfg.set("support_segment_length", double(clamp_segment_length_mm(segment_len)));
 }
 
 // Icon loading for the support view-mode toggle (support points vs support structure).
@@ -105,7 +367,7 @@ bool GLGizmoSlaSupports::on_init()
 {
     m_shortcut_key = WXK_CONTROL_P;
 
-    m_desc["head_diameter"]    = _L("Head diameter") + ": ";
+    m_desc["head_diameter"]    = _L("Upper Diameter") + ": ";
     m_desc["lock_supports"]    = _L("Lock supports under new islands");
     m_desc["remove_selected"]  = _L("Remove selected points");
     m_desc["remove_all"]       = _L("Remove all points");
@@ -137,6 +399,7 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
 
     // If we triggered autogeneration before, check backend and fetch results if they are there
     if (mo) {
+        sync_new_point_params_from_config();
         m_c->instances_hider()->set_hide_full_scene(true); // Step 4.4 dependency
 
         // PhrozenOrca: required_step < 0 means no minimum step (no-step constructor was used).
@@ -166,6 +429,41 @@ bool GLGizmoSlaSupports::on_mouse(const wxMouseEvent &mouse_event)
 {
     if (!is_input_enabled()) return true; // Step 4.2: gate all mouse input on SLA step completion
     if (mouse_event.Moving()) return false;
+
+    // Support-point pick/drag: do not route through use_grabbers() / Selection::setup_cache().
+    if (m_editing_mode && m_hover_id >= 0 && m_hover_id < (int) m_editing_cache.size()
+        && !mouse_event.ShiftDown() && !mouse_event.AltDown()) {
+        if (mouse_event.LeftDown()) {
+            for (size_t j = 0; j < m_editing_cache.size(); ++j)
+                m_editing_cache[j].selected = (j == size_t(m_hover_id));
+            m_selection_empty = false;
+            const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
+            if (pr > 0.f)
+                m_new_point_pillar_diameter = pr * 2.f;
+            else
+                sync_new_point_params_from_config();
+            notify_process_tab_selection_changed();
+            m_dragging = true;
+            m_point_before_drag = m_editing_cache[m_hover_id];
+            m_parent.post_event(SimpleEvent(EVT_GLCANVAS_MOUSE_DRAGGING_STARTED));
+            m_parent.set_as_dirty();
+            return true;
+        }
+        if (m_dragging) {
+            if (mouse_event.Dragging()) {
+                const Point mouse_coord(mouse_event.GetX(), mouse_event.GetY());
+                const auto  ray = m_parent.mouse_ray(mouse_coord);
+                on_dragging(UpdateData(ray, mouse_coord));
+                m_parent.set_as_dirty();
+                return true;
+            }
+            if (mouse_event.LeftUp()) {
+                do_stop_dragging(false);
+                return true;
+            }
+        }
+    }
+
     if (!mouse_event.ShiftDown() && !mouse_event.AltDown()
         && use_grabbers(mouse_event)) return true;
 
@@ -273,21 +571,35 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     if (cache_size == 0)
         return;
 
-    GLShaderProgram* shader = wxGetApp().get_shader("gouraud_light");
-    if (shader == nullptr)
+    GLShaderProgram* gouraud_shader = wxGetApp().get_shader("gouraud_light");
+    GLShaderProgram* flat_shader    = wxGetApp().get_shader("flat");
+    if (gouraud_shader == nullptr)
         return;
 
-    shader->start_using();
-    ScopeGuard guard([shader]() { shader->stop_using(); });
+    const Camera& camera = wxGetApp().plater()->get_camera();
+    const Transform3d& view_matrix = camera.get_view_matrix();
+
+    GLShaderProgram* active_shader = nullptr;
+    auto use_shader = [&](GLShaderProgram *target) {
+        if (target == nullptr)
+            target = gouraud_shader;
+        if (active_shader != target) {
+            if (active_shader != nullptr)
+                active_shader->stop_using();
+            target->start_using();
+            target->set_uniform("projection_matrix", camera.get_projection_matrix());
+            active_shader = target;
+        }
+    };
+    ScopeGuard guard([&]() {
+        if (active_shader != nullptr)
+            active_shader->stop_using();
+    });
 
     const GLVolume* vol = selection.get_volume(*selection.get_volume_idxs().begin());
     const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
     // PhrozenOrca: get_sla_shift() instead of print_object()->get_current_elevation() (model_instance() unavailable)
     const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
-
-    const Camera& camera = wxGetApp().plater()->get_camera();
-    const Transform3d& view_matrix = camera.get_view_matrix();
-    shader->set_uniform("projection_matrix", camera.get_projection_matrix());
 
     ColorRGBA render_color;
     for (size_t i = 0; i < cache_size; ++i) {
@@ -324,45 +636,47 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
 
         m_cone.model.set_color(render_color);
         m_sphere.model.set_color(render_color);
-        shader->set_uniform("emission_factor", 0.5f);
 
-        // Inverse matrix of the instance scaling is applied so that the mark does not scale with the object.
-        const Transform3d support_matrix = Geometry::assemble_transform(support_point.pos.cast<double>()) * instance_scaling_matrix_inverse;
-
-        if (vol->is_left_handed())
-            glFrontFace(GL_CW);
-
-        // Matrices set, we can render the point mark now.
-        // If in editing mode, we'll also render a cone pointing to the sphere.
+        Vec3f normal = Vec3f::UnitZ();
         if (m_editing_mode) {
-            // in case the normal is not yet cached, find and cache it
             if (m_editing_cache[i].normal == Vec3f::Zero())
                 m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
-
-            Eigen::Quaterniond q;
-            q.setFromTwoVectors(Vec3d::UnitZ(), instance_scaling_matrix_inverse * m_editing_cache[i].normal.cast<double>());
-            const Eigen::AngleAxisd aa(q);
-            const Transform3d model_matrix = instance_matrix * support_matrix * Transform3d(aa.toRotationMatrix()) *
-                Geometry::assemble_transform((CONE_HEIGHT + support_point.head_front_radius * RenderPointScale) * Vec3d::UnitZ(),
-                    Vec3d(PI, 0.0, 0.0), Vec3d(CONE_RADIUS, CONE_RADIUS, CONE_HEIGHT));
-
-            shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-            const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
-            shader->set_uniform("view_normal_matrix", view_normal_matrix);
-            m_cone.model.render();
+            normal = m_editing_cache[i].normal;
+        } else if (m_normal_cache.size() > i) {
+            m_c->raycaster()->raycaster()->get_closest_point(support_point.pos, &normal);
         }
 
-        const double radius = (double)support_point.head_front_radius * RenderPointScale;
-        const Transform3d model_matrix = instance_matrix * support_matrix *
-            Geometry::assemble_transform(Vec3d::Zero(), Vec3d::Zero(), radius * Vec3d::Ones());
+        const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
 
-        shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-        const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) * model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
-        shader->set_uniform("view_normal_matrix", view_normal_matrix);
-        m_sphere.model.render();
+        // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
+        const sla::Head head = preview_sla_head_for_point(support_point, normal, use_stored_geometry);
+        const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
+        static constexpr size_t kManualPreviewSteps = 45;
+        indexed_triangle_set top_its = manual_preview
+            ? sla::get_mesh_preview(head, kManualPreviewSteps)
+            : sla::get_mesh(head, 24);
+        if (!top_its.vertices.empty()) {
+            if (vol->is_left_handed())
+                glFrontFace(GL_CW);
 
-        if (vol->is_left_handed())
-            glFrontFace(GL_CCW);
+            m_cone.model.reset();
+            m_cone.model.init_from(top_its, manual_preview);
+            const Transform3d model_matrix = instance_matrix * instance_scaling_matrix_inverse;
+
+            // Manual preview: flat shader (uniform color, no directional shading).
+            use_shader(manual_preview ? flat_shader : gouraud_shader);
+            active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
+            if (active_shader != flat_shader) {
+                const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
+                    model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+                active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
+                active_shader->set_uniform("emission_factor", 0.5f);
+            }
+            m_cone.model.render();
+
+            if (vol->is_left_handed())
+                glFrontFace(GL_CCW);
+        }
     }
     // Note: drain hole rendering removed — that is GLGizmoHollow's responsibility (Step 4.2).
 }
@@ -408,7 +722,7 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                     m_selection_rectangle.start_dragging(mouse_position, shift_down ? GLSelectionRectangle::Select : GLSelectionRectangle::Deselect);
                 }
             }
-            else {
+            else if (m_hover_id >= 0 && m_hover_id < (int) m_editing_cache.size()) {
                 if (m_editing_cache[m_hover_id].selected)
                     unselect_point(m_hover_id);
                 else {
@@ -432,9 +746,11 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
                 if (unproject_on_mesh(mouse_position, pos_and_normal)) { // we got an intersection
                     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Add support point");
                     {
-                        sla::SupportPoint sp(pos_and_normal.first, m_new_point_head_diameter/2.f, sla::SupportPointType::manual_add);
-                        sp.weight        = m_new_point_weight;
-                        sp.pillar_radius = m_new_point_pillar_diameter / 2.f;
+                        flush_process_top_fields_to_config();
+                        sync_new_point_params_from_config();
+                        sla::SupportPoint sp(pos_and_normal.first, m_new_point_head_diameter / 2.f, sla::SupportPointType::manual_add);
+                        sp.weight = m_new_point_weight;
+                        freeze_process_top_into_point(sp);
                         m_editing_cache.emplace_back(sp, false, pos_and_normal.second);
                     }
                     // Step 2.3 Mod 6: Re-register raycasters after adding a point
@@ -584,10 +900,8 @@ bool GLGizmoSlaSupports::gizmo_event(SLAGizmoEventType action, const Vec2d& mous
 
 void GLGizmoSlaSupports::delete_selected_points(bool force)
 {
-    if (! m_editing_mode) {
-        std::cout << "DEBUGGING: delete_selected_points called out of editing mode!" << std::endl;
-        std::abort();
-    }
+    if (! m_editing_mode)
+        return;
 
     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Delete support point");
 
@@ -608,13 +922,15 @@ void GLGizmoSlaSupports::on_dragging(const UpdateData& data)
     if (! m_editing_mode)
         return;
     else {
-        if (m_hover_id != -1 && (! m_editing_cache[m_hover_id].support_point.is_island() || !m_lock_unique_islands)) {
+        if (m_hover_id >= 0 && m_hover_id < (int) m_editing_cache.size()
+            && (! m_editing_cache[m_hover_id].support_point.is_island() || !m_lock_unique_islands)) {
             std::pair<Vec3f, Vec3f> pos_and_normal;
             if (! unproject_on_mesh(data.mouse_pos.cast<double>(), pos_and_normal))
                 return;
             m_editing_cache[m_hover_id].support_point.pos = pos_and_normal.first;
             // Dragging promotes any auto-generated point to manual_add (user takes responsibility)
             m_editing_cache[m_hover_id].support_point.type = sla::SupportPointType::manual_add;
+            freeze_process_top_into_point(m_editing_cache[m_hover_id].support_point);
             m_editing_cache[m_hover_id].normal = pos_and_normal.second;
         }
     }
@@ -802,8 +1118,7 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     const float spacing_x   = m_imgui->get_item_spacing().x;
     const float fp          = ImGui::GetStyle().FramePadding.x * 2.f;
 
-    // label_col_w uses "Head Diameter" width to match Manual panel — keeps content_w identical.
-    const float label_col_w = m_imgui->calc_text_size(_L("Head Diameter")).x + m_imgui->scaled(1.5f);
+    const float label_col_w = m_imgui->calc_text_size(_L("Lock supports under new islands")).x + m_imgui->scaled(1.5f);
     const float content_w   = label_col_w + slider_w + spacing_x + value_box_w;
     const float preset_w    = (content_w - spacing_x * 2.f) / 3.f;
     const float view_btn_w  = (content_w - spacing_x) * 0.5f;
@@ -818,8 +1133,9 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     const ImVec4 kWindowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
     const bool   is_dark   = (kWindowBg.x < 0.5f);
 
-    // Preserve x padding from style push; zero y so tabs flush to window top.
+    // Preserve x padding from style push; zero top padding so tabs flush to window top.
     const float win_pad_x = ImGui::GetStyle().WindowPadding.x;
+    const float win_pad_y = ImGui::GetStyle().WindowPadding.y;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(win_pad_x, 0.f));
 
     // min_panel_w: sized to fit Manual panel's wider 5-button bottom row.
@@ -1007,7 +1323,7 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         ImGui::ImageButton3(nid, hid, ImVec2(icon_sz, icon_sz));
         if (ImGui::IsItemHovered()) {
             ImGui::BeginTooltip();
-            m_imgui->text(_L("Auto-generate support points based on density setting."));
+            m_imgui->text(_L("Auto-generate support points using density and Support Angle (Process → Bridge)."));
             ImGui::EndTooltip();
         }
         ImGui::PopStyleVar(2);
@@ -1035,6 +1351,8 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     }
     ImGui::PopStyleVar(); // ItemSpacing
 
+    ImGui::Dummy(ImVec2(0.f, win_pad_y));
+
     panel_w = ImGui::GetWindowWidth();
     m_imgui->end();
     ImGui::PopStyleVar(); // WindowPadding (y=0 override)
@@ -1053,9 +1371,17 @@ bool GLGizmoSlaSupports::auto_settings_need_apply(const ModelObject* mo) const
         ? 100
         : static_cast<const ConfigOptionInt*>(opts[0])->value;
 
+    const char* angle_key = "support_critical_angle";
+    const auto  angle_opts = get_config_options({angle_key});
+    const float critical_angle = (angle_opts.empty() || !mo)
+        ? 0.f
+        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
+
     if (m_new_point_weight != m_applied_auto_weight)
         return true;
     if (density != m_applied_auto_density)
+        return true;
+    if (std::abs(critical_angle - m_applied_auto_critical_angle) > 1e-3f)
         return true;
     return false;
 }
@@ -1069,6 +1395,12 @@ void GLGizmoSlaSupports::mark_auto_settings_applied(const ModelObject* mo)
     m_applied_auto_density  = (opts.empty() || !mo)
         ? 100
         : static_cast<const ConfigOptionInt*>(opts[0])->value;
+
+    const char* angle_key = "support_critical_angle";
+    const auto  angle_opts = get_config_options({angle_key});
+    m_applied_auto_critical_angle = (angle_opts.empty() || !mo)
+        ? 0.f
+        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
 }
 
 
@@ -1079,24 +1411,13 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
 {
     const float scale       = m_parent.get_scale();
     const float gap         = 8.f * scale;
-    const float value_box_w = m_imgui->scaled(4.f);
-    const float slider_w    = m_imgui->scaled(8.f);
     const float spacing_x   = m_imgui->get_item_spacing().x;
     const float fp          = ImGui::GetStyle().FramePadding.x * 2.f;
 
-    // Slider row defines the base content width (same formula as Auto panel).
-    const float label_col_w  = m_imgui->calc_text_size(_L("Head Diameter")).x + m_imgui->scaled(1.5f);
-    const float content_w    = label_col_w + slider_w + spacing_x + value_box_w;
-    const float preset_w     = (content_w - spacing_x * 2.f) / 3.f;
     const float btn_rem_sel_w = m_imgui->calc_text_size(_L("Remove selected")).x + fp + m_imgui->scaled(1.f);
     const float btn_rem_all_w = m_imgui->calc_text_size(_L("Remove all")).x      + fp + m_imgui->scaled(1.f);
     const float btn_apply_w   = m_imgui->calc_text_size(_L("Apply")).x           + fp + m_imgui->scaled(1.f);
     const float btn_discard_w = m_imgui->calc_text_size(_L("Discard")).x         + fp + m_imgui->scaled(1.f);
-
-    float diameter_upper_cap = static_cast<ConfigOptionFloat*>(
-        wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option("support_pillar_diameter"))->value;
-    if (m_new_point_head_diameter > diameter_upper_cap)
-        m_new_point_head_diameter = diameter_upper_cap;
 
     const ImVec4 kOrange = {0.91f, 0.42f, 0.13f, 1.f};
     const ImVec4 kWhite  = {1.f,   1.f,   1.f,   1.f};
@@ -1105,8 +1426,9 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
     const ImVec4 kWindowBg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
     const bool   is_dark   = (kWindowBg.x < 0.5f);
 
-    // Preserve x padding from style push; zero y so tabs flush to window top.
+    // Preserve x padding from style push; zero top padding so tabs flush to window top.
     const float win_pad_x = ImGui::GetStyle().WindowPadding.x;
+    const float win_pad_y = ImGui::GetStyle().WindowPadding.y;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(win_pad_x, 0.f));
 
     // min_panel_w: sized to fit Manual panel's own 5-button bottom row.
@@ -1114,6 +1436,9 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
     const float icon_sz_btm = 25.f * scale;
     const float min_panel_w = 2.f * win_pad_x + icon_sz_btm + btn_sp
         + btn_rem_sel_w + btn_sp + btn_rem_all_w + btn_sp + btn_apply_w + btn_sp + btn_discard_w;
+    // Light / Middle / Heavy: equal width, span full panel content area.
+    const float content_w = min_panel_w - 2.f * win_pad_x;
+    const float preset_w  = (content_w - spacing_x * 2.f) / 3.f;
     ImGui::SetNextWindowSizeConstraints(ImVec2(min_panel_w, 0.f), ImVec2(FLT_MAX, FLT_MAX));
 
     static float panel_w = 0.f;
@@ -1208,62 +1533,7 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
         draw_preset_btn(_u8L("Heavy").c_str(),  sla::SupportWeight::Heavy);
     }
 
-    // ── Row 3: Head Diameter — custom slider + InputFloat ─────────────────
-    // Three-phase undo/redo: stash on activate, live-update while dragging, snapshot on deactivate.
-    ImGui::AlignTextToFramePadding();
-    m_imgui->text(_L("Head Diameter"));
-    ImGui::SameLine(label_col_w);
-    {
-        const float initial_value = m_new_point_head_diameter;
-        const bool sl_ch  = sp_draw_custom_slider("##sp_head_diam", m_new_point_head_diameter,
-                                                   0.1f, diameter_upper_cap,
-                                                   0.1f, diameter_upper_cap,
-                                                   slider_w, is_input_enabled());
-        if (ImGui::IsItemActivated() && m_old_point_head_diameter == 0.f)
-            m_old_point_head_diameter = initial_value;
-        if (sl_ch) {
-            for (auto& e : m_editing_cache)
-                if (e.selected)
-                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
-        }
-        if (ImGui::IsItemDeactivated() && m_old_point_head_diameter != 0.f) {
-            for (auto& e : m_editing_cache)
-                if (e.selected)
-                    e.support_point.head_front_radius = m_old_point_head_diameter / 2.f;
-            float backup = m_new_point_head_diameter;
-            m_new_point_head_diameter = m_old_point_head_diameter;
-            Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Change point head diameter");
-            m_new_point_head_diameter = backup;
-            for (auto& e : m_editing_cache)
-                if (e.selected)
-                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
-            m_old_point_head_diameter = 0.f;
-        }
-
-        ImGui::SameLine();
-        ImGui::PushItemWidth(value_box_w);
-        ImGui::InputFloat("##sp_head_diam_in", &m_new_point_head_diameter,
-                          0.f, 0.f, "%.2f", ImGuiInputTextFlags_CharsDecimal);
-        if (ImGui::IsItemDeactivatedAfterEdit() && is_input_enabled()) {
-            m_new_point_head_diameter = std::clamp(m_new_point_head_diameter, 0.1f, diameter_upper_cap);
-            for (auto& e : m_editing_cache)
-                if (e.selected)
-                    e.support_point.head_front_radius = m_new_point_head_diameter / 2.f;
-        }
-        ImGui::PopItemWidth();
-    }
-
-    // ── Row 3.5: Pillar Diameter — read-only display ─────────────────────────
-    {
-        ImGui::AlignTextToFramePadding();
-        m_imgui->text(_L("Pillar Diameter"));
-        ImGui::SameLine(label_col_w);
-        char pd_buf[32];
-        snprintf(pd_buf, sizeof(pd_buf), "%.2f mm", m_new_point_pillar_diameter);
-        ImGui::TextUnformatted(pd_buf);
-    }
-
-    // ── Row 4: Lock — label on left, checkbox pushed to right edge ──────────
+    // ── Row 3: Lock — label on left, checkbox pushed to right edge ──────────
     {
         const bool was_locked = m_lock_unique_islands;
         ImGui::AlignTextToFramePadding();
@@ -1317,65 +1587,20 @@ void GLGizmoSlaSupports::render_manual_support_panel(float x, float y, float leg
         ImGui::SameLine();
         m_imgui->disabled_begin(!unsaved_changes());
         if (ImGui::Button((_u8L("Apply") + "##sp_man_apply").c_str(), ImVec2(btn_apply_w, 0.f))) {
-            // Save changes without exiting Manual mode. Does not call editing_mode_apply_changes()
-            // because that also calls disable_editing_mode(), which would switch to Auto mode.
-            if (unsaved_changes()) {
-                // Step 1: Commit editing_cache → normal_cache (data to persist).
-                m_normal_cache.clear();
-                for (const CacheEntry& ce : m_editing_cache)
-                    m_normal_cache.push_back(ce.support_point);
-                // Step 2: Leave gizmo stack so TakeSnapshot records in the main plater undo
-                // stack, not the per-session gizmo stack that is discarded on deactivation.
-                // assert inside leave_gizmos_stack() verifies gizmo stack is currently active,
-                // which is guaranteed since m_editing_mode == true at this point.
-                wxGetApp().plater()->leave_gizmos_stack();
-                // Step 3: Snapshot now lands in the main plater undo stack.
-                Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
-                // Step 4: Write committed data to model.
-                ModelObject* mo_apply = m_c->selection_info()->model_object();
-                mo_apply->sla_points_status = sla::PointsStatus::UserModified;
-                mo_apply->sla_support_points.clear();
-                mo_apply->sla_support_points = m_normal_cache;
-                sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
-                // Step 5: Re-enter gizmo stack so subsequent in-session edits stay in the local
-                // undo scope, anchored at the just-applied state. enter_gizmos_stack() asserts
-                // active==main and gizmo stack is empty — both hold after leave_gizmos_stack().
-                wxGetApp().plater()->enter_gizmos_stack();
-                // Step 6: Re-sync editing_cache from committed normal_cache so unsaved_changes()
-                // returns false immediately and the new in-session baseline is correct.
-                m_editing_cache.clear();
-                for (const sla::SupportPoint& sp : m_normal_cache)
-                    m_editing_cache.emplace_back(sp);
-                // Step 7: Trigger reslice as before.
-                if (m_normal_cache.empty()) {
-                    // Empty + UserModified would trigger SLAPrint::validate() error if resliced.
-                    // Clear support/pad volumes directly so Structure view shows no residual mesh.
-                    sync_generate_support_for_object(mo_apply, false);
-                    clear_support_volumes();
-                    m_parent.set_as_dirty();
-                } else {
-                    reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
-                }
-            }
+            commit_manual_edits_keep_editing(true);
         }
         m_imgui->disabled_end();
 
         ImGui::SameLine();
         m_imgui->disabled_begin(!unsaved_changes());
         if (ImGui::Button((_u8L("Discard") + "##sp_man_discard").c_str(), ImVec2(btn_discard_w, 0.f))) {
-            // Revert editing cache to normal cache without exiting Manual mode. Does not call
-            // editing_mode_discard_changes() because that also calls disable_editing_mode().
-            select_point(NoPoints);
-            m_editing_cache.clear();
-            for (const sla::SupportPoint& sp : m_normal_cache)
-                m_editing_cache.emplace_back(sp);
-            unregister_point_raycasters_for_picking();
-            register_point_raycasters_for_picking();
-            m_parent.set_as_dirty();
+            revert_manual_edits_keep_editing();
         }
         m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(); // ItemSpacing
+
+    ImGui::Dummy(ImVec2(0.f, win_pad_y));
 
     panel_w = ImGui::GetWindowWidth();
     m_imgui->end();
@@ -1433,6 +1658,131 @@ void GLGizmoSlaSupports::ask_about_changes_call_after(std::function<void()> on_y
 }
 
 
+void GLGizmoSlaSupports::sync_new_point_params_from_config()
+{
+    m_new_point_head_diameter = clamp_support_diameter_mm(
+        process_top_float_live("support_head_front_diameter", 0.4f));
+    m_new_point_pillar_diameter = process_top_float_live("support_pillar_diameter", 1.f);
+}
+
+void GLGizmoSlaSupports::freeze_process_top_into_point(sla::SupportPoint &sp) const
+{
+    sp.head_front_radius = clamp_support_diameter_mm(
+        process_top_float_live("support_head_front_diameter", m_new_point_head_diameter)) / 2.f;
+    sp.pillar_radius = process_top_float_live("support_pillar_diameter", m_new_point_pillar_diameter) / 2.f;
+    sp.head_penetration_mm = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
+    sp.head_width_mm = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.0f));
+    sp.base_radius_mm = clamp_support_diameter_mm(
+        process_top_float_live("support_base_diameter", 2.0f)) * 0.5f;
+    sp.support_bracing_angle_deg = process_top_float_live("angle_between_top_and_middle", 45.0f);
+    // Make lower diameter (head_back_radius_mm) opt-in so that Pillar Diameter
+    // (sp.pillar_radius) can drive the back/base radius by default.
+    // Users can still override by editing "Lower Diameter" after selecting a point.
+    sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
+    if (process_contact_type_is_sphere()) {
+        float r = default_contact_sphere_radius_mm();
+        if (r < k_min_support_size_mm)
+            r = k_min_support_size_mm;
+        sp.contact_sphere_radius = r;
+    } else {
+        sp.contact_sphere_radius = 0.f;
+    }
+}
+
+bool GLGizmoSlaSupports::is_sla_support_top_option(const std::string &opt_key)
+{
+    for (const char *k : k_sla_support_top_opts)
+        if (opt_key == k)
+            return true;
+    return false;
+}
+
+DynamicPrintConfig GLGizmoSlaSupports::support_top_config_from_selection() const
+{
+    DynamicPrintConfig cfg = sla_process_config();
+    for (const CacheEntry &ce : m_editing_cache) {
+        if (ce.selected) {
+            support_top_apply_point(ce.support_point, cfg);
+            break;
+        }
+    }
+    return cfg;
+}
+
+bool GLGizmoSlaSupports::apply_process_top_option(const std::string &opt_key, const boost::any &value)
+{
+    if (!m_editing_mode || m_selection_empty)
+        return false;
+
+    auto apply_one = [&](sla::SupportPoint &sp) {
+        if (opt_key == "support_contact_type") {
+            const int ct = boost::any_cast<int>(value);
+            if (ct == int(spSphere)) {
+                sp.contact_sphere_radius = default_contact_sphere_radius_mm();
+                sp.head_penetration_mm = clamp_contact_depth(sla::point_contact_front_depth_mm(sp, 0.4));
+            } else {
+                sp.contact_sphere_radius = 0.f;
+            }
+        } else if (opt_key == "support_contact_diameter") {
+            sp.contact_sphere_radius = float(boost::any_cast<double>(value) * 0.5);
+        } else if (opt_key == "support_head_penetration") {
+            sp.head_penetration_mm = clamp_contact_depth(float(boost::any_cast<double>(value)));
+        } else if (opt_key == "support_head_front_diameter") {
+            const float d = clamp_support_diameter_mm(float(boost::any_cast<double>(value)));
+            sp.head_front_radius = d * 0.5f;
+            m_new_point_head_diameter = d;
+        } else if (opt_key == "support_head_back_diameter") {
+            sp.head_back_radius_mm = clamp_support_diameter_mm(float(boost::any_cast<double>(value))) * 0.5f;
+        } else if (opt_key == "support_pillar_diameter") {
+            // Pillar diameter controls sp.pillar_radius (radius = diameter/2).
+            // Also clear explicit lower diameter override so the geometry follows the pillar diameter
+            // by default.
+            sp.pillar_radius = float(boost::any_cast<double>(value)) * 0.5f;
+            sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
+            m_new_point_pillar_diameter = float(boost::any_cast<double>(value));
+        } else if (opt_key == "support_segment_length") {
+            sp.head_width_mm = clamp_segment_length_mm(float(boost::any_cast<double>(value)));
+        }
+    };
+
+    bool changed = false;
+    for (auto &ce : m_editing_cache) {
+        if (!ce.selected)
+            continue;
+        apply_one(ce.support_point);
+        changed = true;
+    }
+    if (changed)
+        m_parent.set_as_dirty();
+    return changed;
+}
+
+void GLGizmoSlaSupports::notify_process_tab_selection_changed()
+{
+    // Defer sidebar updates: calling Tab field set_value synchronously from gizmo mouse
+    // handlers can re-enter wx event processing and crash.
+    const bool editing       = m_editing_mode;
+    const bool has_selection = !m_selection_empty;
+    wxTheApp->CallAfter([this, editing, has_selection]() {
+        if (m_state != On || !wxGetApp().plater())
+            return;
+        Tab *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT);
+        auto *sla_tab = dynamic_cast<TabSLAPrint *>(tab);
+        if (!sla_tab || !wxGetApp().preset_bundle)
+            return;
+        try {
+            if (!editing || !has_selection) {
+                sla_tab->end_support_point_top_field_display();
+                return;
+            }
+            DynamicPrintConfig cfg = support_top_config_from_selection();
+            sla_tab->begin_support_point_top_field_display(cfg);
+        } catch (const std::exception &ex) {
+            BOOST_LOG_TRIVIAL(error) << "notify_process_tab_selection_changed: " << ex.what();
+        }
+    });
+}
+
 void GLGizmoSlaSupports::apply_weight_preset(sla::SupportWeight w)
 {
     const auto &p = k_weight_presets[static_cast<int>(w)];
@@ -1443,8 +1793,10 @@ void GLGizmoSlaSupports::apply_weight_preset(sla::SupportWeight w)
     cfg.set("support_base_diameter",       (double)p.base_diameter,       true);
     cfg.set("support_base_height",         (double)p.base_height,         true);
     cfg.set("support_head_width",          (double)p.head_width,          true);
+    cfg.set("support_head_back_diameter",  (double)p.pillar_diameter,     true);
     m_new_point_head_diameter   = p.head_front_diameter;
     m_new_point_pillar_diameter = p.pillar_diameter;
+    m_new_point_weight          = w;
     wxTheApp->CallAfter([]() {
         auto *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT);
         if (!tab) return;
@@ -1459,6 +1811,7 @@ void GLGizmoSlaSupports::on_set_state()
         return;
 
     if (m_state == On && m_old_state != On) { // the gizmo was just turned on
+
         m_auto_baseline_initialized = false;
         // Set default head diameter from config.
         const DynamicPrintConfig& cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
@@ -1468,9 +1821,12 @@ void GLGizmoSlaSupports::on_set_state()
         const auto *opt_pd = cfg.option<ConfigOptionFloat>("support_pillar_diameter");
         float cur_pillar = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
         m_new_point_pillar_diameter = cur_pillar;
+
+        sync_new_point_params_from_config();
+
         int matched = -1;
         for (int i = 0; i < 3; ++i) {
-            if (std::abs(k_weight_presets[i].pillar_diameter - cur_pillar) < 1e-4f) {
+            if (std::abs(k_weight_presets[i].pillar_diameter - m_new_point_pillar_diameter) < 1e-4f) {
                 matched = i;
                 break;
             }
@@ -1478,6 +1834,11 @@ void GLGizmoSlaSupports::on_set_state()
         m_new_point_weight = (matched >= 0)
             ? static_cast<sla::SupportWeight>(matched)
             : sla::SupportWeight::Medium;
+
+        // Baseline for global support_base_diameter while manual editing is active.
+        const DynamicPrintConfig &cfg_live = sla_process_config();
+        if (const auto *opt_bd = cfg_live.option<ConfigOptionFloat>("support_base_diameter"))
+            m_base_diameter_before_change = opt_bd->value;
     }
     if (m_state == Off && m_old_state != Off) { // the gizmo was just turned Off
         bool will_ask = m_editing_mode && unsaved_changes() && on_is_activable();
@@ -1504,19 +1865,27 @@ void GLGizmoSlaSupports::on_set_state()
 
 void GLGizmoSlaSupports::on_start_dragging()
 {
-    if (m_hover_id != -1) {
-        select_point(NoPoints);
-        select_point(m_hover_id);
-        m_point_before_drag = m_editing_cache[m_hover_id];
-    }
-    else
+    if (!m_editing_mode || m_hover_id < 0 || m_hover_id >= (int) m_editing_cache.size()) {
         m_point_before_drag = CacheEntry();
+        return;
+    }
+
+    for (size_t j = 0; j < m_editing_cache.size(); ++j)
+        m_editing_cache[j].selected = (j == size_t(m_hover_id));
+    m_selection_empty = false;
+    const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
+    if (pr > 0.f)
+        m_new_point_pillar_diameter = pr * 2.f;
+    else
+        sync_new_point_params_from_config();
+    notify_process_tab_selection_changed();
+    m_point_before_drag = m_editing_cache[m_hover_id];
 }
 
 
 void GLGizmoSlaSupports::on_stop_dragging()
 {
-    if (m_hover_id != -1) {
+    if (m_hover_id >= 0 && m_hover_id < (int) m_editing_cache.size()) {
         CacheEntry backup = m_editing_cache[m_hover_id];
 
         if (m_point_before_drag.support_point.pos != Vec3f::Zero() // some point was touched
@@ -1558,48 +1927,44 @@ void GLGizmoSlaSupports::on_save(cereal::BinaryOutputArchive& ar) const
 
 void GLGizmoSlaSupports::select_point(int i)
 {
-    if (! m_editing_mode) {
-        std::cout << "DEBUGGING: select_point called when out of editing mode!" << std::endl;
-        std::abort();
-    }
+    if (! m_editing_mode)
+        return;
 
     if (i == AllPoints || i == NoPoints) {
         for (auto& point_and_selection : m_editing_cache)
             point_and_selection.selected = ( i == AllPoints );
         m_selection_empty = (i == NoPoints);
 
-        if (i == AllPoints) {
-            m_new_point_head_diameter = m_editing_cache[0].support_point.head_front_radius * 2.f;
-            float pr = m_editing_cache[0].support_point.pillar_radius;
-            if (pr > 0.f) {
+        if (i == AllPoints && !m_editing_cache.empty()) {
+            const float pr = m_editing_cache[0].support_point.pillar_radius;
+            if (pr > 0.f)
                 m_new_point_pillar_diameter = pr * 2.f;
-            } else {
-                const auto *opt_pd = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option<ConfigOptionFloat>("support_pillar_diameter");
-                m_new_point_pillar_diameter = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
-            }
+            else
+                sync_new_point_params_from_config();
         }
     }
     else {
+        if (i < 0 || i >= (int) m_editing_cache.size())
+            return;
         m_editing_cache[i].selected = true;
         m_selection_empty = false;
-        m_new_point_head_diameter = m_editing_cache[i].support_point.head_front_radius * 2.f;
-        float pr = m_editing_cache[i].support_point.pillar_radius;
-        if (pr > 0.f) {
+        const float pr = m_editing_cache[i].support_point.pillar_radius;
+        if (pr > 0.f)
             m_new_point_pillar_diameter = pr * 2.f;
-        } else {
-            const auto *opt_pd = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config.option<ConfigOptionFloat>("support_pillar_diameter");
-            m_new_point_pillar_diameter = opt_pd ? opt_pd->value : k_weight_presets[1].pillar_diameter;
-        }
+        else
+            sync_new_point_params_from_config();
     }
+    notify_process_tab_selection_changed();
 }
 
 
 void GLGizmoSlaSupports::unselect_point(int i)
 {
-    if (! m_editing_mode) {
-        std::cout << "DEBUGGING: unselect_point called when out of editing mode!" << std::endl;
-        std::abort();
-    }
+    if (! m_editing_mode)
+        return;
+
+    if (i < 0 || i >= (int) m_editing_cache.size())
+        return;
 
     m_editing_cache[i].selected = false;
     m_selection_empty = true;
@@ -1609,6 +1974,7 @@ void GLGizmoSlaSupports::unselect_point(int i)
             break;
         }
     }
+    notify_process_tab_selection_changed();
 }
 
 
@@ -1616,12 +1982,83 @@ void GLGizmoSlaSupports::unselect_point(int i)
 
 void GLGizmoSlaSupports::editing_mode_discard_changes()
 {
-    if (! m_editing_mode) {
-        std::cout << "DEBUGGING: editing_mode_discard_changes called when out of editing mode!" << std::endl;
-        std::abort();
-    }
+    if (! m_editing_mode)
+        return;
     select_point(NoPoints);
     disable_editing_mode();
+}
+
+void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
+{
+    if (!m_editing_mode || !unsaved_changes())
+        return;
+
+    m_normal_cache.clear();
+    for (const CacheEntry& ce : m_editing_cache)
+        m_normal_cache.push_back(ce.support_point);
+
+    wxGetApp().plater()->leave_gizmos_stack();
+    Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
+
+    ModelObject* mo_apply = m_c->selection_info()->model_object();
+    mo_apply->sla_points_status = sla::PointsStatus::UserModified;
+    mo_apply->sla_support_points.clear();
+    mo_apply->sla_support_points = m_normal_cache;
+    sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
+
+    wxGetApp().plater()->enter_gizmos_stack();
+
+    m_editing_cache.clear();
+    for (const sla::SupportPoint& sp : m_normal_cache)
+        m_editing_cache.emplace_back(sp);
+
+    if (reslice_preview) {
+        if (m_normal_cache.empty()) {
+            sync_generate_support_for_object(mo_apply, false);
+            clear_support_volumes();
+            m_parent.set_as_dirty();
+        } else {
+            reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
+        }
+    }
+
+    const DynamicPrintConfig &cfg = sla_process_config();
+    if (const auto *opt_bd = cfg.option<ConfigOptionFloat>("support_base_diameter"))
+        m_base_diameter_before_change = opt_bd->value;
+}
+
+void GLGizmoSlaSupports::revert_manual_edits_keep_editing()
+{
+    if (!m_editing_mode)
+        return;
+
+    select_point(NoPoints);
+    m_editing_cache.clear();
+    for (const sla::SupportPoint& sp : m_normal_cache)
+        m_editing_cache.emplace_back(sp);
+    unregister_point_raycasters_for_picking();
+    register_point_raycasters_for_picking();
+    m_parent.set_as_dirty();
+}
+
+bool GLGizmoSlaSupports::resolve_unsaved_manual_edits_before_slice()
+{
+    if (!m_editing_mode || !unsaved_changes() || !on_is_activable())
+        return true;
+
+    MessageDialog dlg(GUI::wxGetApp().mainframe,
+        _L("Do you want to save your manually edited support points?") + "\n",
+        _L("Save support points?"), wxICON_QUESTION | wxYES | wxNO | wxCANCEL);
+    const int ret = dlg.ShowModal();
+    if (ret == wxID_YES) {
+        commit_manual_edits_keep_editing(false);
+        return true;
+    }
+    if (ret == wxID_NO) {
+        revert_manual_edits_keep_editing();
+        return true;
+    }
+    return false;
 }
 
 
@@ -1716,8 +2153,11 @@ void GLGizmoSlaSupports::get_data_from_backend()
             m_normal_cache.clear();
             const std::vector<sla::SupportPoint>& points = po->get_support_points();
             auto mat = po->trafo().inverse().cast<float>();
-            for (unsigned int i=0; i<points.size();++i)
-                m_normal_cache.emplace_back(sla::SupportPoint(mat * points[i].pos, points[i].head_front_radius, points[i].type));
+            for (unsigned int i = 0; i < points.size(); ++i) {
+                sla::SupportPoint sp = points[i];
+                sp.pos = mat * points[i].pos;
+                m_normal_cache.emplace_back(sp);
+            }
 
             mo->sla_points_status = sla::PointsStatus::AutoGenerated;
             break;
@@ -1753,8 +2193,7 @@ void GLGizmoSlaSupports::auto_generate()
         mo->sla_points_status = sla::PointsStatus::Generating;
         mark_auto_settings_applied(mo);
         m_auto_baseline_initialized = true;
-        // Step 4.2: use inherited reslice_until_step() instead of removed reslice_SLA_supports().
-        // m_show_support_structure: if supports structure visible, reslice to slaposPad; otherwise slaposSupportPoints.
+        // Auto Apply: regenerate support points (includes Support Angle filtering at slaposSupportPoints).
         reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
     }
 }
@@ -1782,6 +2221,7 @@ void GLGizmoSlaSupports::disable_editing_mode()
 {
     if (m_editing_mode) {
         m_editing_mode = false;
+        notify_process_tab_selection_changed();
         unregister_point_raycasters_for_picking();
         wxGetApp().plater()->leave_gizmos_stack();
         show_sla_supports(m_show_support_structure); // Step 4.2: restore support structure visibility
@@ -1800,6 +2240,17 @@ bool GLGizmoSlaSupports::unsaved_changes() const
     for (size_t i=0; i<m_editing_cache.size(); ++i)
         if (m_editing_cache[i].support_point != m_normal_cache[i])
             return true;
+
+    // Global support base diameter affects generated support/pad geometry.
+    // While editing, changes to this parameter must enable Apply even if
+    // per-point caches are unchanged.
+    if (m_editing_mode) {
+        const DynamicPrintConfig &cfg = sla_process_config();
+        if (const auto *opt_bd = cfg.option<ConfigOptionFloat>("support_base_diameter")) {
+            if (std::abs(opt_bd->value - m_base_diameter_before_change) > 1e-6)
+                return true;
+        }
+    }
 
     return false;
 }
@@ -1859,31 +2310,23 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
     const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
 
-    const double cone_radius = 0.25; // mm — matches render_points()
-    const double cone_height = 0.75;
-
     for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
         const sla::SupportPoint& sp = m_editing_cache[i].support_point;
-        const Transform3d support_matrix = Geometry::translation_transform(sp.pos.cast<double>()) * instance_scaling_matrix_inverse;
 
         if (m_editing_cache[i].normal == Vec3f::Zero())
             m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
 
-        Eigen::Quaterniond q;
-        q.setFromTwoVectors(Vec3d::UnitZ(), instance_scaling_matrix_inverse * m_editing_cache[i].normal.cast<double>());
-        const Eigen::AngleAxisd aa(q);
+        const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
 
-        // Cone transform — matches render_points() cone rendering
-        const Transform3d cone_matrix = instance_matrix * support_matrix * Transform3d(aa.toRotationMatrix()) *
-            Geometry::assemble_transform((cone_height + sp.head_front_radius * RenderPointScale) * Vec3d::UnitZ(),
-                Vec3d(PI, 0.0, 0.0), Vec3d(cone_radius, cone_radius, cone_height));
-        m_point_raycasters[i].second->set_transform(cone_matrix);
+        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry);
+        const Transform3d pick_matrix = instance_matrix * instance_scaling_matrix_inverse;
+        const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
 
-        // Sphere transform — matches render_points() sphere rendering
-        const double radius = (double)sp.head_front_radius * RenderPointScale;
-        const Transform3d sphere_matrix = instance_matrix * support_matrix *
-            Geometry::assemble_transform(Vec3d::Zero(), Vec3d::Zero(), radius * Vec3d::Ones());
+        m_point_raycasters[i].second->set_active(false);
+        const Transform3d sphere_matrix = pick_matrix *
+            Geometry::assemble_transform(sp.pos.cast<double>(), Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
         m_point_raycasters[i].first->set_transform(sphere_matrix);
+        m_point_raycasters[i].first->set_active(true);
     }
 }
 

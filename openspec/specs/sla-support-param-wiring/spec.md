@@ -1,5 +1,9 @@
-## ADDED Requirements
+# Spec: SLA Support Param Wiring
 
+## Purpose
+
+確保 Resin 支撐設定頁的 SLA 參數正確登記於 `SLAPrintObjectConfig`、透過 `make_support_cfg()` 傳入支撐引擎，並在變更時觸發支撐樹重算。
+## Requirements
 ### Requirement: SLA 支撐 UI 參數傳入演算法
 系統 SHALL 確保 Support 設定頁的 SLA 支撐參數（柱徑、底座尺寸、前球直徑、頭部寬度、穿透深度）透過 `SLAPrintObjectConfig` 傳入 `make_support_cfg()`，並最終影響支撐幾何生成。這些參數必須登記在 `SLAPrintObjectConfig` 中（而非 `PrintConfig`），使 `SLAPrint::apply()` 的 `diff()` 能正確取得它們。
 
@@ -25,3 +29,26 @@
 #### Scenario: 未更改參數時不重切
 - **WHEN** 使用者開啟設定頁但未修改任何支撐參數即關閉
 - **THEN** 支撐樹狀態維持不變，不觸發不必要的重切
+
+### Requirement: 支撐角度參數傳入演算法
+系統 SHALL 確保 `angle_between_top_and_middle` 與 `cross_angle` 透過 `SLAPrintObjectConfig` 傳入 `make_support_cfg()`，分別映射至 `SupportTreeConfig::top_middle_slope` 與 `SupportTreeConfig::cross_slope`，並最終影響 Default Tree 支撐幾何生成。
+
+#### Scenario: angle_between_top_and_middle 傳入引擎
+- **WHEN** `angle_between_top_and_middle` 設為 30° 並執行 Default Tree 切片
+- **THEN** `SupportTreeConfig::top_middle_slope` SHALL 為 30° 的弧度值
+
+#### Scenario: cross_angle 傳入引擎
+- **WHEN** `cross_angle` 設為 60° 並執行 Default Tree 切片
+- **THEN** `SupportTreeConfig::cross_slope` SHALL 為 60° 的弧度值
+
+### Requirement: 支撐角度參數異動觸發重切
+系統 SHALL 在 `angle_between_top_and_middle` 或 `cross_angle` 任一值變更時，自動將支撐樹狀態標記為 dirty 並觸發重切。`support_bracing_angle` 變更時的行為 SHALL 維持不變（仍觸發重切）。
+
+#### Scenario: 修改 angle_between_top_and_middle 後狀態失效
+- **WHEN** 使用者在設定頁更改 `angle_between_top_and_middle`
+- **THEN** `SLAPrintObject` 的 `slaposSupportTree` 步驟狀態 SHALL 標記為需重新計算
+
+#### Scenario: 修改 cross_angle 後狀態失效
+- **WHEN** 使用者在設定頁更改 `cross_angle`
+- **THEN** `SLAPrintObject` 的 `slaposSupportTree` 步驟狀態 SHALL 標記為需重新計算
+

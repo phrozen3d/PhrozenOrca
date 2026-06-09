@@ -3,6 +3,9 @@
 #include "Plater.hpp"
 #include "GUI_App.hpp"
 #include "MainFrame.hpp"
+#include "Tab.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
 #include "OG_CustomCtrl.hpp"
 #include "MsgDialog.hpp"
 #include "format.hpp"
@@ -679,6 +682,28 @@ void ConfigOptionsGroup::on_change_OG(const t_config_option_key& opt_id, const b
 		const std::string  &opt_key   = itOption.first;
 		int 			    opt_index = itOption.second;
 
+		// Per-point Top edits: do not write Process preset or run Tab::update_dirty().
+		if (Tab *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT)) {
+		    if (auto *sla_tab = dynamic_cast<TabSLAPrint *>(tab)) {
+		        if (sla_tab->is_support_point_top_field_update())
+		            return;
+		        if (GLGizmoSlaSupports::is_sla_support_top_option(opt_key)) {
+		            if (GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance()) {
+		                if (gizmo->has_selected_support_points()) {
+		                    gizmo->apply_process_top_option(opt_key, value);
+		                    sla_tab->begin_support_point_top_field_display(
+		                        gizmo->support_top_config_from_selection());
+		                    if (Plater *plater = wxGetApp().plater()) {
+		                        if (GLCanvas3D *canvas = plater->get_view3D_canvas3D())
+		                            canvas->set_as_dirty();
+		                    }
+		                    return;
+		                }
+		            }
+		        }
+		    }
+		}
+
 		this->change_opt_value(opt_key, value, opt_index == -1 ? 0 : opt_index);
 	}
 
@@ -753,6 +778,19 @@ void ConfigOptionsGroup::back_to_config_value(const DynamicPrintConfig& config, 
 
 void ConfigOptionsGroup::on_kill_focus(const std::string& opt_key)
 {
+    if (Tab *tab = wxGetApp().get_tab(Preset::TYPE_SLA_PRINT)) {
+        if (auto *sla_tab = dynamic_cast<TabSLAPrint *>(tab)) {
+            if (sla_tab->should_skip_preset_ui_refresh())
+                return;
+            std::string config_key = opt_key;
+            auto it = m_opt_map.find(opt_key);
+            if (it != m_opt_map.end())
+                config_key = it->second.first;
+            if (GLGizmoSlaSupports::is_sla_support_top_option(config_key))
+                return;
+        }
+    }
+
     if (m_fill_empty_value)
         m_fill_empty_value(opt_key);
     else

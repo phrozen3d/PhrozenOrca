@@ -20,6 +20,34 @@ void ConfigManipulation::sync_sla_retract_primary_distances(DynamicPrintConfig* 
         synchronize_sla_retract_primary_distances(*config);
 }
 
+void ConfigManipulation::sync_support_object_elevation(DynamicPrintConfig* config)
+{
+    if (!config || !config->has("support_object_elevation"))
+        return;
+
+    if (config->has("pad_enable") && config->has("pad_around_object") &&
+        config->opt_bool("pad_enable") && config->opt_bool("pad_around_object"))
+        return;
+
+    if (!config->has("support_head_front_diameter") || !config->has("support_head_back_diameter"))
+        return;
+
+    const double front_r = 0.5 * config->opt_float("support_head_front_diameter");
+    const double back_r  = 0.5 * config->opt_float("support_head_back_diameter");
+    double width = 3.0;
+    if (config->has("support_segment_length"))
+        width = config->opt_float("support_segment_length");
+    else if (config->has("support_head_width"))
+        width = config->opt_float("support_head_width");
+    const double pen = config->has("support_head_penetration")
+        ? config->opt_float("support_head_penetration") : 0.25;
+    const double head_fullwidth = 2. * front_r + width + 2. * back_r - pen;
+
+    auto *elv_opt = config->opt<ConfigOptionFloat>("support_object_elevation");
+    if (elv_opt->value < head_fullwidth)
+        elv_opt->value = head_fullwidth;
+}
+
 void ConfigManipulation::apply(DynamicPrintConfig* config, DynamicPrintConfig* new_config)
 {
     bool modified = false;
@@ -909,33 +937,63 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, co
 void ConfigManipulation::update_print_sla_config(DynamicPrintConfig* config, const bool is_global_config/* = false*/)
 {
     // Only validate Prusa-style SLA support options when present (Phrozen LCD presets use different keys)
-    if (config->has("support_head_penetration") && config->has("support_head_width")) {
-        double head_penetration = config->opt_float("support_head_penetration");
-        double head_width = config->opt_float("support_head_width");
-        if (head_penetration > head_width) {
-            wxString msg_text = "Head penetration should not be greater than the head width.";
-            MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid Head penetration", wxICON_WARNING | wxOK);
+    if (config->has("support_head_penetration")) {
+        constexpr double k_min_contact_depth = 0.01;
+        auto *pen_opt = config->opt<ConfigOptionFloat>("support_head_penetration");
+        if (pen_opt->value < k_min_contact_depth)
+            pen_opt->value = k_min_contact_depth;
+    }
+
+    if (config->has("support_head_penetration")) {
+        const double head_penetration = config->opt_float("support_head_penetration");
+        double segment_len = 3.0;
+        if (config->has("support_segment_length"))
+            segment_len = config->opt_float("support_segment_length");
+        else if (config->has("support_head_width"))
+            segment_len = config->opt_float("support_head_width");
+        if (head_penetration > segment_len) {
+            wxString msg_text = _L("Contact Depth should not be greater than Segment Length.");
+            MessageDialog dialog(m_msg_dlg_parent, msg_text, _L("Invalid Contact Depth"), wxICON_WARNING | wxOK);
             DynamicPrintConfig new_conf = *config;
             if (dialog.ShowModal() == wxID_OK) {
-                new_conf.set_key_value("support_head_penetration", new ConfigOptionFloat(head_width));
+                new_conf.set_key_value("support_head_penetration", new ConfigOptionFloat(segment_len));
                 apply(config, &new_conf);
             }
         }
     }
 
-    if (config->has("support_head_front_diameter") && config->has("support_pillar_diameter")) {
-        double pinhead_d = config->opt_float("support_head_front_diameter");
-        double pillar_d = config->opt_float("support_pillar_diameter");
-        if (pinhead_d > pillar_d) {
-            wxString msg_text = "Pinhead diameter should be smaller than the pillar diameter.";
-            MessageDialog dialog(m_msg_dlg_parent, msg_text, "Invalid pinhead diameter", wxICON_WARNING | wxOK);
+    constexpr double k_min_cone_diameter = 0.01;
+    if (config->has("support_head_front_diameter")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_head_front_diameter");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
+    }
+    if (config->has("support_head_back_diameter")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_head_back_diameter");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
+    }
+    if (config->has("support_segment_length")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_segment_length");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
+    }
+
+    if (config->has("support_head_front_diameter") && config->has("support_head_back_diameter")) {
+        double upper_d = config->opt_float("support_head_front_diameter");
+        double lower_d = config->opt_float("support_head_back_diameter");
+        if (upper_d > lower_d) {
+            wxString msg_text = _L("Upper Diameter should not be greater than Lower Diameter.");
+            MessageDialog dialog(m_msg_dlg_parent, msg_text, _L("Invalid Upper Diameter"), wxICON_WARNING | wxOK);
             DynamicPrintConfig new_conf = *config;
             if (dialog.ShowModal() == wxID_OK) {
-                new_conf.set_key_value("support_head_front_diameter", new ConfigOptionFloat(pillar_d / 2.0));
+                new_conf.set_key_value("support_head_front_diameter", new ConfigOptionFloat(lower_d));
                 apply(config, &new_conf);
             }
         }
     }
+
+    sync_support_object_elevation(config);
 
     update_sla_transition_layer_interval_time_difference(*config);
 }
@@ -987,6 +1045,35 @@ void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
     if (config->has("print_time_compensation")) {
         const bool ptc = config->opt_bool("print_time_compensation");
         toggle_line("layer_print_time_compensation", ptc);
+    }
+
+    if (config->has("support_contact_type") && config->has("support_contact_diameter")) {
+        const bool sphere = config->opt_enum<ContactType>("support_contact_type") == spSphere;
+        toggle_field("support_contact_diameter", sphere);
+    }
+
+    if (config->has("support_head_penetration")) {
+        constexpr double k_min_contact_depth = 0.01;
+        auto *pen_opt = config->opt<ConfigOptionFloat>("support_head_penetration");
+        if (pen_opt->value < k_min_contact_depth)
+            pen_opt->value = k_min_contact_depth;
+    }
+
+    constexpr double k_min_cone_diameter = 0.01;
+    if (config->has("support_head_front_diameter")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_head_front_diameter");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
+    }
+    if (config->has("support_head_back_diameter")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_head_back_diameter");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
+    }
+    if (config->has("support_segment_length")) {
+        auto *opt = config->opt<ConfigOptionFloat>("support_segment_length");
+        if (opt->value < k_min_cone_diameter)
+            opt->value = k_min_cone_diameter;
     }
 #pragma endregion
 }

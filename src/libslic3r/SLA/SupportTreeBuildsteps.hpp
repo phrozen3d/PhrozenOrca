@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 
+#include <libslic3r/libslic3r.h>
 #include <libslic3r/SLA/SupportTreeBuilder.hpp>
 #include <libslic3r/SLA/Clustering.hpp>
 #include <libslic3r/SLA/SpatIndex.hpp>
@@ -49,6 +50,20 @@ inline Vec3d spheric_to_dir(const std::pair<double, double> &v)
 inline Vec3d spheric_to_dir(const std::array<double, 2> &v)
 {
     return spheric_to_dir(v[0], v[1]);
+}
+
+// Returns true when a downward-facing surface should receive automatic support.
+// critical_angle_deg is the maximum allowable angle between the surface
+// tangential plane and the print platform (0° = flat horizontal overhang).
+// Smaller values allow fewer orientations; 90° allows all overhangs up to vertical.
+inline bool sla_support_passes_overhang_filter(double polar, double critical_angle_deg)
+{
+    if (polar < PI / 2.0)
+        return false;
+    if (critical_angle_deg >= 90.0 - EPSILON)
+        return true;
+    const double surface_angle_deg = (PI - polar) * 180.0 / PI;
+    return surface_angle_deg <= critical_angle_deg + EPSILON;
 }
 
 // Give points on a 3D ring with given center, radius and orientation
@@ -324,7 +339,8 @@ class SupportTreeBuildsteps {
     std::optional<DiffBridge> search_widening_path(const Vec3d &jp,
                                                    const Vec3d &dir,
                                                    double       radius,
-                                                   double       new_radius);
+                                                   double       new_radius,
+                                                   double       point_slope);
 
 public:
     SupportTreeBuildsteps(SupportTreeBuilder & builder, const SupportableMesh &sm);

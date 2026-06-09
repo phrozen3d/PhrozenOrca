@@ -195,7 +195,7 @@ void check_support_tree_integrity(const sla::SupportTreeBuilder &stree,
     }
     
     double max_bridgelen = 0.;
-    auto chck_bridge = [&cfg](const sla::Bridge &bridge, double &max_brlen) {
+    auto chck_bridge = [](const sla::Bridge &bridge, double &max_brlen, double min_slope) {
         Vec3d n = bridge.endp - bridge.startp;
         double d = sla::distance(n);
         max_brlen = std::max(d, max_brlen);
@@ -203,16 +203,16 @@ void check_support_tree_integrity(const sla::SupportTreeBuilder &stree,
         double z     = n.z();
         double polar = std::acos(z / d);
         double slope = -polar + PI / 2.;
-        REQUIRE(std::abs(slope) >= cfg.bridge_slope - EPSILON);
+        REQUIRE(std::abs(slope) >= min_slope - EPSILON);
     };
     
-    for (auto &bridge : stree.bridges()) chck_bridge(bridge, max_bridgelen);
+    for (auto &bridge : stree.bridges()) chck_bridge(bridge, max_bridgelen, cfg.top_middle_slope);
     REQUIRE(max_bridgelen <= Approx(cfg.max_bridge_length_mm));
     
     max_bridgelen = 0;
-    for (auto &bridge : stree.crossbridges()) chck_bridge(bridge, max_bridgelen);
+    for (auto &bridge : stree.crossbridges()) chck_bridge(bridge, max_bridgelen, cfg.cross_slope);
     
-    double md = cfg.max_pillar_link_distance_mm / std::cos(-cfg.bridge_slope);
+    double md = cfg.max_pillar_link_distance_mm / std::cos(-cfg.cross_slope);
     REQUIRE(max_bridgelen <= md);
 }
 

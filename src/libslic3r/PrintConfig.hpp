@@ -1612,6 +1612,12 @@ PRINT_CONFIG_CLASS_DEFINE(
     // Diameter in mm of the pointing side of the head.
     ((ConfigOptionFloat, support_head_front_diameter))/*= 0.2*/
 
+    // Diameter in mm of the back sphere of the pinhead (lower / pillar side).
+    ((ConfigOptionFloat, support_head_back_diameter))/*= 1.0*/
+
+    // Length in mm of the conical support segment between upper and lower contact diameters.
+    ((ConfigOptionFloat, support_segment_length))/*= 3.0*/
+
     // How much the pinhead has to penetrate the model surface
     ((ConfigOptionFloat, support_head_penetration))/*= 0.2*/
 
@@ -1654,11 +1660,17 @@ PRINT_CONFIG_CLASS_DEFINE(
     // The minimum distance of the pillar base from the model in mm.
     ((ConfigOptionFloat, support_base_safety_distance)) /*= 1.0*/
 
-    // Overhang angle threshold: support will not be placed on surfaces with less overhang than this angle.
+    // Max surface-to-platform angle (degrees) for automatic supports; 0 = flat only, 90 = all overhangs.
     ((ConfigOptionFloat, support_critical_angle))/*= 90*/
 
-    // The bridge slope angle for connecting support sticks and junctions.
+    // The bridge slope angle for connecting support sticks and junctions (legacy alias).
     ((ConfigOptionFloat, support_bracing_angle))/*= 45*/
+
+    // Top (pinhead) to Middle (pillar) bridge slope angle in degrees.
+    ((ConfigOptionFloat, angle_between_top_and_middle))/*= 45*/
+
+    // Middle (pillar) to Middle cross-link bridge slope angle in degrees.
+    ((ConfigOptionFloat, cross_angle))/*= 45*/
 
     // The max length of a bridge in mm
     ((ConfigOptionFloat, support_max_bridge_length))/*= 15.0*/
@@ -1674,6 +1686,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     // Branching tree support parameters
 
     ((ConfigOptionFloat, branchingsupport_head_front_diameter))/*= 0.2*/
+    ((ConfigOptionFloat, branchingsupport_head_back_diameter))/*= 1.0*/
     ((ConfigOptionFloat, branchingsupport_head_penetration))/*= 0.2*/
     ((ConfigOptionFloat, branchingsupport_head_width))/*= 1.0*/
     ((ConfigOptionFloat, branchingsupport_pillar_diameter))/*= 0.8*/

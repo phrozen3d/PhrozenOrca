@@ -667,6 +667,12 @@ public:
 	ogStaticText* m_support_object_elevation_description_line = nullptr;
 	// Read-only display (2 decimals) for layer_print_time_compensation; value comes from calculator dialog or preset.
 	TextInput*    m_layer_print_time_compensation_display     = nullptr;
+    bool          m_support_point_top_field_update = false;
+
+    bool        is_support_point_top_field_update() const { return m_support_point_top_field_update; }
+    bool        should_skip_preset_ui_refresh() const;
+
+    void        apply_support_point_top_fields(const DynamicPrintConfig *point_cfg);
 
     void		build() override;
 	void		reload_config() override;
@@ -676,6 +682,8 @@ public:
 	void		clear_pages() override;
     void		init_options_list() override;
     void        on_value_change(const std::string& opt_key, const boost::any& value) override;
+    void        begin_support_point_top_field_display(const DynamicPrintConfig &point_cfg);
+    void        end_support_point_top_field_display();
 	bool 		supports_printer_technology(const PrinterTechnology tech) const override { return tech == ptSLA; }
 };
 

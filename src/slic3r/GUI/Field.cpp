@@ -934,7 +934,17 @@ void TextCtrl::set_value(const boost::any& value, bool change_event/* = false*/)
     }
     else
         ctrl->SetValue(value.empty() ? "" : boost::any_cast<wxString>(value)); // BBS // BBS: null value
-    m_disable_change_event = false;
+    if (change_event)
+        m_disable_change_event = false;
+    else if (wxTheApp) {
+        wxWindow *const w = window;
+        wxTheApp->CallAfter([this, w]() {
+            if (w && !w->IsBeingDeleted())
+                m_disable_change_event = false;
+        });
+    } else {
+        m_disable_change_event = false;
+    }
 
     if (!change_event) {
         wxString ret_str = ctrl->GetValue();
@@ -1307,7 +1317,17 @@ void SpinCtrl::set_value(const std::string& value, bool change_event)
         return;
     m_disable_change_event = !change_event;
     s->SetValue(value);
-    m_disable_change_event = false;
+    if (change_event)
+        m_disable_change_event = false;
+    else if (wxTheApp) {
+        wxWindow *const w = window;
+        wxTheApp->CallAfter([this, w]() {
+            if (w && !w->IsBeingDeleted())
+                m_disable_change_event = false;
+        });
+    } else {
+        m_disable_change_event = false;
+    }
 }
 
 boost::any& SpinCtrl::get_value()
@@ -1368,7 +1388,18 @@ void SpinCtrl::set_value(const boost::any& value, bool change_event) {
         tmp_value = any_to_int_for_spin(value);
         s->SetValue(tmp_value);
     }
-    m_disable_change_event = false;
+    if (change_event)
+        m_disable_change_event = false;
+    else if (wxTheApp) {
+        // wx may deliver TEXT/SPIN events after SetValue returns; defer re-enable.
+        wxWindow *const w = window;
+        wxTheApp->CallAfter([this, w]() {
+            if (w && !w->IsBeingDeleted())
+                m_disable_change_event = false;
+        });
+    } else {
+        m_disable_change_event = false;
+    }
 }
 
 void SpinCtrl::msw_rescale()

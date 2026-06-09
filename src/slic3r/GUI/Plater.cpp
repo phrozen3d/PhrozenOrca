@@ -2643,6 +2643,8 @@ struct Plater::priv
         return m_sla_gizmo_preview_type != SlaGizmoPreviewType::None;
     }
     bool m_slice_all{false};
+    // Skip do_reslice() once when Preview is opened immediately after an explicit Slice action.
+    bool m_skip_preview_reslice{false};
     bool m_is_slicing {false};
     bool m_is_publishing {false};
     int m_is_RightClickInLeftUI{-1};
@@ -6905,7 +6907,10 @@ void Plater::priv::set_current_panel(wxPanel* panel, bool no_slice)
         //BBS: add slice logic when switch to preview page
         //BBS: add only gcode mode
         if (!q->only_gcode_mode() && (current_panel == preview) && (wxGetApp().is_editor())) {
-            do_reslice();
+            if (!m_skip_preview_reslice)
+                do_reslice();
+            else
+                m_skip_preview_reslice = false;
         }
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(": the same panel, exit");
         return;
@@ -7047,8 +7052,12 @@ void Plater::priv::set_current_panel(wxPanel* panel, bool no_slice)
             preview->reload_print(true);
 
             preview->set_as_dirty();*/
-            if (wxGetApp().is_editor() && !q->only_gcode_mode())
-                do_reslice();
+            if (wxGetApp().is_editor() && !q->only_gcode_mode()) {
+                if (!m_skip_preview_reslice)
+                    do_reslice();
+                else
+                    m_skip_preview_reslice = false;
+            }
         }
 
         // reset cached size to force a resize on next call to render() to keep imgui in synch with canvas size
@@ -12037,6 +12046,25 @@ void Plater::select_all() { p->select_all(); }
 void Plater::deselect_all() { p->deselect_all(); }
 void Plater::exit_gizmo() { p->exit_gizmo(); }
 
+bool Plater::resolve_sla_support_edits_before_slice()
+{
+    return get_view3D_canvas3D()->get_gizmos_manager().resolve_sla_support_edits_before_slice();
+}
+
+void Plater::action_slice_plate()
+{
+    SimpleEvent evt(EVT_GLTOOLBAR_SLICE_PLATE);
+    p->on_action_slice_plate(evt);
+}
+
+void Plater::action_slice_all()
+{
+    SimpleEvent evt(EVT_GLTOOLBAR_SLICE_ALL);
+    p->on_action_slice_all(evt);
+}
+
+void Plater::set_skip_preview_reslice(bool skip) { p->m_skip_preview_reslice = skip; }
+
 void Plater::remove(size_t obj_idx) { p->remove(obj_idx); }
 void Plater::reset(bool apply_presets_change) { p->reset(apply_presets_change); }
 void Plater::reset_with_confirm()
@@ -13351,9 +13379,8 @@ void Plater::reslice()
         return;
     }
 
-    // In case SLA gizmo is in editing mode, refuse to continue
-    // and notify user that he should leave it first.
-    if (get_view3D_canvas3D()->get_gizmos_manager().is_in_editing_mode(true))
+    // SLA manual support: prompt to apply/discard uncommitted edits before slicing.
+    if (!get_view3D_canvas3D()->get_gizmos_manager().resolve_sla_support_edits_before_slice())
         return;
     
     // Stop the running (and queued) UI jobs and only proceed if they actually
@@ -14268,13 +14295,13 @@ bool Plater::is_single_full_object_selection() const
 GLCanvas3D* Plater::canvas3D()
 {
     // BBS modify view3D->get_canvas3d() to current canvas
-    return p->get_current_canvas3D();
+    return p ? p->get_current_canvas3D() : nullptr;
 }
 
 const GLCanvas3D* Plater::canvas3D() const
 {
     // BBS modify view3D->get_canvas3d() to current canvas
-    return p->get_current_canvas3D();
+    return p ? p->get_current_canvas3D() : nullptr;
 }
 
 GLCanvas3D* Plater::get_view3D_canvas3D()
@@ -15427,7 +15454,7 @@ Mouse3DController& Plater::get_mouse3d_controller()
 
 NotificationManager * Plater::get_notification_manager()
 {
-    return p->notification_manager.get();
+    return p ? p->notification_manager.get() : nullptr;
 }
 
 DailyTipsWindow* Plater::get_dailytips() const
@@ -15438,7 +15465,7 @@ DailyTipsWindow* Plater::get_dailytips() const
 
 const NotificationManager * Plater::get_notification_manager() const
 {
-    return p->notification_manager.get();
+    return p ? p->notification_manager.get() : nullptr;
 }
 
 void Plater::init_notification_manager()

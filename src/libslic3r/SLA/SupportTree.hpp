@@ -73,12 +73,13 @@ struct SupportTreeConfig
     // The height of the pillar base cone in mm.
     double base_height_mm = 1.0;
 
-    // The default angle for connecting support sticks and junctions.
-    double bridge_slope = M_PI/4;
+    // Max slope for Top (pinhead) to Middle (pillar) bridges.
+    double top_middle_slope = M_PI/4;
 
-    // Overhang angle threshold in radians (measured from horizontal plane).
-    // Support heads will not be placed on surfaces whose angle from horizontal
-    // exceeds this value. PI/2 means all overhangs get support (no filtering).
+    // Max slope for Middle (pillar) to Middle cross-links.
+    double cross_slope = M_PI/4;
+
+    // support_critical_angle in radians (max surface-to-platform angle). 90 deg = all overhangs.
     double overhang_angle_threshold = M_PI / 2;
 
     // The max length of a bridge in mm

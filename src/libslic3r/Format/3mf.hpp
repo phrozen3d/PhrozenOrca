@@ -40,7 +40,9 @@ private:
     */
 
     enum {
-        support_points_format_version = 2
+        // v4: adds head_back_radius_mm (Lower Diameter / 2)
+        // v5: adds base_radius_mm (Support Bottom Diameter / 2) and support_bracing_angle_deg
+        support_points_format_version = 5
     };
     
     enum {

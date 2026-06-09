@@ -15239,6 +15239,17 @@ msgstr ""
 msgid "Pillar Diameter for support."
 msgstr ""
 
+msgid "Angle Between Top And Middle"
+msgstr "頂部與主柱夾角"
+
+msgid "Maximum slope angle for bridges connecting the support contact head to the main pillar."
+msgstr "接觸頭到主柱橋接的最大坡度角。"
+
+msgid "Cross Angle"
+msgstr "交叉角度"
+
+msgid "Maximum slope angle for cross-links between main support pillars."
+msgstr "主柱之間交叉連接的最大坡度角。"
 msgid "Support Bracing Angle"
 msgstr "支撐橫桿角度"
 

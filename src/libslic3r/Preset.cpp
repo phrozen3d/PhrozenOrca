@@ -979,6 +979,8 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "pinhead_width",
     "pillar_diameter",
     "support_bracing_angle",
+    "angle_between_top_and_middle",
+    "cross_angle",
     "support_bottom_diameter",
     "support_boss_height",
     //"object_elevation",
@@ -1000,6 +1002,8 @@ static std::vector<std::string> s_Preset_sla_print_options {
     // Support structure (standard)
     "support_tree_type",
     "support_head_front_diameter",           // GLGizmoSlaSupports line 995 — CRASH if missing
+    "support_head_back_diameter",
+    "support_segment_length",
     "support_head_penetration",
     "support_head_width",
     "support_pillar_diameter",               // GLGizmoSlaSupports line 751 — potential crash
@@ -1014,6 +1018,8 @@ static std::vector<std::string> s_Preset_sla_print_options {
     "support_base_height",
     "support_base_safety_distance",
     "support_critical_angle",
+    "angle_between_top_and_middle",
+    "cross_angle",
     "support_max_bridge_length",
     "support_max_pillar_link_distance",
     "support_object_elevation",

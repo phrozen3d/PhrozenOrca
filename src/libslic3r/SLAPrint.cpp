@@ -46,6 +46,22 @@ static sla::PillarConnectionMode map_pillar_connection_mode(int m)
     }
 }
 
+namespace {
+constexpr double SLA_SUPPORT_ANGLE_DEFAULT_DEG = 45.;
+
+// Prefer the new key; when it is still at default and legacy bracing differs, use legacy.
+double sla_support_angle_deg(const ConfigOptionFloat &primary,
+                             const ConfigOptionFloat &fallback)
+{
+    const double p = primary.getFloat();
+    const double f = fallback.getFloat();
+    if (std::abs(p - SLA_SUPPORT_ANGLE_DEFAULT_DEG) < EPSILON
+        && std::abs(f - SLA_SUPPORT_ANGLE_DEFAULT_DEG) > EPSILON)
+        return f;
+    return p;
+}
+} // namespace
+
 // Compile the argument for support creation from the static print config.
 // Step 3.1: Now dispatches Default vs Branching support parameters based on support_tree_type.
 // Aligned with PrusaSlicer SLAPrint.cpp make_support_cfg().
@@ -72,14 +88,17 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
     default: {
         scfg.head_front_radius_mm = 0.5 * c.support_head_front_diameter.getFloat();
         double pillar_r = 0.5 * c.support_pillar_diameter.getFloat();
-        scfg.head_back_radius_mm = pillar_r;
+        scfg.head_back_radius_mm = 0.5 * c.support_head_back_diameter.getFloat();
         scfg.head_fallback_radius_mm =
             0.01 * c.support_small_pillar_diameter_percent.getFloat() * pillar_r;
         scfg.head_penetration_mm = c.support_head_penetration.getFloat();
-        scfg.head_width_mm = c.support_head_width.getFloat();
+        scfg.head_width_mm       = c.support_segment_length.getFloat();
         scfg.object_elevation_mm = is_zero_elevation(c) ?
                                        0. : c.support_object_elevation.getFloat();
-        scfg.bridge_slope             = c.support_bracing_angle.getFloat() * PI / 180.0;
+        scfg.top_middle_slope = sla_support_angle_deg(
+            c.angle_between_top_and_middle, c.support_bracing_angle) * PI / 180.0;
+        scfg.cross_slope = sla_support_angle_deg(
+            c.cross_angle, c.support_bracing_angle) * PI / 180.0;
         scfg.overhang_angle_threshold = c.support_critical_angle.getFloat() * PI / 180.0;
         scfg.max_bridge_length_mm = c.support_max_bridge_length.getFloat();
         scfg.max_pillar_link_distance_mm = c.support_max_pillar_link_distance.getFloat();
@@ -104,14 +123,15 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
         // For now, parameters are loaded here; SupportTree.cpp falls back to Default algorithm.
         scfg.head_front_radius_mm = 0.5 * c.branchingsupport_head_front_diameter.getFloat();
         double pillar_r = 0.5 * c.branchingsupport_pillar_diameter.getFloat();
-        scfg.head_back_radius_mm = pillar_r;
+        scfg.head_back_radius_mm = 0.5 * c.branchingsupport_head_back_diameter.getFloat();
         scfg.head_fallback_radius_mm =
             0.01 * c.branchingsupport_small_pillar_diameter_percent.getFloat() * pillar_r;
         scfg.head_penetration_mm = c.branchingsupport_head_penetration.getFloat();
         scfg.head_width_mm = c.branchingsupport_head_width.getFloat();
         scfg.object_elevation_mm = is_zero_elevation(c) ?
                                        0. : c.branchingsupport_object_elevation.getFloat();
-        scfg.bridge_slope             = c.branchingsupport_bracing_angle.getFloat() * PI / 180.0;
+        scfg.top_middle_slope = c.branchingsupport_bracing_angle.getFloat() * PI / 180.0;
+        scfg.cross_slope      = scfg.top_middle_slope;
         scfg.overhang_angle_threshold = c.branchingsupport_critical_angle.getFloat() * PI / 180.0;
         scfg.max_bridge_length_mm = c.branchingsupport_max_bridge_length.getFloat();
         scfg.max_pillar_link_distance_mm = c.branchingsupport_max_pillar_link_distance.getFloat();
@@ -128,6 +148,13 @@ sla::SupportTreeConfig make_support_cfg(const SLAPrintObjectConfig& c)
         scfg.max_weight_on_model_support = c.branchingsupport_max_weight_on_model.getFloat();
         break;
     }
+    }
+
+    // Object elevation must fit the full pinhead (upper + segment + lower spheres minus contact depth).
+    if (!is_zero_elevation(c)) {
+        const double min_elv = scfg.head_fullwidth();
+        if (scfg.object_elevation_mm < min_elv)
+            scfg.object_elevation_mm = min_elv;
     }
 
     return scfg;
@@ -1074,12 +1101,16 @@ bool SLAPrintObject::invalidate_state_by_config_options(const std::vector<t_conf
             steps.emplace_back(slaposObjectSlice);
         } else if (
                opt_key == "support_points_density_relative"
-            || opt_key == "support_points_minimal_distance") {
+            || opt_key == "support_points_minimal_distance"
+            || opt_key == "support_critical_angle"
+            || opt_key == "branchingsupport_critical_angle") {
             steps.emplace_back(slaposSupportPoints);
         } else if (
                opt_key == "support_contact_type"
             || opt_key == "support_contact_diameter"
             || opt_key == "support_head_front_diameter"
+            || opt_key == "support_head_back_diameter"
+            || opt_key == "support_segment_length"
             || opt_key == "support_head_penetration"
             || opt_key == "support_head_width"
             || opt_key == "support_pillar_diameter"
@@ -1089,12 +1120,12 @@ bool SLAPrintObject::invalidate_state_by_config_options(const std::vector<t_conf
             || opt_key == "support_buildplate_only"
             || opt_key == "support_base_diameter"
             || opt_key == "support_base_height"
-            || opt_key == "support_critical_angle"
             || opt_key == "support_bracing_angle"
+            || opt_key == "angle_between_top_and_middle"
+            || opt_key == "cross_angle"
             || opt_key == "support_max_bridge_length"
             || opt_key == "support_max_pillar_link_distance"
             || opt_key == "support_base_safety_distance"
-            || opt_key == "branchingsupport_critical_angle"
             || opt_key == "branchingsupport_bracing_angle"
             ) {
             steps.emplace_back(slaposSupportTree);

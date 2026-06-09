@@ -188,13 +188,25 @@ indexed_triangle_set pinhead(double r_pin,
     // The calculated phi is an offset to the half circles needed to smooth
     // the transition from the circle to the robe geometry
 
-    auto &&s1 = sphere(r_back, make_portion(0, PI / 2 + phi), detail);
+    // Skip the south pole (rounded cap); close the back sphere with a flat disc at z = -r_back.
+    auto &&s1 = sphere(r_back, make_portion(0.5 * detail, PI / 2 + phi), detail);
     auto &&s2 = sphere(r_pin, make_portion(PI / 2 + phi, PI), detail);
 
     for (auto &p : s2.vertices) p.z() += h;
 
     its_merge(mesh, s1);
     its_merge(mesh, s2);
+
+    if (steps > 0) {
+        const size_t ring_base = 0;
+        const size_t center_i  = mesh.vertices.size();
+        mesh.vertices.emplace_back(0.f, 0.f, float(-r_back));
+        for (size_t i = 0; i < steps; ++i) {
+            const size_t i1 = ring_base + i;
+            const size_t i2 = ring_base + ((i + 1) % steps);
+            mesh.indices.emplace_back(center_i, i2, i1);
+        }
+    }
 
     for (size_t idx1 = s1.vertices.size() - steps, idx2 = s1.vertices.size();
          idx1 < s1.vertices.size() - 1; idx1++, idx2++) {
@@ -212,6 +224,71 @@ indexed_triangle_set pinhead(double r_pin,
 
     mesh.indices.emplace_back(i2s2, i2s1, i1s1);
     mesh.indices.emplace_back(i1s2, i2s2, i1s1);
+
+    return mesh;
+}
+
+indexed_triangle_set pinhead_preview(double r_pin,
+                                     double r_back,
+                                     double length,
+                                     size_t steps)
+{
+    assert(steps > 0);
+    assert(length >= 0.);
+    assert(r_back > 0.);
+    assert(r_pin > 0.);
+
+    indexed_triangle_set mesh;
+
+    // Manual-support editor preview: pin sphere + straight frustum to flat back disc.
+    const double detail = 2 * PI / steps;
+    const double h      = r_back + r_pin + length;
+    const double phi    = PI / 2. - std::acos((r_back - r_pin) / h);
+
+    indexed_triangle_set s2 = sphere(r_pin, make_portion(PI / 2 + phi, PI), detail);
+    for (auto &p : s2.vertices)
+        p.z() += float(h);
+
+    const double angle      = 2 * PI / std::floor(2 * PI / detail);
+    const size_t ring_steps = size_t(std::floor(2 * PI / angle));
+
+    for (size_t i = 0; i < ring_steps; ++i) {
+        const double a = i * angle;
+        mesh.vertices.emplace_back(
+            float(r_back * std::cos(a)),
+            float(r_back * std::sin(a)),
+            float(-r_back));
+    }
+
+    const size_t s2_offset = mesh.vertices.size();
+    its_merge(mesh, s2);
+
+    const size_t ring_base = 0;
+    const size_t center_i  = mesh.vertices.size();
+    mesh.vertices.emplace_back(0.f, 0.f, float(-r_back));
+    for (size_t i = 0; i < ring_steps; ++i) {
+        const size_t i1 = ring_base + i;
+        const size_t i2 = ring_base + ((i + 1) % ring_steps);
+        mesh.indices.emplace_back(center_i, i2, i1);
+    }
+
+    for (size_t i = 0; i + 1 < ring_steps; ++i) {
+        const coord_t i_bot1 = coord_t(ring_base + i);
+        const coord_t i_bot2 = coord_t(ring_base + i + 1);
+        const coord_t i_top1 = coord_t(s2_offset + i);
+        const coord_t i_top2 = coord_t(s2_offset + i + 1);
+
+        mesh.indices.emplace_back(i_bot1, i_bot2, i_top2);
+        mesh.indices.emplace_back(i_bot1, i_top2, i_top1);
+    }
+
+    const coord_t i_bot1 = coord_t(ring_base + ring_steps - 1);
+    const coord_t i_bot2 = coord_t(ring_base);
+    const coord_t i_top1 = coord_t(s2_offset + ring_steps - 1);
+    const coord_t i_top2 = coord_t(s2_offset);
+
+    mesh.indices.emplace_back(i_bot1, i_bot2, i_top2);
+    mesh.indices.emplace_back(i_bot1, i_top2, i_top1);
 
     return mesh;
 }

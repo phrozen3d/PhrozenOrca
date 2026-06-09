@@ -168,7 +168,7 @@ namespace GUI {
 
         void init_from(Geometry&& data);
         void init_from(const TriangleMesh& mesh);
-        void init_from(const indexed_triangle_set& its);
+        void init_from(const indexed_triangle_set& its, bool smooth_normals = false);
         void init_from(const Polygons& polygons, float z);
         bool init_from_file(const std::string& filename);
 

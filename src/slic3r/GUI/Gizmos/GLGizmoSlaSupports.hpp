@@ -81,6 +81,19 @@ public:
     // after a main-stack undo/redo while this gizmo is active but not in editing mode.
     void reload_cache();
 
+    // Sync dialog before Slice: Yes=apply, No=discard, Cancel=abort. Returns true to continue slicing.
+    bool resolve_unsaved_manual_edits_before_slice();
+
+    // Process → Support → Top: per-point params (not global preset while editing selection).
+    static bool is_sla_support_top_option(const std::string &opt_key);
+    static GLGizmoSlaSupports *active_instance();
+    bool        has_selected_support_points() const { return m_editing_mode && !m_selection_empty; }
+    bool        apply_process_top_option(const std::string &opt_key, const boost::any &value);
+    void        notify_process_tab_selection_changed();
+    DynamicPrintConfig support_top_config_from_selection() const;
+    // Push Process → Support → Top field values into the SLA print preset (template for new points).
+    static void flush_process_top_fields_to_config();
+
     bool wants_enter_leave_snapshots() const override { return true; }
     std::string get_gizmo_entering_text() const override { return "Entering SLA support points"; }
     std::string get_gizmo_leaving_text() const override { return "Leaving SLA support points"; }
@@ -105,9 +118,11 @@ private:
     bool m_editing_mode = false;            // Is editing mode active?
     float m_new_point_head_diameter;
     float m_new_point_pillar_diameter;
+    // Baseline for global support_base_diameter edits while manual editing is active.
+    // Used only to enable Apply/Discard correctly; not part of undo snapshot serialization.
+    float m_base_diameter_before_change = 0.f;
     sla::SupportWeight m_new_point_weight = sla::SupportWeight::Medium;
     CacheEntry m_point_before_drag;         // undo/redo - so we know what state was edited
-    float m_old_point_head_diameter = 0.;   // the same
     mutable std::vector<CacheEntry> m_editing_cache; // a support point and whether it is currently selected
     std::vector<sla::SupportPoint> m_normal_cache; // to restore after discarding changes or undo/redo
     ObjectID m_old_mo_id;
@@ -152,11 +167,16 @@ private:
     void switch_to_editing_mode();
     void disable_editing_mode();
     void ask_about_changes_call_after(std::function<void()> on_yes, std::function<void()> on_no);
+    void commit_manual_edits_keep_editing(bool reslice_preview);
+    void revert_manual_edits_keep_editing();
     void apply_weight_preset(sla::SupportWeight w);
+    void sync_new_point_params_from_config();
+    void freeze_process_top_into_point(sla::SupportPoint &sp) const;
 
     // Auto Support: Apply enabled when weight/density differ from last auto_generate (or no points yet).
     sla::SupportWeight m_applied_auto_weight = sla::SupportWeight::Medium;
     int                m_applied_auto_density = 100;
+    float              m_applied_auto_critical_angle = 0.f;
     bool               m_auto_baseline_initialized = false;
     bool auto_settings_need_apply(const ModelObject* mo) const;
     void mark_auto_settings_applied(const ModelObject* mo);

@@ -315,8 +315,8 @@ bool SupportTreeBuildsteps::interconnect(const Pillar &pillar,
 
     double pillar_dist = distance(Vec2d{slower(X), slower(Y)},
                                   Vec2d{supper(X), supper(Y)});
-    double bridge_distance = pillar_dist / std::cos(-m_cfg.bridge_slope);
-    double zstep = pillar_dist * std::tan(-m_cfg.bridge_slope);
+    double bridge_distance = pillar_dist / std::cos(-m_cfg.cross_slope);
+    double zstep = pillar_dist * std::tan(-m_cfg.cross_slope);
 
     if(pillar_dist < pillar.r_start + nextpillar.r_start ||
         pillar_dist > m_cfg.max_pillar_link_distance_mm) return false;
@@ -409,7 +409,7 @@ bool SupportTreeBuildsteps::connect_to_nearpillar(const Head &head,
     Vec3d bridgestart = headjp;
     Vec3d bridgeend = nearjp_u;
     double max_len = r * m_cfg.max_bridge_length_mm / m_cfg.head_back_radius_mm;
-    double max_slope = m_cfg.bridge_slope;
+    double max_slope = m_cfg.top_middle_slope;
     double zdiff = 0.0;
 
     // check the default situation if feasible for a bridge
@@ -478,6 +478,23 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
     long   pillar_id    = SupportTreeNode::ID_UNSET;
     bool   can_add_base = false, non_head = false;
 
+    // Per-point base override for manual points (captured at placement time).
+    double point_base_r = m_cfg.base_radius_mm;
+    // Per-point bracing angle override for manual points (captured at placement time).
+    double point_slope = m_cfg.top_middle_slope;
+    if (head_id >= 0) {
+        long sp_id = m_builder.head(head_id).id;
+        if (sp_id >= 0 && size_t(sp_id) < m_support_pts.size()) {
+            const auto &sp = m_support_pts[size_t(sp_id)];
+            if (sp.type == SupportPointType::manual_add) {
+                if (sp.base_radius_mm >= 0.f)
+                    point_base_r = double(sp.base_radius_mm);
+                if (sp.support_bracing_angle_deg >= 0.f)
+                    point_slope = double(sp.support_bracing_angle_deg) * PI / 180.0;
+            }
+        }
+    }
+
     double gndlvl = 0.; // The Z level where pedestals should be
     double jp_gnd = 0.; // The lowest Z where a junction center can be
     double gap_dist = 0.; // The gap distance between the model and the pad
@@ -485,11 +502,13 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 
     auto to_floor = [&gndlvl](const Vec3d &p) { return Vec3d{p.x(), p.y(), gndlvl}; };
 
-    auto eval_limits = [this, &radius, &can_add_base, &gndlvl, &gap_dist, &jp_gnd, &base_r_to_use]
+    auto eval_limits = [this, &radius, &can_add_base, &gndlvl, &gap_dist, &jp_gnd, &base_r_to_use, &point_base_r]
         (bool base_en = true)
     {
-        can_add_base  = base_en && radius >= m_cfg.head_back_radius_mm;
-        base_r_to_use = can_add_base ? m_cfg.base_radius_mm : 0.;
+        // Always use configured support_base_diameter for generated bases.
+        // Do not gate base creation by pillar radius.
+        can_add_base  = base_en && point_base_r > float(EPSILON);
+        base_r_to_use = can_add_base ? point_base_r : 0.;
         gndlvl        = m_builder.ground_level;
         if (!can_add_base) gndlvl -= m_mesh.ground_level_offset();
         jp_gnd   = gndlvl + (can_add_base ? 0. : m_cfg.head_back_radius_mm);
@@ -513,7 +532,13 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
         }
         if (is_manual) {
             can_add_base = true;
-            base_r_to_use = std::max(radius * 2.0, 1.0);
+            // Respect configured support bottom diameter for manually placed points.
+            // Previously this branch forced base radius to max(radius*2, 1.0), which
+            // made "Support Bottom Diameter" appear to do nothing in many cases.
+            if (m_cfg.base_radius_mm > float(EPSILON))
+                base_r_to_use = m_cfg.base_radius_mm;
+            else
+                base_r_to_use = std::max(radius * 2.0, 1.0);
             gndlvl       = m_builder.ground_level;
             jp_gnd       = gndlvl;
             gap_dist     = m_cfg.pillar_base_safety_distance_mm
@@ -526,7 +551,7 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
     if (allow_widening && radius < m_cfg.head_back_radius_mm && jp.z() - gndlvl > 20 * radius)
     {
         std::optional<DiffBridge> diffbr =
-            search_widening_path(jp, dir, radius, m_cfg.head_back_radius_mm);
+            search_widening_path(jp, dir, radius, m_cfg.head_back_radius_mm, point_slope);
 
         if (diffbr && diffbr->endp.z() > jp_gnd) {
             auto &br = m_builder.add_diffbridge(*diffbr);
@@ -546,14 +571,14 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
         // original sourcedir's azimuth but the polar angle is saturated to the
         // configured bridge slope.
         auto [polar, azimuth] = dir_to_spheric(dir);
-        polar = PI - m_cfg.bridge_slope;
+        polar = PI - point_slope;
         Vec3d d = spheric_to_dir(polar, azimuth).normalized();
         double t = bridge_mesh_distance(endp, d, radius);
         double tmax = std::min(m_cfg.max_bridge_length_mm, t);
         t = 0.;
 
         double zd = endp.z() - jp_gnd;
-        double tmax2 = zd / std::sqrt(1 - m_cfg.bridge_slope * m_cfg.bridge_slope);
+        double tmax2 = zd / std::sqrt(1 - point_slope * point_slope);
         tmax = std::min(tmax, tmax2);
 
         Vec3d nexp = endp;
@@ -564,22 +589,8 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
             nexp = endp + t * d;
         }
 
-        if (dlast < gap_dist && can_add_base) {
-            nexp         = endp;
-            t            = 0.;
-            can_add_base = false;
-            eval_limits(can_add_base);
-
-            zd = endp.z() - jp_gnd;
-            tmax2 = zd / std::sqrt(1 - m_cfg.bridge_slope * m_cfg.bridge_slope);
-            tmax = std::min(tmax, tmax2);
-
-            while (((dlast = std::sqrt(m_mesh.squared_distance(to_floor(nexp)))) < gap_dist ||
-                    !std::isinf(bridge_mesh_distance(nexp, DOWN, radius))) && t < tmax) {
-                t += radius;
-                nexp = endp + t * d;
-            }
-        }
+        // Keep base enabled for all generated supports. If a valid path cannot satisfy
+        // configured base clearance, the support is skipped instead of silently dropping base.
 
         // Could not find a path to avoid the pad gap
         if (dlast < gap_dist) return false;
@@ -611,7 +622,7 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 }
 
 std::optional<DiffBridge> SupportTreeBuildsteps::search_widening_path(
-    const Vec3d &jp, const Vec3d &dir, double radius, double new_radius)
+    const Vec3d &jp, const Vec3d &dir, double radius, double new_radius, double point_slope)
 {
     double w = radius + 2 * m_cfg.head_back_radius_mm;
     double stopval = w + jp.z() - m_builder.ground_level;
@@ -637,7 +648,7 @@ std::optional<DiffBridge> SupportTreeBuildsteps::search_widening_path(
         },
         initvals({polar, azimuth, w}), // start with what we have
         bounds({
-            {PI - m_cfg.bridge_slope, PI}, // Must not exceed the slope limit
+            {PI - point_slope, PI}, // Must not exceed the slope limit
             {-PI, PI}, // azimuth can be a full search
             {radius + m_cfg.head_back_radius_mm,
                   fallback_ratio * m_cfg.max_bridge_length_mm}
@@ -681,18 +692,21 @@ void SupportTreeBuildsteps::filter()
     std::vector<Head> heads; heads.reserve(m_support_pts.size());
     for (const SupportPoint &sp : m_support_pts) {
         m_thr();
+        const double contact_r = point_contact_sphere_radius_mm(sp, m_cfg.contact_sphere_radius_mm);
+        const double mesh_pen = point_head_penetration_mesh_mm(
+            sp, m_cfg.head_penetration_mm, double(sp.head_front_radius), contact_r);
         heads.emplace_back(
             std::nan(""),
             sp.head_front_radius,
             0.,
-            m_cfg.head_penetration_mm,
+            mesh_pen,
             Vec3d::Zero(),         // dir
             sp.pos.cast<double>() // displacement
             );
     }
 
-    std::function<void(unsigned, size_t, double)> filterfn;
-    filterfn = [this, &nmls, &heads, &filterfn](unsigned fidx, size_t i, double back_r) {
+    std::function<void(unsigned, size_t, double, double)> filterfn;
+    filterfn = [this, &nmls, &heads, &filterfn](unsigned fidx, size_t i, double back_r, double point_slope) {
         m_thr();
 
         auto n = nmls.row(Eigen::Index(i));
@@ -709,31 +723,36 @@ void SupportTreeBuildsteps::filter()
         // skip if the tilt is not sane
         if (polar < PI - m_cfg.normal_cutoff_angle) return;
 
-        // skip if the surface is not steep enough to need support
-        // overhang_angle_threshold measured from horizontal: 0=only flat, PI/2=all overhangs
-        // manual_add points bypass this filter — they represent explicit user intent
-        if (m_support_pts[fidx].type != SupportPointType::manual_add &&
-            polar < M_PI / 2.0 + m_cfg.overhang_angle_threshold) return;
+        // Max surface-to-platform angle (support_critical_angle); manual_add bypasses this filter.
+        if (m_support_pts[fidx].type != SupportPointType::manual_add) {
+            const double critical_deg =
+                m_cfg.overhang_angle_threshold * 180.0 / M_PI;
+            if (!sla_support_passes_overhang_filter(polar, critical_deg))
+                return;
+        }
 
         // We saturate the polar angle to 3pi/4
-        polar = std::max(polar, PI - m_cfg.bridge_slope);
+        polar = std::max(polar, PI - point_slope);
 
         // save the head (pinpoint) position
         Vec3d hp = m_points.row(fidx);
 
-        double lmin = m_cfg.head_width_mm, lmax = lmin;
+        const SupportPoint &sp = m_support_pts[fidx];
+        const double contact_r = point_contact_sphere_radius_mm(sp, m_cfg.contact_sphere_radius_mm);
+        const double penetration = point_head_penetration_mesh_mm(
+            sp, m_cfg.head_penetration_mm, double(sp.head_front_radius), contact_r);
+        double lmin = point_head_width_mm(sp, m_cfg.head_width_mm), lmax = lmin;
 
         if (back_r < m_cfg.head_back_radius_mm) {
             // Allow shorter head (e.g. half width) but keep full lmax so the optimizer
             // can still find a valid head length on non-ideal surfaces.
-            lmin = m_cfg.head_width_mm * 0.5, lmax = m_cfg.head_width_mm;
+            lmin = lmin * 0.5, lmax = lmin;
         }
 
-        // The distance needed for a pinhead to not collide with model.
-        double w = lmin + 2 * back_r + 2 * m_cfg.head_front_radius_mm -
-                   m_cfg.head_penetration_mm;
+        const double pin_r = double(sp.head_front_radius);
 
-        double pin_r = double(m_support_pts[fidx].head_front_radius);
+        // The distance needed for a pinhead to not collide with model.
+        double w = lmin + 2 * back_r + 2 * pin_r - penetration;
 
         // Reassemble the now corrected normal
         auto nn = spheric_to_dir(polar, azimuth).normalized();
@@ -762,7 +781,7 @@ void SupportTreeBuildsteps::filter()
                 },
                 initvals({polar, azimuth, (lmin + lmax) / 2.}), // start with what we have
                 bounds({
-                    {PI - m_cfg.bridge_slope, PI},    // Must not exceed the slope limit
+                    {PI - point_slope, PI},    // Must not exceed the slope limit
                     {-PI, PI}, // azimuth can be a full search
                     {lmin, lmax}
                 }));
@@ -779,9 +798,10 @@ void SupportTreeBuildsteps::filter()
         if (t.distance() > w && hp(Z) + w * nn(Z) >= m_builder.ground_level) {
             Head &h = heads[fidx];
             h.id = fidx; h.dir = nn; h.width_mm = lmin; h.r_back_mm = back_r;
-            h.r_contact_mm = m_cfg.contact_sphere_radius_mm;
+            h.penetration_mm = penetration;
+            h.r_contact_mm = point_contact_sphere_radius_mm(sp, m_cfg.contact_sphere_radius_mm);
         } else if (back_r > m_cfg.head_fallback_radius_mm) {
-            filterfn(fidx, i, m_cfg.head_fallback_radius_mm);
+            filterfn(fidx, i, m_cfg.head_fallback_radius_mm, point_slope);
         }
     };
 
@@ -789,10 +809,18 @@ void SupportTreeBuildsteps::filter()
                   [this, &filterfn, &filtered_indices] (size_t i) {
                       unsigned fidx = filtered_indices[i];
                       const auto &sp = m_support_pts[fidx];
-                      double back_r = (sp.type == sla::SupportPointType::manual_add && sp.pillar_radius > 0.f)
-                          ? double(sp.pillar_radius)
-                          : m_cfg.head_back_radius_mm;
-                      filterfn(fidx, i, back_r);
+                      double back_r = m_cfg.head_back_radius_mm;
+                      if (sp.type == sla::SupportPointType::manual_add) {
+                          if (sp.head_back_radius_mm >= 0.f)
+                              back_r = double(sp.head_back_radius_mm);
+                          else if (sp.pillar_radius > 0.f)
+                              back_r = double(sp.pillar_radius);
+                      }
+                      double point_slope = m_cfg.top_middle_slope;
+                      if (sp.type == sla::SupportPointType::manual_add &&
+                          sp.support_bracing_angle_deg >= 0.f)
+                          point_slope = double(sp.support_bracing_angle_deg) * PI / 180.0;
+                      filterfn(fidx, i, back_r, point_slope);
                   });
 
     for (size_t i = 0; i < heads.size(); ++i)
@@ -993,7 +1021,7 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
 
     // Don't widen the pillar for manual points with an explicit smaller radius.
     bool widen_ctg = !is_manual_small;
-    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, SupportTreeNode::ID_UNSET, widen_ctg))) {
+    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, head.id, widen_ctg))) {
         m_builder.add_bridge(head.id, endp);
         m_builder.add_junction(endp, head.r_back_mm);
     }
@@ -1010,6 +1038,14 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head)
     // direction out of the cavity.
     auto [polar, azimuth] = dir_to_spheric(head.dir);
 
+    double point_slope = m_cfg.top_middle_slope;
+    if (head.id >= 0 && size_t(head.id) < m_support_pts.size()) {
+        const auto &sp = m_support_pts[size_t(head.id)];
+        if (sp.type == sla::SupportPointType::manual_add &&
+            sp.support_bracing_angle_deg >= 0.f)
+            point_slope = double(sp.support_bracing_angle_deg) * PI / 180.0;
+    }
+
     Optimizer<AlgNLoptGenetic> solver(get_criteria(m_cfg).stop_score(1e6));
     solver.seed(0); // we want deterministic behavior
 
@@ -1022,7 +1058,7 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head)
             return bridge_mesh_distance(hjp, n, r_back);
         },
         initvals({polar, azimuth}),  // let's start with what we have
-        bounds({ {PI - m_cfg.bridge_slope, PI}, {-PI, PI} })
+        bounds({ {PI - point_slope, PI}, {-PI, PI} })
     );
 
     Vec3d bridgedir = spheric_to_dir(oresult.optimum).normalized();

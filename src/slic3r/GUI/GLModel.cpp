@@ -6,6 +6,7 @@
 #include "GLShader.hpp"
 
 #include "libslic3r/TriangleMesh.hpp"
+#include "libslic3r/NormalUtils.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/Polygon.hpp"
 #include "libslic3r/BuildVolume.hpp"
@@ -437,7 +438,7 @@ void GLModel::init_from(const TriangleMesh& mesh)
     init_from(mesh.its);
 }
 
-void GLModel::init_from(const indexed_triangle_set& its)
+void GLModel::init_from(const indexed_triangle_set& its, bool smooth_normals)
 {
     if (is_initialized()) {
         // call reset() if you want to reuse this model
@@ -455,13 +456,18 @@ void GLModel::init_from(const indexed_triangle_set& its)
     data.reserve_vertices(3 * its.indices.size());
     data.reserve_indices(3 * its.indices.size());
 
+    std::vector<Vec3f> vertex_normals;
+    if (smooth_normals)
+        vertex_normals = NormalUtils::create_normals(its);
+
     // vertices + indices
     unsigned int vertices_counter = 0;
     for (uint32_t i = 0; i < its.indices.size(); ++i) {
         const stl_triangle_vertex_indices face = its.indices[i];
         const stl_vertex                  vertex[3] = { its.vertices[face[0]], its.vertices[face[1]], its.vertices[face[2]] };
-        const stl_vertex                  n = face_normal_normalized(vertex);
+        const stl_vertex                  face_n = face_normal_normalized(vertex);
         for (size_t j = 0; j < 3; ++j) {
+            const stl_vertex &n = smooth_normals ? vertex_normals[face[j]].cast<float>() : face_n;
             data.add_vertex(vertex[j], n);
         }
         vertices_counter += 3;

@@ -380,6 +380,11 @@ public:
     void select_all();
     void deselect_all();
     void exit_gizmo();
+    // SLA manual support: sync prompt before Slice. Returns false if user cancels.
+    bool resolve_sla_support_edits_before_slice();
+    void action_slice_plate();
+    void action_slice_all();
+    void set_skip_preview_reslice(bool skip);
     void remove(size_t obj_idx);
     void reset(bool apply_presets_change = false);
     void reset_with_confirm();

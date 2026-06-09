@@ -6258,6 +6258,11 @@ void PrintConfigDef::init_sla_support_params(const std::string &prefix)
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(0.4));
 
+    def = this->add(prefix + "support_head_back_diameter", coFloat);
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
     def = this->add(prefix + "support_head_penetration", coFloat);
     //def->label = L("Head penetration");
     //def->category = L("Supports");
@@ -6376,7 +6381,7 @@ void PrintConfigDef::init_sla_support_params(const std::string &prefix)
     def = this->add(prefix + "support_critical_angle", coFloat);
     //def->label = L("Overhang threshold");
     //def->category = L("Supports");
-    //def->tooltip = L("Support will not be placed on surfaces whose slope angle (measured from the horizontal plane) is above this value. Set to 90° to support all overhangs.");
+    //def->tooltip = L("Maximum allowable angle between the model surface (tangential plane) and the platform for auto support generation.");
     //def->sidetext = L("°");
     def->min = 0;
     def->max = 90;
@@ -7456,24 +7461,44 @@ void PrintConfigDef::init_sla_params()
     def = this->add("support_head_front_diameter", coFloat);
     def->label    = L("Upper Diameter");
     def->category = L("Support");
-    def->tooltip  = L("Upper Diameter for support.");
+    def->tooltip  = L("Top diameter of the support cone between the contact and the pillar (minimum 0.01 mm).");
     def->sidetext = "mm";
-    def->min = 0;
-    def->mode = comAdvanced;
+    def->min = 0.01;
+    def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(0.4));
+
+    def = this->add("support_head_back_diameter", coFloat);
+    def->label    = L("Lower Diameter");
+    def->category = L("Support");
+    def->tooltip  = L("Bottom diameter of the support cone on the pillar side (minimum 0.01 mm).");
+    def->sidetext = "mm";
+    def->min = 0.01;
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def = this->add("support_segment_length", coFloat);
+    def->label    = L("Segment Length");
+    def->category = L("Support");
+    def->tooltip  = L("Length of the conical support segment between the upper and lower diameters (minimum 0.01 mm).");
+    def->sidetext = "mm";
+    def->min = 0.01;
+    def->max = 20;
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionFloat(3.0));
 
     def = this->add("support_head_penetration", coFloat);
     def->label    = L("Contact Depth");
     def->category = L("Support");
-    def->tooltip  = L("Contact Depth for support.");
+    def->tooltip  = L("How far the support contact penetrates into the model surface from the contact point. "
+                        "With Contact Type Sphere, depth is measured from where the sphere touches the model (minimum 0.01 mm).");
     def->sidetext = "mm";
-    def->mode = comAdvanced;
-    def->min = 0;
+    def->mode = comSimple;
+    def->min = 0.01;
     def->set_default_value(new ConfigOptionFloat(0.2));
 
     def                = this->add("support_contact_type", coEnum);
     def->label         = L("Contact Type");
-    def->category      = L("Supports");
+    def->category      = L("Support");
     def->tooltip       = L("Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at the tip to increase contact area.");
     def->enum_keys_map = &ConfigOptionEnum<ContactType>::get_enum_values();
     def->enum_values.push_back("none");
@@ -7484,8 +7509,8 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionEnum<ContactType>(spNone2));
 
     def           = this->add("support_contact_diameter", coFloat);
-    def->label    = L("Support Point Diameter");
-    def->category = L("Supports");
+    def->label    = L("Contact Diameter");
+    def->category = L("Support");
     def->tooltip  = L("Diameter of the contact sphere at the pinhead tip (used when Contact Type is Sphere).");
     def->sidetext = "mm";
     def->min      = 0;
@@ -7511,6 +7536,26 @@ void PrintConfigDef::init_sla_params()
     def->max = 15;
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(1.0));
+
+    def = this->add("angle_between_top_and_middle", coFloat);
+    def->label    = L("Angle Between Top And Middle");
+    def->category = L("Support");
+    def->tooltip  = L("Maximum slope angle for bridges connecting the support contact head to the main pillar.");
+    def->sidetext = "°";
+    def->min = 0;
+    def->max = 90;
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionFloat(45.));
+
+    def = this->add("cross_angle", coFloat);
+    def->label    = L("Cross Angle");
+    def->category = L("Support");
+    def->tooltip  = L("Maximum slope angle for cross-links between main support pillars.");
+    def->sidetext = "°";
+    def->min = 0;
+    def->max = 90;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(45.));
 
     def           = this->add("generate_support", coBool);
     def->label    = L("Generate support");
@@ -7606,7 +7651,7 @@ void PrintConfigDef::init_sla_params()
     def = this->add("support_critical_angle", coFloat);
     def->label    = L("Support Angle");
     def->category = L("Support");
-    def->tooltip  = L("Surfaces whose slope angle from horizontal is below this value will not receive supports. Set to 90 to support all overhangs.");
+    def->tooltip  = L("Maximum allowable angle between the model surface (tangential plane) and the platform for auto support generation.");
     def->sidetext = "°";
     def->min = 0;
     def->max = 90;
@@ -7614,19 +7659,19 @@ void PrintConfigDef::init_sla_params()
     def->set_default_value(new ConfigOptionFloat(0));
 
     def = this->add("support_max_bridge_length", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Max Bridge Length");
+    def->category = L("Support");
+    def->tooltip  = L("The max length of a bridge connecting support sticks and junctions.");
+    def->sidetext = "mm";
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(15.0));
 
     def = this->add("support_max_pillar_link_distance", coFloat);
-    //def->label = L("");
-    //def->category = L("");
-    //def->tooltip = L("");
-    //def->sidetext = "";
+    def->label    = L("Max Pillar Linking Distance");
+    def->category = L("Support");
+    def->tooltip  = L("The max distance of two pillars to get cross-linked with each other.");
+    def->sidetext = "mm";
     def->min = 0;   // 0 means no linking
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(10.0));
@@ -7860,6 +7905,8 @@ void PrintConfigDef::init_sla_params()
     // PhrozenOrca lacks ConfigOptionFloatNullable, using regular types with -1 = unset)
     for (const char* opt_key : {
         "support_head_front_diameter", "branchingsupport_head_front_diameter",
+        "support_head_back_diameter", "branchingsupport_head_back_diameter",
+        "support_segment_length",
         "support_head_penetration", "branchingsupport_head_penetration",
         "support_head_width", "branchingsupport_head_width",
         "support_pillar_diameter", "branchingsupport_pillar_diameter",

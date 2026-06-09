@@ -583,6 +583,7 @@ private:
     // Screen is only refreshed from the OnIdle handler if it is dirty.
     bool m_dirty;
     bool m_initialized;
+    bool m_in_destructor{ false };
     //BBS: add flag to controll rendering
     bool m_render_preview{ true };
     bool m_enable_render { true };

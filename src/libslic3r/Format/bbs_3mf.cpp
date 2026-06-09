@@ -2946,6 +2946,70 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                         sla_support_points.emplace_back(data);
                     }
                 }
+                if (version == 2) {
+                    for (unsigned int i = 0; i + 5 < object_data_points.size(); i += 6) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i + 0].c_str())),
+                                float(std::atof(object_data_points[i + 1].c_str())),
+                                float(std::atof(object_data_points[i + 2].c_str())),
+                                float(std::atof(object_data_points[i + 3].c_str())),
+                                float(std::atof(object_data_points[i + 4].c_str()));
+                        sla_support_points.emplace_back(data);
+                        sla_support_points.back().pillar_radius = float(std::atof(object_data_points[i + 5].c_str()));
+                    }
+                }
+                if (version == 3) {
+                    for (unsigned int i = 0; i + 8 < object_data_points.size(); i += 9) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i + 0].c_str())),
+                                float(std::atof(object_data_points[i + 1].c_str())),
+                                float(std::atof(object_data_points[i + 2].c_str())),
+                                float(std::atof(object_data_points[i + 3].c_str())),
+                                float(std::atof(object_data_points[i + 4].c_str()));
+                        sla_support_points.emplace_back(data);
+                        sla::SupportPoint &sp = sla_support_points.back();
+                        sp.pillar_radius         = float(std::atof(object_data_points[i + 5].c_str()));
+                        sp.head_penetration_mm   = float(std::atof(object_data_points[i + 6].c_str()));
+                        sp.head_width_mm         = float(std::atof(object_data_points[i + 7].c_str()));
+                        sp.contact_sphere_radius = float(std::atof(object_data_points[i + 8].c_str()));
+                    }
+                }
+                if (version == 4) {
+                    for (unsigned int i = 0; i + 9 < object_data_points.size(); i += 10) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i + 0].c_str())),
+                                float(std::atof(object_data_points[i + 1].c_str())),
+                                float(std::atof(object_data_points[i + 2].c_str())),
+                                float(std::atof(object_data_points[i + 3].c_str())),
+                                float(std::atof(object_data_points[i + 4].c_str()));
+                        sla_support_points.emplace_back(data);
+                        sla::SupportPoint &sp = sla_support_points.back();
+                        sp.pillar_radius         = float(std::atof(object_data_points[i + 5].c_str()));
+                        sp.head_penetration_mm   = float(std::atof(object_data_points[i + 6].c_str()));
+                        sp.head_width_mm         = float(std::atof(object_data_points[i + 7].c_str()));
+                        sp.head_back_radius_mm   = float(std::atof(object_data_points[i + 8].c_str()));
+                        sp.contact_sphere_radius = float(std::atof(object_data_points[i + 9].c_str()));
+                    }
+                }
+                if (version >= 5) {
+                    for (unsigned int i = 0; i + 11 < object_data_points.size(); i += 12) {
+                        Eigen::Matrix<float, 5, 1, Eigen::DontAlign> data;
+                        data << float(std::atof(object_data_points[i + 0].c_str())),
+                                float(std::atof(object_data_points[i + 1].c_str())),
+                                float(std::atof(object_data_points[i + 2].c_str())),
+                                float(std::atof(object_data_points[i + 3].c_str())),
+                                float(std::atof(object_data_points[i + 4].c_str()));
+                        sla_support_points.emplace_back(data);
+                        sla::SupportPoint &sp = sla_support_points.back();
+                        sp.pillar_radius            = float(std::atof(object_data_points[i + 5].c_str()));
+                        sp.head_penetration_mm      = float(std::atof(object_data_points[i + 6].c_str()));
+                        sp.head_width_mm            = float(std::atof(object_data_points[i + 7].c_str()));
+                        sp.head_back_radius_mm      = float(std::atof(object_data_points[i + 8].c_str()));
+                        sp.contact_sphere_radius    = float(std::atof(object_data_points[i + 9].c_str()));
+                        sp.base_radius_mm           = float(std::atof(object_data_points[i + 10].c_str()));
+                        sp.support_bracing_angle_deg = float(std::atof(object_data_points[i + 11].c_str()));
+                    }
+                }
 
                 if (!sla_support_points.empty())
                     m_sla_support_points.insert({ object_id, sla_support_points });
@@ -7334,9 +7398,12 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 for (size_t i = 0; i < sla_support_points.size(); ++i) {
                     float type_f = (sla_support_points[i].type == sla::SupportPointType::island)     ? 1.0f :
                                    (sla_support_points[i].type == sla::SupportPointType::manual_add) ? 2.0f : 3.0f;
-                    sprintf(buffer, (i==0 ? "%f %f %f %f %f" : " %f %f %f %f %f"),
+                    sprintf(buffer, (i==0 ? "%f %f %f %f %f %f %f %f %f %f %f %f" : " %f %f %f %f %f %f %f %f %f %f %f %f"),
                             sla_support_points[i].pos(0), sla_support_points[i].pos(1), sla_support_points[i].pos(2),
-                            sla_support_points[i].head_front_radius, type_f);
+                            sla_support_points[i].head_front_radius, type_f, sla_support_points[i].pillar_radius,
+                            sla_support_points[i].head_penetration_mm, sla_support_points[i].head_width_mm,
+                            sla_support_points[i].head_back_radius_mm, sla_support_points[i].contact_sphere_radius,
+                            sla_support_points[i].base_radius_mm, sla_support_points[i].support_bracing_angle_deg);
                     out += buffer;
                 }
                 out += "\n";

@@ -45,6 +45,9 @@
 #include "MsgDialog.hpp"
 #include "SupportPreviewHelpDialog.hpp"
 #include "LayerPrintTimeCompensationDialog.hpp"
+#include "slic3r/GUI/GLCanvas3D.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmosManager.hpp"
+#include "slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp"
 #include "Notebook.hpp"
 
 #include "Widgets/Label.hpp"
@@ -1211,6 +1214,13 @@ void Tab::update_dirty()
 {
     if (m_postpone_update_ui)
         return;
+
+    if (m_type == Preset::TYPE_SLA_PRINT) {
+        if (const auto *sla = dynamic_cast<const TabSLAPrint *>(this)) {
+            if (sla->should_skip_preset_ui_refresh())
+                return;
+        }
+    }
 
     if (m_presets_choice) {
         m_presets_choice->update_dirty();
@@ -6680,8 +6690,18 @@ ConfigOptionsGroupShp Page::new_optgroup(const wxString &title, const wxString &
         //! Using of CallAfter is redundant.
         //! And in some cases it causes update() function to be recalled again
 //!        wxTheApp->CallAfter([this, opt_key, value]() {
-            static_cast<Tab*>(tab)->update_dirty();
-            static_cast<Tab*>(tab)->on_value_change(opt_key, value);
+            Tab *const t = static_cast<Tab *>(tab);
+            if (t->type() == Preset::TYPE_SLA_PRINT &&
+                GLGizmoSlaSupports::is_sla_support_top_option(opt_key)) {
+                if (GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance()) {
+                    if (gizmo->has_selected_support_points())
+                        return;
+                }
+                static_cast<TabSLAPrint *>(t)->on_value_change(opt_key, value);
+                return;
+            }
+            t->update_dirty();
+            t->on_value_change(opt_key, value);
 //!        });
     };
 
@@ -7127,13 +7147,14 @@ void TabSLAPrint::build()
     optgroup = page->new_optgroup(L("Top"), L"PhrozenImages_Resin/param_top", 15);
     optgroup->append_single_option_line("support_contact_type", "123");
     optgroup->append_single_option_line("support_contact_diameter", "123");
-    optgroup->append_single_option_line("support_head_front_diameter", "123");
     optgroup->append_single_option_line("support_head_penetration", "123");
-    optgroup->append_single_option_line("support_head_width", "123");
+    optgroup->append_single_option_line("support_head_front_diameter", "123");
+    optgroup->append_single_option_line("support_head_back_diameter", "123");
+    optgroup->append_single_option_line("support_segment_length", "123");
 
     optgroup = page->new_optgroup(L("Main"), L"PhrozenImages_Resin/param_main", 15);
     optgroup->append_single_option_line("support_pillar_diameter", "123");
-    optgroup->append_single_option_line("support_bracing_angle", "123");
+    optgroup->append_single_option_line("angle_between_top_and_middle", "123");
 
     optgroup = page->new_optgroup(L("Bottom"), L"PhrozenImages_Resin/param_bottom", 15);
     optgroup->append_single_option_line("support_base_diameter", "123");
@@ -7148,15 +7169,28 @@ void TabSLAPrint::build()
 
     optgroup = page->new_optgroup(L("Bridge"), L"PhrozenImages_Resin/toolbar_support", 15);
     optgroup->append_single_option_line("support_critical_angle", "123");
-    optgroup->append_single_option_line("max_bridge_length_sla", "123");
-    optgroup->append_single_option_line("max_pillar_linking_distance", "123");
+    optgroup->append_single_option_line("cross_angle", "123");
+    optgroup->append_single_option_line("support_max_bridge_length", "123");
+    optgroup->append_single_option_line("support_max_pillar_link_distance", "123");
 
 #pragma endregion
+}
+
+bool TabSLAPrint::should_skip_preset_ui_refresh() const
+{
+    if (m_support_point_top_field_update)
+        return true;
+    if (GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance())
+        return gizmo->has_selected_support_points();
+    return false;
 }
 
 // Reload current config (aka presets->edited_preset->config) into the UI fields.
 void TabSLAPrint::reload_config()
 {
+    if (should_skip_preset_ui_refresh())
+        return;
+
     this->compatible_widget_reload(m_compatible_printers);
     if (m_config->has("bottom_retract_distance") && m_config->has("retract_distance"))
         ConfigManipulation::sync_sla_retract_primary_distances(m_config);
@@ -7167,8 +7201,106 @@ void TabSLAPrint::reload_config()
     }
 }
 
+static GLGizmoSlaSupports *get_active_sla_supports_gizmo()
+{
+    Plater *plater = wxGetApp().plater();
+    if (!plater)
+        return nullptr;
+    GLCanvas3D *canvas = plater->get_view3D_canvas3D();
+    if (!canvas)
+        return nullptr;
+    return dynamic_cast<GLGizmoSlaSupports *>(canvas->get_gizmos_manager().get_gizmo(GLGizmosManager::EType::SlaSupports));
+}
+
+void TabSLAPrint::apply_support_point_top_fields(const DynamicPrintConfig *point_cfg)
+{
+    if (!wxGetApp().checked_tab(this) || !m_config)
+        return;
+
+    const DynamicPrintConfig &src = point_cfg ? *point_cfg : *m_config;
+    static const char *keys[] = {
+        "support_contact_type",
+        "support_contact_diameter",
+        "support_head_penetration",
+        "support_head_front_diameter",
+        "support_head_back_diameter",
+        "support_pillar_diameter",
+        "support_segment_length",
+    };
+
+    try {
+        for (const char *key : keys) {
+            if (point_cfg && !point_cfg->has(key))
+                continue;
+            Page *page = nullptr;
+            if (!get_field(key, &page) || !page)
+                continue;
+            for (const ConfigOptionsGroupShp &og : page->m_optgroups) {
+                if (!og || !og->get_field(key))
+                    continue;
+                boost::any val = og->get_config_value(src, key);
+                if (!val.empty())
+                    og->set_value(key, val, false);
+                break;
+            }
+        }
+    } catch (const std::exception &ex) {
+        BOOST_LOG_TRIVIAL(error) << "TabSLAPrint::apply_support_point_top_fields: " << ex.what();
+    }
+}
+
+void TabSLAPrint::begin_support_point_top_field_display(const DynamicPrintConfig &point_cfg)
+{
+    m_support_point_top_field_update = true;
+    apply_support_point_top_fields(&point_cfg);
+    // SpinCtrl may post change events after set_value returns; keep the guard until idle.
+    wxTheApp->CallAfter([this]() {
+        if (wxGetApp().checked_tab(this))
+            m_support_point_top_field_update = false;
+    });
+}
+
+void TabSLAPrint::end_support_point_top_field_display()
+{
+    if (!m_support_point_top_field_update)
+        return;
+    m_support_point_top_field_update = false;
+    // Restore preset values in the Top fields only; avoid reload_config() here because
+    // it can rebuild controls during gizmo mouse handling and crash.
+    apply_support_point_top_fields(nullptr);
+}
+
 void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& value)
 {
+    // SpinCtrl/TextCtrl may post change events after set_value(..., change_event=false) returns;
+    // ignore those while refreshing Top fields from the selected support point.
+    if (m_support_point_top_field_update)
+        return;
+
+    if (GLGizmoSlaSupports::is_sla_support_top_option(opt_key)) {
+        if (GLGizmoSlaSupports *gizmo = get_active_sla_supports_gizmo()) {
+            if (gizmo->has_selected_support_points()) {
+                gizmo->apply_process_top_option(opt_key, value);
+                begin_support_point_top_field_display(gizmo->support_top_config_from_selection());
+                if (GLCanvas3D *canvas = wxGetApp().plater()->get_view3D_canvas3D())
+                    canvas->set_as_dirty();
+                return;
+            } else {
+                // No selected point: Top edits define the template for the next manual support point.
+                GLGizmoSlaSupports::flush_process_top_fields_to_config();
+                if (GLCanvas3D *canvas = wxGetApp().plater()->get_view3D_canvas3D())
+                    canvas->set_as_dirty();
+                return;
+            }
+        } else {
+            // SlaSupports gizmo inactive: still a Top template edit — do not run Tab::update().
+            GLGizmoSlaSupports::flush_process_top_fields_to_config();
+            if (GLCanvas3D *canvas = wxGetApp().plater() ? wxGetApp().plater()->get_view3D_canvas3D() : nullptr)
+                canvas->set_as_dirty();
+            return;
+        }
+    }
+
     int prev_scroll_x = 0;
     int prev_scroll_y = 0;
     const bool preserve_scroll = (opt_key == "print_time_compensation" && m_page_view);
@@ -7265,6 +7397,9 @@ void TabSLAPrint::toggle_options()
 void TabSLAPrint::update()
 {
     if (wxGetApp().get_ui_printer_technology() == ptFFF)
+        return;
+
+    if (should_skip_preset_ui_refresh())
         return;
 
     m_update_cnt++;

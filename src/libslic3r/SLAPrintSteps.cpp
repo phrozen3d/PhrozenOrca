@@ -927,14 +927,12 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
             layer_pts, po.m_supportdata->emesh, allowed_move,
             [this]() { throw_if_canceled(); });
 
-        // Phase 3: Filter support points by overhang angle threshold,
-        // matching the same condition used in SupportTreeBuildsteps::filterfn.
-        // This keeps UI-displayed points consistent with actually generated supports.
+        // Phase 3: Filter support points by support_critical_angle so Auto Support Apply
+        // shows the same points that support-tree generation will use.
         {
-            const double critical_angle = cfg.support_critical_angle.getFloat() * PI / 180.0;
-            if (critical_angle < M_PI / 2.0) {
-                sla::SupportPoints &pts = po.m_supportdata->pts;
-                // Build PointSet (Eigen matrix) for normals calculation.
+            const double critical_angle_deg = cfg.support_critical_angle.getFloat();
+            sla::SupportPoints &pts = po.m_supportdata->pts;
+            if (!pts.empty()) {
                 sla::PointSet point_matrix(pts.size(), 3);
                 for (size_t i = 0; i < pts.size(); ++i)
                     point_matrix.row(Eigen::Index(i)) = pts[i].pos.cast<double>();
@@ -948,7 +946,8 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
                 for (size_t i = 0; i < pts.size(); ++i) {
                     auto n = nmls.row(Eigen::Index(i));
                     auto [polar, azimuth] = sla::dir_to_spheric(n);
-                    if (polar >= M_PI / 2.0 + critical_angle)
+                    (void) azimuth;
+                    if (sla::sla_support_passes_overhang_filter(polar, critical_angle_deg))
                         filtered.push_back(pts[i]);
                 }
                 pts = std::move(filtered);

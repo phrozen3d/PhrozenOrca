@@ -85,6 +85,8 @@ public:
     void    toggle_print_sla_options(DynamicPrintConfig* config);
     /// Primary retract distance = lift (1st+2nd) − retract 2nd; clamp to lift sum if ≤0 (matches Phrozen PRZ).
     static void sync_sla_retract_primary_distances(DynamicPrintConfig* config);
+    /// Keep object elevation at least as tall as the support pinhead (upper + segment + lower).
+    static void sync_support_object_elevation(DynamicPrintConfig* config);
 
     bool    is_initialized_support_material_overhangs_queried() { return m_is_initialized_support_material_overhangs_queried; }
     void    initialize_support_material_overhangs_queried(bool queried)

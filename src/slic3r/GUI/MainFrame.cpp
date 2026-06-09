@@ -828,7 +828,19 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
             }
             return;}
 #endif
-        if (evt.CmdDown() && evt.GetKeyCode() == 'R') { if (m_slice_enable) { wxGetApp().plater()->update(true, true); wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_PLATE)); this->m_tabpanel->SetSelection(tpPreview); } return; }
+        if (evt.CmdDown() && evt.GetKeyCode() == 'R') {
+            if (m_slice_enable) {
+                Plater *plater = wxGetApp().plater();
+                if (!plater->resolve_sla_support_edits_before_slice())
+                    return;
+                plater->exit_gizmo();
+                plater->update(true, true);
+                plater->action_slice_plate();
+                plater->set_skip_preview_reslice(true);
+                this->m_tabpanel->SetSelection(tpPreview);
+            }
+            return;
+        }
         if (evt.CmdDown() && evt.ShiftDown() && evt.GetKeyCode() == 'G') {
             m_plater->apply_background_progress();
             m_print_enable = get_enable_print_status();
@@ -1990,14 +2002,16 @@ wxBoxSizer* MainFrame::create_side_tools()
 
     m_slice_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& event)
         {
-            //this->m_plater->select_view_3D("Preview");
+            if (!m_plater->resolve_sla_support_edits_before_slice())
+                return;
             m_plater->exit_gizmo();
             m_plater->update(true, true);
             if (m_slice_select == eSliceAll)
-                wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_ALL));
+                m_plater->action_slice_all();
             else
-                wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_SLICE_PLATE));
+                m_plater->action_slice_plate();
 
+            m_plater->set_skip_preview_reslice(true);
             this->m_tabpanel->SetSelection(tpPreview);
         });
 

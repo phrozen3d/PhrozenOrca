@@ -231,7 +231,7 @@ orientation::OrientMesh OrientJob::get_orient_mesh(ModelInstance* instance)
     om.mesh = obj->mesh(); // don't know the difference to obj->raw_mesh(). Both seem OK
     if (wxGetApp().plater()->printer_technology() == ptSLA) {
         // SLA: support_critical_angle is coFloat, stored in degrees — same unit as overhang_angle
-        if (obj->config.has("support_critical_angle"))
+        if (obj->config.has("support_critical_angle")) 
             om.overhang_angle = obj->config.opt_float("support_critical_angle");
         else {
             const Slic3r::DynamicPrintConfig& config = wxGetApp().preset_bundle->full_config();

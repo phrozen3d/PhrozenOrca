@@ -33,6 +33,10 @@ enum class SupportWeight {
     Heavy  = 2,
 };
 
+// Sentinel: fields < 0 mean "use global SLA print preset" (auto-generated points).
+// Manual points store explicit values at placement time (mode 2 workflow).
+static constexpr float SUPPORT_POINT_USE_PRESET = -1.f;
+
 struct SupportPoint
 {
     Vec3f            pos;
@@ -40,6 +44,12 @@ struct SupportPoint
     SupportPointType type;
     SupportWeight    weight = SupportWeight::Medium;
     float            pillar_radius = 0.f; // 0 = use global config (auto points); >0 = per-point override (manual points)
+    float            base_radius_mm        = SUPPORT_POINT_USE_PRESET; // Support Bottom Diameter / 2
+    float            support_bracing_angle_deg = SUPPORT_POINT_USE_PRESET; // Support Bracing Angle (degrees)
+    float            head_penetration_mm    = SUPPORT_POINT_USE_PRESET; // Contact depth
+    float            head_width_mm          = SUPPORT_POINT_USE_PRESET; // Head connection length
+    float            head_back_radius_mm    = SUPPORT_POINT_USE_PRESET; // Lower diameter / 2
+    float            contact_sphere_radius  = SUPPORT_POINT_USE_PRESET; // 0 = no sphere; >0 = sphere radius; <0 = use preset
 
     SupportPoint()
         : pos(Vec3f::Zero()), head_front_radius(0.f), type(SupportPointType::manual_add)
@@ -86,16 +96,72 @@ struct SupportPoint
         float rdiff = std::abs(head_front_radius - sp.head_front_radius);
         float prdiff = std::abs(pillar_radius - sp.pillar_radius);
         return (pos == sp.pos) && rdiff < float(EPSILON) &&
-               type == sp.type && weight == sp.weight && prdiff < float(EPSILON);
+               type == sp.type && weight == sp.weight && prdiff < float(EPSILON) &&
+               std::abs(base_radius_mm - sp.base_radius_mm) < float(EPSILON) &&
+               std::abs(support_bracing_angle_deg - sp.support_bracing_angle_deg) < float(EPSILON) &&
+               std::abs(head_penetration_mm - sp.head_penetration_mm) < float(EPSILON) &&
+               std::abs(head_width_mm - sp.head_width_mm) < float(EPSILON) &&
+               std::abs(head_back_radius_mm - sp.head_back_radius_mm) < float(EPSILON) &&
+               std::abs(contact_sphere_radius - sp.contact_sphere_radius) < float(EPSILON);
     }
 
     bool operator!=(const SupportPoint &sp) const { return !(sp == (*this)); }
 
+    bool has_explicit_geometry() const
+    {
+        return type == SupportPointType::manual_add &&
+               (head_penetration_mm >= 0.f || head_width_mm >= 0.f ||
+                contact_sphere_radius >= 0.f || pillar_radius > 0.f || base_radius_mm >= 0.f);
+    }
+
     template<class Archive> void serialize(Archive &ar)
     {
-        ar(pos, head_front_radius, type, weight, pillar_radius);
+        ar(pos, head_front_radius, type, weight, pillar_radius, base_radius_mm, support_bracing_angle_deg,
+           head_penetration_mm, head_width_mm, head_back_radius_mm, contact_sphere_radius);
     }
 };
+
+// Contact depth on the point / preset: distance from the model contact point (sp.pos) along
+// -normal into the model (sphere touch point when sphere mode, pin contact when none).
+inline float point_contact_front_depth_mm(const SupportPoint &sp, double preset_mm)
+{
+    return sp.head_penetration_mm >= 0.f ? sp.head_penetration_mm : float(preset_mm);
+}
+
+inline float point_head_penetration_mm(const SupportPoint &sp, double preset_mm)
+{
+    return point_contact_front_depth_mm(sp, preset_mm);
+}
+
+// Head::penetration_mm for meshing: maps front depth to pinhead coordinates when a contact sphere is used.
+inline float point_head_penetration_mesh_mm(const SupportPoint &sp, double preset_mm,
+                                            double pin_r_mm, double contact_r_mm)
+{
+    const float front = point_contact_front_depth_mm(sp, preset_mm);
+    if (contact_r_mm <= EPSILON)
+        return front;
+    return front + float(pin_r_mm) - float(contact_r_mm);
+}
+
+inline float point_head_width_mm(const SupportPoint &sp, double preset_mm)
+{
+    return sp.head_width_mm >= 0.f ? sp.head_width_mm : float(preset_mm);
+}
+
+inline float point_contact_sphere_radius_mm(const SupportPoint &sp, double preset_mm)
+{
+    return sp.contact_sphere_radius >= 0.f ? sp.contact_sphere_radius : float(preset_mm);
+}
+
+inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
+{
+    return sp.head_back_radius_mm >= 0.f ? sp.head_back_radius_mm : float(preset_mm);
+}
+
+inline bool point_uses_contact_sphere(const SupportPoint &sp, bool preset_sphere)
+{
+    return sp.contact_sphere_radius >= 0.f ? sp.contact_sphere_radius > float(EPSILON) : preset_sphere;
+}
 
 using SupportPoints = std::vector<SupportPoint>;
 

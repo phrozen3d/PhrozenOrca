@@ -278,6 +278,8 @@ public:
     bool wants_reslice_supports_on_undo() const;
 
     bool is_in_editing_mode(bool error_notification = false) const;
+    // SLA manual support: prompt to apply/discard uncommitted edits before Slice.
+    bool resolve_sla_support_edits_before_slice();
     bool is_hiding_instances() const;
 
     void on_change_color_mode(bool is_dark);

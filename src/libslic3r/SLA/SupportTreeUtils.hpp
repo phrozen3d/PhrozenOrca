@@ -273,10 +273,11 @@ bool optimize_pinhead_placement(Ex                     policy,
 
     if (polar < PI - m.cfg.normal_cutoff_angle) return false;
 
-    // skip if the surface is not steep enough to need support
-    if (polar < M_PI / 2.0 + m.cfg.overhang_angle_threshold) return false;
+    if (!sla_support_passes_overhang_filter(
+            polar, m.cfg.overhang_angle_threshold * 180.0 / M_PI))
+        return false;
 
-    polar = std::max(polar, PI - m.cfg.bridge_slope);
+    polar = std::max(polar, PI - m.cfg.top_middle_slope);
 
     Vec3d  hp   = head.pos;
     double lmin = m.cfg.head_width_mm, lmax = lmin;
@@ -311,7 +312,7 @@ bool optimize_pinhead_placement(Ex                     policy,
                     .distance();
             },
             initvals({polar, azimuth, (lmin + lmax) / 2.}),
-            bounds({{PI - m.cfg.bridge_slope, PI},
+            bounds({{PI - m.cfg.top_middle_slope, PI},
                     {-PI, PI},
                     {lmin, lmax}}));
 
@@ -527,11 +528,11 @@ GroundConnection deepsearch_ground_connection(
     };
 
     auto [plr_init, azm_init] = dir_to_spheric(init_dir);
-    plr_init = std::max(plr_init, PI - sm.cfg.bridge_slope);
+    plr_init = std::max(plr_init, PI - sm.cfg.top_middle_slope);
 
     auto bound_constraints =
         bounds({
-            {PI - sm.cfg.bridge_slope, PI},
+            {PI - sm.cfg.top_middle_slope, PI},
             {-PI, PI},
             {0., sm.cfg.max_bridge_length_mm}
         });
@@ -642,7 +643,7 @@ bool optimize_anchor_placement(Ex                     policy,
 
     auto [polar, azimuth] = dir_to_spheric(n);
 
-    polar = std::min(polar, sm.cfg.bridge_slope);
+    polar = std::min(polar, sm.cfg.top_middle_slope);
 
     double lmin = 0;
     double lmax = std::min(sm.cfg.head_width_mm,
@@ -664,7 +665,7 @@ bool optimize_anchor_placement(Ex                     policy,
             return pinhead_mesh_hit(policy, sm.emesh, anchor, sd).distance();
         },
         initvals({polar, azimuth, (lmin + lmax) / 2.}),
-        bounds({{0., sm.cfg.bridge_slope},
+        bounds({{0., sm.cfg.top_middle_slope},
                 {-PI, PI},
                 {lmin, lmax}}));
 

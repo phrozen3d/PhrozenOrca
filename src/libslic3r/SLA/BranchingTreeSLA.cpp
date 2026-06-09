@@ -410,7 +410,7 @@ void create_branching_tree(SupportTreeBuilder &builder, const SupportableMesh &s
     auto props = branchingtree::Properties{}
                      .bed_shape(bedpolys)
                      .ground_level(sla::ground_level(sm))
-                     .max_slope(sm.cfg.bridge_slope)
+                     .max_slope(sm.cfg.top_middle_slope)
                      .max_branch_length(sm.cfg.max_bridge_length_mm);
 
     auto meshpts = sm.cfg.ground_facing_only ?

@@ -1182,6 +1182,7 @@ GLCanvas3D::GLCanvas3D(wxGLCanvas* canvas, Bed3D &bed)
 
 GLCanvas3D::~GLCanvas3D()
 {
+    m_in_destructor = true;
     reset_volumes();
 
     m_sel_plate_toolbar.del_all_item();
@@ -1329,11 +1330,14 @@ void GLCanvas3D::reset_volumes()
 
     _set_current();
 
-    m_selection.clear();
+    // Selection::clear() notifies Plater/sidebar; Plater::priv may be gone during teardown.
+    m_selection.clear(!m_in_destructor);
     m_volumes.clear();
     m_dirty = true;
 
-    _set_warning_notification(EWarning::ObjectOutside, false);
+    // Plater::priv may already be destroyed during canvas teardown.
+    if (!m_in_destructor)
+        _set_warning_notification(EWarning::ObjectOutside, false);
 }
 
 //BBS: get current plater's bounding box
@@ -10173,35 +10177,38 @@ void GLCanvas3D::_set_warning_notification(EWarning warning, bool state)
         break;
     }
     //BBS: this may happened when exit the app, plater is null
-    if (!wxGetApp().plater())
+    Plater *plater = wxGetApp().plater();
+    if (!plater)
         return;
-    auto& notification_manager = *wxGetApp().plater()->get_notification_manager();
+    NotificationManager *notification_manager = plater->get_notification_manager();
+    if (!notification_manager)
+        return;
 
     switch (error)
     {
     case PLATER_WARNING:
         if (state)
-            notification_manager.push_plater_warning_notification(text);
+            notification_manager->push_plater_warning_notification(text);
         else
-            notification_manager.close_plater_warning_notification(text);
+            notification_manager->close_plater_warning_notification(text);
         break;
     case PLATER_ERROR:
         if (state)
-            notification_manager.push_plater_error_notification(text);
+            notification_manager->push_plater_error_notification(text);
         else
-            notification_manager.close_plater_error_notification(text);
+            notification_manager->close_plater_error_notification(text);
         break;
     case SLICING_SERIOUS_WARNING:
         if (state)
-            notification_manager.push_slicing_serious_warning_notification(text, conflictObj ? std::vector<ModelObject const*>{conflictObj} : std::vector<ModelObject const*>{});
+            notification_manager->push_slicing_serious_warning_notification(text, conflictObj ? std::vector<ModelObject const*>{conflictObj} : std::vector<ModelObject const*>{});
         else
-            notification_manager.close_slicing_serious_warning_notification(text);
+            notification_manager->close_slicing_serious_warning_notification(text);
         break;
     case SLICING_ERROR:
         if (state)
-            notification_manager.push_slicing_error_notification(text, conflictObj ? std::vector<ModelObject const*>{conflictObj} : std::vector<ModelObject const*>{});
+            notification_manager->push_slicing_error_notification(text, conflictObj ? std::vector<ModelObject const*>{conflictObj} : std::vector<ModelObject const*>{});
         else
-            notification_manager.close_slicing_error_notification(text);
+            notification_manager->close_slicing_error_notification(text);
         break;
     default:
         break;

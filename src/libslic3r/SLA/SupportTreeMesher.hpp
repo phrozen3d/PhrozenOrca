@@ -35,17 +35,33 @@ indexed_triangle_set pinhead(double r_pin,
                              double length,
                              size_t steps = 45);
 
+// Simplified pinhead for manual-support editor preview (no back-sphere bulge).
+indexed_triangle_set pinhead_preview(double r_pin,
+                                     double r_back,
+                                     double length,
+                                     size_t steps = 45);
+
 indexed_triangle_set halfcone(double       baseheight,
                               double       r_bottom,
                               double       r_top,
                               const Vec3d &pt    = Vec3d::Zero(),
                               size_t       steps = 45);
 
-inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
+inline indexed_triangle_set head_mesh_local(const Head &h, size_t steps, bool preview)
 {
-    indexed_triangle_set mesh = pinhead(h.r_pin_mm, h.r_back_mm, h.width_mm, steps);
+    // Preview: total axial length ~= width_mm (segment length), not width + extra sphere padding.
+    const double segment_len = preview
+        ? std::max(0.01, h.width_mm - 2.0 * h.r_pin_mm - 2.0 * h.r_back_mm)
+        : h.width_mm;
+    const double z_shift = preview
+        ? (2.0 * h.r_pin_mm + segment_len + h.r_back_mm - h.penetration_mm)
+        : (h.fullwidth() - h.r_back_mm);
 
-    for (auto& p : mesh.vertices) p.z() -= (h.fullwidth() - h.r_back_mm);
+    indexed_triangle_set mesh = preview
+        ? pinhead_preview(h.r_pin_mm, h.r_back_mm, segment_len, steps)
+        : pinhead(h.r_pin_mm, h.r_back_mm, h.width_mm, steps);
+
+    for (auto& p : mesh.vertices) p.z() -= float(z_shift);
 
     if (h.r_contact_mm > h.r_pin_mm) {
         // Concentric with pin sphere: center at penetration_mm - r_pin_mm so the
@@ -58,10 +74,6 @@ inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
 
     using Quaternion = Eigen::Quaternion<float>;
 
-    // We rotate the head to the specified direction. The head's pointing
-    // side is facing upwards so this means that it would hold a support
-    // point with a normal pointing straight down. This is the reason of
-    // the -1 z coordinate
     auto quatern = Quaternion::FromTwoVectors(Vec3f{0.f, 0.f, -1.f},
                                               h.dir.cast<float>());
 
@@ -69,6 +81,16 @@ inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
     for (auto& p : mesh.vertices) p = quatern * p + pos;
 
     return mesh;
+}
+
+inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
+{
+    return head_mesh_local(h, steps, /*preview=*/false);
+}
+
+inline indexed_triangle_set get_mesh_preview(const Head &h, size_t steps)
+{
+    return head_mesh_local(h, steps, /*preview=*/true);
 }
 
 inline indexed_triangle_set get_mesh(const Pillar &p, size_t steps)
