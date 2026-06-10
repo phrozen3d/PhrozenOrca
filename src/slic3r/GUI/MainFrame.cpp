@@ -1890,11 +1890,6 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     if (!pb || !cfg || !m_plater)
         return;
 
-    // m_phrozen_mode_btn only: restore Prepare/Preview notebook tab after preset reload (do not change normal Preview-tab slice behavior).
-    int saved_plater_tab = -1;
-    if (m_tabpanel)
-        saved_plater_tab = m_tabpanel->GetSelection();
-
     // Select by vendor/profile source (resources/profiles/Phrozen*), not hardcoded model strings.
     // This allows adding new machine JSONs without touching code.
     const Preset* target = find_saved_phrozen_printer_preset(*pb, *cfg, resin);
@@ -1910,6 +1905,9 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
         return;
     }
 
+    if (m_plater->close_with_confirm(nullptr) == wxID_CANCEL)
+        return;
+
     const std::string               mid = target->config.opt_string("printer_model");
     const std::string               var = target->config.opt_string("printer_variant");
     PresetBundle::PresetPreferences pref{ mid, var, std::string(), std::string() };
@@ -1917,8 +1915,10 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     pb->export_selections(*cfg);
     cfg->set("phrozen_work_mode", resin ? "resin" : "filament");
     cfg->save();
+    m_plater->set_skip_preview_reslice(true);
     wxGetApp().load_current_presets(false, true);
     m_plater->set_printer_technology(resin ? ptSLA : ptFFF);
+    m_plater->new_project(/*skip_confirm=*/true, /*silent=*/true);
     update_phrozen_mode_button_label();
     m_plater->sidebar().on_filaments_change(pb->filament_presets.size());
     if (m_param_panel)
@@ -1926,6 +1926,7 @@ void MainFrame::phrozen_apply_work_mode(bool resin)
     if (m_topbar)
         m_topbar->ShowCalibrationButton(!resin);
     Layout();
+    m_tabpanel->SetSelection(tpHome);
 }
 
 wxBoxSizer* MainFrame::create_phrozen_mode_toolbar()
