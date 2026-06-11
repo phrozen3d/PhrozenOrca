@@ -1,9 +1,9 @@
 #include "ExportPRZJob.hpp"
 
-#include <fstream>
 #include <stdexcept>
 
 #include <boost/filesystem.hpp>
+#include <boost/nowide/fstream.hpp>
 #include <boost/log/trivial.hpp>
 
 #include "libslic3r/Format/PhrozenPRZ.hpp"
@@ -29,7 +29,7 @@ void ExportPRZJob::process(Ctl &ctl)
 {
     ctl.update_status(0, "Exporting PRZ...");
 
-    std::ofstream ofs(m_output_path.string(), std::ios::binary);
+    boost::nowide::ofstream ofs(m_output_path.string(), std::ios::binary);
     if (!ofs)
         throw std::runtime_error("Cannot open file for writing: " + m_output_path.string());
 
