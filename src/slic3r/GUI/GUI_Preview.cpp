@@ -359,7 +359,16 @@ void Preview::sync_sla_2d_layer_from_slider()
     IMSlider* slider = m_canvas->get_gcode_viewer().get_layers_slider();
     if (slider == nullptr)
         return;
-    m_sla_2d_canvas->set_view_layer_index(slider->GetHigherValue());
+    const int low  = slider->GetLowerValue();
+    const int high = slider->GetHigherValue();
+    // Dual-thumb: 2D slice follows the thumb being dragged; single-layer / overlap uses either index.
+    int layer_idx = high;
+    if (low != high) {
+        const int active = slider->GetActiveValue();
+        if (active >= 0)
+            layer_idx = active;
+    }
+    m_sla_2d_canvas->set_view_layer_index(layer_idx);
 }
 
 void Preview::bed_shape_changed()
