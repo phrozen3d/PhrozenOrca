@@ -443,7 +443,7 @@ public:
     /* -1: send current gcode if not specified
      * -2: send all gcode to target machine */
     int send_gcode(int plate_idx = -1, Export3mfProgressFn proFn = nullptr);
-    bool send_gcode_legacy(int plate_idx = -1, Export3mfProgressFn proFn = nullptr, bool use_3mf = false, const std::string& override_print_host = "");
+    bool send_gcode_legacy(int plate_idx = -1, Export3mfProgressFn proFn = nullptr, bool use_3mf = false, const std::string& override_print_host = "", const std::string& override_gcode_path = "");
     //PhrozenOrca: set flag to skip apply comparison when printing from single plate button
     void set_skip_apply_for_phrozen_print(bool skip);
     int export_config_3mf(int plate_idx = -1, Export3mfProgressFn proFn = nullptr);

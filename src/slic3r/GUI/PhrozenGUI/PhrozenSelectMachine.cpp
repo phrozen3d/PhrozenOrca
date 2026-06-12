@@ -31,6 +31,8 @@
 #include "../BitmapCache.hpp"
 #include "../BindDialog.hpp"
 #include "../MsgDialog.hpp"
+#include "PhrozenToolRemap.hpp"
+#include "PhrozenToolRemapApply.hpp"
 
 namespace Slic3r { namespace GUI {
 
@@ -973,7 +975,7 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_sizer_main->Add(0, 0, 0, wxEXPAND | wxTOP, FromDIP(14));
 
 
-#if 0
+#if 1
     // Temporarily closed because there is not enough time to improve it.
     m_sizer_main->Add(sizer_split_filament, 1, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(m_filament_panel, 0, wxALIGN_CENTER|wxLEFT|wxRIGHT, FromDIP(15));
@@ -1106,15 +1108,7 @@ void PhrozenSelectMachineDialog::check_fcous_state(wxWindow* window)
 
 void PhrozenSelectMachineDialog::popup_filament_backup()
 {
-    assert( 0 );
-    //DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    //if (!dev) return;
-    //if (dev->get_selected_machine()/* && dev->get_selected_machine()->filam_bak.size() > 0*/) {
-    //    AmsReplaceMaterialDialog* m_replace_material_popup = new AmsReplaceMaterialDialog(this);
-    //    m_replace_material_popup->update_mapping_result(m_ams_mapping_result);
-    //    m_replace_material_popup->update_machine_obj(dev->get_selected_machine());
-    //    m_replace_material_popup->ShowModal();
-    //}
+    // Phrozen: AMS 備援彈窗為 Bambu 舊流程，現已停用（無對應 UI）。保留空實作避免事件綁定觸發。
 }
 
 wxWindow *PhrozenSelectMachineDialog::create_item_checkbox(wxString title, wxWindow *parent, wxString tooltip, EPhrozenPrintOption eType )
@@ -1691,6 +1685,13 @@ void PhrozenSelectMachineDialog::init_timer()
 
 void PhrozenSelectMachineDialog::on_cancel(wxCloseEvent &event)
 {
+    // Phrozen: 改檔進行中攔截關閉，視同取消改檔，不關閉視窗（避免 worker 回呼時 use-after-free）。
+    if (m_is_remapping) {
+        m_remap_cancel.store(true);
+        event.Veto();
+        return;
+    }
+
     if (m_mapping_popup.IsShown())
         m_mapping_popup.Dismiss();
 
@@ -1847,203 +1848,6 @@ void PhrozenSelectMachineDialog::on_send_btn_pressed(wxCommandEvent &event)
     if (m_button_ensure && m_button_ensure->IsEnabled()) {
         m_button_ensure->Refresh();  // 強制重繪，清除 pressed 狀態
     }
-
-#if 0 //Temporarily closed because there is not enough time to improve it for phrozen style.
-    bool has_slice_warnings = false;
-    bool is_printing_block  = false;
-
-    DeviceManager* dev = Slic3r::GUI::wxGetApp().getDeviceManager();
-    if (!dev) return;
-    MachineObject* obj_ = dev->get_selected_machine();
-    if (!obj_) return;
-
-
-    std::vector<ConfirmBeforeSendInfo> confirm_text;
-    confirm_text.push_back(ConfirmBeforeSendInfo(_L("Please check the following:")));
-
-    //Check Printer Model Id
-    bool is_same_printer_type = is_same_printer_model();
-    if (!is_same_printer_type && (m_print_type == PhrozenPrintFromType::FROM_NORMAL)) {
-        confirm_text.push_back(ConfirmBeforeSendInfo(_L("The printer type selected when generating G-code is not consistent with the currently selected printer. It is recommended that you use the same printer type for slicing.")));
-        has_slice_warnings = true;
-    }
-
-
-    //check blacklist
-    for (auto i = 0; i < m_ams_mapping_result.size(); i++) {
-
-        auto tid = m_ams_mapping_result[i].tray_id;
-
-        std::string filament_type = boost::to_upper_copy(m_ams_mapping_result[i].type);
-        std::string filament_brand;
-
-        for (auto fs : m_filaments) {
-            if (fs.id == m_ams_mapping_result[i].id) {
-                filament_brand = m_filaments[i].brand;
-            }
-        }
-
-        bool in_blacklist = false;
-        std::string action;
-        std::string info;
-
-        DeviceManager::check_filaments_in_blacklist(filament_brand, filament_type, in_blacklist, action, info);
-
-        if (in_blacklist && action == "warning") {
-            wxString prohibited_error = wxString::FromUTF8(info);
-
-            confirm_text.push_back(ConfirmBeforeSendInfo(prohibited_error));
-            has_slice_warnings = true;
-        }
-    }
-
-    PartPlate* plate = m_plater->get_partplate_list().get_curr_plate();
-
-    for (auto warning : plate->get_slice_result()->warnings) {
-        if (warning.msg == BED_TEMP_TOO_HIGH_THAN_FILAMENT) {
-            if ((obj_->get_printer_is_enclosed())){
-                // confirm_text.push_back(Plater::get_slice_warning_string(warning) + "\n");
-                // has_slice_warnings = true;
-            }
-        }
-        else if (warning.msg == NOT_SUPPORT_TRADITIONAL_TIMELAPSE) {
-            continue;
-        }
-        else if (warning.msg == NOT_GENERATE_TIMELAPSE) {
-            continue;
-        }
-        else if(warning.msg == NOZZLE_HRC_CHECKER){
-            wxString error_info = Plater::get_slice_warning_string(warning);
-            if (error_info.IsEmpty()) {
-                error_info = wxString::Format("%s\n", warning.msg);
-            }
-
-            confirm_text.push_back(ConfirmBeforeSendInfo(error_info));
-            has_slice_warnings = true;
-        }
-    }
-
-
-    //check for unidentified material
-    auto mapping_result = m_mapping_popup.parse_ams_mapping(obj_->amsList);
-    auto has_unknown_filament = false;
-
-    // check if ams mapping is has errors, tpu
-    bool has_prohibited_filament = false;
-    wxString prohibited_error = wxEmptyString;
-
-
-    for (auto i = 0; i < m_ams_mapping_result.size(); i++) {
-
-        auto tid = m_ams_mapping_result[i].tray_id;
-
-        std::string filament_type = boost::to_upper_copy(m_ams_mapping_result[i].type);
-        std::string filament_brand;
-
-        for (auto fs : m_filaments) {
-            if (fs.id == m_ams_mapping_result[i].id) {
-                filament_brand = m_filaments[i].brand;
-            }
-        }
-
-        bool in_blacklist = false;
-        std::string action;
-        std::string info;
-
-        DeviceManager::check_filaments_in_blacklist(filament_brand, filament_type, in_blacklist, action, info);
-        
-        if (in_blacklist && action == "prohibition") {
-            has_prohibited_filament = true;
-            prohibited_error = wxString::FromUTF8(info);
-        }
-
-        for (auto miter : mapping_result) {
-            //matching
-            if (miter.id == tid) {
-                if (miter.type == TrayType::THIRD || miter.type == TrayType::EMPTY) {
-                    has_unknown_filament = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (has_prohibited_filament) {
-        wxString tpu_tips = prohibited_error;
-        show_errors(tpu_tips);
-        return;
-    }
-
-    if (has_unknown_filament) {
-        has_slice_warnings = true;
-        confirm_text.push_back(ConfirmBeforeSendInfo(_L("There are some unknown filaments in the AMS mappings. Please check whether they are the required filaments. If they are okay, press \"Confirm\" to start printing.")));
-    }
-
-    if (!obj_->m_extder_data.extders[0].current_nozzle_type != ntUndefine && (m_print_type == PhrozenPrintFromType::FROM_NORMAL))
-    {
-        float nozzle_diameter = 0;
-        if (!is_same_nozzle_diameters(nozzle_diameter))
-        {
-            has_slice_warnings = true;
-            // is_printing_block  = true;  # Removed to allow nozzle overrides (to support non-standard nozzles)
-            
-            wxString nozzle_in_preset = wxString::Format(_L("nozzle in preset: %.1f %s"),nozzle_diameter, "");
-            wxString nozzle_in_printer = wxString::Format(_L("nozzle memorized: %.1f %s"), obj_->m_extder_data.extders[0].current_nozzle_diameter, "");
-
-            confirm_text.push_back(ConfirmBeforeSendInfo(_L("Your nozzle diameter in sliced file is not consistent with memorized nozzle. If you changed your nozzle lately, please go to Device > Printer Parts to change settings.") 
-                + "\n    " + nozzle_in_preset 
-                + "\n    " + nozzle_in_printer
-                + "\n",  ConfirmBeforeSendInfo::InfoLevel::Warning));
-        }
-        
-        std::string filament_type;
-        if (!is_same_nozzle_type(obj_->m_extder_data.extders[0], filament_type))
-        {
-            has_slice_warnings = true;
-            is_printing_block = true;
-
-                wxString nozzle_in_preset = wxString::Format(_L("Printing high temperature material (%s material) with %s may cause nozzle damage"), filament_type, format_steel_name(obj_->m_extder_data.extders[0].current_nozzle_type));
-            confirm_text.push_back(ConfirmBeforeSendInfo(nozzle_in_preset, ConfirmBeforeSendInfo::InfoLevel::Warning));
-        }
-    }
-    
-
-    if (has_slice_warnings) {
-        wxString confirm_title = _L("Warning");
-        ConfirmBeforeSendDialog confirm_dlg(this, wxID_ANY, confirm_title);
-
-        if(is_printing_block){
-            confirm_dlg.hide_button_ok();
-            confirm_dlg.edit_cancel_button_txt(_L("Close"));
-            confirm_text.push_back(ConfirmBeforeSendInfo(_L("Please fix the error above, otherwise printing cannot continue."), ConfirmBeforeSendInfo::InfoLevel::Warning));
-        }
-        else {
-            confirm_text.push_back(ConfirmBeforeSendInfo(_L("Please click the confirm button if you still want to proceed with printing.")));
-        }
-       
-        wxString info_msg = wxEmptyString;
-
-        for (auto i = 0; i < confirm_text.size(); i++) {
-            if (i == 0) {
-                //info_msg += confirm_text[i];
-            }
-            else if (i == confirm_text.size() - 1) {
-                //info_msg += confirm_text[i];
-            }
-            else {
-                confirm_text[i].text = wxString::Format("%d. %s",i, confirm_text[i].text);
-            }
-
-        }
-        confirm_dlg.update_text(confirm_text);
-        confirm_dlg.on_show();
-
-    } else {
-
-        this->on_send_print();
-
-    }
-#endif
 }
 
 wxString PhrozenSelectMachineDialog::format_steel_name(NozzleType type)
@@ -2070,6 +1874,49 @@ void PhrozenSelectMachineDialog::Enable_Auto_Refill(bool enable)
     m_ams_backup_tip->Refresh();
 }
 
+// Phrozen: 「重設線材使用配置」轉圈圈對話框（自含 pulse 計時器，事件不外洩到主對話框）。
+class PhrozenRemapProgressDialog : public wxDialog
+{
+public:
+    PhrozenRemapProgressDialog(wxWindow* parent, std::atomic<bool>* cancel_flag)
+        : wxDialog(parent, wxID_ANY, _L("Reconfiguring filament usage"), wxDefaultPosition, wxDefaultSize, wxCAPTION)
+        , m_cancel_flag(cancel_flag)
+    {
+        SetBackgroundColour(*wxWHITE);
+        auto* sizer = new wxBoxSizer(wxVERTICAL);
+        auto* label = new wxStaticText(this, wxID_ANY, _L("Rewriting G-code, please wait..."));
+        m_gauge      = new wxGauge(this, wxID_ANY, 100, wxDefaultPosition, wxSize(FromDIP(280), FromDIP(14)));
+        m_cancel_btn = new wxButton(this, wxID_CANCEL, _L("Cancel"));
+        sizer->Add(label, 0, wxALL, FromDIP(15));
+        sizer->Add(m_gauge, 0, wxLEFT | wxRIGHT | wxEXPAND, FromDIP(15));
+        sizer->Add(m_cancel_btn, 0, wxALL | wxALIGN_RIGHT, FromDIP(15));
+        SetSizerAndFit(sizer);
+        Centre(wxBOTH);
+
+        m_cancel_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+            if (m_cancel_flag) m_cancel_flag->store(true);
+            m_cancel_btn->Disable(); // 取消只設旗標，由 worker 結束後的回呼處理收尾
+        });
+
+        m_pulse_timer.SetOwner(this); // 計時器事件只送到本對話框，不影響主對話框 on_timer
+        Bind(wxEVT_TIMER, [this](wxTimerEvent&) { if (m_gauge) m_gauge->Pulse(); });
+        m_pulse_timer.Start(80);
+
+        // 攔截關閉鈕：改檔期間視同取消，不自行銷毀（交由主流程於 worker 結束後 Destroy）。
+        Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent& e) {
+            if (m_cancel_flag) m_cancel_flag->store(true);
+            e.Veto();
+        });
+    }
+    ~PhrozenRemapProgressDialog() override { m_pulse_timer.Stop(); }
+
+private:
+    std::atomic<bool>* m_cancel_flag{ nullptr };
+    wxGauge*           m_gauge{ nullptr };
+    wxButton*          m_cancel_btn{ nullptr };
+    wxTimer            m_pulse_timer;
+};
+
 void PhrozenSelectMachineDialog::on_send_print()
 {
     BOOST_LOG_TRIVIAL(info) << "print_job: on_ok to send";
@@ -2085,6 +1932,21 @@ void PhrozenSelectMachineDialog::on_send_print()
     if (m_printer_last_select_ip.empty()) {
         return;
     }
+
+    // Phrozen: 計算末端線材通道重映射（原始工具號 -> 目標工具號）。
+    m_remap_output_path.clear(); // 預設無旁路檔；恆等送印維持空字串（不重導上傳）。
+    const std::map<int, int> remap = get_tool_remap();
+    if (is_tool_remap_identity()) {
+        // 無變更 → 直接走原送印流程，不備份、不改檔。
+        do_send_to_printer();
+        return;
+    }
+    // 有變更 → 切片守門 + 背景改檔 + CallAfter 串接（非阻塞）。
+    start_tool_remap_then_send(remap);
+}
+
+void PhrozenSelectMachineDialog::do_send_to_printer()
+{
     //[TODO] ams mapping? spool holde using?
     bool bIsAutoLeveling    = m_checkbox_list[ EPhrozenPrintOption::Auto_Leveling ]->GetValue();
     bool bIsUseChroma_Kit   = m_checkbox_list[ EPhrozenPrintOption::Chroma_Kit ]->GetValue();
@@ -2132,11 +1994,13 @@ void PhrozenSelectMachineDialog::on_send_print()
     }
     BOOST_LOG_TRIVIAL(info) << "print_host target: '" << target_print_host << "'";
 
-    // 5. 送印：直接將目標 IP 傳入 send_gcode_legacy，不修改全域 preset
+    // 5. 送印：直接將目標 IP 傳入 send_gcode_legacy，不修改全域 preset。
+    //    m_remap_output_path 非空時（末端線材有變更），重導上傳至旁路檔 .remapped.gcode；
+    //    恆等送印時為空字串，走原本上傳原檔的流程。
     this->Hide();
     bool bSuccessSend = false;
     try {
-        bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf, target_print_host);
+        bSuccessSend = m_plater->send_gcode_legacy(PLATE_CURRENT_IDX, nullptr, use_3mf, target_print_host, m_remap_output_path);
     } catch (...) {
         BOOST_LOG_TRIVIAL(error) << "Exception occurred in send_gcode_legacy()";
     }
@@ -2183,196 +2047,112 @@ void PhrozenSelectMachineDialog::on_send_print()
     
     // 7. 關閉對話框，將控制權還給主畫面（無論成功或取消）
     this->EndModal(wxID_OK);
+}
 
-#if 0
-    MachineObject* obj_ = dev->get_selected_machine();
-    assert(obj_->dev_id == m_printer_last_select);
-    if (obj_ == nullptr) {
+void PhrozenSelectMachineDialog::start_tool_remap_then_send(const std::map<int, int>& remap)
+{
+    if (m_is_remapping) return; // 防重入
+
+    // 4.2 切片守門：未切片 / G-code 失效 → 擋下並提示，完全不開背景執行緒。
+    PartPlate* plate = m_plater ? m_plater->get_partplate_list().get_curr_plate() : nullptr;
+    if (!plate || !plate->is_slice_result_valid() || !plate->is_valid_gcode_file()) {
+        Enable_Send_Button(true);
+        MessageDialog dlg(this,
+            _L("Please complete slicing before changing the filament channel, then send again."),
+            _L("Notice"), wxOK | wxICON_WARNING);
+        dlg.ShowModal();
         return;
     }
 
-    BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", print_job: for send task, current printer id =  " << m_printer_last_select << std::endl;
-    show_status(PhrozenPrintDialogStatus::PrintStatusSending);
+    // 來源 = 已驗證存在的切片 G-code 原檔（只讀、全程位元不變）。
+    // 目標 = 旁路檔 <gcode>.remapped.gcode：原檔剛切片完仍被預覽 memory-mapped，
+    //        在 Windows 上無法覆蓋（MoveFileExW→ACCESS_DENIED），故永不碰原檔，改寫旁路檔。
+    m_remap_gcode_path  = plate->get_gcode_filename();
+    m_remap_output_path = phrozen_remapped_path(m_remap_gcode_path);
 
-    m_status_bar->reset();
-    m_status_bar->set_prog_block();
-    m_status_bar->set_cancel_callback_fina([this]() {
-        BOOST_LOG_TRIVIAL(info) << "print_job: enter canceled";
-        m_is_canceled = true;
-        wxCommandEvent* event = new wxCommandEvent(EVT_PRINT_JOB_CANCEL);
-        wxQueueEvent(this, event);
+    // 鎖 UI + spinner，啟動背景 worker（純檔案 IO）。
+    m_is_remapping = true;
+    m_remap_cancel.store(false);
+    lock_ui_for_remapping(true);
+    show_remap_progress(true);
+
+    const std::map<int, int> remap_copy   = remap;
+    const std::string        src_gcode    = m_remap_gcode_path;
+    const std::string        dst_remapped = m_remap_output_path;
+    // 4.4 worker 僅做純檔案 IO：讀原檔 → 寫旁路檔；不觸碰任何 wxWidgets 物件、不在背景送印。
+    m_remap_worker = std::thread([this, remap_copy, src_gcode, dst_remapped]() {
+        PhrozenApplyResult res = phrozen_write_remapped_gcode(src_gcode, dst_remapped, remap_copy, &m_remap_cancel);
+        // 4.5 完成後一律以 CallAfter marshaling 回主執行緒。
+        wxGetApp().CallAfter([this, res]() {
+            on_tool_remap_finished(res.ok, res.canceled, res.error);
         });
+    });
+}
 
-    if (m_is_canceled) {
-        BOOST_LOG_TRIVIAL(info) << "print_job: m_is_canceled";
-        m_status_bar->set_status_text(task_canceled_text);
+void PhrozenSelectMachineDialog::on_tool_remap_finished(bool ok, bool canceled, const std::string& error)
+{
+    // 在主執行緒收尾：先 join（此時 worker 已排好 CallAfter 並即將結束）。
+    if (m_remap_worker.joinable())
+        m_remap_worker.join();
+
+    m_is_remapping = false;
+    show_remap_progress(false);
+    lock_ui_for_remapping(false);
+
+    if (canceled) {
+        BOOST_LOG_TRIVIAL(info) << "tool remap: canceled by user";
+        Enable_Send_Button(true);
+        return; // 留在原頁面，使用者可重選、重送
+    }
+    if (!ok) {
+        BOOST_LOG_TRIVIAL(error) << "tool remap failed: " << error;
+        Enable_Send_Button(true);
+        MessageDialog dlg(this,
+            _L("Failed to rewrite G-code:") + " " + wxString::FromUTF8(error),
+            _L("Error"), wxOK | wxICON_ERROR);
+        dlg.ShowModal();
         return;
     }
 
-    // enter sending mode
-    sending_mode();
-    m_status_bar->enable_cancel_button();
+    // 成功 → 於主執行緒接續既有送印流程（送出改寫後的檔，含 EndModal）。
+    do_send_to_printer();
+}
 
-    // get ams_mapping_result
-    std::string ams_mapping_array;
-    std::string ams_mapping_array2;
-    std::string ams_mapping_info;
-
-    //[TODO] check how to change to phrozen
-    if (m_checkbox_list["use_ams"]->GetValue())
-        get_ams_mapping_result(ams_mapping_array,ams_mapping_array2, ams_mapping_info);
-    else {
-        json mapping_info_json = json::array();
-        json item;
-        if (m_filaments.size() > 0) {
-            item["sourceColor"] = m_filaments[0].color.substr(1, 8);
-            item["filamentType"] = m_filaments[0].type;
-            mapping_info_json.push_back(item);
-            ams_mapping_info = mapping_info_json.dump();
-        }
-    }
-
-    if (m_print_type == PhrozenPrintFromType::FROM_NORMAL) {
-        result = m_plater->send_gcode(m_print_plate_idx, [this](int export_stage, int current, int total, bool& cancel) {
-            if (this->m_is_canceled) return;
-            bool     cancelled = false;
-            wxString msg = _L("Preparing print job");
-            m_status_bar->update_status(msg, cancelled, 10, true);
-            m_export_3mf_cancel = cancel = cancelled;
-            });
-
-        if (m_is_canceled || m_export_3mf_cancel) {
-            BOOST_LOG_TRIVIAL(info) << "print_job: m_export_3mf_cancel or m_is_canceled";
-            m_status_bar->set_status_text(task_canceled_text);
-            return;
-        }
-
-        if (result < 0) {
-            wxString msg = _L("Abnormal print file data. Please slice again");
-            m_status_bar->set_status_text(msg);
-            return;
-        }
-
-        // export config 3mf if needed
-        if (!obj_->is_lan_mode_printer()) {
-            result = m_plater->export_config_3mf(m_print_plate_idx);
-            if (result < 0) {
-                BOOST_LOG_TRIVIAL(trace) << "export_config_3mf failed, result = " << result;
-                return;
-            }
-        }
-        if (m_is_canceled || m_export_3mf_cancel) {
-            BOOST_LOG_TRIVIAL(info) << "print_job: m_export_3mf_cancel or m_is_canceled";
-            m_status_bar->set_status_text(task_canceled_text);
-            return;
-        }
-    }
-    else {
-        ShowMessageNotSupportSdCardView();
-        return;
-    }
-
-    auto m_print_job = std::make_unique<PrintJob>(m_printer_last_select);
-    m_print_job->m_dev_ip = obj_->dev_ip;
-    m_print_job->m_ftp_folder = obj_->get_ftp_folder();
-    m_print_job->m_access_code = obj_->get_access_code();
-#if !BBL_RELEASE_TO_PUBLIC
-    m_print_job->m_local_use_ssl_for_ftp = wxGetApp().app_config->get("enable_ssl_for_ftp") == "true" ? true : false;
-    m_print_job->m_local_use_ssl_for_mqtt = wxGetApp().app_config->get("enable_ssl_for_mqtt") == "true" ? true : false;
-#else
-    m_print_job->m_local_use_ssl_for_ftp = obj_->local_use_ssl_for_ftp;
-    m_print_job->m_local_use_ssl_for_mqtt = obj_->local_use_ssl_for_mqtt;
-#endif
-    m_print_job->connection_type = obj_->connection_type();
-    m_print_job->cloud_print_only = obj_->is_support_cloud_print_only;
-
-    if (m_print_type == PhrozenPrintFromType::FROM_NORMAL) {
-        BOOST_LOG_TRIVIAL(info) << "print_job: m_print_type = from_normal";
-        m_print_job->m_print_type = "from_normal";
-        m_print_job->set_project_name(m_current_project_name.utf8_string());
-    }
-    else if(m_print_type == PhrozenPrintFromType::FROM_SDCARD_VIEW){
-        BOOST_LOG_TRIVIAL(info) << "print_job: m_print_type = from_sdcard_view";
-        m_print_job->m_print_type = "from_sdcard_view";
-        //m_print_job->connection_type = "lan";
-
-        try {
-            //m_print_job->m_print_from_sdc_plate_idx = m_required_data_plate_data_list[m_print_plate_idx]->plate_index + 1;
-            m_print_job->set_dst_name(m_required_data_file_path);
-        }
-        catch (...) {}
-        BOOST_LOG_TRIVIAL(info) << "print_job: m_print_plate_idx =" << m_print_job->m_print_from_sdc_plate_idx;
-
-        auto input_str_arr = wxGetApp().split_str(m_required_data_file_name, ".gcode.3mf");
-        if (input_str_arr.size() <= 1) {
-            input_str_arr = wxGetApp().split_str(m_required_data_file_name, ".3mf");
-            if (input_str_arr.size() > 1) {
-                m_print_job->set_project_name(input_str_arr[0]);
-            }
-        }
-        else {
-            m_print_job->set_project_name(input_str_arr[0]);
-        }
-    }
-
-    if (obj_->is_support_ams_mapping()) {
-        m_print_job->task_ams_mapping = ams_mapping_array;
-        m_print_job->task_ams_mapping2= ams_mapping_array2;
-        m_print_job->task_ams_mapping_info = ams_mapping_info;
+void PhrozenSelectMachineDialog::lock_ui_for_remapping(bool lock)
+{
+    if (lock) {
+        Enable_Send_Button(false);
+        Enable_Refresh_Button(false);
+        if (m_button_keyin)      m_button_keyin->Disable();
+        if (m_comboBox_printer)  m_comboBox_printer->Disable();
     } else {
-        m_print_job->task_ams_mapping = "";
-        m_print_job->task_ams_mapping2 = "";
-        m_print_job->task_ams_mapping_info = "";
+        Enable_Send_Button(true);
+        Enable_Refresh_Button(true);
+        if (m_button_keyin)      m_button_keyin->Enable();
+        if (m_comboBox_printer)  m_comboBox_printer->Enable();
     }
-
-    /* build nozzles info for multi extruders printers */
-    if (build_nozzles_info(m_print_job->task_nozzles_info)) {
-        BOOST_LOG_TRIVIAL(error) << "build_nozzle_info errors";
+    // 線材通道下拉（PhrozenMaterialItem）
+    for (auto& kv : m_materialList) {
+        if (kv.second.slotMappingItem) {
+            if (lock) kv.second.slotMappingItem->disable();
+            else      kv.second.slotMappingItem->enable();
+        }
     }
+}
 
-    m_print_job->has_sdcard = obj_->get_sdcard_state() == MachineObject::SdcardState::HAS_SDCARD_NORMAL;
-
-
-    bool timelapse_option = false;
-
-    m_print_job->set_print_config(
-        PhrozenMachineBedTypeString[0],
-        m_checkbox_list["bed_leveling"]->GetValue(),
-        m_checkbox_list["flow_cali"]->GetValue(),
-        false,
-        timelapse_option,
-        true,
-        0, // TODO: Orca hack
-        0,
-        0);
-
-    if (obj_->has_ams()) {
-        m_print_job->task_use_ams = m_checkbox_list["use_ams"]->GetValue();
+void PhrozenSelectMachineDialog::show_remap_progress(bool show)
+{
+    if (show) {
+        if (!m_remap_progress_dlg)
+            m_remap_progress_dlg = new PhrozenRemapProgressDialog(this, &m_remap_cancel);
+        m_remap_progress_dlg->Show();
+        m_remap_progress_dlg->Raise();
     } else {
-        m_print_job->task_use_ams = false;
+        if (m_remap_progress_dlg) {
+            m_remap_progress_dlg->Destroy();
+            m_remap_progress_dlg = nullptr;
+        }
     }
-
-    BOOST_LOG_TRIVIAL(info) << "print_job: timelapse_option = " << timelapse_option;
-    BOOST_LOG_TRIVIAL(info) << "print_job: use_ams = " << m_print_job->task_use_ams;
-
-    m_print_job->on_success([this]() { finish_mode(); });
-
-    m_print_job->on_check_ip_address_fail([this]() {
-        wxCommandEvent* evt = new wxCommandEvent(EVT_CLEAR_IPADDRESS);
-        wxQueueEvent(this, evt);
-        wxGetApp().show_ip_address_enter_dialog();
-     });
-
-    // update ota version
-    NetworkAgent* agent = wxGetApp().getAgent();
-    if (agent) {
-        std::string dev_ota_str = "dev_ota_ver:" + obj_->dev_id;
-        agent->track_update_property(dev_ota_str, obj_->get_ota_version());
-    }
-
-    //replace_job(*m_worker, std::move(m_print_job));
-    BOOST_LOG_TRIVIAL(info) << "print_job: start print job";
- #endif
 }
 
 void PhrozenSelectMachineDialog::clear_ip_address_config(wxCommandEvent& e)
@@ -3186,6 +2966,37 @@ void PhrozenSelectMachineDialog::reset_and_sync_ams_list()
 
 }
 
+std::map<int, int> PhrozenSelectMachineDialog::get_tool_remap()
+{
+    // 蒐集每個通道的「原始工具號 -> 目標工具號」。
+    // 原始工具號 = PhrozenMaterial::extruderId（0-based，建立時即為該通道的 Tn）。
+    // 目標工具號 = 該項目下拉目前選擇的料盤（A1~A4 -> 0~3）。
+    // 允許碰撞：多個來源可指向同一目標，不在此做雙射驗證。
+    std::map<int, int> remap;
+    for (auto& kv : m_materialList) {
+        const PhrozenMaterial& material = kv.second;
+        if (!material.slotMappingItem) {
+            continue;
+        }
+        int             src  = material.extruderId;
+        EPhrozenAmsSlot slot = material.slotMappingItem->GetSelectedAmsSlot();
+        // 未選擇（None）視為維持原工具號，確保恆等判定正確。
+        int dst = (slot == EPhrozenAmsSlot::None) ? src : static_cast<int>(slot);
+        remap[src] = dst;
+    }
+    return remap;
+}
+
+bool PhrozenSelectMachineDialog::is_tool_remap_identity()
+{
+    for (const auto& kv : get_tool_remap()) {
+        if (kv.first != kv.second) {
+            return false;
+        }
+    }
+    return true;
+}
+
 wxColour PhrozenSelectMachineDialog::adjust_color_for_render(const wxColour &color)
 {
     ColorRGBA _temp_color_color(color.Red() / 255.0f, color.Green() / 255.0f, color.Blue() / 255.0f, color.Alpha() / 255.0f);
@@ -3477,6 +3288,11 @@ bool PhrozenSelectMachineDialog::Show(bool show)
 
 PhrozenSelectMachineDialog::~PhrozenSelectMachineDialog()
 {
+    // Phrozen: 確保背景改檔 worker 已結束，避免 dangling。
+    if (m_remap_worker.joinable()) {
+        m_remap_cancel.store(true);
+        m_remap_worker.join();
+    }
     delete m_refresh_timer;
 }
 
