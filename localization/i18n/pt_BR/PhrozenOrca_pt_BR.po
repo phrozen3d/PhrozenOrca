@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 13:49+0800\n"
+"POT-Creation-Date: 2026-06-12 14:53+0800\n"
 "PO-Revision-Date: 2025-08-13 10:05-0300\n"
 "Last-Translator: Alexandre Folle de Menezes\n"
 "Language-Team: Portuguese, Brazilian\n"
@@ -1520,14 +1520,8 @@ msgstr "Oco"
 msgid "Remove"
 msgstr "Remover"
 
-msgid "Hollow and drill"
-msgstr ""
-
 msgid "Selected object has to be on the active bed."
 msgstr ""
-
-msgid "Preview"
-msgstr "Pré-visualizar"
 
 msgid "Remove selected"
 msgstr ""
@@ -1550,8 +1544,8 @@ msgstr ""
 msgid "Drill"
 msgstr "Perfuração"
 
-msgid "Head diameter"
-msgstr "Diâmetro da cabeça"
+msgid "Upper Diameter"
+msgstr ""
 
 msgid "Lock supports under new islands"
 msgstr ""
@@ -1575,9 +1569,6 @@ msgid "Auto-generate points"
 msgstr "Pontos gerados automaticamente"
 
 msgid "Manual editing"
-msgstr ""
-
-msgid "Head Diameter"
 msgstr ""
 
 msgid "Discard"
@@ -1604,10 +1595,9 @@ msgstr ""
 msgid "Density"
 msgstr "Densidade"
 
-msgid "Auto-generate support points based on density setting."
-msgstr ""
-
-msgid "Pillar Diameter"
+msgid ""
+"Auto-generate support points using density and Support Angle (Process → "
+"Bridge)."
 msgstr ""
 
 msgid ""
@@ -4101,6 +4091,18 @@ msgstr ""
 "Não - Desabilitar Gerador de Parede Arachne e setar o modo [Deslocamento] da "
 "Textura Difusa"
 
+msgid "Contact Depth should not be greater than Segment Length."
+msgstr ""
+
+msgid "Invalid Contact Depth"
+msgstr ""
+
+msgid "Upper Diameter should not be greater than Lower Diameter."
+msgstr ""
+
+msgid "Invalid Upper Diameter"
+msgstr ""
+
 msgid ""
 "Spiral mode only works when wall loops is 1, support is disabled, top shell "
 "layers is 0, sparse infill density is 0 and timelapse type is traditional."
@@ -4921,6 +4923,9 @@ msgstr "Fechando o aplicativo enquanto algumas predefinições são modificadas.
 msgid "Logging"
 msgstr "Registro"
 
+msgid "Preview"
+msgstr "Pré-visualizar"
+
 msgid "Multi-device"
 msgstr "Multi-dispositivo"
 
@@ -4946,6 +4951,9 @@ msgid ""
 msgstr ""
 
 msgid "Phrozen Orca"
+msgstr ""
+
+msgid "Phrozen Orca Filament"
 msgstr ""
 
 msgid "Slice plate"
@@ -6718,6 +6726,18 @@ msgstr "Não é possível recarregar:"
 msgid "Error during reload"
 msgstr "Erro durante a recarga"
 
+msgid "Overhang Detecting"
+msgstr ""
+
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Overhang detection complete"
+msgstr ""
+
 msgid "There are warnings after slicing models:"
 msgstr "Existem avisos após o fatiamento dos modelos:"
 
@@ -6726,6 +6746,15 @@ msgstr "advertências"
 
 msgid "Invalid data"
 msgstr "Dados inválidos"
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
+msgid "Overhang detection cancelled"
+msgstr ""
 
 msgid "Slicing Canceled"
 msgstr "Fatiamento Cancelado"
@@ -7947,18 +7976,6 @@ msgstr "A impressora não suporta enviar para o cartão SD da impressora."
 msgid "Slice ok."
 msgstr "Fatiamento ok."
 
-msgid "Support complete"
-msgstr ""
-
-msgid "Hollow/Drill complete"
-msgstr ""
-
-msgid "Support cancelled"
-msgstr ""
-
-msgid "Hollow/Drill cancelled"
-msgstr ""
-
 msgid "View all Daily tips"
 msgstr "Ver todas as dicas diárias"
 
@@ -8107,6 +8124,30 @@ msgstr "Sessão encerrada com sucesso."
 
 msgid "Failed to log out."
 msgstr "Falha ao desconectar."
+
+msgid "Layer Print Time Compensation Settings"
+msgstr ""
+
+msgid "h"
+msgstr ""
+
+msgid "m"
+msgstr ""
+
+msgid "s"
+msgstr ""
+
+msgid "Software predicts print time"
+msgstr ""
+
+msgid "Actual print time"
+msgstr ""
+
+msgid "Layer count"
+msgstr ""
+
+msgid "Layer print time compensation"
+msgstr ""
 
 msgid "Search in preset"
 msgstr "Pesquisar nas predefinições"
@@ -9423,7 +9464,19 @@ msgstr "Cortar gizmo"
 msgid "Gizmo mesh boolean"
 msgstr "Gizmo malha booleana"
 
+msgid "Gizmo Hollow"
+msgstr "Oco"
+
 msgid "Gizmo FDM paint-on fuzzy skin"
+msgstr ""
+
+msgid "Gizmo Drill"
+msgstr "Perfuração"
+
+msgid "Gizmo Overhang Detection"
+msgstr "Detecção de saliências"
+
+msgid "Gizmo Support Painting"
 msgstr ""
 
 msgid "Gizmo SLA support points"
@@ -16438,6 +16491,22 @@ msgstr ""
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""
 
+msgid "Print Time Compensation"
+msgstr ""
+
+msgid ""
+"When enabled, adds layer-based compensation to the estimated print time (PRZ "
+"model)."
+msgstr ""
+
+msgid "Layer Print Time Compensation"
+msgstr ""
+
+msgid ""
+"Per-layer time adjustment in seconds. Total adjustment is this value times "
+"layer count when Print Time Compensation is enabled."
+msgstr ""
+
 msgid "Contact Type"
 msgstr ""
 
@@ -16448,9 +16517,6 @@ msgid "Support Point Diameter"
 msgstr ""
 
 msgid "Support Point Diameter for support"
-msgstr ""
-
-msgid "Upper Diameter"
 msgstr ""
 
 msgid "Upper Diameter for support."
@@ -16466,6 +16532,9 @@ msgid "Pinhead Width"
 msgstr ""
 
 msgid "Pinhead Width for support."
+msgstr ""
+
+msgid "Pillar Diameter"
 msgstr ""
 
 msgid "Pillar Diameter for support."
@@ -16534,12 +16603,38 @@ msgstr ""
 msgid "Resolution (pixels)"
 msgstr ""
 
-msgid "Supports"
+msgid ""
+"Top diameter of the support cone between the contact and the pillar (minimum "
+"0.01 mm)."
+msgstr ""
+
+msgid "Lower Diameter"
+msgstr ""
+
+msgid ""
+"Bottom diameter of the support cone on the pillar side (minimum 0.01 mm)."
+msgstr ""
+
+msgid "Segment Length"
+msgstr ""
+
+msgid ""
+"Length of the conical support segment between the upper and lower diameters "
+"(minimum 0.01 mm)."
+msgstr ""
+
+msgid ""
+"How far the support contact penetrates into the model surface from the "
+"contact point. With Contact Type Sphere, depth is measured from where the "
+"sphere touches the model (minimum 0.01 mm)."
 msgstr ""
 
 msgid ""
 "Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
 "the tip to increase contact area."
+msgstr ""
+
+msgid "Contact Diameter"
 msgstr ""
 
 msgid ""
@@ -16553,6 +16648,20 @@ msgstr ""
 msgid "Width from the back sphere center to the front sphere center."
 msgstr ""
 
+msgid "Angle Between Top And Middle"
+msgstr ""
+
+msgid ""
+"Maximum slope angle for bridges connecting the support contact head to the "
+"main pillar."
+msgstr ""
+
+msgid "Cross Angle"
+msgstr ""
+
+msgid "Maximum slope angle for cross-links between main support pillars."
+msgstr ""
+
 msgid "Generate support"
 msgstr ""
 
@@ -16560,8 +16669,26 @@ msgid "Generate support for support"
 msgstr ""
 
 msgid ""
-"Surfaces whose slope angle from horizontal is below this value will not "
-"receive supports. Set to 90 to support all overhangs."
+"Maximum allowable angle between the model surface (tangential plane) and the "
+"platform for auto support generation."
+msgstr ""
+
+msgid "The max length of a bridge connecting support sticks and junctions."
+msgstr ""
+
+msgid "The max distance of two pillars to get cross-linked with each other."
+msgstr ""
+
+msgid "Model Lift Height"
+msgstr ""
+
+msgid ""
+"The vertical offset of the lowest point on the model from the print "
+"platform. Notice that this offset would overwrite any original model offset "
+"in the Z direction."
+msgstr ""
+
+msgid "Supports"
 msgstr ""
 
 msgid "This is a relative measure of support points density."
@@ -19436,6 +19563,9 @@ msgstr ""
 msgid "User cancelled."
 msgstr ""
 
+msgid "Head diameter"
+msgstr "Diâmetro da cabeça"
+
 msgid "Max angle"
 msgstr "Ângulo máx"
 
@@ -19619,377 +19749,416 @@ msgstr "Modificando o nome do dispositivo"
 msgid "Bind with IP"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Precise wall]
-msgid ""
-"Precise wall\n"
-"Did you know that turning on precise wall can improve precision and layer "
-"consistency?"
-msgstr ""
-"Parede precisa\n"
-"Você sabia que ativar o Parede Precisa pode melhorar a precisão e a "
-"consistência de camada?"
-
-#: resources/data/hints.ini: [hint:Sandwich mode]
-msgid ""
-"Sandwich mode\n"
-"Did you know that you can use sandwich mode (inner-outer-inner) to improve "
-"precision and layer consistency if your model doesn't have very steep "
-"overhangs?"
-msgstr ""
-"Modo sanduíche\n"
-"Você sabia que pode usar o modo sanduíche (interno-externo-interno) para "
-"melhorar a precisão e a consistência da camada se o seu modelo não tiver "
-"saliências muito íngremes?"
-
-#: resources/data/hints.ini: [hint:Chamber temperature]
-msgid ""
-"Chamber temperature\n"
-"Did you know that PhrozenOrca supports chamber temperature?"
-msgstr ""
-"Temperatura da câmara\n"
-"Você sabia que o PhrozenOrca suporta temperatura da câmara?"
-
-#: resources/data/hints.ini: [hint:Calibration]
-msgid ""
-"Calibration\n"
-"Did you know that calibrating your printer can do wonders? Check out our "
-"beloved calibration solution in PhrozenOrca."
-msgstr ""
-"Calibração\n"
-"Você sabia que calibrar sua impressora pode fazer maravilhas? Confira nossa "
-"amada solução de calibração no PhrozenOrca."
-
-#: resources/data/hints.ini: [hint:Auxiliary fan]
-msgid ""
-"Auxiliary fan\n"
-"Did you know that PhrozenOrca supports Auxiliary part cooling fan?"
-msgstr ""
-"Ventilador auxiliar\n"
-"Você sabia que o PhrozenOrca suporta ventilador auxiliar de resfriamento de "
-"peças?"
-
-#: resources/data/hints.ini: [hint:Air filtration]
-msgid ""
-"Air filtration/Exhaust Fan\n"
-"Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
-msgstr ""
-"Filtragem de ar/Exaustor\n"
-"Você sabia que o PhrozenOrca pode suportar filtragem de ar/exaustor?"
-
-#: resources/data/hints.ini: [hint:G-code window]
-msgid ""
-"G-code window\n"
-"You can turn on/off the G-code window by pressing the <b>C</b> key."
-msgstr ""
-"Janela do G-code\n"
-"Você pode ligar/desligar a janela do G-code pressionando a tecla <b>C</b>."
-
-#: resources/data/hints.ini: [hint:Switch workspaces]
-msgid ""
-"Switch workspaces\n"
-"You can switch between <b>Prepare</b> and <b>Preview</b> workspaces by "
-"pressing the <b>Tab</b> key."
-msgstr ""
-"Alternar espaços de trabalho\n"
-"Você pode alternar entre os espaços de trabalho <b>Preparar</b> e <b>Pré-"
-"visualizar</b> pressionando a tecla <b>Tab</b>."
-
-#: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
-msgid ""
-"How to use keyboard shortcuts\n"
-"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
-"3D scene operations?"
+msgid "Total resin"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Reverse on odd]
-msgid ""
-"Reverse on odd\n"
-"Did you know that <b>Reverse on odd</b> feature can significantly improve "
-"the surface quality of your overhangs?"
-msgstr ""
-"Reverter em ímpar\n"
-"Você sabia que a função <b>Reverter em ímpar</b> pode melhorar "
-"significativamente a qualidade da superfície das saliências?"
-
-#: resources/data/hints.ini: [hint:Cut Tool]
-msgid ""
-"Cut Tool\n"
-"Did you know that you can cut a model at any angle and position with the "
-"cutting tool?"
-msgstr ""
-"Ferramenta de corte\n"
-"Você sabia que pode cortar um modelo em qualquer ângulo e posição com a "
-"ferramenta de corte?"
-
-#: resources/data/hints.ini: [hint:Fix Model]
-msgid ""
-"Fix Model\n"
-"Did you know that you can fix a corrupted 3D model to avoid a lot of slicing "
-"problems on the Windows system?"
-msgstr ""
-"Corrigir Modelo\n"
-"Você sabia que pode corrigir um modelo 3D corrompido para evitar muitos "
-"problemas de fatiamento no sistema Windows?"
-
-#: resources/data/hints.ini: [hint:Timelapse]
-msgid ""
-"Timelapse\n"
-"Did you know that you can generate a timelapse video during each print?"
-msgstr ""
-"Timelapse\n"
-"Você sabia que pode gerar um vídeo de timelapse durante cada impressão?"
-
-#: resources/data/hints.ini: [hint:Auto-Arrange]
-msgid ""
-"Auto-Arrange\n"
-"Did you know that you can auto-arrange all the objects in your project?"
-msgstr ""
-"Auto-arranjo\n"
-"Você sabia que pode arranjar automaticamente todos os objetos em seu projeto?"
-
-#: resources/data/hints.ini: [hint:Auto-Orient]
-msgid ""
-"Auto-Orient\n"
-"Did you know that you can rotate objects to an optimal orientation for "
-"printing with a simple click?"
-msgstr ""
-"Auto-orientar\n"
-"Você sabia que pode rotacionar objetos para uma orientação ideal para "
-"impressão com um simples clique?"
-
-#: resources/data/hints.ini: [hint:Lay on Face]
-msgid ""
-"Lay on Face\n"
-"Did you know that you can quickly orient a model so that one of its faces "
-"sits on the print bed? Select the \"Place on face\" function or press the "
-"<b>F</b> key."
-msgstr ""
-"Apoiar face à superfície\n"
-"Você sabia que pode rapidamente orientar um modelo para que uma de suas "
-"faces fique sobre a mesa de impressão? Selecione a função \"Apoiar na face\" "
-"ou pressione a tecla <b>F</b>."
-
-#: resources/data/hints.ini: [hint:Object List]
-msgid ""
-"Object List\n"
-"Did you know that you can view all objects/parts in a list and change "
-"settings for each object/part?"
-msgstr ""
-"Lista de Objetos\n"
-"Você sabia que pode visualizar todos os objetos/peças em uma lista e alterar "
-"as configurações para cada objeto/peça?"
-
-#: resources/data/hints.ini: [hint:Search Functionality]
-msgid ""
-"Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific "
-"PhrozenOrca setting?"
+#, c-format, boost-format
+msgid "%s must be a number greater than or equal to %g."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Simplify Model]
-msgid ""
-"Simplify Model\n"
-"Did you know that you can reduce the number of triangles in a mesh using the "
-"Simplify mesh feature? Right-click the model and select Simplify model."
-msgstr ""
-"Simplificar Modelo\n"
-"Você sabia que pode reduzir o número de triângulos em uma malha usando a "
-"função Simplificar malha? Clique com o botão direito no modelo e selecione "
-"Simplificar modelo."
-
-#: resources/data/hints.ini: [hint:Slicing Parameter Table]
-msgid ""
-"Slicing Parameter Table\n"
-"Did you know that you can view all objects/parts on a table and change "
-"settings for each object/part?"
-msgstr ""
-"Tabela de Parâmetros de Fatiamento\n"
-"Você sabia que pode visualizar todos os objetos/peças em uma tabela e "
-"alterar as configurações para cada objeto/peça?"
-
-#: resources/data/hints.ini: [hint:Split to Objects/Parts]
-msgid ""
-"Split to Objects/Parts\n"
-"Did you know that you can split a big object into small ones for easy "
-"colorizing or printing?"
-msgstr ""
-"Dividir em Objetos/Peças\n"
-"Você sabia que pode dividir um objeto grande em peças menores para facilitar "
-"a colorização ou a impressão?"
-
-#: resources/data/hints.ini: [hint:Subtract a Part]
-msgid ""
-"Subtract a Part\n"
-"Did you know that you can subtract one mesh from another using the Negative "
-"part modifier? That way you can, for example, create easily resizable holes "
-"directly in PhrozenOrca."
+#, c-format, boost-format
+msgid "%s must be an integer greater than or equal to %d."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:STEP]
-msgid ""
-"STEP\n"
-"Did you know that you can improve your print quality by slicing a STEP file "
-"instead of an STL?\n"
-"PhrozenOrca supports slicing STEP files, providing smoother results than a "
-"lower resolution STL. Give it a try!"
+msgid "Printer Settings"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Z seam location]
-msgid ""
-"Z seam location\n"
-"Did you know that you can customize the location of the Z seam, and even "
-"paint it on your print, to have it in a less visible location? This improves "
-"the overall look of your model. Check it out!"
+msgid "Reset to default"
 msgstr ""
-"Local da costura\n"
-"Você sabia que pode customizar a posição da costura, e até mesmo pintá-la na "
-"sua peça, para tê-la em um lugar menos visível? Isso vai aumentar a "
-"qualidade geral do seu modelo. Tente!"
 
-#: resources/data/hints.ini: [hint:Fine-tuning for flow rate]
-msgid ""
-"Fine-tuning for flow rate\n"
-"Did you know that flow rate can be fine-tuned for even better-looking "
-"prints? Depending on the material, you can improve the overall finish of the "
-"printed model by doing some fine-tuning."
+msgid "Resolution X"
 msgstr ""
-"Ajuste fino do fluxo\n"
-"Você sabia que o fluxo pode ser ajustado para impressões ainda melhores? "
-"Dependendo do material, você pode melhorar o acabamento final da sua peça "
-"fazendo alguns ajustes."
 
-#: resources/data/hints.ini: [hint:Split your prints into plates]
-msgid ""
-"Split your prints into plates\n"
-"Did you know that you can split a model that has a lot of parts into "
-"individual plates ready to print? This will simplify the process of keeping "
-"track of all the parts."
+msgid "Resolution Y"
 msgstr ""
-"Divida suas impressões em placas\n"
-"Você sabia que pode dividir um modelo que tem diversas peças em placas "
-"individuais distintas prontas para imprimir? Isso simplifica o processo de "
-"manter o controle de todas as peças."
 
-#: resources/data/hints.ini: [hint:Speed up your print with Adaptive Layer
-#: Height]
-msgid ""
-"Speed up your print with Adaptive Layer Height\n"
-"Did you know that you can print a model even faster, by using the Adaptive "
-"Layer Height option? Check it out!"
+msgid "Size X"
 msgstr ""
-"Agilize sua impressão com a Altura de Camada Adaptativa\n"
-"Você sabia que pode imprimir um modelo ainda mais rápido, usando a opção de "
-"Altura de Camada Adaptativa? Tente!"
 
-#: resources/data/hints.ini: [hint:Support painting]
-msgid ""
-"Support painting\n"
-"Did you know that you can paint the location of your supports? This feature "
-"makes it easy to place the support material only on the sections of the "
-"model that actually need it."
+msgid "Size Y"
 msgstr ""
-"Pintura de suporte\n"
-"Você sabia que pode pintar a localização dos seus suportes? Essa "
-"funcionalidade facilita colocar o material de suporte apenas nas seções do "
-"modelo que realmente precisam."
 
-#: resources/data/hints.ini: [hint:Different types of supports]
-msgid ""
-"Different types of supports\n"
-"Did you know that you can choose from multiple types of supports? Tree "
-"supports work great for organic models, while saving filament and improving "
-"print speed. Check them out!"
+msgid "Size Z"
 msgstr ""
-"Diferentes tipos de suportes\n"
-"Você sabia que pode escolher entre vários tipos de suportes? Os suportes de "
-"árvore funcionam muito bem para modelos orgânicos, enquanto economizam "
-"filamento e melhoram a velocidade de impressão. Confira-os!"
 
-#: resources/data/hints.ini: [hint:Printing Silk Filament]
-msgid ""
-"Printing Silk Filament\n"
-"Did you know that Silk filament needs special consideration to print it "
-"successfully? Higher temperature and lower speed are always recommended for "
-"the best results."
+msgid "Assembling model from parts"
 msgstr ""
-"Impressão de Filamento de Seda\n"
-"Você sabia que o filamento de seda precisa de considerações especiais para "
-"ser impresso com sucesso? Uma temperatura mais alta e uma velocidade mais "
-"baixa são sempre recomendadas para obter os melhores resultados."
 
-#: resources/data/hints.ini: [hint:Brim for better adhesion]
-msgid ""
-"Brim for better adhesion\n"
-"Did you know that when printed models have a small contact interface with "
-"the printing surface, it's recommended to use a brim?"
+msgid "Hollowing model"
 msgstr ""
-"Borda para melhor adesão\n"
-"Você sabia que, ao imprimir modelos com uma pequena interface de contato com "
-"a superfície de impressão, é recomendável usar uma borda?"
 
-#: resources/data/hints.ini: [hint:Set parameters for multiple objects]
-msgid ""
-"Set parameters for multiple objects\n"
-"Did you know that you can set slicing parameters for all selected objects at "
-"once?"
+msgid "Drilling holes into model"
 msgstr ""
-"Definir parâmetros para vários objetos\n"
-"Você sabia que pode definir parâmetros de fatiamento para todos os objetos "
-"selecionados de uma só vez?"
 
-#: resources/data/hints.ini: [hint:Stack objects]
-msgid ""
-"Stack objects\n"
-"Did you know that you can stack objects as a whole one?"
+msgid "Slicing model"
 msgstr ""
-"Empilhar objetos\n"
-"Você sabia que pode empilhar objetos como um todo?"
 
-#: resources/data/hints.ini: [hint:Flush into support/objects/infill]
-msgid ""
-"Flush into support/objects/infill\n"
-"Did you know that you can save wasted filament by flushing it into support/"
-"objects/infill during filament change?"
+msgid "Generating support points"
 msgstr ""
-"Purga no suporte/objetos/preenchimento\n"
-"Você sabia que pode economizar o filamento desperdiçado ao purgar nos "
-"suportes/objetos/preenchimento durante a troca de filamento?"
 
-#: resources/data/hints.ini: [hint:Improve strength]
-msgid ""
-"Improve strength\n"
-"Did you know that you can use more wall loops and higher sparse infill "
-"density to improve the strength of the model?"
+msgid "Generating support tree"
 msgstr ""
-"Melhorar a resistência\n"
-"Você sabia que pode usar mais voltas de parede e maior densidade de "
-"preenchimento esparso mais alta para melhorar a resistência do modelo?"
 
-#: resources/data/hints.ini: [hint:When do you need to print with the printer
-#: door opened]
-msgid ""
-"When do you need to print with the printer door opened?\n"
-"Did you know that opening the printer door can reduce the probability of "
-"extruder/hotend clogging when printing lower temperature filament with a "
-"higher enclosure temperature? More info about this in the Wiki."
+msgid "Generating pad"
 msgstr ""
-"Quando é necessário imprimir com a porta da impressora aberta?\n"
-"Você sabia que abrir a porta da impressora pode reduzir a probabilidade de "
-"entupimento da extrusora/bico aquecido ao imprimir filamento de temperatura "
-"mais baixa com uma temperatura de invólucro mais alta? Mais informações "
-"sobre isso na Wiki."
 
-#: resources/data/hints.ini: [hint:Avoid warping]
-msgid ""
-"Avoid warping\n"
-"Did you know that when printing materials that are prone to warping such as "
-"ABS, appropriately increasing the heatbed temperature can reduce the "
-"probability of warping?"
+msgid "Slicing supports"
 msgstr ""
-"Evitar empenamento\n"
-"Você sabia que ao imprimir materiais propensos ao empenamento, como ABS, "
-"aumentar adequadamente a temperatura da mesa aquecida pode reduzir a "
-"probabilidade de empenamento?"
+
+msgid "Merging slices and calculating statistics"
+msgstr ""
+
+msgid "Rasterizing layers"
+msgstr ""
+
+msgid ""
+"Some parts of the print will be previewed with approximated meshes. This "
+"does not affect the quality of slices or the physical print in any way."
+msgstr ""
+
+msgid "Too many overlapping holes."
+msgstr ""
+
+msgid ""
+"Mesh to be hollowed is not suitable for hollowing (does not bound a volume)."
+msgstr ""
+
+msgid "Unable to drill the current configuration of holes into the model."
+msgstr ""
+
+msgid ""
+"Drilling holes into the mesh failed. This is usually caused by broken model. "
+"Try to fix it first."
+msgstr ""
+
+msgid "Failed to drill some holes into the model"
+msgstr ""
+
+msgid ""
+"Slicing had to be stopped due to an internal error: Inconsistent slice index."
+msgstr ""
+
+msgid "Visualizing supports"
+msgstr ""
+
+msgid "No pad can be generated for this model with the current configuration"
+msgstr ""
+
+msgid ""
+"There are unprintable objects. Try to adjust support settings to make the "
+"objects printable."
+msgstr ""
+
+msgid "Rasterizing layers..."
+msgstr ""
+
+#~ msgid ""
+#~ "Precise wall\n"
+#~ "Did you know that turning on precise wall can improve precision and layer "
+#~ "consistency?"
+#~ msgstr ""
+#~ "Parede precisa\n"
+#~ "Você sabia que ativar o Parede Precisa pode melhorar a precisão e a "
+#~ "consistência de camada?"
+
+#~ msgid ""
+#~ "Sandwich mode\n"
+#~ "Did you know that you can use sandwich mode (inner-outer-inner) to "
+#~ "improve precision and layer consistency if your model doesn't have very "
+#~ "steep overhangs?"
+#~ msgstr ""
+#~ "Modo sanduíche\n"
+#~ "Você sabia que pode usar o modo sanduíche (interno-externo-interno) para "
+#~ "melhorar a precisão e a consistência da camada se o seu modelo não tiver "
+#~ "saliências muito íngremes?"
+
+#~ msgid ""
+#~ "Chamber temperature\n"
+#~ "Did you know that PhrozenOrca supports chamber temperature?"
+#~ msgstr ""
+#~ "Temperatura da câmara\n"
+#~ "Você sabia que o PhrozenOrca suporta temperatura da câmara?"
+
+#~ msgid ""
+#~ "Calibration\n"
+#~ "Did you know that calibrating your printer can do wonders? Check out our "
+#~ "beloved calibration solution in PhrozenOrca."
+#~ msgstr ""
+#~ "Calibração\n"
+#~ "Você sabia que calibrar sua impressora pode fazer maravilhas? Confira "
+#~ "nossa amada solução de calibração no PhrozenOrca."
+
+#~ msgid ""
+#~ "Auxiliary fan\n"
+#~ "Did you know that PhrozenOrca supports Auxiliary part cooling fan?"
+#~ msgstr ""
+#~ "Ventilador auxiliar\n"
+#~ "Você sabia que o PhrozenOrca suporta ventilador auxiliar de resfriamento "
+#~ "de peças?"
+
+#~ msgid ""
+#~ "Air filtration/Exhaust Fan\n"
+#~ "Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
+#~ msgstr ""
+#~ "Filtragem de ar/Exaustor\n"
+#~ "Você sabia que o PhrozenOrca pode suportar filtragem de ar/exaustor?"
+
+#~ msgid ""
+#~ "G-code window\n"
+#~ "You can turn on/off the G-code window by pressing the <b>C</b> key."
+#~ msgstr ""
+#~ "Janela do G-code\n"
+#~ "Você pode ligar/desligar a janela do G-code pressionando a tecla <b>C</b>."
+
+#~ msgid ""
+#~ "Switch workspaces\n"
+#~ "You can switch between <b>Prepare</b> and <b>Preview</b> workspaces by "
+#~ "pressing the <b>Tab</b> key."
+#~ msgstr ""
+#~ "Alternar espaços de trabalho\n"
+#~ "Você pode alternar entre os espaços de trabalho <b>Preparar</b> e <b>Pré-"
+#~ "visualizar</b> pressionando a tecla <b>Tab</b>."
+
+#~ msgid ""
+#~ "Reverse on odd\n"
+#~ "Did you know that <b>Reverse on odd</b> feature can significantly improve "
+#~ "the surface quality of your overhangs?"
+#~ msgstr ""
+#~ "Reverter em ímpar\n"
+#~ "Você sabia que a função <b>Reverter em ímpar</b> pode melhorar "
+#~ "significativamente a qualidade da superfície das saliências?"
+
+#~ msgid ""
+#~ "Cut Tool\n"
+#~ "Did you know that you can cut a model at any angle and position with the "
+#~ "cutting tool?"
+#~ msgstr ""
+#~ "Ferramenta de corte\n"
+#~ "Você sabia que pode cortar um modelo em qualquer ângulo e posição com a "
+#~ "ferramenta de corte?"
+
+#~ msgid ""
+#~ "Fix Model\n"
+#~ "Did you know that you can fix a corrupted 3D model to avoid a lot of "
+#~ "slicing problems on the Windows system?"
+#~ msgstr ""
+#~ "Corrigir Modelo\n"
+#~ "Você sabia que pode corrigir um modelo 3D corrompido para evitar muitos "
+#~ "problemas de fatiamento no sistema Windows?"
+
+#~ msgid ""
+#~ "Timelapse\n"
+#~ "Did you know that you can generate a timelapse video during each print?"
+#~ msgstr ""
+#~ "Timelapse\n"
+#~ "Você sabia que pode gerar um vídeo de timelapse durante cada impressão?"
+
+#~ msgid ""
+#~ "Auto-Arrange\n"
+#~ "Did you know that you can auto-arrange all the objects in your project?"
+#~ msgstr ""
+#~ "Auto-arranjo\n"
+#~ "Você sabia que pode arranjar automaticamente todos os objetos em seu "
+#~ "projeto?"
+
+#~ msgid ""
+#~ "Auto-Orient\n"
+#~ "Did you know that you can rotate objects to an optimal orientation for "
+#~ "printing with a simple click?"
+#~ msgstr ""
+#~ "Auto-orientar\n"
+#~ "Você sabia que pode rotacionar objetos para uma orientação ideal para "
+#~ "impressão com um simples clique?"
+
+#~ msgid ""
+#~ "Lay on Face\n"
+#~ "Did you know that you can quickly orient a model so that one of its faces "
+#~ "sits on the print bed? Select the \"Place on face\" function or press the "
+#~ "<b>F</b> key."
+#~ msgstr ""
+#~ "Apoiar face à superfície\n"
+#~ "Você sabia que pode rapidamente orientar um modelo para que uma de suas "
+#~ "faces fique sobre a mesa de impressão? Selecione a função \"Apoiar na face"
+#~ "\" ou pressione a tecla <b>F</b>."
+
+#~ msgid ""
+#~ "Object List\n"
+#~ "Did you know that you can view all objects/parts in a list and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "Lista de Objetos\n"
+#~ "Você sabia que pode visualizar todos os objetos/peças em uma lista e "
+#~ "alterar as configurações para cada objeto/peça?"
+
+#~ msgid ""
+#~ "Simplify Model\n"
+#~ "Did you know that you can reduce the number of triangles in a mesh using "
+#~ "the Simplify mesh feature? Right-click the model and select Simplify "
+#~ "model."
+#~ msgstr ""
+#~ "Simplificar Modelo\n"
+#~ "Você sabia que pode reduzir o número de triângulos em uma malha usando a "
+#~ "função Simplificar malha? Clique com o botão direito no modelo e "
+#~ "selecione Simplificar modelo."
+
+#~ msgid ""
+#~ "Slicing Parameter Table\n"
+#~ "Did you know that you can view all objects/parts on a table and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "Tabela de Parâmetros de Fatiamento\n"
+#~ "Você sabia que pode visualizar todos os objetos/peças em uma tabela e "
+#~ "alterar as configurações para cada objeto/peça?"
+
+#~ msgid ""
+#~ "Split to Objects/Parts\n"
+#~ "Did you know that you can split a big object into small ones for easy "
+#~ "colorizing or printing?"
+#~ msgstr ""
+#~ "Dividir em Objetos/Peças\n"
+#~ "Você sabia que pode dividir um objeto grande em peças menores para "
+#~ "facilitar a colorização ou a impressão?"
+
+#~ msgid ""
+#~ "Z seam location\n"
+#~ "Did you know that you can customize the location of the Z seam, and even "
+#~ "paint it on your print, to have it in a less visible location? This "
+#~ "improves the overall look of your model. Check it out!"
+#~ msgstr ""
+#~ "Local da costura\n"
+#~ "Você sabia que pode customizar a posição da costura, e até mesmo pintá-la "
+#~ "na sua peça, para tê-la em um lugar menos visível? Isso vai aumentar a "
+#~ "qualidade geral do seu modelo. Tente!"
+
+#~ msgid ""
+#~ "Fine-tuning for flow rate\n"
+#~ "Did you know that flow rate can be fine-tuned for even better-looking "
+#~ "prints? Depending on the material, you can improve the overall finish of "
+#~ "the printed model by doing some fine-tuning."
+#~ msgstr ""
+#~ "Ajuste fino do fluxo\n"
+#~ "Você sabia que o fluxo pode ser ajustado para impressões ainda melhores? "
+#~ "Dependendo do material, você pode melhorar o acabamento final da sua peça "
+#~ "fazendo alguns ajustes."
+
+#~ msgid ""
+#~ "Split your prints into plates\n"
+#~ "Did you know that you can split a model that has a lot of parts into "
+#~ "individual plates ready to print? This will simplify the process of "
+#~ "keeping track of all the parts."
+#~ msgstr ""
+#~ "Divida suas impressões em placas\n"
+#~ "Você sabia que pode dividir um modelo que tem diversas peças em placas "
+#~ "individuais distintas prontas para imprimir? Isso simplifica o processo "
+#~ "de manter o controle de todas as peças."
+
+#~ msgid ""
+#~ "Speed up your print with Adaptive Layer Height\n"
+#~ "Did you know that you can print a model even faster, by using the "
+#~ "Adaptive Layer Height option? Check it out!"
+#~ msgstr ""
+#~ "Agilize sua impressão com a Altura de Camada Adaptativa\n"
+#~ "Você sabia que pode imprimir um modelo ainda mais rápido, usando a opção "
+#~ "de Altura de Camada Adaptativa? Tente!"
+
+#~ msgid ""
+#~ "Support painting\n"
+#~ "Did you know that you can paint the location of your supports? This "
+#~ "feature makes it easy to place the support material only on the sections "
+#~ "of the model that actually need it."
+#~ msgstr ""
+#~ "Pintura de suporte\n"
+#~ "Você sabia que pode pintar a localização dos seus suportes? Essa "
+#~ "funcionalidade facilita colocar o material de suporte apenas nas seções "
+#~ "do modelo que realmente precisam."
+
+#~ msgid ""
+#~ "Different types of supports\n"
+#~ "Did you know that you can choose from multiple types of supports? Tree "
+#~ "supports work great for organic models, while saving filament and "
+#~ "improving print speed. Check them out!"
+#~ msgstr ""
+#~ "Diferentes tipos de suportes\n"
+#~ "Você sabia que pode escolher entre vários tipos de suportes? Os suportes "
+#~ "de árvore funcionam muito bem para modelos orgânicos, enquanto economizam "
+#~ "filamento e melhoram a velocidade de impressão. Confira-os!"
+
+#~ msgid ""
+#~ "Printing Silk Filament\n"
+#~ "Did you know that Silk filament needs special consideration to print it "
+#~ "successfully? Higher temperature and lower speed are always recommended "
+#~ "for the best results."
+#~ msgstr ""
+#~ "Impressão de Filamento de Seda\n"
+#~ "Você sabia que o filamento de seda precisa de considerações especiais "
+#~ "para ser impresso com sucesso? Uma temperatura mais alta e uma velocidade "
+#~ "mais baixa são sempre recomendadas para obter os melhores resultados."
+
+#~ msgid ""
+#~ "Brim for better adhesion\n"
+#~ "Did you know that when printed models have a small contact interface with "
+#~ "the printing surface, it's recommended to use a brim?"
+#~ msgstr ""
+#~ "Borda para melhor adesão\n"
+#~ "Você sabia que, ao imprimir modelos com uma pequena interface de contato "
+#~ "com a superfície de impressão, é recomendável usar uma borda?"
+
+#~ msgid ""
+#~ "Set parameters for multiple objects\n"
+#~ "Did you know that you can set slicing parameters for all selected objects "
+#~ "at once?"
+#~ msgstr ""
+#~ "Definir parâmetros para vários objetos\n"
+#~ "Você sabia que pode definir parâmetros de fatiamento para todos os "
+#~ "objetos selecionados de uma só vez?"
+
+#~ msgid ""
+#~ "Stack objects\n"
+#~ "Did you know that you can stack objects as a whole one?"
+#~ msgstr ""
+#~ "Empilhar objetos\n"
+#~ "Você sabia que pode empilhar objetos como um todo?"
+
+#~ msgid ""
+#~ "Flush into support/objects/infill\n"
+#~ "Did you know that you can save wasted filament by flushing it into "
+#~ "support/objects/infill during filament change?"
+#~ msgstr ""
+#~ "Purga no suporte/objetos/preenchimento\n"
+#~ "Você sabia que pode economizar o filamento desperdiçado ao purgar nos "
+#~ "suportes/objetos/preenchimento durante a troca de filamento?"
+
+#~ msgid ""
+#~ "Improve strength\n"
+#~ "Did you know that you can use more wall loops and higher sparse infill "
+#~ "density to improve the strength of the model?"
+#~ msgstr ""
+#~ "Melhorar a resistência\n"
+#~ "Você sabia que pode usar mais voltas de parede e maior densidade de "
+#~ "preenchimento esparso mais alta para melhorar a resistência do modelo?"
+
+#~ msgid ""
+#~ "When do you need to print with the printer door opened?\n"
+#~ "Did you know that opening the printer door can reduce the probability of "
+#~ "extruder/hotend clogging when printing lower temperature filament with a "
+#~ "higher enclosure temperature? More info about this in the Wiki."
+#~ msgstr ""
+#~ "Quando é necessário imprimir com a porta da impressora aberta?\n"
+#~ "Você sabia que abrir a porta da impressora pode reduzir a probabilidade "
+#~ "de entupimento da extrusora/bico aquecido ao imprimir filamento de "
+#~ "temperatura mais baixa com uma temperatura de invólucro mais alta? Mais "
+#~ "informações sobre isso na Wiki."
+
+#~ msgid ""
+#~ "Avoid warping\n"
+#~ "Did you know that when printing materials that are prone to warping such "
+#~ "as ABS, appropriately increasing the heatbed temperature can reduce the "
+#~ "probability of warping?"
+#~ msgstr ""
+#~ "Evitar empenamento\n"
+#~ "Você sabia que ao imprimir materiais propensos ao empenamento, como ABS, "
+#~ "aumentar adequadamente a temperatura da mesa aquecida pode reduzir a "
+#~ "probabilidade de empenamento?"
 
 #~ msgid "Alt + Shift + Enter"
 #~ msgstr "Alt + Shift + Enter"
@@ -20847,13 +21016,3 @@ msgstr ""
 
 #~ msgid "Printer local connection failed, please try again."
 #~ msgstr "Falha na conexão local da impressora, por favor tente novamente."
-
-
-msgid "Gizmo Overhang Detection"
-msgstr "Detecção de saliências"
-
-msgid "Gizmo Drill"
-msgstr "Perfuração"
-
-msgid "Gizmo Hollow"
-msgstr "Oco"

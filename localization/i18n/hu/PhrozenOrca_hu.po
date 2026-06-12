@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Phrozen Orca\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 13:49+0800\n"
+"POT-Creation-Date: 2026-06-12 14:53+0800\n"
 "Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -1475,14 +1475,8 @@ msgstr "Üreges"
 msgid "Remove"
 msgstr "Eltávolítás"
 
-msgid "Hollow and drill"
-msgstr ""
-
 msgid "Selected object has to be on the active bed."
 msgstr ""
-
-msgid "Preview"
-msgstr "Előnézet"
 
 msgid "Remove selected"
 msgstr ""
@@ -1505,8 +1499,8 @@ msgstr ""
 msgid "Drill"
 msgstr "Fúrás"
 
-msgid "Head diameter"
-msgstr "Fej átmérő"
+msgid "Upper Diameter"
+msgstr ""
 
 msgid "Lock supports under new islands"
 msgstr ""
@@ -1530,9 +1524,6 @@ msgid "Auto-generate points"
 msgstr "Pontok automatikus generálása"
 
 msgid "Manual editing"
-msgstr ""
-
-msgid "Head Diameter"
 msgstr ""
 
 msgid "Discard"
@@ -1559,10 +1550,9 @@ msgstr ""
 msgid "Density"
 msgstr "Sűrűség"
 
-msgid "Auto-generate support points based on density setting."
-msgstr ""
-
-msgid "Pillar Diameter"
+msgid ""
+"Auto-generate support points using density and Support Angle (Process → "
+"Bridge)."
 msgstr ""
 
 msgid ""
@@ -3967,6 +3957,18 @@ msgid ""
 "Fuzzy Skin"
 msgstr ""
 
+msgid "Contact Depth should not be greater than Segment Length."
+msgstr ""
+
+msgid "Invalid Contact Depth"
+msgstr ""
+
+msgid "Upper Diameter should not be greater than Lower Diameter."
+msgstr ""
+
+msgid "Invalid Upper Diameter"
+msgstr ""
+
 msgid ""
 "Spiral mode only works when wall loops is 1, support is disabled, top shell "
 "layers is 0, sparse infill density is 0 and timelapse type is traditional."
@@ -4773,6 +4775,9 @@ msgstr "Alkalmazás bezárása egyes beállítások módosítása közben."
 msgid "Logging"
 msgstr "Naplózás"
 
+msgid "Preview"
+msgstr "Előnézet"
+
 msgid "Multi-device"
 msgstr "Multi-device"
 
@@ -4798,6 +4803,9 @@ msgid ""
 msgstr ""
 
 msgid "Phrozen Orca"
+msgstr ""
+
+msgid "Phrozen Orca Filament"
 msgstr ""
 
 msgid "Slice plate"
@@ -6510,6 +6518,18 @@ msgstr "Nem sikerült újratölteni:"
 msgid "Error during reload"
 msgstr "Hiba az újratöltés során"
 
+msgid "Overhang Detecting"
+msgstr ""
+
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Overhang detection complete"
+msgstr ""
+
 msgid "There are warnings after slicing models:"
 msgstr "A modellek szeletelése a következő figyelmeztetéseket generálta:"
 
@@ -6518,6 +6538,15 @@ msgstr "figyelmeztetések"
 
 msgid "Invalid data"
 msgstr "Érvénytelen adat"
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
+msgid "Overhang detection cancelled"
+msgstr ""
 
 msgid "Slicing Canceled"
 msgstr "Szeletelés megszakítva"
@@ -7678,18 +7707,6 @@ msgstr "A nyomtató nem támogatja a MicroSD kártyára küldést."
 msgid "Slice ok."
 msgstr "Szeletelés kész."
 
-msgid "Support complete"
-msgstr ""
-
-msgid "Hollow/Drill complete"
-msgstr ""
-
-msgid "Support cancelled"
-msgstr ""
-
-msgid "Hollow/Drill cancelled"
-msgstr ""
-
 msgid "View all Daily tips"
 msgstr "Napi tippek megtekintése"
 
@@ -7816,6 +7833,30 @@ msgstr "Sikeres kijelentkezés."
 
 msgid "Failed to log out."
 msgstr "Sikertelen kijelentkezés."
+
+msgid "Layer Print Time Compensation Settings"
+msgstr ""
+
+msgid "h"
+msgstr ""
+
+msgid "m"
+msgstr ""
+
+msgid "s"
+msgstr "mp"
+
+msgid "Software predicts print time"
+msgstr ""
+
+msgid "Actual print time"
+msgstr ""
+
+msgid "Layer count"
+msgstr ""
+
+msgid "Layer print time compensation"
+msgstr ""
 
 msgid "Search in preset"
 msgstr "Keresés a beállításokban"
@@ -9062,7 +9103,19 @@ msgstr "Gizmo vágás"
 msgid "Gizmo mesh boolean"
 msgstr "Gizmo modellháló logikai műveletek"
 
+msgid "Gizmo Hollow"
+msgstr "Üregesítés"
+
 msgid "Gizmo FDM paint-on fuzzy skin"
+msgstr ""
+
+msgid "Gizmo Drill"
+msgstr "Fúrás"
+
+msgid "Gizmo Overhang Detection"
+msgstr "Konzol észlelése"
+
+msgid "Gizmo Support Painting"
 msgstr ""
 
 msgid "Gizmo SLA support points"
@@ -14986,6 +15039,22 @@ msgstr ""
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""
 
+msgid "Print Time Compensation"
+msgstr ""
+
+msgid ""
+"When enabled, adds layer-based compensation to the estimated print time (PRZ "
+"model)."
+msgstr ""
+
+msgid "Layer Print Time Compensation"
+msgstr ""
+
+msgid ""
+"Per-layer time adjustment in seconds. Total adjustment is this value times "
+"layer count when Print Time Compensation is enabled."
+msgstr ""
+
 msgid "Contact Type"
 msgstr ""
 
@@ -14996,9 +15065,6 @@ msgid "Support Point Diameter"
 msgstr ""
 
 msgid "Support Point Diameter for support"
-msgstr ""
-
-msgid "Upper Diameter"
 msgstr ""
 
 msgid "Upper Diameter for support."
@@ -15014,6 +15080,9 @@ msgid "Pinhead Width"
 msgstr ""
 
 msgid "Pinhead Width for support."
+msgstr ""
+
+msgid "Pillar Diameter"
 msgstr ""
 
 msgid "Pillar Diameter for support."
@@ -15082,12 +15151,38 @@ msgstr ""
 msgid "Resolution (pixels)"
 msgstr ""
 
-msgid "Supports"
+msgid ""
+"Top diameter of the support cone between the contact and the pillar (minimum "
+"0.01 mm)."
+msgstr ""
+
+msgid "Lower Diameter"
+msgstr ""
+
+msgid ""
+"Bottom diameter of the support cone on the pillar side (minimum 0.01 mm)."
+msgstr ""
+
+msgid "Segment Length"
+msgstr ""
+
+msgid ""
+"Length of the conical support segment between the upper and lower diameters "
+"(minimum 0.01 mm)."
+msgstr ""
+
+msgid ""
+"How far the support contact penetrates into the model surface from the "
+"contact point. With Contact Type Sphere, depth is measured from where the "
+"sphere touches the model (minimum 0.01 mm)."
 msgstr ""
 
 msgid ""
 "Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
 "the tip to increase contact area."
+msgstr ""
+
+msgid "Contact Diameter"
 msgstr ""
 
 msgid ""
@@ -15101,6 +15196,20 @@ msgstr ""
 msgid "Width from the back sphere center to the front sphere center."
 msgstr ""
 
+msgid "Angle Between Top And Middle"
+msgstr ""
+
+msgid ""
+"Maximum slope angle for bridges connecting the support contact head to the "
+"main pillar."
+msgstr ""
+
+msgid "Cross Angle"
+msgstr ""
+
+msgid "Maximum slope angle for cross-links between main support pillars."
+msgstr ""
+
 msgid "Generate support"
 msgstr ""
 
@@ -15108,8 +15217,26 @@ msgid "Generate support for support"
 msgstr ""
 
 msgid ""
-"Surfaces whose slope angle from horizontal is below this value will not "
-"receive supports. Set to 90 to support all overhangs."
+"Maximum allowable angle between the model surface (tangential plane) and the "
+"platform for auto support generation."
+msgstr ""
+
+msgid "The max length of a bridge connecting support sticks and junctions."
+msgstr ""
+
+msgid "The max distance of two pillars to get cross-linked with each other."
+msgstr ""
+
+msgid "Model Lift Height"
+msgstr ""
+
+msgid ""
+"The vertical offset of the lowest point on the model from the print "
+"platform. Notice that this offset would overwrite any original model offset "
+"in the Z direction."
+msgstr ""
+
+msgid "Supports"
 msgstr ""
 
 msgid "This is a relative measure of support points density."
@@ -17687,6 +17814,9 @@ msgstr ""
 msgid "User cancelled."
 msgstr ""
 
+msgid "Head diameter"
+msgstr "Fej átmérő"
+
 msgid "Max angle"
 msgstr ""
 
@@ -17870,347 +18000,330 @@ msgstr "Eszköz nevének módosítása"
 msgid "Bind with IP"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Precise wall]
-msgid ""
-"Precise wall\n"
-"Did you know that turning on precise wall can improve precision and layer "
-"consistency?"
+msgid "Total resin"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Sandwich mode]
-msgid ""
-"Sandwich mode\n"
-"Did you know that you can use sandwich mode (inner-outer-inner) to improve "
-"precision and layer consistency if your model doesn't have very steep "
-"overhangs?"
+#, c-format, boost-format
+msgid "%s must be a number greater than or equal to %g."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Chamber temperature]
-msgid ""
-"Chamber temperature\n"
-"Did you know that PhrozenOrca supports chamber temperature?"
+#, c-format, boost-format
+msgid "%s must be an integer greater than or equal to %d."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Calibration]
-msgid ""
-"Calibration\n"
-"Did you know that calibrating your printer can do wonders? Check out our "
-"beloved calibration solution in PhrozenOrca."
+msgid "Printer Settings"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Auxiliary fan]
-msgid ""
-"Auxiliary fan\n"
-"Did you know that PhrozenOrca supports Auxiliary part cooling fan?"
+msgid "Reset to default"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Air filtration]
-msgid ""
-"Air filtration/Exhaust Fan\n"
-"Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
+msgid "Resolution X"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:G-code window]
-msgid ""
-"G-code window\n"
-"You can turn on/off the G-code window by pressing the <b>C</b> key."
+msgid "Resolution Y"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Switch workspaces]
-msgid ""
-"Switch workspaces\n"
-"You can switch between <b>Prepare</b> and <b>Preview</b> workspaces by "
-"pressing the <b>Tab</b> key."
+msgid "Size X"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
-msgid ""
-"How to use keyboard shortcuts\n"
-"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
-"3D scene operations?"
+msgid "Size Y"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Reverse on odd]
-msgid ""
-"Reverse on odd\n"
-"Did you know that <b>Reverse on odd</b> feature can significantly improve "
-"the surface quality of your overhangs?"
+msgid "Size Z"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Cut Tool]
-msgid ""
-"Cut Tool\n"
-"Did you know that you can cut a model at any angle and position with the "
-"cutting tool?"
-msgstr ""
-"Vágóeszköz\n"
-"Tudtad, hogy a vágóeszközzel bármilyen szögben és pozícióban elvághatsz egy "
-"modellt?"
-
-#: resources/data/hints.ini: [hint:Fix Model]
-msgid ""
-"Fix Model\n"
-"Did you know that you can fix a corrupted 3D model to avoid a lot of slicing "
-"problems on the Windows system?"
-msgstr ""
-"Modell javítása\n"
-"Tudtad, hogy Windows rendszeren a sérült 3D-modelleket kijavíthatod, hogy "
-"elkerüld a szeletelési problémákat?"
-
-#: resources/data/hints.ini: [hint:Timelapse]
-msgid ""
-"Timelapse\n"
-"Did you know that you can generate a timelapse video during each print?"
-msgstr ""
-"Timelapse\n"
-"Tudtad, hogy minden nyomtatáshoz timelapse-videót készíthetsz?"
-
-#: resources/data/hints.ini: [hint:Auto-Arrange]
-msgid ""
-"Auto-Arrange\n"
-"Did you know that you can auto-arrange all the objects in your project?"
-msgstr ""
-"Automatikus elrendezés\n"
-"Tudtad, hogy automatikusan elrendezheted a projekt összes objektumát?"
-
-#: resources/data/hints.ini: [hint:Auto-Orient]
-msgid ""
-"Auto-Orient\n"
-"Did you know that you can rotate objects to an optimal orientation for "
-"printing with a simple click?"
-msgstr ""
-"Automatikus orientáció\n"
-"Tudtad, hogy az objektumokat egy kattintással elforgathatod a nyomtatáshoz "
-"optimális orientációba?"
-
-#: resources/data/hints.ini: [hint:Lay on Face]
-msgid ""
-"Lay on Face\n"
-"Did you know that you can quickly orient a model so that one of its faces "
-"sits on the print bed? Select the \"Place on face\" function or press the "
-"<b>F</b> key."
-msgstr ""
-"Felületre fektetés\n"
-"Tudtad, hogy a modellt egyszerűen elforgathatod úgy, hogy az egyik oldala az "
-"asztalra kerüljön? Válaszd a „Felületre fektetés“ opciót, vagy csak nyomd "
-"meg az <b>F</b> gombot.\n"
-" "
-
-#: resources/data/hints.ini: [hint:Object List]
-msgid ""
-"Object List\n"
-"Did you know that you can view all objects/parts in a list and change "
-"settings for each object/part?"
-msgstr ""
-"Objektumlista\n"
-"Tudtad, hogy megtekintheted az összes objektumot/tárgyat egy listában és "
-"egyesével módosíthatod a beállításaikat?"
-
-#: resources/data/hints.ini: [hint:Search Functionality]
-msgid ""
-"Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific "
-"PhrozenOrca setting?"
+msgid "Assembling model from parts"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Simplify Model]
-msgid ""
-"Simplify Model\n"
-"Did you know that you can reduce the number of triangles in a mesh using the "
-"Simplify mesh feature? Right-click the model and select Simplify model."
+msgid "Hollowing model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Slicing Parameter Table]
-msgid ""
-"Slicing Parameter Table\n"
-"Did you know that you can view all objects/parts on a table and change "
-"settings for each object/part?"
-msgstr ""
-"Szeletelési paramétertáblázat\n"
-"Tudtad, hogy megtekintheted az összes objektumot/tárgyat egy listában és "
-"egyesével módosíthatod a beállításaikat?"
-
-#: resources/data/hints.ini: [hint:Split to Objects/Parts]
-msgid ""
-"Split to Objects/Parts\n"
-"Did you know that you can split a big object into small ones for easy "
-"colorizing or printing?"
-msgstr ""
-"Objektumokra/tárgyakra osztás\n"
-"Tudtad, hogy egy nagy objektumot kisebbekre oszthatsz a könnyebb színezés "
-"vagy nyomtatás érdekében?"
-
-#: resources/data/hints.ini: [hint:Subtract a Part]
-msgid ""
-"Subtract a Part\n"
-"Did you know that you can subtract one mesh from another using the Negative "
-"part modifier? That way you can, for example, create easily resizable holes "
-"directly in PhrozenOrca."
+msgid "Drilling holes into model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:STEP]
-msgid ""
-"STEP\n"
-"Did you know that you can improve your print quality by slicing a STEP file "
-"instead of an STL?\n"
-"PhrozenOrca supports slicing STEP files, providing smoother results than a "
-"lower resolution STL. Give it a try!"
+msgid "Slicing model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Z seam location]
-msgid ""
-"Z seam location\n"
-"Did you know that you can customize the location of the Z seam, and even "
-"paint it on your print, to have it in a less visible location? This improves "
-"the overall look of your model. Check it out!"
+msgid "Generating support points"
 msgstr ""
-"Z varrat helye\n"
-"Tudtad, hogy testreszabhatod a Z varrat helyét, és akár rá is festheted a "
-"nyomatra, hogy kevésbé látható helyre kerüljön? Ezzel javíthatod a modelled "
-"megjelenését. Próbáld ki!"
 
-#: resources/data/hints.ini: [hint:Fine-tuning for flow rate]
-msgid ""
-"Fine-tuning for flow rate\n"
-"Did you know that flow rate can be fine-tuned for even better-looking "
-"prints? Depending on the material, you can improve the overall finish of the "
-"printed model by doing some fine-tuning."
+msgid "Generating support tree"
 msgstr ""
-"Anyagáramlás finomhangolása\n"
-"Tudtad, hogy az anyagáramlás finomhangolható a még szebb nyomatok érdekében? "
-"Az anyagtól függően némi finomhangolással jelentősen javíthatsz a nyomtatott "
-"modell felületeinek megjelenésén."
 
-#: resources/data/hints.ini: [hint:Split your prints into plates]
-msgid ""
-"Split your prints into plates\n"
-"Did you know that you can split a model that has a lot of parts into "
-"individual plates ready to print? This will simplify the process of keeping "
-"track of all the parts."
+msgid "Generating pad"
 msgstr ""
-"Oszd fel a nyomatokat több tálcára\n"
-"Tudtad, hogy a sok részből álló modellt nyomtatásra kész tálcákra oszthatod? "
-"Így egyszerűbben nyomon követheted a nyomtatásra váró tárgyakat."
 
-#: resources/data/hints.ini: [hint:Speed up your print with Adaptive Layer
-#: Height]
-msgid ""
-"Speed up your print with Adaptive Layer Height\n"
-"Did you know that you can print a model even faster, by using the Adaptive "
-"Layer Height option? Check it out!"
+msgid "Slicing supports"
 msgstr ""
-"Gyorsítsd fel a nyomtatást az adaptív rétegmagassággal\n"
-"Tudtad, hogy a nyomtatást tovább gyorsíthatod adaptív rétegmagasság "
-"használatával? Próbáld ki!"
 
-#: resources/data/hints.ini: [hint:Support painting]
-msgid ""
-"Support painting\n"
-"Did you know that you can paint the location of your supports? This feature "
-"makes it easy to place the support material only on the sections of the "
-"model that actually need it."
+msgid "Merging slices and calculating statistics"
 msgstr ""
-"Támaszok festése\n"
-"Tudtad, hogy festéssel is kijelölheted a támaszok helyét? Ezzel az opcióval "
-"elérheted, hogy csak oda kerüljön támasz, ahol valóban szükség van rá."
 
-#: resources/data/hints.ini: [hint:Different types of supports]
-msgid ""
-"Different types of supports\n"
-"Did you know that you can choose from multiple types of supports? Tree "
-"supports work great for organic models, while saving filament and improving "
-"print speed. Check them out!"
+msgid "Rasterizing layers"
 msgstr ""
-"Különböző típusú támaszok\n"
-"Tudtad, hogy többféle támasz közül választhatsz? A fatámaszok remekül "
-"működnek az organikus modelleknél, kevesebb filamentet igényelnek és "
-"elősegítik a gyorsabb nyomtatást. Próbáld ki!"
 
-#: resources/data/hints.ini: [hint:Printing Silk Filament]
 msgid ""
-"Printing Silk Filament\n"
-"Did you know that Silk filament needs special consideration to print it "
-"successfully? Higher temperature and lower speed are always recommended for "
-"the best results."
+"Some parts of the print will be previewed with approximated meshes. This "
+"does not affect the quality of slices or the physical print in any way."
 msgstr ""
-"Nyomtatás selyemhatású filamenttel\n"
-"Tudtad, hogy a selyemhatású filamentek több figyelmet igényelnek a sikeres "
-"nyomtatás érdekében? A legjobb eredmény érdekében mindig használj magasabb "
-"hőmérsékletet és alacsonyabb sebességet."
 
-#: resources/data/hints.ini: [hint:Brim for better adhesion]
+msgid "Too many overlapping holes."
+msgstr ""
+
 msgid ""
-"Brim for better adhesion\n"
-"Did you know that when printed models have a small contact interface with "
-"the printing surface, it's recommended to use a brim?"
+"Mesh to be hollowed is not suitable for hollowing (does not bound a volume)."
 msgstr ""
-"Perem a jobb tapadás érdekében\n"
-"Tudtad, hogy a ha a nyomtatott modell csak kis felületen érintkezik az "
-"asztallal, akkor ajánlott peremet használni?"
 
-#: resources/data/hints.ini: [hint:Set parameters for multiple objects]
+msgid "Unable to drill the current configuration of holes into the model."
+msgstr ""
+
 msgid ""
-"Set parameters for multiple objects\n"
-"Did you know that you can set slicing parameters for all selected objects at "
-"once?"
+"Drilling holes into the mesh failed. This is usually caused by broken model. "
+"Try to fix it first."
 msgstr ""
-"Paraméterek beállítása több objektumhoz\n"
-"Tudtad, hogy egyszerre is beállíthatod a szeletelési paramétereket az összes "
-"kijelölt objektumhoz?"
 
-#: resources/data/hints.ini: [hint:Stack objects]
+msgid "Failed to drill some holes into the model"
+msgstr ""
+
 msgid ""
-"Stack objects\n"
-"Did you know that you can stack objects as a whole one?"
+"Slicing had to be stopped due to an internal error: Inconsistent slice index."
 msgstr ""
-"Objektumok egymásra helyezése\n"
-"Tudtad, hogy több objektumot is egymásra rakhatsz, amit aztán egyben "
-"kinyomtathatsz?"
 
-#: resources/data/hints.ini: [hint:Flush into support/objects/infill]
+msgid "Visualizing supports"
+msgstr ""
+
+msgid "No pad can be generated for this model with the current configuration"
+msgstr ""
+
 msgid ""
-"Flush into support/objects/infill\n"
-"Did you know that you can save wasted filament by flushing it into support/"
-"objects/infill during filament change?"
+"There are unprintable objects. Try to adjust support settings to make the "
+"objects printable."
 msgstr ""
-"Öblítés támaszokba/objektumokba/kitöltésbe\n"
-"Tudtad, hogy csökkentheted a felhasznált filament mennyiségét, ha a "
-"filamentcsere során az öblítést a támaszba/objektumba/kitöltésbe állítod?"
 
-#: resources/data/hints.ini: [hint:Improve strength]
-msgid ""
-"Improve strength\n"
-"Did you know that you can use more wall loops and higher sparse infill "
-"density to improve the strength of the model?"
+msgid "Rasterizing layers..."
 msgstr ""
-"Szilárdság javítása\n"
-"Tudtad, hogy több fal vagy nagyobb kitöltés használatával javíthatod a "
-"modell szilárdságát?"
 
-#: resources/data/hints.ini: [hint:When do you need to print with the printer
-#: door opened]
+#~ msgid ""
+#~ "Cut Tool\n"
+#~ "Did you know that you can cut a model at any angle and position with the "
+#~ "cutting tool?"
+#~ msgstr ""
+#~ "Vágóeszköz\n"
+#~ "Tudtad, hogy a vágóeszközzel bármilyen szögben és pozícióban elvághatsz "
+#~ "egy modellt?"
+
+#~ msgid ""
+#~ "Fix Model\n"
+#~ "Did you know that you can fix a corrupted 3D model to avoid a lot of "
+#~ "slicing problems on the Windows system?"
+#~ msgstr ""
+#~ "Modell javítása\n"
+#~ "Tudtad, hogy Windows rendszeren a sérült 3D-modelleket kijavíthatod, hogy "
+#~ "elkerüld a szeletelési problémákat?"
+
+#~ msgid ""
+#~ "Timelapse\n"
+#~ "Did you know that you can generate a timelapse video during each print?"
+#~ msgstr ""
+#~ "Timelapse\n"
+#~ "Tudtad, hogy minden nyomtatáshoz timelapse-videót készíthetsz?"
+
+#~ msgid ""
+#~ "Auto-Arrange\n"
+#~ "Did you know that you can auto-arrange all the objects in your project?"
+#~ msgstr ""
+#~ "Automatikus elrendezés\n"
+#~ "Tudtad, hogy automatikusan elrendezheted a projekt összes objektumát?"
+
+#~ msgid ""
+#~ "Auto-Orient\n"
+#~ "Did you know that you can rotate objects to an optimal orientation for "
+#~ "printing with a simple click?"
+#~ msgstr ""
+#~ "Automatikus orientáció\n"
+#~ "Tudtad, hogy az objektumokat egy kattintással elforgathatod a "
+#~ "nyomtatáshoz optimális orientációba?"
+
+#~ msgid ""
+#~ "Lay on Face\n"
+#~ "Did you know that you can quickly orient a model so that one of its faces "
+#~ "sits on the print bed? Select the \"Place on face\" function or press the "
+#~ "<b>F</b> key."
+#~ msgstr ""
+#~ "Felületre fektetés\n"
+#~ "Tudtad, hogy a modellt egyszerűen elforgathatod úgy, hogy az egyik oldala "
+#~ "az asztalra kerüljön? Válaszd a „Felületre fektetés“ opciót, vagy csak "
+#~ "nyomd meg az <b>F</b> gombot.\n"
+#~ " "
+
+#~ msgid ""
+#~ "Object List\n"
+#~ "Did you know that you can view all objects/parts in a list and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "Objektumlista\n"
+#~ "Tudtad, hogy megtekintheted az összes objektumot/tárgyat egy listában és "
+#~ "egyesével módosíthatod a beállításaikat?"
+
+#~ msgid ""
+#~ "Slicing Parameter Table\n"
+#~ "Did you know that you can view all objects/parts on a table and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "Szeletelési paramétertáblázat\n"
+#~ "Tudtad, hogy megtekintheted az összes objektumot/tárgyat egy listában és "
+#~ "egyesével módosíthatod a beállításaikat?"
+
+#~ msgid ""
+#~ "Split to Objects/Parts\n"
+#~ "Did you know that you can split a big object into small ones for easy "
+#~ "colorizing or printing?"
+#~ msgstr ""
+#~ "Objektumokra/tárgyakra osztás\n"
+#~ "Tudtad, hogy egy nagy objektumot kisebbekre oszthatsz a könnyebb színezés "
+#~ "vagy nyomtatás érdekében?"
+
+#~ msgid ""
+#~ "Z seam location\n"
+#~ "Did you know that you can customize the location of the Z seam, and even "
+#~ "paint it on your print, to have it in a less visible location? This "
+#~ "improves the overall look of your model. Check it out!"
+#~ msgstr ""
+#~ "Z varrat helye\n"
+#~ "Tudtad, hogy testreszabhatod a Z varrat helyét, és akár rá is festheted a "
+#~ "nyomatra, hogy kevésbé látható helyre kerüljön? Ezzel javíthatod a "
+#~ "modelled megjelenését. Próbáld ki!"
+
+#~ msgid ""
+#~ "Fine-tuning for flow rate\n"
+#~ "Did you know that flow rate can be fine-tuned for even better-looking "
+#~ "prints? Depending on the material, you can improve the overall finish of "
+#~ "the printed model by doing some fine-tuning."
+#~ msgstr ""
+#~ "Anyagáramlás finomhangolása\n"
+#~ "Tudtad, hogy az anyagáramlás finomhangolható a még szebb nyomatok "
+#~ "érdekében? Az anyagtól függően némi finomhangolással jelentősen "
+#~ "javíthatsz a nyomtatott modell felületeinek megjelenésén."
+
+#~ msgid ""
+#~ "Split your prints into plates\n"
+#~ "Did you know that you can split a model that has a lot of parts into "
+#~ "individual plates ready to print? This will simplify the process of "
+#~ "keeping track of all the parts."
+#~ msgstr ""
+#~ "Oszd fel a nyomatokat több tálcára\n"
+#~ "Tudtad, hogy a sok részből álló modellt nyomtatásra kész tálcákra "
+#~ "oszthatod? Így egyszerűbben nyomon követheted a nyomtatásra váró "
+#~ "tárgyakat."
+
+#~ msgid ""
+#~ "Speed up your print with Adaptive Layer Height\n"
+#~ "Did you know that you can print a model even faster, by using the "
+#~ "Adaptive Layer Height option? Check it out!"
+#~ msgstr ""
+#~ "Gyorsítsd fel a nyomtatást az adaptív rétegmagassággal\n"
+#~ "Tudtad, hogy a nyomtatást tovább gyorsíthatod adaptív rétegmagasság "
+#~ "használatával? Próbáld ki!"
+
+#~ msgid ""
+#~ "Support painting\n"
+#~ "Did you know that you can paint the location of your supports? This "
+#~ "feature makes it easy to place the support material only on the sections "
+#~ "of the model that actually need it."
+#~ msgstr ""
+#~ "Támaszok festése\n"
+#~ "Tudtad, hogy festéssel is kijelölheted a támaszok helyét? Ezzel az "
+#~ "opcióval elérheted, hogy csak oda kerüljön támasz, ahol valóban szükség "
+#~ "van rá."
+
+#~ msgid ""
+#~ "Different types of supports\n"
+#~ "Did you know that you can choose from multiple types of supports? Tree "
+#~ "supports work great for organic models, while saving filament and "
+#~ "improving print speed. Check them out!"
+#~ msgstr ""
+#~ "Különböző típusú támaszok\n"
+#~ "Tudtad, hogy többféle támasz közül választhatsz? A fatámaszok remekül "
+#~ "működnek az organikus modelleknél, kevesebb filamentet igényelnek és "
+#~ "elősegítik a gyorsabb nyomtatást. Próbáld ki!"
+
+#~ msgid ""
+#~ "Printing Silk Filament\n"
+#~ "Did you know that Silk filament needs special consideration to print it "
+#~ "successfully? Higher temperature and lower speed are always recommended "
+#~ "for the best results."
+#~ msgstr ""
+#~ "Nyomtatás selyemhatású filamenttel\n"
+#~ "Tudtad, hogy a selyemhatású filamentek több figyelmet igényelnek a "
+#~ "sikeres nyomtatás érdekében? A legjobb eredmény érdekében mindig használj "
+#~ "magasabb hőmérsékletet és alacsonyabb sebességet."
+
+#~ msgid ""
+#~ "Brim for better adhesion\n"
+#~ "Did you know that when printed models have a small contact interface with "
+#~ "the printing surface, it's recommended to use a brim?"
+#~ msgstr ""
+#~ "Perem a jobb tapadás érdekében\n"
+#~ "Tudtad, hogy a ha a nyomtatott modell csak kis felületen érintkezik az "
+#~ "asztallal, akkor ajánlott peremet használni?"
+
+#~ msgid ""
+#~ "Set parameters for multiple objects\n"
+#~ "Did you know that you can set slicing parameters for all selected objects "
+#~ "at once?"
+#~ msgstr ""
+#~ "Paraméterek beállítása több objektumhoz\n"
+#~ "Tudtad, hogy egyszerre is beállíthatod a szeletelési paramétereket az "
+#~ "összes kijelölt objektumhoz?"
+
+#~ msgid ""
+#~ "Stack objects\n"
+#~ "Did you know that you can stack objects as a whole one?"
+#~ msgstr ""
+#~ "Objektumok egymásra helyezése\n"
+#~ "Tudtad, hogy több objektumot is egymásra rakhatsz, amit aztán egyben "
+#~ "kinyomtathatsz?"
+
+#~ msgid ""
+#~ "Flush into support/objects/infill\n"
+#~ "Did you know that you can save wasted filament by flushing it into "
+#~ "support/objects/infill during filament change?"
+#~ msgstr ""
+#~ "Öblítés támaszokba/objektumokba/kitöltésbe\n"
+#~ "Tudtad, hogy csökkentheted a felhasznált filament mennyiségét, ha a "
+#~ "filamentcsere során az öblítést a támaszba/objektumba/kitöltésbe állítod?"
+
+#~ msgid ""
+#~ "Improve strength\n"
+#~ "Did you know that you can use more wall loops and higher sparse infill "
+#~ "density to improve the strength of the model?"
+#~ msgstr ""
+#~ "Szilárdság javítása\n"
+#~ "Tudtad, hogy több fal vagy nagyobb kitöltés használatával javíthatod a "
+#~ "modell szilárdságát?"
+
 #, fuzzy
-msgid ""
-"When do you need to print with the printer door opened?\n"
-"Did you know that opening the printer door can reduce the probability of "
-"extruder/hotend clogging when printing lower temperature filament with a "
-"higher enclosure temperature? More info about this in the Wiki."
-msgstr ""
-"Mikor nyomtass nyitott ajtóval\n"
-"Tudtad, hogy a nyomtató ajtajának kinyitásával csökkentheted az extruder/"
-"hotend eltömődésének valószínűségét, ha alacsonyabb hőmérsékletű filamentet "
-"nyomtatsz? További információ a Wikiben olvashatsz erről."
+#~ msgid ""
+#~ "When do you need to print with the printer door opened?\n"
+#~ "Did you know that opening the printer door can reduce the probability of "
+#~ "extruder/hotend clogging when printing lower temperature filament with a "
+#~ "higher enclosure temperature? More info about this in the Wiki."
+#~ msgstr ""
+#~ "Mikor nyomtass nyitott ajtóval\n"
+#~ "Tudtad, hogy a nyomtató ajtajának kinyitásával csökkentheted az extruder/"
+#~ "hotend eltömődésének valószínűségét, ha alacsonyabb hőmérsékletű "
+#~ "filamentet nyomtatsz? További információ a Wikiben olvashatsz erről."
 
-#: resources/data/hints.ini: [hint:Avoid warping]
-msgid ""
-"Avoid warping\n"
-"Did you know that when printing materials that are prone to warping such as "
-"ABS, appropriately increasing the heatbed temperature can reduce the "
-"probability of warping?"
-msgstr ""
-"Vetemedés elkerülése\n"
-"Tudtad, hogy a vetemedésre hajlamos anyagok (például ABS) nyomtatásakor a "
-"tárgyasztal hőmérsékletének növelése csökkentheti a vetemedés valószínűségét?"
+#~ msgid ""
+#~ "Avoid warping\n"
+#~ "Did you know that when printing materials that are prone to warping such "
+#~ "as ABS, appropriately increasing the heatbed temperature can reduce the "
+#~ "probability of warping?"
+#~ msgstr ""
+#~ "Vetemedés elkerülése\n"
+#~ "Tudtad, hogy a vetemedésre hajlamos anyagok (például ABS) nyomtatásakor a "
+#~ "tárgyasztal hőmérsékletének növelése csökkentheti a vetemedés "
+#~ "valószínűségét?"
 
 #~ msgid "Alt + Shift + Enter"
 #~ msgstr "Alt + Shift + Enter"
@@ -18371,9 +18484,6 @@ msgstr ""
 
 #~ msgid "Total ramming time"
 #~ msgstr "Teljes tömörítési idő"
-
-#~ msgid "s"
-#~ msgstr "mp"
 
 #~ msgid "Total rammed volume"
 #~ msgstr "Teljes tömörített térfogat"
@@ -19136,13 +19246,3 @@ msgstr ""
 
 #~ msgid "Orient the model"
 #~ msgstr "Modell orientációja"
-
-
-msgid "Gizmo Overhang Detection"
-msgstr "Konzol észlelése"
-
-msgid "Gizmo Drill"
-msgstr "Fúrás"
-
-msgid "Gizmo Hollow"
-msgstr "Üregesítés"

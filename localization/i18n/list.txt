@@ -112,6 +112,7 @@ src/slic3r/GUI/SendSystemInfoDialog.cpp
 src/slic3r/GUI/SendToPrinter.cpp
 src/slic3r/GUI/SlicingProgressNotification.cpp
 src/slic3r/GUI/BindDialog.cpp
+src/slic3r/GUI/LayerPrintTimeCompensationDialog.cpp
 src/slic3r/GUI/Tab.cpp
 src/slic3r/GUI/Tab.hpp
 src/slic3r/GUI/UnsavedChangesDialog.cpp
@@ -207,3 +208,6 @@ src/slic3r/GUI/PhrozenGUI/PhrozenSelectMachinePopup.hpp
 src/slic3r/GUI/PhrozenGUI/PhrozenSelectMachinePopup.cpp
 src/slic3r/GUI/PhrozenGUI/PhrozenSideTools.hpp
 src/slic3r/GUI/PhrozenGUI/PhrozenSideTools.cpp
+src/slic3r/GUI/SLASlice2DCanvas.cpp
+src/slic3r/GUI/SLAPrinterSettingsDialog.cpp
+src/libslic3r/SLAPrintSteps.cpp

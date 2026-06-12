@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 13:49+0800\n"
+"POT-Creation-Date: 2026-06-12 14:53+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1475,13 +1475,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-msgid "Hollow and drill"
-msgstr ""
-
 msgid "Selected object has to be on the active bed."
-msgstr ""
-
-msgid "Preview"
 msgstr ""
 
 msgid "Remove selected"
@@ -1505,7 +1499,7 @@ msgstr ""
 msgid "Drill"
 msgstr ""
 
-msgid "Head diameter"
+msgid "Upper Diameter"
 msgstr ""
 
 msgid "Lock supports under new islands"
@@ -1532,9 +1526,6 @@ msgstr ""
 msgid "Manual editing"
 msgstr ""
 
-msgid "Head Diameter"
-msgstr ""
-
 msgid "Discard"
 msgstr ""
 
@@ -1559,10 +1550,9 @@ msgstr ""
 msgid "Density"
 msgstr ""
 
-msgid "Auto-generate support points based on density setting."
-msgstr ""
-
-msgid "Pillar Diameter"
+msgid ""
+"Auto-generate support points using density and Support Angle (Process → "
+"Bridge)."
 msgstr ""
 
 msgid ""
@@ -3808,6 +3798,18 @@ msgid ""
 "Fuzzy Skin"
 msgstr ""
 
+msgid "Contact Depth should not be greater than Segment Length."
+msgstr ""
+
+msgid "Invalid Contact Depth"
+msgstr ""
+
+msgid "Upper Diameter should not be greater than Lower Diameter."
+msgstr ""
+
+msgid "Invalid Upper Diameter"
+msgstr ""
+
 msgid ""
 "Spiral mode only works when wall loops is 1, support is disabled, top shell "
 "layers is 0, sparse infill density is 0 and timelapse type is traditional."
@@ -4591,6 +4593,9 @@ msgstr ""
 msgid "Logging"
 msgstr ""
 
+msgid "Preview"
+msgstr ""
+
 msgid "Multi-device"
 msgstr ""
 
@@ -4616,6 +4621,9 @@ msgid ""
 msgstr ""
 
 msgid "Phrozen Orca"
+msgstr ""
+
+msgid "Phrozen Orca Filament"
 msgstr ""
 
 msgid "Slice plate"
@@ -6255,6 +6263,18 @@ msgstr ""
 msgid "Error during reload"
 msgstr ""
 
+msgid "Overhang Detecting"
+msgstr ""
+
+msgid "Support complete"
+msgstr ""
+
+msgid "Hollow/Drill complete"
+msgstr ""
+
+msgid "Overhang detection complete"
+msgstr ""
+
 msgid "There are warnings after slicing models:"
 msgstr ""
 
@@ -6262,6 +6282,15 @@ msgid "warnings"
 msgstr ""
 
 msgid "Invalid data"
+msgstr ""
+
+msgid "Support cancelled"
+msgstr ""
+
+msgid "Hollow/Drill cancelled"
+msgstr ""
+
+msgid "Overhang detection cancelled"
 msgstr ""
 
 msgid "Slicing Canceled"
@@ -7352,27 +7381,6 @@ msgstr ""
 msgid "Slice ok."
 msgstr ""
 
-msgid "Support complete"
-msgstr ""
-
-msgid "Hollow/Drill complete"
-msgstr ""
-
-msgid "Support cancelled"
-msgstr ""
-
-msgid "Hollow/Drill cancelled"
-msgstr ""
-
-msgid "Overhang Detecting"
-msgstr ""
-
-msgid "Overhang detection complete"
-msgstr ""
-
-msgid "Overhang detection cancelled"
-msgstr ""
-
 msgid "View all Daily tips"
 msgstr ""
 
@@ -7498,6 +7506,30 @@ msgid "Log out successful."
 msgstr ""
 
 msgid "Failed to log out."
+msgstr ""
+
+msgid "Layer Print Time Compensation Settings"
+msgstr ""
+
+msgid "h"
+msgstr ""
+
+msgid "m"
+msgstr ""
+
+msgid "s"
+msgstr ""
+
+msgid "Software predicts print time"
+msgstr ""
+
+msgid "Actual print time"
+msgstr ""
+
+msgid "Layer count"
+msgstr ""
+
+msgid "Layer print time compensation"
 msgstr ""
 
 msgid "Search in preset"
@@ -8663,7 +8695,19 @@ msgstr ""
 msgid "Gizmo mesh boolean"
 msgstr ""
 
+msgid "Gizmo Hollow"
+msgstr ""
+
 msgid "Gizmo FDM paint-on fuzzy skin"
+msgstr ""
+
+msgid "Gizmo Drill"
+msgstr ""
+
+msgid "Gizmo Overhang Detection"
+msgstr ""
+
+msgid "Gizmo Support Painting"
 msgstr ""
 
 msgid "Gizmo SLA support points"
@@ -14144,6 +14188,22 @@ msgstr ""
 msgid "Bottom Tolerance Compensation for advanced"
 msgstr ""
 
+msgid "Print Time Compensation"
+msgstr ""
+
+msgid ""
+"When enabled, adds layer-based compensation to the estimated print time (PRZ "
+"model)."
+msgstr ""
+
+msgid "Layer Print Time Compensation"
+msgstr ""
+
+msgid ""
+"Per-layer time adjustment in seconds. Total adjustment is this value times "
+"layer count when Print Time Compensation is enabled."
+msgstr ""
+
 msgid "Contact Type"
 msgstr ""
 
@@ -14154,9 +14214,6 @@ msgid "Support Point Diameter"
 msgstr ""
 
 msgid "Support Point Diameter for support"
-msgstr ""
-
-msgid "Upper Diameter"
 msgstr ""
 
 msgid "Upper Diameter for support."
@@ -14174,20 +14231,12 @@ msgstr ""
 msgid "Pinhead Width for support."
 msgstr ""
 
+msgid "Pillar Diameter"
+msgstr ""
+
 msgid "Pillar Diameter for support."
 msgstr ""
 
-msgid "Angle Between Top And Middle"
-msgstr ""
-
-msgid "Maximum slope angle for bridges connecting the support contact head to the main pillar."
-msgstr ""
-
-msgid "Cross Angle"
-msgstr ""
-
-msgid "Maximum slope angle for cross-links between main support pillars."
-msgstr ""
 msgid "Support Bracing Angle"
 msgstr ""
 
@@ -14251,12 +14300,38 @@ msgstr ""
 msgid "Resolution (pixels)"
 msgstr ""
 
-msgid "Supports"
+msgid ""
+"Top diameter of the support cone between the contact and the pillar (minimum "
+"0.01 mm)."
+msgstr ""
+
+msgid "Lower Diameter"
+msgstr ""
+
+msgid ""
+"Bottom diameter of the support cone on the pillar side (minimum 0.01 mm)."
+msgstr ""
+
+msgid "Segment Length"
+msgstr ""
+
+msgid ""
+"Length of the conical support segment between the upper and lower diameters "
+"(minimum 0.01 mm)."
+msgstr ""
+
+msgid ""
+"How far the support contact penetrates into the model surface from the "
+"contact point. With Contact Type Sphere, depth is measured from where the "
+"sphere touches the model (minimum 0.01 mm)."
 msgstr ""
 
 msgid ""
 "Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
 "the tip to increase contact area."
+msgstr ""
+
+msgid "Contact Diameter"
 msgstr ""
 
 msgid ""
@@ -14270,6 +14345,20 @@ msgstr ""
 msgid "Width from the back sphere center to the front sphere center."
 msgstr ""
 
+msgid "Angle Between Top And Middle"
+msgstr ""
+
+msgid ""
+"Maximum slope angle for bridges connecting the support contact head to the "
+"main pillar."
+msgstr ""
+
+msgid "Cross Angle"
+msgstr ""
+
+msgid "Maximum slope angle for cross-links between main support pillars."
+msgstr ""
+
 msgid "Generate support"
 msgstr ""
 
@@ -14277,8 +14366,26 @@ msgid "Generate support for support"
 msgstr ""
 
 msgid ""
-"Surfaces whose slope angle from horizontal is below this value will not "
-"receive supports. Set to 90 to support all overhangs."
+"Maximum allowable angle between the model surface (tangential plane) and the "
+"platform for auto support generation."
+msgstr ""
+
+msgid "The max length of a bridge connecting support sticks and junctions."
+msgstr ""
+
+msgid "The max distance of two pillars to get cross-linked with each other."
+msgstr ""
+
+msgid "Model Lift Height"
+msgstr ""
+
+msgid ""
+"The vertical offset of the lowest point on the model from the print "
+"platform. Notice that this offset would overwrite any original model offset "
+"in the Z direction."
+msgstr ""
+
+msgid "Supports"
 msgstr ""
 
 msgid "This is a relative measure of support points density."
@@ -16727,6 +16834,9 @@ msgstr ""
 msgid "User cancelled."
 msgstr ""
 
+msgid "Head diameter"
+msgstr ""
+
 msgid "Max angle"
 msgstr ""
 
@@ -16906,150 +17016,105 @@ msgstr ""
 msgid "Bind with IP"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Precise wall]
-msgid "Precise wall\nDid you know that turning on precise wall can improve precision and layer consistency?"
+msgid "Total resin"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Sandwich mode]
-msgid "Sandwich mode\nDid you know that you can use sandwich mode (inner-outer-inner) to improve precision and layer consistency if your model doesn't have very steep overhangs?"
+#, possible-c-format, possible-boost-format
+msgid "%s must be a number greater than or equal to %g."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Chamber temperature]
-msgid "Chamber temperature\nDid you know that PhrozenOrca supports chamber temperature?"
+#, possible-c-format, possible-boost-format
+msgid "%s must be an integer greater than or equal to %d."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Calibration]
-msgid "Calibration\nDid you know that calibrating your printer can do wonders? Check out our beloved calibration solution in PhrozenOrca."
+msgid "Printer Settings"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Auxiliary fan]
-msgid "Auxiliary fan\nDid you know that PhrozenOrca supports Auxiliary part cooling fan?"
+msgid "Reset to default"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Air filtration]
-msgid "Air filtration/Exhaust Fan\nDid you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
+msgid "Resolution X"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:G-code window]
-msgid "G-code window\nYou can turn on/off the G-code window by pressing the <b>C</b> key."
+msgid "Resolution Y"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Switch workspaces]
-msgid "Switch workspaces\nYou can switch between <b>Prepare</b> and <b>Preview</b> workspaces by pressing the <b>Tab</b> key."
+msgid "Size X"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
-msgid "How to use keyboard shortcuts\nDid you know that PhrozenOrca offers a wide range of keyboard shortcuts and 3D scene operations?"
+msgid "Size Y"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Reverse on odd]
-msgid "Reverse on odd\nDid you know that <b>Reverse on odd</b> feature can significantly improve the surface quality of your overhangs?"
+msgid "Size Z"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Cut Tool]
-msgid "Cut Tool\nDid you know that you can cut a model at any angle and position with the cutting tool?"
+msgid "Assembling model from parts"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Fix Model]
-msgid "Fix Model\nDid you know that you can fix a corrupted 3D model to avoid a lot of slicing problems on the Windows system?"
+msgid "Hollowing model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Timelapse]
-msgid "Timelapse\nDid you know that you can generate a timelapse video during each print?"
+msgid "Drilling holes into model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Auto-Arrange]
-msgid "Auto-Arrange\nDid you know that you can auto-arrange all the objects in your project?"
+msgid "Slicing model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Auto-Orient]
-msgid "Auto-Orient\nDid you know that you can rotate objects to an optimal orientation for printing with a simple click?"
+msgid "Generating support points"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Lay on Face]
-msgid "Lay on Face\nDid you know that you can quickly orient a model so that one of its faces sits on the print bed? Select the \"Place on face\" function or press the <b>F</b> key."
+msgid "Generating support tree"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Object List]
-msgid "Object List\nDid you know that you can view all objects/parts in a list and change settings for each object/part?"
+msgid "Generating pad"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Search Functionality]
-msgid "Search Functionality\nDid you know that you use the Search tool to quickly find a specific PhrozenOrca setting?"
+msgid "Slicing supports"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Simplify Model]
-msgid "Simplify Model\nDid you know that you can reduce the number of triangles in a mesh using the Simplify mesh feature? Right-click the model and select Simplify model."
+msgid "Merging slices and calculating statistics"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Slicing Parameter Table]
-msgid "Slicing Parameter Table\nDid you know that you can view all objects/parts on a table and change settings for each object/part?"
+msgid "Rasterizing layers"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Split to Objects/Parts]
-msgid "Split to Objects/Parts\nDid you know that you can split a big object into small ones for easy colorizing or printing?"
+msgid ""
+"Some parts of the print will be previewed with approximated meshes. This "
+"does not affect the quality of slices or the physical print in any way."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Subtract a Part]
-msgid "Subtract a Part\nDid you know that you can subtract one mesh from another using the Negative part modifier? That way you can, for example, create easily resizable holes directly in PhrozenOrca."
+msgid "Too many overlapping holes."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:STEP]
-msgid "STEP\nDid you know that you can improve your print quality by slicing a STEP file instead of an STL?\nPhrozenOrca supports slicing STEP files, providing smoother results than a lower resolution STL. Give it a try!"
+msgid ""
+"Mesh to be hollowed is not suitable for hollowing (does not bound a volume)."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Z seam location]
-msgid "Z seam location\nDid you know that you can customize the location of the Z seam, and even paint it on your print, to have it in a less visible location? This improves the overall look of your model. Check it out!"
+msgid "Unable to drill the current configuration of holes into the model."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Fine-tuning for flow rate]
-msgid "Fine-tuning for flow rate\nDid you know that flow rate can be fine-tuned for even better-looking prints? Depending on the material, you can improve the overall finish of the printed model by doing some fine-tuning."
+msgid ""
+"Drilling holes into the mesh failed. This is usually caused by broken model. "
+"Try to fix it first."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Split your prints into plates]
-msgid "Split your prints into plates\nDid you know that you can split a model that has a lot of parts into individual plates ready to print? This will simplify the process of keeping track of all the parts."
+msgid "Failed to drill some holes into the model"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Speed up your print with Adaptive Layer Height]
-msgid "Speed up your print with Adaptive Layer Height\nDid you know that you can print a model even faster, by using the Adaptive Layer Height option? Check it out!"
+msgid ""
+"Slicing had to be stopped due to an internal error: Inconsistent slice index."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Support painting]
-msgid "Support painting\nDid you know that you can paint the location of your supports? This feature makes it easy to place the support material only on the sections of the model that actually need it."
+msgid "Visualizing supports"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Different types of supports]
-msgid "Different types of supports\nDid you know that you can choose from multiple types of supports? Tree supports work great for organic models, while saving filament and improving print speed. Check them out!"
+msgid "No pad can be generated for this model with the current configuration"
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Printing Silk Filament]
-msgid "Printing Silk Filament\nDid you know that Silk filament needs special consideration to print it successfully? Higher temperature and lower speed are always recommended for the best results."
+msgid ""
+"There are unprintable objects. Try to adjust support settings to make the "
+"objects printable."
 msgstr ""
 
-#: resources/data/hints.ini: [hint:Brim for better adhesion]
-msgid "Brim for better adhesion\nDid you know that when printed models have a small contact interface with the printing surface, it's recommended to use a brim?"
-msgstr ""
-
-#: resources/data/hints.ini: [hint:Set parameters for multiple objects]
-msgid "Set parameters for multiple objects\nDid you know that you can set slicing parameters for all selected objects at once?"
-msgstr ""
-
-#: resources/data/hints.ini: [hint:Stack objects]
-msgid "Stack objects\nDid you know that you can stack objects as a whole one?"
-msgstr ""
-
-#: resources/data/hints.ini: [hint:Flush into support/objects/infill]
-msgid "Flush into support/objects/infill\nDid you know that you can save wasted filament by flushing it into support/objects/infill during filament change?"
-msgstr ""
-
-#: resources/data/hints.ini: [hint:Improve strength]
-msgid "Improve strength\nDid you know that you can use more wall loops and higher sparse infill density to improve the strength of the model?"
-msgstr ""
-
-#: resources/data/hints.ini: [hint:When do you need to print with the printer door opened]
-msgid "When do you need to print with the printer door opened?\nDid you know that opening the printer door can reduce the probability of extruder/hotend clogging when printing lower temperature filament with a higher enclosure temperature? More info about this in the Wiki."
-msgstr ""
-
-#: resources/data/hints.ini: [hint:Avoid warping]
-msgid "Avoid warping\nDid you know that when printing materials that are prone to warping such as ABS, appropriately increasing the heatbed temperature can reduce the probability of warping?"
+msgid "Rasterizing layers..."
 msgstr ""

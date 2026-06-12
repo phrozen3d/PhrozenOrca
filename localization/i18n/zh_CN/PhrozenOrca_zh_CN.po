@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Slic3rPE\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 13:49+0800\n"
+"POT-Creation-Date: 2026-06-12 14:53+0800\n"
 "PO-Revision-Date: 2024-07-28 07:12+0000\n"
 "Last-Translator: Handle <mail@bysb.net>\n"
 "Language-Team: \n"
@@ -51,7 +51,7 @@ msgid "Ctrl+"
 msgstr "Ctrl+"
 
 msgid "Alt+"
-msgstr ""
+msgstr "Alt+"
 
 msgid "Shift+"
 msgstr "Shift+"
@@ -185,16 +185,16 @@ msgid "Height range"
 msgstr "高度范围"
 
 msgid "Enter"
-msgstr ""
+msgstr "Enter"
 
 msgid "Toggle Wireframe"
 msgstr "显示/隐藏线框"
 
 msgid "Remap filaments"
-msgstr ""
+msgstr "重新映射耗材"
 
 msgid "Remap"
-msgstr ""
+msgstr "重新映射"
 
 msgid "Cancel"
 msgstr "取消"
@@ -222,7 +222,7 @@ msgid "Painted using: Filament %1%"
 msgstr "绘制使用：耗材丝%1%"
 
 msgid "Filament remapping finished."
-msgstr ""
+msgstr "耗材重新映射完成。"
 
 msgid "Move"
 msgstr "移动"
@@ -711,7 +711,7 @@ msgid "Horizontal text"
 msgstr "水平文字"
 
 msgid "Mouse move up or down"
-msgstr ""
+msgstr "鼠标上下移动"
 
 msgid "Rotate text"
 msgstr "旋转文字"
@@ -1464,25 +1464,25 @@ msgid "Shift + Left mouse button"
 msgstr "Shift + 鼠标左键"
 
 msgid "Detection Accuracy"
-msgstr ""
+msgstr "检测精度"
 
 msgid "Middle"
-msgstr ""
+msgstr "中键"
 
 msgid "Model"
 msgstr "模型"
 
 msgid "Overhang Area"
-msgstr ""
+msgstr "悬垂区域"
 
 msgid "Detect all"
-msgstr ""
+msgstr "检测全部"
 
 msgid "Detect selected"
-msgstr ""
+msgstr "检测选中"
 
 msgid "Add overhang supports"
-msgstr ""
+msgstr "添加悬垂支撑"
 
 msgid "Hollow"
 msgstr "空心"
@@ -1490,157 +1490,149 @@ msgstr "空心"
 msgid "Remove"
 msgstr "移除"
 
-msgid "Hollow and drill"
-msgstr ""
-
 msgid "Selected object has to be on the active bed."
-msgstr ""
-
-msgid "Preview"
-msgstr "预览"
+msgstr "选中的物体必须位于当前打印床上。"
 
 msgid "Remove selected"
-msgstr ""
+msgstr "移除选中"
 
 msgid "Remove all"
 msgstr "删除所有点"
 
 msgid "Left click:"
-msgstr ""
+msgstr "左键点击："
 
 msgid "Right click:"
-msgstr ""
+msgstr "右键点击："
 
 msgid "Add hole"
-msgstr ""
+msgstr "添加孔"
 
 msgid "Remove hole"
-msgstr ""
+msgstr "移除孔"
 
 msgid "Drill"
 msgstr "钻孔"
 
-msgid "Head diameter"
-msgstr "Brim 直径"
+msgid "Upper Diameter"
+msgstr "上部直径"
 
 msgid "Lock supports under new islands"
-msgstr ""
+msgstr "锁定新孤岛下的支撑"
 
 msgid "Remove selected points"
 msgstr "删除已选择的点"
 
 msgid "Remove all points"
-msgstr ""
+msgstr "移除所有点"
 
 msgid "Apply changes"
-msgstr ""
+msgstr "应用更改"
 
 msgid "Discard changes"
-msgstr ""
+msgstr "放弃更改"
 
 msgid "Support points density"
-msgstr ""
+msgstr "支撑点密度"
 
 msgid "Auto-generate points"
 msgstr "自动生成点"
 
 msgid "Manual editing"
-msgstr ""
-
-msgid "Head Diameter"
-msgstr ""
+msgstr "手动编辑"
 
 msgid "Discard"
 msgstr "放弃"
 
 msgid "Auto Support"
-msgstr ""
+msgstr "自动支撑"
 
 msgid "Manual Support"
-msgstr ""
+msgstr "手动支撑"
 
 msgid "Light"
-msgstr ""
+msgstr "轻"
 
 msgid "Heavy"
-msgstr ""
+msgstr "重"
 
 msgid "Structure"
-msgstr ""
+msgstr "结构"
 
 msgid "Points"
-msgstr ""
+msgstr "点"
 
 msgid "Density"
 msgstr "密度"
 
-msgid "Auto-generate support points based on density setting."
-msgstr ""
-
-msgid "Pillar Diameter"
-msgstr ""
+msgid ""
+"Auto-generate support points using density and Support Angle (Process → "
+"Bridge)."
+msgstr "使用密度与支撑角度（工艺 → 桥接）自动生成支撑点。"
 
 msgid ""
 "Left-click: add support point\n"
 "Right-click: remove point"
 msgstr ""
+"左键点击：添加支撑点\n"
+"右键点击：移除点"
 
 msgid "SLA Support Points"
 msgstr "SLA支撑点"
 
 msgid "Do you want to save your manually edited support points?"
-msgstr ""
+msgstr "是否保存您手动编辑的支撑点？"
 
 msgid "Save support points?"
-msgstr ""
+msgstr "保存支撑点？"
 
 msgid "Autogeneration will erase all manually edited points."
-msgstr ""
+msgstr "自动生成将清除所有手动编辑的点。"
 
 msgid "Are you sure you want to do it?"
-msgstr ""
+msgstr "确定要执行此操作吗？"
 
 msgid "SLA gizmo keyboard shortcuts"
-msgstr ""
+msgstr "SLA 工具键盘快捷键"
 
 msgid "Note: some shortcuts work in (non)editing mode only."
-msgstr ""
+msgstr "注意：部分快捷键仅在（非）编辑模式下有效。"
 
 msgid "Add point"
-msgstr ""
+msgstr "添加点"
 
 msgid "Remove point"
-msgstr ""
+msgstr "移除点"
 
 msgid "Move point"
-msgstr ""
+msgstr "移动点"
 
 msgid "Add point to selection"
-msgstr ""
+msgstr "添加点到选择"
 
 msgid "Remove point from selection"
-msgstr ""
+msgstr "从选择中移除点"
 
 msgid "Select by rectangle"
-msgstr ""
+msgstr "框选"
 
 msgid "Deselect by rectangle"
-msgstr ""
+msgstr "框取消选择"
 
 msgid "Select all points"
-msgstr ""
+msgstr "全选所有点"
 
 msgid "Del"
 msgstr "删除"
 
 msgid "Move clipping plane"
-msgstr ""
+msgstr "移动裁剪平面"
 
 msgid "Reset clipping plane"
-msgstr ""
+msgstr "重置裁剪平面"
 
 msgid "Switch to editing mode"
-msgstr ""
+msgstr "切换到编辑模式"
 
 msgid "Notice"
 msgstr "通知"
@@ -1988,7 +1980,7 @@ msgid "Delete the selected object"
 msgstr "删除所选对象"
 
 msgid "Backspace"
-msgstr ""
+msgstr "Backspace"
 
 msgid "Load..."
 msgstr "加载..."
@@ -2552,7 +2544,7 @@ msgid "Plate"
 msgstr "盘"
 
 msgid "Brim"
-msgstr "Brim"
+msgstr "裙边"
 
 msgid "Object/Part Setting"
 msgstr "对象/零件设置"
@@ -3180,10 +3172,10 @@ msgid "AMS Slots"
 msgstr "AMS舱内材料"
 
 msgid "Left AMS"
-msgstr ""
+msgstr "左侧 AMS"
 
 msgid "Right AMS"
-msgstr ""
+msgstr "右侧 AMS"
 
 msgid ""
 "Note: Only the AMS slots loaded with the same material type can be selected."
@@ -3513,7 +3505,7 @@ msgid "View"
 msgstr "视图"
 
 msgid "N/A"
-msgstr "N/A"
+msgstr "不适用"
 
 msgid "Edit Printers"
 msgstr "编辑打印机"
@@ -3907,7 +3899,7 @@ msgstr ""
 msgid ""
 "Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall "
 "Generator to be enabled."
-msgstr ""
+msgstr "模糊表皮的 [挤出] 和 [组合] 模式均需要启用 Arachne 壁生成器。"
 
 msgid ""
 "Change these settings automatically?\n"
@@ -3915,6 +3907,21 @@ msgid ""
 "No  - Disable Arachne Wall Generator and set [Displacement] mode of the "
 "Fuzzy Skin"
 msgstr ""
+"是否自动更改这些设置？\n"
+"是 - 启用 Arachne 壁生成器\n"
+"否 - 禁用 Arachne 壁生成器并将模糊表皮设为 [位移] 模式"
+
+msgid "Contact Depth should not be greater than Segment Length."
+msgstr "接触深度不应大于段长度。"
+
+msgid "Invalid Contact Depth"
+msgstr "无效的接触深度"
+
+msgid "Upper Diameter should not be greater than Lower Diameter."
+msgstr "上端直径不应大于下端直径。"
+
+msgid "Invalid Upper Diameter"
+msgstr "无效的上端直径"
 
 msgid ""
 "Spiral mode only works when wall loops is 1, support is disabled, top shell "
@@ -4231,12 +4238,14 @@ msgid "Some extension in the input is invalid"
 msgstr "输入中的某些扩展名无效"
 
 msgid "This parameter expects a valid template."
-msgstr ""
+msgstr "此参数需要有效的模板。"
 
 msgid ""
 "Invalid pattern. Use N, N#K, or a comma-separated list with optional #K per "
 "entry. Examples: 5, 5#2, 1,7,9, 5,9#2,18."
 msgstr ""
+"无效模式。使用 N、N#K 或逗号分隔列表（每项可选 #K）。示例：5、5#2、1,7,9、"
+"5,9#2,18。"
 
 #, boost-format
 msgid "Invalid format. Expected vector format: \"%1%\""
@@ -4701,10 +4710,10 @@ msgid "Invalid input."
 msgstr "非法输入"
 
 msgid "Phrozen Orca FDM"
-msgstr ""
+msgstr "Phrozen Orca FDM"
 
 msgid "Phrozen Orca Resin"
-msgstr ""
+msgstr "Phrozen Orca Resin"
 
 msgid "New Window"
 msgstr "新窗口"
@@ -4720,6 +4729,9 @@ msgstr "正在关闭应用程序，部分预设已修改。"
 
 msgid "Logging"
 msgstr "日志"
+
+msgid "Preview"
+msgstr "预览"
 
 msgid "Multi-device"
 msgstr "多设备"
@@ -4739,20 +4751,23 @@ msgstr "将会被关闭以创建新模型，是否继续?"
 msgid ""
 "No Phrozen SLA printer preset found. Enable Phrozen SLA machines in Setup "
 "Wizard."
-msgstr ""
+msgstr "未找到 Phrozen SLA 打印机预设。请在设置向导中启用 Phrozen SLA 机型。"
 
 msgid ""
 "Phrozen Arco preset not found. Enable the Phrozen FDM bundle in Setup Wizard."
-msgstr ""
+msgstr "未找到 Phrozen Arco 预设。请在设置向导中启用 Phrozen FDM 套件。"
 
 msgid "Phrozen Orca"
 msgstr "Phrozen Orca"
+
+msgid "Phrozen Orca Filament"
+msgstr ""
 
 msgid "Slice plate"
 msgstr "切片单盘"
 
 msgid "Export PRZ file"
-msgstr ""
+msgstr "导出 PRZ 文件"
 
 msgid "Export G-code file"
 msgstr "导出G-code文件"
@@ -5096,7 +5111,7 @@ msgid "Junction Deviation calibration"
 msgstr "接合偏差校准"
 
 msgid "Cornering"
-msgstr ""
+msgstr "转角"
 
 # Phrozen
 msgid "More..."
@@ -6090,7 +6105,7 @@ msgid "Filament changes"
 msgstr "材料切换"
 
 msgid "Resin"
-msgstr ""
+msgstr "树脂"
 
 msgid "Click to edit preset"
 msgstr "点击编辑配置"
@@ -6102,7 +6117,7 @@ msgid "Bed type"
 msgstr "热床类型"
 
 msgid "SLA Print Settings"
-msgstr ""
+msgstr "SLA 打印设置"
 
 #. TRN "Save current Settings"
 #, c-format, boost-format
@@ -6113,7 +6128,7 @@ msgid "Delete this preset"
 msgstr "删除此预设"
 
 msgid "Material"
-msgstr ""
+msgstr "材料"
 
 msgid "Flushing volumes"
 msgstr "冲刷体积"
@@ -6218,7 +6233,7 @@ msgid "Collapse sidebar"
 msgstr "折叠边栏"
 
 msgid "Tab"
-msgstr ""
+msgstr "Tab"
 
 #, c-format, boost-format
 msgid "Loading file: %s"
@@ -6235,11 +6250,13 @@ msgid ""
 "rotation template settings that may not work properly with your current "
 "infill pattern. This could result in weak support or print quality issues."
 msgstr ""
+"此项目使用 OrcaSlicer 2.3.1-alpha 创建，包含填充旋转模板设置，可能与当前填充"
+"图案不兼容，可能导致支撑不足或打印质量问题。"
 
 msgid ""
 "Would you like PhrozenOrca to automatically fix this by clearing the "
 "rotation template settings?"
-msgstr ""
+msgstr "是否让 PhrozenOrca 通过清除旋转模板设置来自动修复？"
 
 #, c-format, boost-format
 msgid ""
@@ -6416,6 +6433,18 @@ msgstr "无法重新加载："
 msgid "Error during reload"
 msgstr "重新加载时发生错误"
 
+msgid "Overhang Detecting"
+msgstr "悬垂检测中"
+
+msgid "Support complete"
+msgstr "支撑完成"
+
+msgid "Hollow/Drill complete"
+msgstr "镂空/打孔完成"
+
+msgid "Overhang detection complete"
+msgstr "悬垂检测完成"
+
 msgid "There are warnings after slicing models:"
 msgstr "模型切片警告："
 
@@ -6424,6 +6453,15 @@ msgstr "警告"
 
 msgid "Invalid data"
 msgstr "无效数据"
+
+msgid "Support cancelled"
+msgstr "支撑已取消"
+
+msgid "Hollow/Drill cancelled"
+msgstr "镂空/打孔已取消"
+
+msgid "Overhang detection cancelled"
+msgstr "悬垂检测已取消"
 
 msgid "Slicing Canceled"
 msgstr "切片已取消"
@@ -6576,10 +6614,10 @@ msgid "The following characters are not allowed by a FAT file system:"
 msgstr "以下字符不被FAT文件系统支持："
 
 msgid "Save Phrozen SLA file as:"
-msgstr ""
+msgstr "将 Phrozen SLA 文件另存为："
 
 msgid "No raster parameters found. Please slice the model before exporting."
-msgstr ""
+msgstr "未找到光栅参数。导出前请先切片模型。"
 
 msgid "Save Sliced file as:"
 msgstr "切片文件另存为："
@@ -7548,18 +7586,6 @@ msgstr "该打印机不支持发送到打印机SD卡。"
 msgid "Slice ok."
 msgstr "切片完成."
 
-msgid "Support complete"
-msgstr ""
-
-msgid "Hollow/Drill complete"
-msgstr ""
-
-msgid "Support cancelled"
-msgstr ""
-
-msgid "Hollow/Drill cancelled"
-msgstr ""
-
 msgid "View all Daily tips"
 msgstr "查看所有每日贴士"
 
@@ -7696,6 +7722,30 @@ msgstr "登出成功。"
 msgid "Failed to log out."
 msgstr "登出失败。"
 
+msgid "Layer Print Time Compensation Settings"
+msgstr "图层打印时间补偿设置"
+
+msgid "h"
+msgstr "时"
+
+msgid "m"
+msgstr "分"
+
+msgid "s"
+msgstr "秒"
+
+msgid "Software predicts print time"
+msgstr "软件预估打印时间"
+
+msgid "Actual print time"
+msgstr "实际打印时间"
+
+msgid "Layer count"
+msgstr "层数"
+
+msgid "Layer print time compensation"
+msgstr "每层打印补偿时间"
+
 msgid "Search in preset"
 msgstr "在预设中搜索"
 
@@ -7759,6 +7809,9 @@ msgid ""
 "support. Please proceed with caution and thoroughly check for any potential "
 "printing issues.Are you sure you want to enable this option?"
 msgstr ""
+"填充图案通常设计为自动处理旋转以确保正确打印并达到预期效果（如 Gyroid、"
+"Cubic）。旋转当前稀疏填充图案可能导致支撑不足。请谨慎操作并彻底检查潜在打印问"
+"题。确定要启用此选项吗？"
 
 msgid ""
 "Layer height is too small.\n"
@@ -8216,22 +8269,22 @@ msgid "General"
 msgstr "常规"
 
 msgid "Size and coordinates"
-msgstr ""
+msgstr "尺寸与坐标"
 
 msgid "Tilt"
-msgstr ""
+msgstr "倾斜"
 
 msgid "Tilt time"
-msgstr ""
+msgstr "倾斜时间"
 
 msgid "Corrections"
-msgstr ""
+msgstr "修正"
 
 msgid "Exposure"
-msgstr ""
+msgstr "曝光"
 
 msgid "Output"
-msgstr ""
+msgstr "输出"
 
 msgid "Profile dependencies"
 msgstr "配置依赖"
@@ -8361,52 +8414,52 @@ msgid "Click to drop current modify and reset to saved value."
 msgstr "点击该图标，丢弃当前的修改，恢复到上次保存的数值。"
 
 msgid "Layer & Exposure"
-msgstr ""
+msgstr "层与曝光"
 
 msgid "Transition"
-msgstr ""
+msgstr "过渡"
 
 msgid "Wait & Rest"
-msgstr ""
+msgstr "等待与静止"
 
 msgid "Lift & Retract Distance"
-msgstr ""
+msgstr "抬升与回缩距离"
 
 msgid "Bottom Lift Distance"
-msgstr ""
+msgstr "底层抬升距离"
 
 msgid "Lifting Distance"
-msgstr ""
+msgstr "抬升距离"
 
 msgid "Bottom Retract Distance"
-msgstr ""
+msgstr "底层回缩距离"
 
 msgid "Retract Distance"
-msgstr ""
+msgstr "回缩距离"
 
 msgid "Lift & Retract Speed"
-msgstr ""
+msgstr "抬升与回缩速度"
 
 msgid "Bottom Lift Speed"
-msgstr ""
+msgstr "底层抬升速度"
 
 msgid "Lifting Speed"
-msgstr ""
+msgstr "抬升速度"
 
 msgid "Bottom Retract Speed"
-msgstr ""
+msgstr "底层回缩速度"
 
 msgid "Retract Speed"
-msgstr ""
+msgstr "回缩速度"
 
 msgid "Support preview description"
-msgstr ""
+msgstr "支撑预览说明"
 
 msgid "Main"
-msgstr ""
+msgstr "主"
 
 msgid "Raft Setting"
-msgstr ""
+msgstr "筏板设置"
 
 msgid "Process Settings"
 msgstr "工艺设置"
@@ -8846,7 +8899,7 @@ msgid "Collapse/Expand the sidebar"
 msgstr "收起/展开 侧边栏"
 
 msgid "Any arrow"
-msgstr ""
+msgstr "任意方向键"
 
 msgid "Movement in camera space"
 msgstr "沿相机视角移动对象"
@@ -8932,8 +8985,20 @@ msgstr "剪切物件"
 msgid "Gizmo mesh boolean"
 msgstr "线框网格布尔操作"
 
+msgid "Gizmo Hollow"
+msgstr "镂空"
+
 msgid "Gizmo FDM paint-on fuzzy skin"
 msgstr "线框FDM涂装绒毛皮肤"
+
+msgid "Gizmo Drill"
+msgstr "钻孔"
+
+msgid "Gizmo Overhang Detection"
+msgstr "悬空检测"
+
+msgid "Gizmo Support Painting"
+msgstr "工具支撑绘制"
 
 msgid "Gizmo SLA support points"
 msgstr "SLA支撑点"
@@ -9156,10 +9221,10 @@ msgid "Air Pump"
 msgstr "气泵"
 
 msgid "Laser 10 W"
-msgstr ""
+msgstr "激光 10 W"
 
 msgid "Laser 40 W"
-msgstr ""
+msgstr "激光 40 W"
 
 msgid "Cutting Module"
 msgstr "切割模块"
@@ -9714,7 +9779,7 @@ msgstr ""
 msgid ""
 "The precise wall option will be ignored for outer-inner or inner-outer-inner "
 "wall sequences."
-msgstr ""
+msgstr "外-内或内-外-内壁序列将忽略精确壁选项。"
 
 msgid ""
 "Filament shrinkage will not be used because filament shrinkage for the used "
@@ -9982,11 +10047,11 @@ msgid "Smooth High Temp Plate"
 msgstr "光滑高温打印热床"
 
 msgid "Default bed type"
-msgstr ""
+msgstr "默认打印床类型"
 
 msgid ""
 "Default bed type for the printer (supports both numeric and string format)."
-msgstr ""
+msgstr "打印机的默认打印床类型（支持数字和字符串格式）。"
 
 msgid "First layer print sequence"
 msgstr "第一层打印顺序"
@@ -10058,6 +10123,24 @@ msgid ""
 "generator and use this option to control whether the cosmetic top and bottom "
 "surface gap fill is generated."
 msgstr ""
+"为选定的实心表面启用间隙填充。可通过下方「过滤微小间隙」选项控制将被填充的最"
+"小间隙长度。\n"
+"\n"
+"选项：\n"
+"1. 全部：对顶、底和内部实心表面应用间隙填充以获得最大强度\n"
+"2. 顶底表面：仅对顶底表面应用，平衡打印速度、减少实心填充过挤并确保顶底面无针"
+"孔间隙\n"
+"3. 无：对所有实心填充区域禁用间隙填充\n"
+"\n"
+"注意：使用经典轮廓生成器时，若两轮廓间无法容纳整宽线，也可能在轮廓间生成间隙"
+"填充。该轮廓间隙填充不受此设置控制。\n"
+"\n"
+"若要移除所有间隙填充（含经典轮廓生成的），将「过滤微小间隙」设为很大数值如 "
+"999999。\n"
+"\n"
+"但不建议这样做，轮廓间间隙填充有助于模型强度。对轮廓间间隙填充过多的模型，更"
+"好的做法是切换到 arachne 壁生成器，并用此选项控制是否生成顶底表面的装饰性间隙"
+"填充。"
 
 msgid "Everywhere"
 msgstr "所有地方"
@@ -10253,6 +10336,8 @@ msgid ""
 "layer consistency. NOTE: This option will be ignored for outer-inner or "
 "inner-outer-inner wall sequences."
 msgstr ""
+"通过调整外壁间距提高外壳精度，同时改善层一致性。注意：外-内或内-外-内壁序列将"
+"忽略此选项。"
 
 msgid "Only one wall on top surfaces"
 msgstr "顶面单层墙"
@@ -10437,6 +10522,10 @@ msgid ""
 "are supported by less than 13%, whether they are part of a bridge or an "
 "overhang."
 msgstr ""
+"外部可见桥接挤出的速度。\n"
+"\n"
+"此外，若禁用「悬垂轮廓减速」或启用经典悬垂模式，则支撑不足 13% 的悬垂壁（无论"
+"属于桥接还是悬垂）将以此速度打印。"
 
 msgid "Internal"
 msgstr "内部"
@@ -10674,6 +10763,22 @@ msgid ""
 "4. Apply to all - generates second bridge layers for both internal and "
 "external-facing bridges\n"
 msgstr ""
+"此选项在内部和/或外部桥接上生成额外的桥接层。\n"
+"\n"
+"额外桥接层有助于改善桥接外观和可靠性，因为实心填充得到更好支撑。对高速打印机"
+"尤其有用，桥接与实心填充速度差异大时。额外桥接层可减少顶面枕形效应，以及外部"
+"桥接层与周围轮廓的分离。\n"
+"\n"
+"一般建议至少设为「仅外部桥接」，除非切片模型有特定问题。\n"
+"\n"
+"选项：\n"
+"1. 禁用 - 不生成第二层桥接。此为默认，为兼容性保留\n"
+"2. 仅外部桥接 - 仅为朝外的桥接生成第二层。注意：短于或窄于设定轮廓数的小桥接"
+"将跳过。若生成，第二层将与第一层平行挤出以加强桥接\n"
+"3. 仅内部桥接 - 仅为稀疏填充上的内部桥接生成第二层。注意：内部桥接计入模型顶"
+"壳层数。第二层将尽可能垂直于第一层挤出。若同一孤岛有多区域且桥接角度不同，以"
+"该孤岛最后区域为角度参考\n"
+"4. 全部应用 - 为内部和外部桥接均生成第二层\n"
 
 msgid "Disabled"
 msgstr "禁用"
@@ -10949,6 +11054,12 @@ msgid ""
 "\n"
 "This option will be disabled if spiral vase mode is enabled."
 msgstr ""
+"从顶部俯视时壁环的挤出方向。\n"
+"\n"
+"默认所有壁逆时针挤出，除非启用「偶数层反向」。设为非自动将强制壁方向，不受"
+"「偶数层反向」影响。\n"
+"\n"
+"启用螺旋花瓶模式时此选项将禁用。"
 
 msgid "Counter clockwise"
 msgstr "逆时针"
@@ -11249,6 +11360,8 @@ msgid ""
 "Default filament color.\n"
 "Right click to reset value to system default."
 msgstr ""
+"默认耗材颜色。\n"
+"右键点击重置为系统默认值。"
 
 msgid "Filament notes"
 msgstr "耗材注释"
@@ -11516,7 +11629,7 @@ msgid "Filament price. For statistics only."
 msgstr "耗材丝的价格。只用于统计信息。"
 
 msgid "money/kg"
-msgstr "money/kg"
+msgstr "元/千克"
 
 msgid "Vendor"
 msgstr "供应商"
@@ -11555,16 +11668,18 @@ msgstr ""
 "案。"
 
 msgid "Align infill direction to model"
-msgstr ""
+msgstr "填充方向对齐模型"
 
 msgid ""
 "Aligns infill and surface fill directions to follow the model's orientation "
 "on the build plate. When enabled, fill directions rotate with the model to "
 "maintain optimal strength characteristics."
 msgstr ""
+"使填充和表面填充方向跟随模型在打印床上的朝向。启用后，填充方向随模型旋转以保"
+"持最佳强度特性。"
 
 msgid "Insert solid layers"
-msgstr ""
+msgstr "插入实心层"
 
 msgid ""
 "Insert solid infill at specific layers. Use N to insert every Nth layer, N#K "
@@ -11572,6 +11687,9 @@ msgid ""
 "'5#' equals '5#1'), or a comma-separated list (e.g. 1,7,9) to insert at "
 "explicit layers. Layers are 1-based."
 msgstr ""
+"在指定层插入实心填充。使用 N 表示每 N 层插入，N#K 表示每 N 层插入 K 个连续实"
+"心层（K 可选，如 '5#' 等于 '5#1'），或使用逗号分隔列表（如 1,7,9）在指定层插"
+"入。层从 1 开始计数。"
 
 msgid "Fill Multiline"
 msgstr "多线填充"
@@ -11626,10 +11744,10 @@ msgid "3D Honeycomb"
 msgstr "3D 蜂窝"
 
 msgid "Lateral Honeycomb"
-msgstr ""
+msgstr "横向蜂窝"
 
 msgid "Lateral Lattice"
-msgstr ""
+msgstr "横向晶格"
 
 msgid "Cross Hatch"
 msgstr "交叉层叠"
@@ -11638,13 +11756,13 @@ msgid "TPMS-D"
 msgstr "TPMS-D"
 
 msgid "TPMS-FK"
-msgstr ""
+msgstr "TPMS-FK"
 
 msgid "Gyroid"
 msgstr "螺旋体"
 
 msgid "Lateral lattice angle 1"
-msgstr ""
+msgstr "横向晶格角度 1"
 
 msgid ""
 "The angle of the first set of Lateral lattice elements in the Z direction. "
@@ -11652,7 +11770,7 @@ msgid ""
 msgstr "第一组二维晶格单元在Z方向的角度。零表示垂直。"
 
 msgid "Lateral lattice angle 2"
-msgstr ""
+msgstr "横向晶格角度 2"
 
 msgid ""
 "The angle of the second set of Lateral lattice elements in the Z direction. "
@@ -11782,7 +11900,7 @@ msgstr "默认抖动值。"
 msgid ""
 "Marlin Firmware Junction Deviation (replaces the traditional XY Jerk "
 "setting)."
-msgstr ""
+msgstr "Marlin 固件 Junction Deviation（取代传统 XY Jerk 设置）。"
 
 msgid "Jerk of outer walls."
 msgstr "外墙抖动值"
@@ -11943,7 +12061,7 @@ msgid "Whether to apply fuzzy skin on the first layer."
 msgstr "是否在第一层应用绒毛效果"
 
 msgid "Fuzzy skin generator mode"
-msgstr ""
+msgstr "模糊表皮生成模式"
 
 #, c-format, boost-format
 msgid ""
@@ -11968,12 +12086,22 @@ msgid ""
 "displayed, and the model will not be sliced. You can choose this number "
 "until this error is repeated."
 msgstr ""
+"模糊表皮生成模式。仅适用于 Arachne！\n"
+"位移：经典模式，通过喷嘴从原路径横向偏移形成图案。\n"
+"挤出：通过挤出塑料量形成图案的模式。快速直接的算法，无不必要的喷嘴抖动，图案"
+"平滑。更适合在整个阵列中形成疏松壁。\n"
+"组合：[位移]+[挤出] 联合模式。壁外观类似 [位移] 模式，但轮廓间无孔隙。\n"
+"\n"
+"注意！[挤出] 和 [组合] 模式仅当 fuzzy_skin_thickness 不超过打印环厚度时有效。"
+"同时特定层的挤出宽度也不应低于某水平，通常等于层高的 15-25%%。因此，轮廓宽 "
+"0.4 mm、层高 0.2 mm 时，最大模糊表皮厚度为 0.4-(0.2*0.25)=±0.35mm！若输入更高"
+"参数，将显示 Flow::spacing() 错误且无法切片。可调此数值直至不再报错。"
 
 msgid "Displacement"
-msgstr ""
+msgstr "位移"
 
 msgid "Extrusion"
-msgstr ""
+msgstr "挤出"
 
 msgid "Combined"
 msgstr "合并"
@@ -12173,6 +12301,11 @@ msgid ""
 "code' is activated.\n"
 "Use 0 to deactivate."
 msgstr ""
+"风扇比目标启动时间提前此秒数启动（可使用小数秒）。此时间估算假设无限加速度，"
+"仅考虑 G1 和 G0 移动（不支持圆弧拟合）。\n"
+"不会移动自定义 G-code 中的风扇命令（它们充当「屏障」）。\n"
+"若启用「仅自定义起始 G-code」，不会将风扇命令移入起始 G-code。\n"
+"使用 0 停用。"
 
 msgid "Only overhangs"
 msgstr "仅悬垂"
@@ -12303,6 +12436,10 @@ msgid ""
 "setting is ignored. Note: some infill patterns (e.g., Gyroid) control "
 "rotation themselves; use with care."
 msgstr ""
+"使用角度模板按层旋转稀疏填充方向。输入逗号分隔的角度（如 '0,30,60,90'）。角度"
+"按层顺序应用，列表结束后重复。支持高级语法：'+5' 表示每层旋转 +5°；'+5#5' 表"
+"示每 5 层旋转 +5°。详见 Wiki。设置模板后，标准填充方向设置将被忽略。注意：部"
+"分填充图案（如 Gyroid）自行控制旋转；请谨慎使用。"
 
 msgid "°"
 msgstr "°"
@@ -12333,6 +12470,9 @@ msgid ""
 "settings but different skeleton densities, their skeleton areas will develop "
 "overlapping sections. Default is as same as infill density."
 msgstr ""
+"从表面移除一定深度后模型轮廓的剩余部分称为骨架。此参数用于调整该区域的密度。"
+"当两个区域具有相同的稀疏填充设置但骨架密度不同时，其骨架区域会产生重叠。默认"
+"与填充密度相同。"
 
 msgid "Skin infill density"
 msgstr "表皮填充密度"
@@ -12344,6 +12484,9 @@ msgid ""
 "skin densities, this area will not be split into two separate regions. "
 "Default is as same as infill density."
 msgstr ""
+"模型外表面在特定深度范围内的部分称为表皮。此参数用于调整该区域的密度。当两个"
+"区域具有相同的稀疏填充设置但表皮密度不同时，该区域不会拆分为两个独立区域。默"
+"认与填充密度相同。"
 
 msgid "Skin infill depth"
 msgstr "表皮填充深度"
@@ -12370,13 +12513,15 @@ msgid "Adjust the line width of the selected skeleton paths."
 msgstr "调整所选骨架路径的线宽。"
 
 msgid "Symmetric infill Y axis"
-msgstr ""
+msgstr "Y 轴对称填充"
 
 msgid ""
 "If the model has two parts that are symmetric about the Y axis, and you want "
 "these parts to have symmetric textures, please click this option on one of "
 "the parts."
 msgstr ""
+"如果模型有两个关于 Y 轴对称的部分，且希望这些部分具有对称纹理，请在其中一部分"
+"上点击此选项。"
 
 msgid "Infill combination - Max layer height"
 msgstr "填充组合 - 最大层高"
@@ -12719,7 +12864,7 @@ msgstr "最大接合点偏差"
 
 msgid ""
 "Maximum junction deviation (M205 J, only apply if JD > 0 for Marlin Firmware)"
-msgstr ""
+msgstr "最大 Junction Deviation（M205 J，仅当 Marlin 固件 JD > 0 时适用）"
 
 msgid "Minimum speed for extruding"
 msgstr "最小挤出速度"
@@ -13328,7 +13473,7 @@ msgid "Aligned"
 msgstr "对齐"
 
 msgid "Aligned back"
-msgstr ""
+msgstr "对齐背面"
 
 msgid "Back"
 msgstr "背面"
@@ -13629,7 +13774,7 @@ msgid "Solid infill"
 msgstr "实心填充"
 
 msgid "Filament to print solid infill."
-msgstr ""
+msgstr "用于打印实心填充的耗材。"
 
 msgid ""
 "Line width of internal solid infill. If expressed as a %, it will be "
@@ -14515,12 +14660,13 @@ msgid ""
 "can reduce the size. However, the size of the rib wall can not be smaller "
 "than that determined by the cleaning volume."
 msgstr ""
+"正值可增大肋壁尺寸，负值可减小尺寸。但肋壁尺寸不能小于清洗体积所决定的尺寸。"
 
 msgid "Rib width"
 msgstr "肋宽度"
 
 msgid "Rib width."
-msgstr ""
+msgstr "肋壁宽度。"
 
 msgid "Fillet wall"
 msgstr "圆角墙壁"
@@ -14693,6 +14839,8 @@ msgid ""
 "Wipe tower is only compatible with relative mode. It is recommended on most "
 "printers. Default is checked."
 msgstr ""
+"使用「label_objects」选项时建议使用相对挤出。部分挤出机在取消勾选时（绝对挤出"
+"模式）效果更好。擦拭塔仅兼容相对模式。建议在大多数打印机上使用。默认已勾选。"
 
 msgid ""
 "Classic wall generator produces walls with constant extrusion width and for "
@@ -14823,397 +14971,481 @@ msgstr ""
 "快打印速度。否则使用默认的直线填充。"
 
 msgid "Bottom Layer Count"
-msgstr ""
+msgstr "底层数"
 
 msgid "Bottom Layer Count for quality."
-msgstr ""
+msgstr "高质量底层数。"
 
 msgid "Exposure time"
-msgstr ""
+msgstr "曝光时间"
 
 msgid "Exposure time for quality."
-msgstr ""
+msgstr "高质量曝光时间。"
 
 msgid "Bottom exposure time"
-msgstr ""
+msgstr "底层曝光时间"
 
 msgid "Bottom exposure time for quality."
-msgstr ""
+msgstr "高质量底层曝光时间。"
 
 msgid "Transition Layer Count"
-msgstr ""
+msgstr "过渡层数"
 
 msgid "Transition Layer Count for quality."
-msgstr ""
+msgstr "高质量过渡层数。"
 
 msgid "Transition Type"
-msgstr ""
+msgstr "过渡类型"
 
 msgid "Transition Type for quality."
-msgstr ""
+msgstr "高质量过渡类型。"
 
 msgid "Linear"
-msgstr ""
+msgstr "线性"
 
 msgid "Transition Layer Interval Time Difference"
-msgstr ""
+msgstr "过渡层间隔时间差"
 
 msgid "Transition Layer Interval Time Difference for quality."
-msgstr ""
+msgstr "高质量过渡层间隔时间差。"
 
 msgid "Waiting Mode During Printing"
-msgstr ""
+msgstr "打印期间等待模式"
 
 msgid "Waiting Mode During Printing for quality."
-msgstr ""
+msgstr "高质量打印期间等待模式。"
 
 msgid "Resting time"
-msgstr ""
+msgstr "静止时间"
 
 msgid "Light off delay"
-msgstr ""
+msgstr "灭灯延迟"
 
 msgid "Rest Time Before Lift"
-msgstr ""
+msgstr "抬升前静止时间"
 
 msgid "Rest Time Before Lift for quality."
-msgstr ""
+msgstr "高质量抬升前静止时间。"
 
 msgid "Rest Time After Lift"
-msgstr ""
+msgstr "抬升后静止时间"
 
 msgid "Rest Time After Lift for quality."
-msgstr ""
+msgstr "高质量抬升后静止时间。"
 
 msgid "Rest Time After Retract"
-msgstr ""
+msgstr "回缩后静止时间"
 
 msgid "Rest Time After Retract for quality."
-msgstr ""
+msgstr "高质量回缩后静止时间。"
 
 msgid "Light-off Delay"
-msgstr ""
+msgstr "灭灯延迟"
 
 msgid "Light-off Delay for quality."
-msgstr ""
+msgstr "高质量灭灯延迟。"
 
 msgid "Bottom Light-off Delay"
-msgstr ""
+msgstr "底层灭灯延迟"
 
 msgid "Bottom Light-off Delay for quality."
-msgstr ""
+msgstr "高质量底层灭灯延迟。"
 
 msgid "Primary bottom lift distance (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主底层抬升距离（在界面中显示于「+」之前）。"
 
 msgid "Bottom Lift Second Distance"
-msgstr ""
+msgstr "底层抬升第二段距离"
 
 msgid "Second-stage bottom lift distance (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段底层抬升距离（在界面中显示于「+」之后）。"
 
 msgid "Primary lifting distance (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主抬升距离（在界面中显示于「+」之前）。"
 
 msgid "Lift Second Distance"
-msgstr ""
+msgstr "抬升第二段距离"
 
 msgid "Second-stage lifting distance (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段抬升距离（在界面中显示于「+」之后）。"
 
 msgid ""
 "Primary bottom retract distance (read-only): bottom lift (1st+2nd) minus "
 "bottom retract 2nd; not loaded from preset JSON, computed after load."
 msgstr ""
+"主底层回缩距离（只读）：底层抬升（第一段+第二段）减去底层回缩第二段；不从预"
+"设 JSON 加载，加载后计算。"
 
 msgid "Bottom Retract Second Distance"
-msgstr ""
+msgstr "底层回缩第二段距离"
 
 msgid "Second-stage bottom retract distance (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段底层回缩距离（在界面中显示于「+」之后）。"
 
 msgid ""
 "Primary retract distance (read-only): lifting distance (1st+2nd) minus "
 "retract 2nd; not loaded from preset JSON, computed after load."
 msgstr ""
+"主回缩距离（只读）：抬升距离（第一段+第二段）减去回缩第二段；不从预设 JSON 加"
+"载，加载后计算。"
 
 msgid "Retract Second Distance"
-msgstr ""
+msgstr "回缩第二段距离"
 
 msgid "Second-stage retract distance (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段回缩距离（在界面中显示于「+」之后）。"
 
 msgid "Primary bottom lift speed (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主底层抬升速度（在界面中显示于「+」之前）。"
 
 msgid "Bottom Lift Second Speed"
-msgstr ""
+msgstr "底层抬升第二段速度"
 
 msgid "Second-stage bottom lift speed (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段底层抬升速度（在界面中显示于「+」之后）。"
 
 msgid "Primary lifting speed (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主抬升速度（在界面中显示于「+」之前）。"
 
 msgid "Lift Second Speed"
-msgstr ""
+msgstr "抬升第二段速度"
 
 msgid "Second-stage lifting speed (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段抬升速度（在界面中显示于「+」之后）。"
 
 msgid "Primary bottom retract speed (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主底层回缩速度（在界面中显示于「+」之前）。"
 
 msgid "Bottom Retract Second Speed"
-msgstr ""
+msgstr "底层回缩第二段速度"
 
 msgid "Second-stage bottom retract speed (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段底层回缩速度（在界面中显示于「+」之后）。"
 
 msgid "Primary retract speed (shown before \"+\" in the UI)."
-msgstr ""
+msgstr "主回缩速度（在界面中显示于「+」之前）。"
 
 msgid "Retract Second Speed"
-msgstr ""
+msgstr "回缩第二段速度"
 
 msgid "Second-stage retract speed (shown after \"+\" in the UI)."
-msgstr ""
+msgstr "第二段回缩速度（在界面中显示于「+」之后）。"
 
 msgid "Bottom Light PWM"
-msgstr ""
+msgstr "底层灯光 PWM"
 
 msgid "Bottom Light PWM for advanced"
-msgstr ""
+msgstr "底层灯光 PWM（高级）"
 
 msgid "Light PWM"
-msgstr ""
+msgstr "灯光 PWM"
 
 msgid "Light PWM for advanced"
-msgstr ""
+msgstr "灯光 PWM（高级）"
 
 msgid "Picture GrayScale"
-msgstr ""
+msgstr "图片灰度"
 
 msgid "Picture GrayScale for advanced"
-msgstr ""
+msgstr "图片灰度（高级）"
 
 msgid "Anti-Aliasing"
-msgstr ""
+msgstr "抗锯齿"
 
 msgid "Anti-Aliasing for advanced."
-msgstr ""
+msgstr "抗锯齿（高级）。"
 
 msgid "Gray Scale Level"
-msgstr ""
+msgstr "灰度等级"
 
 msgid "Anti-aliasing Level"
-msgstr ""
+msgstr "抗锯齿等级"
 
 msgid "Gray Scale Level for advanced"
-msgstr ""
+msgstr "灰度等级（高级）"
 
 msgid "Image Blur Enable"
-msgstr ""
+msgstr "图像模糊启用"
 
 msgid "Image Blur Enable for advanced"
-msgstr ""
+msgstr "图像模糊启用（高级）"
 
 msgid "Image Blur Pixel"
-msgstr ""
+msgstr "图像模糊像素"
 
 msgid "Image Blur Pixel for advanced"
-msgstr ""
+msgstr "图像模糊像素（高级）"
 
 msgid "Preview Image Path"
-msgstr ""
+msgstr "预览图路径"
 
 msgid ""
 "Directory containing preview images for PRZ export (PreviewImage_116_116.png "
 "and PreviewImage_290_290.png)."
 msgstr ""
+"包含 PRZ 导出预览图的目录（PreviewImage_116_116.png 和 PreviewImage_290_290."
+"png）。"
 
 msgid "Shrinkage Compensation"
-msgstr ""
+msgstr "收缩补偿"
 
 msgid "Shrinkage Compensation for advanced"
-msgstr ""
+msgstr "收缩补偿（高级）"
 
 msgid "X"
-msgstr ""
+msgstr "X"
 
 msgid "X for advanced."
-msgstr ""
+msgstr "X（高级）。"
 
 msgid "Y"
-msgstr ""
+msgstr "Y"
 
 msgid "Y for advanced."
-msgstr ""
+msgstr "Y（高级）。"
 
 msgid "Z"
-msgstr ""
+msgstr "Z"
 
 msgid "Z for advanced."
-msgstr ""
+msgstr "Z（高级）。"
 
 msgid "Tolerance Compensation"
-msgstr ""
+msgstr "公差补偿"
 
 msgid "Tolerance Compensation for advanced"
-msgstr ""
+msgstr "公差补偿（高级）"
 
 msgid "a"
-msgstr ""
+msgstr "a"
 
 msgid "A for advanced."
-msgstr ""
+msgstr "A（高级）。"
 
 msgid "b"
-msgstr ""
+msgstr "b"
 
 msgid "B for advanced."
-msgstr ""
+msgstr "B（高级）。"
 
 msgid "Bottom Tolerance Compensation"
-msgstr ""
+msgstr "底层公差补偿"
 
 msgid "Bottom Tolerance Compensation for advanced"
-msgstr ""
+msgstr "底层公差补偿（高级）"
+
+msgid "Print Time Compensation"
+msgstr "打印补偿时间"
+
+msgid ""
+"When enabled, adds layer-based compensation to the estimated print time (PRZ "
+"model)."
+msgstr "启用后，将根据每层补偿调整预估打印时间（PRZ 模型）。"
+
+msgid "Layer Print Time Compensation"
+msgstr "每层打印补偿时间"
+
+msgid ""
+"Per-layer time adjustment in seconds. Total adjustment is this value times "
+"layer count when Print Time Compensation is enabled."
+msgstr "每层时间调整量（秒）。启用「打印补偿时间」后，总调整量 = 该值 × 层数。"
 
 msgid "Contact Type"
-msgstr ""
+msgstr "接触类型"
 
 msgid "Contact Type for support"
-msgstr ""
+msgstr "接触类型（支撑）"
 
 msgid "Support Point Diameter"
-msgstr ""
+msgstr "支撑点直径"
 
 msgid "Support Point Diameter for support"
-msgstr ""
-
-msgid "Upper Diameter"
-msgstr ""
+msgstr "支撑点直径（支撑）"
 
 msgid "Upper Diameter for support."
-msgstr ""
+msgstr "上部直径（支撑）。"
 
 msgid "Contact Depth"
-msgstr ""
+msgstr "接触深度"
 
 msgid "Contact Depth for support."
-msgstr ""
+msgstr "接触深度（支撑）。"
 
 msgid "Pinhead Width"
-msgstr ""
+msgstr "针头宽度"
 
 msgid "Pinhead Width for support."
-msgstr ""
+msgstr "针头宽度（支撑）。"
+
+msgid "Pillar Diameter"
+msgstr "支柱直径"
 
 msgid "Pillar Diameter for support."
-msgstr ""
+msgstr "支柱直径（支撑）。"
 
 msgid "Support Bracing Angle"
-msgstr ""
+msgstr "支撑拉撑角度"
 
 msgid "Support Bracing Angle for support."
-msgstr ""
+msgstr "支撑拉撑角度（支撑）。"
 
 msgid "Support Bottom Diameter"
-msgstr ""
+msgstr "支撑底部直径"
 
 msgid "Support Bottom Diameter for support."
-msgstr ""
+msgstr "支撑底部直径（支撑）。"
 
 msgid "Support Boss Height"
-msgstr ""
+msgstr "支撑凸台高度"
 
 msgid "Support Boss Height for support."
-msgstr ""
+msgstr "支撑凸台高度（支撑）。"
 
 msgid "Raft Thickness"
-msgstr ""
+msgstr "筏板厚度"
 
 msgid "Raft Thickness for support."
-msgstr ""
+msgstr "筏板厚度（支撑）。"
 
 msgid "Bottom Contact Diameter"
-msgstr ""
+msgstr "底部接触直径"
 
 msgid "Bottom Contact Diameter for support."
-msgstr ""
+msgstr "底部接触直径（支撑）。"
 
 msgid "Raft Max Merge Distance"
-msgstr ""
+msgstr "筏板最大合并距离"
 
 msgid "Raft Max Merge Distance for support."
-msgstr ""
+msgstr "筏板最大合并距离（支撑）。"
 
 msgid "Support Angle"
-msgstr ""
+msgstr "支撑角度"
 
 msgid "Pad Wall Slope for support."
-msgstr ""
+msgstr "垫板壁面坡度（支撑）。"
 
 msgid "Support Points Density"
-msgstr ""
+msgstr "支撑点密度"
 
 msgid "Support Points Density for support."
-msgstr ""
+msgstr "支撑点密度（支撑）。"
 
 msgid "Max Bridge Length"
-msgstr ""
+msgstr "最大桥接长度"
 
 msgid "Max BridgeLength for support."
-msgstr ""
+msgstr "最大桥接长度（支撑）。"
 
 msgid "Max Pillar Linking Distance"
-msgstr ""
+msgstr "最大支柱连接距离"
 
 msgid "Max Pillar Linking Distance for support."
-msgstr ""
+msgstr "最大支柱连接距离（支撑）。"
 
 msgid "Resolution (pixels)"
-msgstr ""
+msgstr "分辨率（像素）"
 
-msgid "Supports"
+msgid ""
+"Top diameter of the support cone between the contact and the pillar (minimum "
+"0.01 mm)."
+msgstr "支撑锥台接触端与支柱之间的顶部直径（最小 0.01 mm）。"
+
+msgid "Lower Diameter"
+msgstr "下端直径"
+
+msgid ""
+"Bottom diameter of the support cone on the pillar side (minimum 0.01 mm)."
+msgstr "支撑锥台支柱侧的下端直径（最小 0.01 mm）。"
+
+msgid "Segment Length"
+msgstr "段长度"
+
+msgid ""
+"Length of the conical support segment between the upper and lower diameters "
+"(minimum 0.01 mm)."
+msgstr "上下直径之间锥形支撑段的长度（最小 0.01 mm）。"
+
+msgid ""
+"How far the support contact penetrates into the model surface from the "
+"contact point. With Contact Type Sphere, depth is measured from where the "
+"sphere touches the model (minimum 0.01 mm)."
 msgstr ""
+"支撑接触点从接触位置向模型表面穿透的深度。当接触类型为球体时，深度从球体与模"
+"型接触处起算（最小 0.01 mm）。"
 
 msgid ""
 "Contact sphere type for SLA support pinheads. Sphere adds a larger sphere at "
 "the tip to increase contact area."
-msgstr ""
+msgstr "SLA 支撑针头的接触球类型。球体在尖端添加更大的球以增加接触面积。"
+
+msgid "Contact Diameter"
+msgstr "接触直径"
 
 msgid ""
 "Diameter of the contact sphere at the pinhead tip (used when Contact Type is "
 "Sphere)."
-msgstr ""
+msgstr "针头尖端接触球的直径（当接触类型为球体时使用）。"
 
 msgid "Head Connection Length"
-msgstr ""
+msgstr "头部连接长度"
 
 msgid "Width from the back sphere center to the front sphere center."
-msgstr ""
+msgstr "从后球中心到前球中心的宽度。"
 
-msgid "Generate support"
-msgstr ""
-
-msgid "Generate support for support"
-msgstr ""
+msgid "Angle Between Top And Middle"
+msgstr "顶部与中部夹角"
 
 msgid ""
-"Surfaces whose slope angle from horizontal is below this value will not "
-"receive supports. Set to 90 to support all overhangs."
+"Maximum slope angle for bridges connecting the support contact head to the "
+"main pillar."
+msgstr "连接支撑接触头与主支柱的桥接最大坡度角。"
+
+msgid "Cross Angle"
+msgstr "交叉角度"
+
+msgid "Maximum slope angle for cross-links between main support pillars."
+msgstr "主支撑支柱之间交叉连接的最大坡度角。"
+
+msgid "Generate support"
+msgstr "生成支撑"
+
+msgid "Generate support for support"
+msgstr "生成支撑（支撑）"
+
+msgid ""
+"Maximum allowable angle between the model surface (tangential plane) and the "
+"platform for auto support generation."
+msgstr "自动生成支撑时，模型表面（切平面）与平台之间的最大允许夹角。"
+
+msgid "The max length of a bridge connecting support sticks and junctions."
+msgstr "连接支撑杆与接合点的桥接最大长度。"
+
+msgid "The max distance of two pillars to get cross-linked with each other."
+msgstr "两个支柱之间可交叉连接的最大距离。"
+
+msgid "Model Lift Height"
+msgstr "模型抬升高度"
+
+msgid ""
+"The vertical offset of the lowest point on the model from the print "
+"platform. Notice that this offset would overwrite any original model offset "
+"in the Z direction."
 msgstr ""
+"模型最低点与打印平台之间的垂直偏移。注意：此偏移将覆盖模型在 Z 方向的任何原始"
+"偏移。"
+
+msgid "Supports"
+msgstr "支撑"
 
 msgid "This is a relative measure of support points density."
-msgstr ""
+msgstr "这是支撑点密度的相对度量。"
 
 msgid "%"
 msgstr "%"
 
 msgid "Minimal points distance"
-msgstr ""
+msgstr "最小点间距"
 
 msgid ""
 "Minimum distance between auto-generated support points. Note: This parameter "
@@ -15221,38 +15453,41 @@ msgid ""
 "2.9.1 when the Voronoi-based algorithm replaced Poisson disk sampling). Kept "
 "for backward compatibility only."
 msgstr ""
+"自动生成支撑点之间的最小距离。注意：此参数已不再被支撑生成器使用（自 "
+"PrusaSlicer 2.9.1 起，Voronoi 算法取代 Poisson 圆盘采样后已弃用）。仅为向后兼"
+"容保留。"
 
 msgid "Pad Wall Slope"
-msgstr ""
+msgstr "垫板壁面坡度"
 
 msgid "The slope angle of the raft/pad walls."
-msgstr ""
+msgstr "筏板/垫板壁面的坡度角。"
 
 msgid "Enable hollowing"
-msgstr ""
+msgstr "启用镂空"
 
 msgid "Hollowing"
-msgstr ""
+msgstr "镂空"
 
 msgid "Hollow out a model to have an empty interior"
-msgstr ""
+msgstr "将模型镂空以形成空腔"
 
 msgid "Wall thickness"
-msgstr ""
+msgstr "壁厚"
 
 msgid "Minimum wall thickness of a hollowed model."
-msgstr ""
+msgstr "镂空模型的最小壁厚。"
 
 msgid "Accuracy"
-msgstr ""
+msgstr "精度"
 
 msgid ""
 "Performance vs accuracy of calculation. Lower values may produce unwanted "
 "artifacts."
-msgstr ""
+msgstr "计算性能与精度的权衡。较低的值可能产生不需要的伪影。"
 
 msgid "Closing distance"
-msgstr ""
+msgstr "闭合距离"
 
 msgid ""
 "Hollowing is done in two steps: first, an imaginary interior is calculated "
@@ -15261,17 +15496,21 @@ msgid ""
 "interior more rounded. At zero, the interior will resemble the exterior the "
 "most."
 msgstr ""
+"镂空分两步完成：首先在物体内部计算更深的假想内腔（偏移量加上闭合距离），然后"
+"膨胀回指定偏移量。较大的闭合距离使内腔更圆润。为零时，内腔最接近外表面。"
 
 msgid "Support tree type"
-msgstr ""
+msgstr "支撑树类型"
 
 msgid ""
 "Support tree building strategy. Default uses pillar-based supports; "
 "Branching uses organic tree-like supports (requires Step 3.3 implementation)."
 msgstr ""
+"支撑树构建策略。默认使用基于支柱的支撑；分支使用有机树状支撑（需要 Step 3.3 "
+"实现）。"
 
 msgid "Branching"
-msgstr ""
+msgstr "分支"
 
 msgid "invalid value "
 msgstr "非法的值 "
@@ -15548,7 +15787,7 @@ msgid "Load custom G-code from json."
 msgstr "从json文件加载自定义G-code"
 
 msgid "Load filament IDs"
-msgstr ""
+msgstr "加载耗材 ID"
 
 msgid "Load filament IDs for each object."
 msgstr "为每个对象加载耗材丝ID。"
@@ -15583,25 +15822,25 @@ msgid "MakerLab name"
 msgstr "MakerLab名称"
 
 msgid "MakerLab name to generate this 3mf."
-msgstr ""
+msgstr "生成此 3mf 的 MakerLab 名称。"
 
 msgid "MakerLab version"
 msgstr "MakerLab版本"
 
 msgid "MakerLab version to generate this 3mf."
-msgstr ""
+msgstr "生成此 3mf 的 MakerLab 版本。"
 
 msgid "metadata name list"
 msgstr "元数据名称列表"
 
 msgid "metadata name list added into 3mf."
-msgstr ""
+msgstr "添加到 3mf 的元数据名称列表。"
 
 msgid "metadata value list"
 msgstr "元数据值列表"
 
 msgid "metadata value list added into 3mf."
-msgstr ""
+msgstr "添加到 3mf 的元数据值列表。"
 
 msgid "Allow 3mf with newer version to be sliced"
 msgstr "允许切片较新版本的3mf"
@@ -15860,7 +16099,7 @@ msgid "Index of the current layer. One-based (i.e. first layer is number 1)."
 msgstr "当前层编号。从1开始编号（即第一层编号为1）。"
 
 msgid "Layer Z"
-msgstr ""
+msgstr "层 Z"
 
 msgid ""
 "Height of the current layer above the print bed, measured to the top of the "
@@ -15868,7 +16107,7 @@ msgid ""
 msgstr "当前层在打印床上方的高度，测量到层的顶部。"
 
 msgid "Maximal layer Z"
-msgstr ""
+msgstr "最大层 Z"
 
 msgid "Height of the last layer above the print bed."
 msgstr "最后一层在打印床上方的高度。"
@@ -16696,6 +16935,8 @@ msgid ""
 "Please input valid values:\n"
 "(0 < FreqStart < FreqEnd < 500)"
 msgstr ""
+"请输入有效值：\n"
+"(0 < FreqStart < FreqEnd < 500)"
 
 msgid "Please input a valid damping factor (0 < Damping/zeta factor <= 1)"
 msgstr "请输入有效的阻尼系数(0 < 阻尼/zeta系数 <= 1)"
@@ -16716,6 +16957,8 @@ msgid ""
 "Please input valid values:\n"
 "(0 < Freq < 500)"
 msgstr ""
+"请输入有效值：\n"
+"(0 < Freq < 500)"
 
 msgid ""
 "Please input a valid damping factor (0 <= DampingStart < DampingEnd <= 1)"
@@ -16740,6 +16983,8 @@ msgid ""
 "Please input valid values:\n"
 "(0 <= Junction Deviation < 1)"
 msgstr ""
+"请输入有效值：\n"
+"(0 <= Junction Deviation < 1)"
 
 msgid "NOTE: High values may cause Layer shift"
 msgstr "注意：过高的值可能导致层偏移"
@@ -17239,6 +17484,9 @@ msgid ""
 "may have been opened by another program.\n"
 "Please close it and try again."
 msgstr ""
+"文件：%s\n"
+"可能已被其他程序打开。\n"
+"请关闭后重试。"
 
 msgid ""
 "Printer and all the filament&&process presets that belongs to the printer.\n"
@@ -17836,6 +18084,9 @@ msgstr "在尝试登录时发生了异常，请重试。"
 msgid "User cancelled."
 msgstr "用户已取消。"
 
+msgid "Head diameter"
+msgstr "Brim 直径"
+
 msgid "Max angle"
 msgstr "最大角度"
 
@@ -17860,7 +18111,7 @@ msgid ""
 msgstr "警告：Brim类型未设置为绘制模式，耳状Brim将不会生效！"
 
 msgid "Set the brim type of this object to \"painted\""
-msgstr ""
+msgstr "将此物体的裙边类型设为「绘制」"
 
 msgid " invalid brim ears"
 msgstr "个无效耳状帽檐"
@@ -17881,7 +18132,7 @@ msgid "Estimated："
 msgstr "预估："
 
 msgid "Console Page"
-msgstr ""
+msgstr "控制台页面"
 
 msgid "Turn On/Off Camera"
 msgstr "打开/关闭相机"
@@ -17961,13 +18212,13 @@ msgid "Failed to start calibration. Please check the connection and try again."
 msgstr "校准启动失败。请检查连接后重试。"
 
 msgid "Firmware restarting..."
-msgstr ""
+msgstr "固件重启中..."
 
 msgid "Firmware restart complete."
-msgstr ""
+msgstr "固件重启完成。"
 
 msgid "Firmware restart failed. Please power-cycle the printer."
-msgstr ""
+msgstr "固件重启失败。请断电重启打印机。"
 
 msgid ""
 "Spool\n"
@@ -17980,7 +18231,7 @@ msgid "Unload All Slots"
 msgstr "卸载所有插槽"
 
 msgid "Key In"
-msgstr ""
+msgstr "输入"
 
 msgid "Auto Leveling"
 msgstr "自动调平"
@@ -17999,10 +18250,10 @@ msgid "IP address not set"
 msgstr "未设置IP地址"
 
 msgid "Connecting to printer success! The dialog will close later"
-msgstr ""
+msgstr "连接打印机成功！对话框将稍后关闭"
 
 msgid "Failed to connect to printer... The dialog will close later"
-msgstr ""
+msgstr "连接打印机失败... 对话框将稍后关闭"
 
 msgid "Search"
 msgstr "搜索"
@@ -18019,361 +18270,440 @@ msgstr "修改打印机名称"
 msgid "Bind with IP"
 msgstr "绑定IP"
 
-#: resources/data/hints.ini: [hint:Precise wall]
-msgid ""
-"Precise wall\n"
-"Did you know that turning on precise wall can improve precision and layer "
-"consistency?"
-msgstr ""
-"精准外墙尺寸\n"
-"您知道吗？您可以启用精准外墙尺寸选项，提高精度和层一致性。"
+msgid "Total resin"
+msgstr "总树脂量"
 
-#: resources/data/hints.ini: [hint:Sandwich mode]
-msgid ""
-"Sandwich mode\n"
-"Did you know that you can use sandwich mode (inner-outer-inner) to improve "
-"precision and layer consistency if your model doesn't have very steep "
-"overhangs?"
+#, c-format, boost-format
+msgid "%s must be a number greater than or equal to %g."
 msgstr ""
-"三明治模式\n"
-"您知道吗？如果您的模型没有非常陡峭的悬垂，您可以使用三明治模式（内-外-内）来"
-"提高精度和层一致性。"
 
-#: resources/data/hints.ini: [hint:Chamber temperature]
-msgid ""
-"Chamber temperature\n"
-"Did you know that PhrozenOrca supports chamber temperature?"
+#, c-format, boost-format
+msgid "%s must be an integer greater than or equal to %d."
 msgstr ""
-"仓温\n"
-"您知道吗？PhrozenOrca支持仓温。"
 
-#: resources/data/hints.ini: [hint:Calibration]
-msgid ""
-"Calibration\n"
-"Did you know that calibrating your printer can do wonders? Check out our "
-"beloved calibration solution in PhrozenOrca."
+msgid "Printer Settings"
+msgstr "打印机设置"
+
+msgid "Reset to default"
 msgstr ""
-"校准\n"
-"您知道吗？校准您的打印机可以带来奇迹？在PhrozenOrca中查看我们的备受欢迎的校准"
-"解决方案。"
 
-#: resources/data/hints.ini: [hint:Auxiliary fan]
-msgid ""
-"Auxiliary fan\n"
-"Did you know that PhrozenOrca supports Auxiliary part cooling fan?"
+msgid "Resolution X"
 msgstr ""
-"辅助风扇\n"
-"您知道吗？PhrozenOrca支持辅助部件冷却风扇。"
 
-#: resources/data/hints.ini: [hint:Air filtration]
-msgid ""
-"Air filtration/Exhaust Fan\n"
-"Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
+msgid "Resolution Y"
 msgstr ""
-"空气过滤/排气扇\n"
-"您知道吗？PhrozenOrca可以支持空气过滤/排气扇。"
 
-#: resources/data/hints.ini: [hint:G-code window]
-msgid ""
-"G-code window\n"
-"You can turn on/off the G-code window by pressing the <b>C</b> key."
+msgid "Size X"
 msgstr ""
-"G-code预览\n"
-"您可以通过按下<b>C</b>键打开/关闭G-code预览窗口。"
 
-#: resources/data/hints.ini: [hint:Switch workspaces]
-msgid ""
-"Switch workspaces\n"
-"You can switch between <b>Prepare</b> and <b>Preview</b> workspaces by "
-"pressing the <b>Tab</b> key."
+msgid "Size Y"
 msgstr ""
-"切换工作区\n"
-"您可以通过按下<b>Tab</b>键在<b>准备</b>和<b>预览</b>工作区之间切换。"
 
-#: resources/data/hints.ini: [hint:How to use keyboard shortcuts]
-msgid ""
-"How to use keyboard shortcuts\n"
-"Did you know that PhrozenOrca offers a wide range of keyboard shortcuts and "
-"3D scene operations?"
+msgid "Size Z"
 msgstr ""
-"如何使用键盘快捷键\n"
-"您知道PhrozenOrca提供了广泛的键盘快捷键和3D场景操作吗？"
 
-#: resources/data/hints.ini: [hint:Reverse on odd]
-msgid ""
-"Reverse on odd\n"
-"Did you know that <b>Reverse on odd</b> feature can significantly improve "
-"the surface quality of your overhangs?"
+msgid "Assembling model from parts"
 msgstr ""
-"奇数层反转\n"
-"您知道吗？<b>奇数层反转</b>功能可以显著提高您悬垂的表面质量。"
 
-#: resources/data/hints.ini: [hint:Cut Tool]
-msgid ""
-"Cut Tool\n"
-"Did you know that you can cut a model at any angle and position with the "
-"cutting tool?"
+msgid "Hollowing model"
 msgstr ""
-"切割工具\n"
-"您知道吗？您可以使用切割工具以任何角度和位置切割模型。"
 
-#: resources/data/hints.ini: [hint:Fix Model]
-msgid ""
-"Fix Model\n"
-"Did you know that you can fix a corrupted 3D model to avoid a lot of slicing "
-"problems on the Windows system?"
+msgid "Drilling holes into model"
 msgstr ""
-"修复模型\n"
-"您知道吗？在Windows系统上，您可以修复一个损坏的3D模型以避免诸多切片问题。"
 
-#: resources/data/hints.ini: [hint:Timelapse]
-msgid ""
-"Timelapse\n"
-"Did you know that you can generate a timelapse video during each print?"
+msgid "Slicing model"
 msgstr ""
-"延时摄影\n"
-"您知道吗？您可以每次打印时生成一段延时摄影。"
 
-#: resources/data/hints.ini: [hint:Auto-Arrange]
-msgid ""
-"Auto-Arrange\n"
-"Did you know that you can auto-arrange all the objects in your project?"
+msgid "Generating support points"
 msgstr ""
-"自动摆盘\n"
-"您知道吗？您可以自动排列项目中的所有对象。"
 
-#: resources/data/hints.ini: [hint:Auto-Orient]
-msgid ""
-"Auto-Orient\n"
-"Did you know that you can rotate objects to an optimal orientation for "
-"printing with a simple click?"
+msgid "Generating support tree"
 msgstr ""
-"自动朝向\n"
-"您知道吗，您只需单击鼠标，即可将对象旋转到适合的打印方向。"
 
-#: resources/data/hints.ini: [hint:Lay on Face]
-msgid ""
-"Lay on Face\n"
-"Did you know that you can quickly orient a model so that one of its faces "
-"sits on the print bed? Select the \"Place on face\" function or press the "
-"<b>F</b> key."
+msgid "Generating pad"
 msgstr ""
-"放置在面部\n"
-"您知道吗，您可以快速指定模型的底面，使其位于打印床上。选择“放置在面部”功能或"
-"按<b>F</b>键。"
 
-#: resources/data/hints.ini: [hint:Object List]
-msgid ""
-"Object List\n"
-"Did you know that you can view all objects/parts in a list and change "
-"settings for each object/part?"
+msgid "Slicing supports"
 msgstr ""
-"对象列表\n"
-"您知道对象列表吗？您可以在其中的查看所有对象/部件，并更改每个对象/部件的设"
-"置。"
 
-#: resources/data/hints.ini: [hint:Search Functionality]
-msgid ""
-"Search Functionality\n"
-"Did you know that you use the Search tool to quickly find a specific "
-"PhrozenOrca setting?"
+msgid "Merging slices and calculating statistics"
 msgstr ""
-"搜索功能\n"
-"您知道可以使用搜索工具快速找到特定的PhrozenOrca设置吗？"
 
-#: resources/data/hints.ini: [hint:Simplify Model]
+msgid "Rasterizing layers"
+msgstr "光栅化图层"
+
 msgid ""
-"Simplify Model\n"
-"Did you know that you can reduce the number of triangles in a mesh using the "
-"Simplify mesh feature? Right-click the model and select Simplify model."
+"Some parts of the print will be previewed with approximated meshes. This "
+"does not affect the quality of slices or the physical print in any way."
 msgstr ""
-"简化模型\n"
-"您知道吗？您可以使用简化三角面片功能减少网格中的三角形数量。右键单击模型，然"
-"后选择简化模型。"
 
-#: resources/data/hints.ini: [hint:Slicing Parameter Table]
+msgid "Too many overlapping holes."
+msgstr ""
+
 msgid ""
-"Slicing Parameter Table\n"
-"Did you know that you can view all objects/parts on a table and change "
-"settings for each object/part?"
+"Mesh to be hollowed is not suitable for hollowing (does not bound a volume)."
 msgstr ""
-"参数表格\n"
-"您知道吗？您可以参数表格上的所有对象/部件，并更改每个对象/部件的设置。"
 
-#: resources/data/hints.ini: [hint:Split to Objects/Parts]
+msgid "Unable to drill the current configuration of holes into the model."
+msgstr ""
+
 msgid ""
-"Split to Objects/Parts\n"
-"Did you know that you can split a big object into small ones for easy "
-"colorizing or printing?"
+"Drilling holes into the mesh failed. This is usually caused by broken model. "
+"Try to fix it first."
 msgstr ""
-"分割成对象/零件\n"
-"您知道吗，您可以把一个大对象分割成多个小对象/零件以便着色或打印。"
 
-#: resources/data/hints.ini: [hint:Subtract a Part]
+msgid "Failed to drill some holes into the model"
+msgstr ""
+
 msgid ""
-"Subtract a Part\n"
-"Did you know that you can subtract one mesh from another using the Negative "
-"part modifier? That way you can, for example, create easily resizable holes "
-"directly in PhrozenOrca."
+"Slicing had to be stopped due to an internal error: Inconsistent slice index."
 msgstr ""
-"减去零件\n"
-"您知道可以使用负体积修改器从一个网格中减去另一个网格吗？这样，您就可以直接在"
-"PhrozenOrca中创建易于调整大小的孔洞。"
 
-#: resources/data/hints.ini: [hint:STEP]
+msgid "Visualizing supports"
+msgstr ""
+
+msgid "No pad can be generated for this model with the current configuration"
+msgstr ""
+
 msgid ""
-"STEP\n"
-"Did you know that you can improve your print quality by slicing a STEP file "
-"instead of an STL?\n"
-"PhrozenOrca supports slicing STEP files, providing smoother results than a "
-"lower resolution STL. Give it a try!"
+"There are unprintable objects. Try to adjust support settings to make the "
+"objects printable."
 msgstr ""
-"STEP\n"
-"您知道可以通过切片STEP文件而不是STL来提高打印质量吗？\n"
-"PhrozenOrca支持切片STEP文件，提供比低分辨率STL更平滑的结果。试试吧！"
 
-#: resources/data/hints.ini: [hint:Z seam location]
+msgid "Rasterizing layers..."
+msgstr "正在光栅化图层..."
+
+msgid "Hollow and drill"
+msgstr "镂空与打孔"
+
+msgid "Head Diameter"
+msgstr "头部直径"
+
+msgid "Auto-generate support points based on density setting."
+msgstr "根据密度设置自动生成支撑点。"
+
 msgid ""
-"Z seam location\n"
-"Did you know that you can customize the location of the Z seam, and even "
-"paint it on your print, to have it in a less visible location? This improves "
-"the overall look of your model. Check it out!"
-msgstr ""
-"Z接缝位置\n"
-"您知道吗，您可以自定义Z接缝的位置，甚至可以将其绘制在打印上，使其位于不太可见"
-"的位置。这样可以改善模型的整体外观。试试看！"
+"Surfaces whose slope angle from horizontal is below this value will not "
+"receive supports. Set to 90 to support all overhangs."
+msgstr "与水平面夹角低于此值的表面将不会生成支撑。设为 90 可支撑所有悬垂。"
 
-#: resources/data/hints.ini: [hint:Fine-tuning for flow rate]
-msgid ""
-"Fine-tuning for flow rate\n"
-"Did you know that flow rate can be fine-tuned for even better-looking "
-"prints? Depending on the material, you can improve the overall finish of the "
-"printed model by doing some fine-tuning."
-msgstr ""
-"流量微调\n"
-"你知道吗，您可以微调流量，以获得更好看的打印效果。根据材料的不同，可以通过进"
-"行一些微调来提高打印模型的整体光洁度。"
+#~ msgid ""
+#~ "Precise wall\n"
+#~ "Did you know that turning on precise wall can improve precision and layer "
+#~ "consistency?"
+#~ msgstr ""
+#~ "精准外墙尺寸\n"
+#~ "您知道吗？您可以启用精准外墙尺寸选项，提高精度和层一致性。"
 
-#: resources/data/hints.ini: [hint:Split your prints into plates]
-msgid ""
-"Split your prints into plates\n"
-"Did you know that you can split a model that has a lot of parts into "
-"individual plates ready to print? This will simplify the process of keeping "
-"track of all the parts."
-msgstr ""
-"分盘打印\n"
-"您知道吗，您可以把一个有很多零件的模型安排到多个独立的分盘，然后打印出来，这"
-"将简化对所有零件的管理。"
+#~ msgid ""
+#~ "Sandwich mode\n"
+#~ "Did you know that you can use sandwich mode (inner-outer-inner) to "
+#~ "improve precision and layer consistency if your model doesn't have very "
+#~ "steep overhangs?"
+#~ msgstr ""
+#~ "三明治模式\n"
+#~ "您知道吗？如果您的模型没有非常陡峭的悬垂，您可以使用三明治模式（内-外-内）"
+#~ "来提高精度和层一致性。"
 
-#: resources/data/hints.ini: [hint:Speed up your print with Adaptive Layer
-#: Height]
-msgid ""
-"Speed up your print with Adaptive Layer Height\n"
-"Did you know that you can print a model even faster, by using the Adaptive "
-"Layer Height option? Check it out!"
-msgstr ""
-"自适应层高度加速打印\n"
-"您知道吗，您可以使用“自适应层高度”选项可以更快地打印模型。试试看！"
+#~ msgid ""
+#~ "Chamber temperature\n"
+#~ "Did you know that PhrozenOrca supports chamber temperature?"
+#~ msgstr ""
+#~ "仓温\n"
+#~ "您知道吗？PhrozenOrca支持仓温。"
 
-#: resources/data/hints.ini: [hint:Support painting]
-msgid ""
-"Support painting\n"
-"Did you know that you can paint the location of your supports? This feature "
-"makes it easy to place the support material only on the sections of the "
-"model that actually need it."
-msgstr ""
-"绘制支撑\n"
-"您知道吗，您可以手动绘制添加/屏蔽支撑的位置，此功能使仅将支撑材料放置在实际需"
-"要的模型截面上变得容易。"
+#~ msgid ""
+#~ "Calibration\n"
+#~ "Did you know that calibrating your printer can do wonders? Check out our "
+#~ "beloved calibration solution in PhrozenOrca."
+#~ msgstr ""
+#~ "校准\n"
+#~ "您知道吗？校准您的打印机可以带来奇迹？在PhrozenOrca中查看我们的备受欢迎的"
+#~ "校准解决方案。"
 
-#: resources/data/hints.ini: [hint:Different types of supports]
-msgid ""
-"Different types of supports\n"
-"Did you know that you can choose from multiple types of supports? Tree "
-"supports work great for organic models, while saving filament and improving "
-"print speed. Check them out!"
-msgstr ""
-"支撑类型\n"
-"您知道吗，有多种可选的支撑类型，树状支撑非常适合人物/动物模型，同时可以节耗材"
-"并提高打印速度。试试看！"
+#~ msgid ""
+#~ "Auxiliary fan\n"
+#~ "Did you know that PhrozenOrca supports Auxiliary part cooling fan?"
+#~ msgstr ""
+#~ "辅助风扇\n"
+#~ "您知道吗？PhrozenOrca支持辅助部件冷却风扇。"
 
-#: resources/data/hints.ini: [hint:Printing Silk Filament]
-msgid ""
-"Printing Silk Filament\n"
-"Did you know that Silk filament needs special consideration to print it "
-"successfully? Higher temperature and lower speed are always recommended for "
-"the best results."
-msgstr ""
-"打印丝绸耗材\n"
-"你知道吗，丝绸耗材需要特别考虑才能成功打印。为了获得最佳效果，通常建议使用较"
-"高的温度和较低的速度。"
+#~ msgid ""
+#~ "Air filtration/Exhaust Fan\n"
+#~ "Did you know that PhrozenOrca can support Air filtration/Exhaust Fan?"
+#~ msgstr ""
+#~ "空气过滤/排气扇\n"
+#~ "您知道吗？PhrozenOrca可以支持空气过滤/排气扇。"
 
-#: resources/data/hints.ini: [hint:Brim for better adhesion]
-msgid ""
-"Brim for better adhesion\n"
-"Did you know that when printed models have a small contact interface with "
-"the printing surface, it's recommended to use a brim?"
-msgstr ""
-"使用Brim\n"
-"您知道吗？当模型与热床表面的接触面积较小时，建议使用brim以提高打印成功率。"
+#~ msgid ""
+#~ "G-code window\n"
+#~ "You can turn on/off the G-code window by pressing the <b>C</b> key."
+#~ msgstr ""
+#~ "G-code预览\n"
+#~ "您可以通过按下<b>C</b>键打开/关闭G-code预览窗口。"
 
-#: resources/data/hints.ini: [hint:Set parameters for multiple objects]
-msgid ""
-"Set parameters for multiple objects\n"
-"Did you know that you can set slicing parameters for all selected objects at "
-"once?"
-msgstr ""
-"为多个对象设置参数\n"
-"您知道吗，可以同时为所有选定对象设置切片参数。"
+#~ msgid ""
+#~ "Switch workspaces\n"
+#~ "You can switch between <b>Prepare</b> and <b>Preview</b> workspaces by "
+#~ "pressing the <b>Tab</b> key."
+#~ msgstr ""
+#~ "切换工作区\n"
+#~ "您可以通过按下<b>Tab</b>键在<b>准备</b>和<b>预览</b>工作区之间切换。"
 
-#: resources/data/hints.ini: [hint:Stack objects]
-msgid ""
-"Stack objects\n"
-"Did you know that you can stack objects as a whole one?"
-msgstr ""
-"组合物体\n"
-"你知道吗？你可以把多个对象组合为一个整体。"
+#~ msgid ""
+#~ "How to use keyboard shortcuts\n"
+#~ "Did you know that PhrozenOrca offers a wide range of keyboard shortcuts "
+#~ "and 3D scene operations?"
+#~ msgstr ""
+#~ "如何使用键盘快捷键\n"
+#~ "您知道PhrozenOrca提供了广泛的键盘快捷键和3D场景操作吗？"
 
-#: resources/data/hints.ini: [hint:Flush into support/objects/infill]
-msgid ""
-"Flush into support/objects/infill\n"
-"Did you know that you can save wasted filament by flushing it into support/"
-"objects/infill during filament change?"
-msgstr ""
-"冲刷到支持/对象/填充中\n"
-"你知道吗？你可以在换料时将它们冲入支撑/对象/填充，以节省浪费的料丝。"
+#~ msgid ""
+#~ "Reverse on odd\n"
+#~ "Did you know that <b>Reverse on odd</b> feature can significantly improve "
+#~ "the surface quality of your overhangs?"
+#~ msgstr ""
+#~ "奇数层反转\n"
+#~ "您知道吗？<b>奇数层反转</b>功能可以显著提高您悬垂的表面质量。"
 
-#: resources/data/hints.ini: [hint:Improve strength]
-msgid ""
-"Improve strength\n"
-"Did you know that you can use more wall loops and higher sparse infill "
-"density to improve the strength of the model?"
-msgstr ""
-"提高强度\n"
-"你知道吗？你可以使用更多的墙层数和更高的疏散填充密度来提高模型的强度。"
+#~ msgid ""
+#~ "Cut Tool\n"
+#~ "Did you know that you can cut a model at any angle and position with the "
+#~ "cutting tool?"
+#~ msgstr ""
+#~ "切割工具\n"
+#~ "您知道吗？您可以使用切割工具以任何角度和位置切割模型。"
 
-#: resources/data/hints.ini: [hint:When do you need to print with the printer
-#: door opened]
+#~ msgid ""
+#~ "Fix Model\n"
+#~ "Did you know that you can fix a corrupted 3D model to avoid a lot of "
+#~ "slicing problems on the Windows system?"
+#~ msgstr ""
+#~ "修复模型\n"
+#~ "您知道吗？在Windows系统上，您可以修复一个损坏的3D模型以避免诸多切片问题。"
+
+#~ msgid ""
+#~ "Timelapse\n"
+#~ "Did you know that you can generate a timelapse video during each print?"
+#~ msgstr ""
+#~ "延时摄影\n"
+#~ "您知道吗？您可以每次打印时生成一段延时摄影。"
+
+#~ msgid ""
+#~ "Auto-Arrange\n"
+#~ "Did you know that you can auto-arrange all the objects in your project?"
+#~ msgstr ""
+#~ "自动摆盘\n"
+#~ "您知道吗？您可以自动排列项目中的所有对象。"
+
+#~ msgid ""
+#~ "Auto-Orient\n"
+#~ "Did you know that you can rotate objects to an optimal orientation for "
+#~ "printing with a simple click?"
+#~ msgstr ""
+#~ "自动朝向\n"
+#~ "您知道吗，您只需单击鼠标，即可将对象旋转到适合的打印方向。"
+
+#~ msgid ""
+#~ "Lay on Face\n"
+#~ "Did you know that you can quickly orient a model so that one of its faces "
+#~ "sits on the print bed? Select the \"Place on face\" function or press the "
+#~ "<b>F</b> key."
+#~ msgstr ""
+#~ "放置在面部\n"
+#~ "您知道吗，您可以快速指定模型的底面，使其位于打印床上。选择“放置在面部”功能"
+#~ "或按<b>F</b>键。"
+
+#~ msgid ""
+#~ "Object List\n"
+#~ "Did you know that you can view all objects/parts in a list and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "对象列表\n"
+#~ "您知道对象列表吗？您可以在其中的查看所有对象/部件，并更改每个对象/部件的设"
+#~ "置。"
+
+#~ msgid ""
+#~ "Search Functionality\n"
+#~ "Did you know that you use the Search tool to quickly find a specific "
+#~ "PhrozenOrca setting?"
+#~ msgstr ""
+#~ "搜索功能\n"
+#~ "您知道可以使用搜索工具快速找到特定的PhrozenOrca设置吗？"
+
+#~ msgid ""
+#~ "Simplify Model\n"
+#~ "Did you know that you can reduce the number of triangles in a mesh using "
+#~ "the Simplify mesh feature? Right-click the model and select Simplify "
+#~ "model."
+#~ msgstr ""
+#~ "简化模型\n"
+#~ "您知道吗？您可以使用简化三角面片功能减少网格中的三角形数量。右键单击模型，"
+#~ "然后选择简化模型。"
+
+#~ msgid ""
+#~ "Slicing Parameter Table\n"
+#~ "Did you know that you can view all objects/parts on a table and change "
+#~ "settings for each object/part?"
+#~ msgstr ""
+#~ "参数表格\n"
+#~ "您知道吗？您可以参数表格上的所有对象/部件，并更改每个对象/部件的设置。"
+
+#~ msgid ""
+#~ "Split to Objects/Parts\n"
+#~ "Did you know that you can split a big object into small ones for easy "
+#~ "colorizing or printing?"
+#~ msgstr ""
+#~ "分割成对象/零件\n"
+#~ "您知道吗，您可以把一个大对象分割成多个小对象/零件以便着色或打印。"
+
+#~ msgid ""
+#~ "Subtract a Part\n"
+#~ "Did you know that you can subtract one mesh from another using the "
+#~ "Negative part modifier? That way you can, for example, create easily "
+#~ "resizable holes directly in PhrozenOrca."
+#~ msgstr ""
+#~ "减去零件\n"
+#~ "您知道可以使用负体积修改器从一个网格中减去另一个网格吗？这样，您就可以直接"
+#~ "在PhrozenOrca中创建易于调整大小的孔洞。"
+
+#~ msgid ""
+#~ "STEP\n"
+#~ "Did you know that you can improve your print quality by slicing a STEP "
+#~ "file instead of an STL?\n"
+#~ "PhrozenOrca supports slicing STEP files, providing smoother results than "
+#~ "a lower resolution STL. Give it a try!"
+#~ msgstr ""
+#~ "STEP\n"
+#~ "您知道可以通过切片STEP文件而不是STL来提高打印质量吗？\n"
+#~ "PhrozenOrca支持切片STEP文件，提供比低分辨率STL更平滑的结果。试试吧！"
+
+#~ msgid ""
+#~ "Z seam location\n"
+#~ "Did you know that you can customize the location of the Z seam, and even "
+#~ "paint it on your print, to have it in a less visible location? This "
+#~ "improves the overall look of your model. Check it out!"
+#~ msgstr ""
+#~ "Z接缝位置\n"
+#~ "您知道吗，您可以自定义Z接缝的位置，甚至可以将其绘制在打印上，使其位于不太"
+#~ "可见的位置。这样可以改善模型的整体外观。试试看！"
+
+#~ msgid ""
+#~ "Fine-tuning for flow rate\n"
+#~ "Did you know that flow rate can be fine-tuned for even better-looking "
+#~ "prints? Depending on the material, you can improve the overall finish of "
+#~ "the printed model by doing some fine-tuning."
+#~ msgstr ""
+#~ "流量微调\n"
+#~ "你知道吗，您可以微调流量，以获得更好看的打印效果。根据材料的不同，可以通过"
+#~ "进行一些微调来提高打印模型的整体光洁度。"
+
+#~ msgid ""
+#~ "Split your prints into plates\n"
+#~ "Did you know that you can split a model that has a lot of parts into "
+#~ "individual plates ready to print? This will simplify the process of "
+#~ "keeping track of all the parts."
+#~ msgstr ""
+#~ "分盘打印\n"
+#~ "您知道吗，您可以把一个有很多零件的模型安排到多个独立的分盘，然后打印出来，"
+#~ "这将简化对所有零件的管理。"
+
+#~ msgid ""
+#~ "Speed up your print with Adaptive Layer Height\n"
+#~ "Did you know that you can print a model even faster, by using the "
+#~ "Adaptive Layer Height option? Check it out!"
+#~ msgstr ""
+#~ "自适应层高度加速打印\n"
+#~ "您知道吗，您可以使用“自适应层高度”选项可以更快地打印模型。试试看！"
+
+#~ msgid ""
+#~ "Support painting\n"
+#~ "Did you know that you can paint the location of your supports? This "
+#~ "feature makes it easy to place the support material only on the sections "
+#~ "of the model that actually need it."
+#~ msgstr ""
+#~ "绘制支撑\n"
+#~ "您知道吗，您可以手动绘制添加/屏蔽支撑的位置，此功能使仅将支撑材料放置在实"
+#~ "际需要的模型截面上变得容易。"
+
+#~ msgid ""
+#~ "Different types of supports\n"
+#~ "Did you know that you can choose from multiple types of supports? Tree "
+#~ "supports work great for organic models, while saving filament and "
+#~ "improving print speed. Check them out!"
+#~ msgstr ""
+#~ "支撑类型\n"
+#~ "您知道吗，有多种可选的支撑类型，树状支撑非常适合人物/动物模型，同时可以节"
+#~ "耗材并提高打印速度。试试看！"
+
+#~ msgid ""
+#~ "Printing Silk Filament\n"
+#~ "Did you know that Silk filament needs special consideration to print it "
+#~ "successfully? Higher temperature and lower speed are always recommended "
+#~ "for the best results."
+#~ msgstr ""
+#~ "打印丝绸耗材\n"
+#~ "你知道吗，丝绸耗材需要特别考虑才能成功打印。为了获得最佳效果，通常建议使用"
+#~ "较高的温度和较低的速度。"
+
+#~ msgid ""
+#~ "Brim for better adhesion\n"
+#~ "Did you know that when printed models have a small contact interface with "
+#~ "the printing surface, it's recommended to use a brim?"
+#~ msgstr ""
+#~ "使用Brim\n"
+#~ "您知道吗？当模型与热床表面的接触面积较小时，建议使用brim以提高打印成功率。"
+
+#~ msgid ""
+#~ "Set parameters for multiple objects\n"
+#~ "Did you know that you can set slicing parameters for all selected objects "
+#~ "at once?"
+#~ msgstr ""
+#~ "为多个对象设置参数\n"
+#~ "您知道吗，可以同时为所有选定对象设置切片参数。"
+
+#~ msgid ""
+#~ "Stack objects\n"
+#~ "Did you know that you can stack objects as a whole one?"
+#~ msgstr ""
+#~ "组合物体\n"
+#~ "你知道吗？你可以把多个对象组合为一个整体。"
+
+#~ msgid ""
+#~ "Flush into support/objects/infill\n"
+#~ "Did you know that you can save wasted filament by flushing it into "
+#~ "support/objects/infill during filament change?"
+#~ msgstr ""
+#~ "冲刷到支持/对象/填充中\n"
+#~ "你知道吗？你可以在换料时将它们冲入支撑/对象/填充，以节省浪费的料丝。"
+
+#~ msgid ""
+#~ "Improve strength\n"
+#~ "Did you know that you can use more wall loops and higher sparse infill "
+#~ "density to improve the strength of the model?"
+#~ msgstr ""
+#~ "提高强度\n"
+#~ "你知道吗？你可以使用更多的墙层数和更高的疏散填充密度来提高模型的强度。"
+
 #, fuzzy
-msgid ""
-"When do you need to print with the printer door opened?\n"
-"Did you know that opening the printer door can reduce the probability of "
-"extruder/hotend clogging when printing lower temperature filament with a "
-"higher enclosure temperature? More info about this in the Wiki."
-msgstr ""
-"什么时候需要打开机箱门打印\n"
-"您知道吗？在较高腔温下打印低温耗材，打开机箱门可以减少挤出机/热端堵塞的概率。"
-"有关此的更多信息，请参阅Wiki。"
+#~ msgid ""
+#~ "When do you need to print with the printer door opened?\n"
+#~ "Did you know that opening the printer door can reduce the probability of "
+#~ "extruder/hotend clogging when printing lower temperature filament with a "
+#~ "higher enclosure temperature? More info about this in the Wiki."
+#~ msgstr ""
+#~ "什么时候需要打开机箱门打印\n"
+#~ "您知道吗？在较高腔温下打印低温耗材，打开机箱门可以减少挤出机/热端堵塞的概"
+#~ "率。有关此的更多信息，请参阅Wiki。"
 
-#: resources/data/hints.ini: [hint:Avoid warping]
-msgid ""
-"Avoid warping\n"
-"Did you know that when printing materials that are prone to warping such as "
-"ABS, appropriately increasing the heatbed temperature can reduce the "
-"probability of warping?"
-msgstr ""
-"避免翘曲\n"
-"您知道吗？打印ABS这类易翘曲材料时，适当提高热床温度可以降低翘曲的概率。"
+#~ msgid ""
+#~ "Avoid warping\n"
+#~ "Did you know that when printing materials that are prone to warping such "
+#~ "as ABS, appropriately increasing the heatbed temperature can reduce the "
+#~ "probability of warping?"
+#~ msgstr ""
+#~ "避免翘曲\n"
+#~ "您知道吗？打印ABS这类易翘曲材料时，适当提高热床温度可以降低翘曲的概率。"
 
 #~ msgid "Alt + Shift + Enter"
 #~ msgstr "Alt + Shift + Enter"
@@ -18934,9 +19264,6 @@ msgstr ""
 
 #~ msgid "Total ramming time"
 #~ msgstr "尖端成型总时间"
-
-#~ msgid "s"
-#~ msgstr "秒"
 
 #~ msgid "Total rammed volume"
 #~ msgstr "尖端成型总体积"
@@ -20200,11 +20527,4 @@ msgstr ""
 #~ msgstr "旋转模型"
 
 
-msgid "Gizmo Overhang Detection"
-msgstr "悬空检测"
 
-msgid "Gizmo Drill"
-msgstr "钻孔"
-
-msgid "Gizmo Hollow"
-msgstr "镂空"
