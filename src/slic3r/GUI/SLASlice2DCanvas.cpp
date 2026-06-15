@@ -597,8 +597,20 @@ void SLASlice2DCanvas::render_texture_letterbox(int portal_w, int portal_h)
 
     const bool portrait_lcd =
         m_print != nullptr && m_print->printer_config().display_orientation.value == sladoPortrait;
-    const double aspect_img = portrait_lcd ? double(m_tex_h) / double(m_tex_w)
-                                           : double(m_tex_w) / double(m_tex_h);
+    // The displayed slice must follow the PHYSICAL platform aspect (printable_area bbox, the
+    // same source used by the portal and the vector-preview path), NOT the texture pixel ratio.
+    // They coincide for square-pixel printers (e.g. Mega 8K) but diverge for non-square-pixel
+    // ones (e.g. Revo 16K: 15120/6230 = 2.427 vs 211.68/118.37 = 1.788) — using the pixel ratio
+    // there stretches the image flat. platform_aspect_w_over_h() is already in bed-XY (landscape)
+    // terms, so it is correct for both portrait and landscape; the portrait 90° rotation is
+    // handled separately by the orientation UVs below (aspect and orientation are orthogonal).
+    // Defensive fallback: if no print or the platform aspect is degenerate, keep the legacy
+    // texture-pixel-ratio so the preview never blanks or divides by zero.
+    const double aspect_img_fallback = portrait_lcd ? double(m_tex_h) / double(m_tex_w)
+                                                    : double(m_tex_w) / double(m_tex_h);
+    const double platform_ar         = (m_print != nullptr) ? platform_aspect_w_over_h(m_print) : 0.0;
+    const bool   use_platform_ar     = std::isfinite(platform_ar) && platform_ar > 0.0;
+    const double aspect_img = use_platform_ar ? platform_ar : aspect_img_fallback;
     const double aspect_vp  = double(portal_w) / double(portal_h);
     double draw_w = portal_w;
     double draw_h = portal_h;
