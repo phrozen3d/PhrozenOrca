@@ -29,12 +29,39 @@ RasterCacheKey RasterCache::compute_key(
 {
     mz_ulong crc = mz_crc32(0, nullptr, 0);
 
-    // Hash SLARasterParams as raw bytes
-    crc = mz_crc32(crc, reinterpret_cast<const unsigned char *>(&rp), sizeof(rp));
+    // Hash SLARasterParams field-by-field (NOT raw `&rp, sizeof(rp)`): the struct
+    // carries padding bytes whose value is indeterminate unless every instance is
+    // value-initialized, which made the old raw-byte hash non-deterministic across
+    // processes (the on-disk cache is shared between runs). Hashing each scalar
+    // field skips padding entirely.
+    auto hash_scalar = [&crc](auto v) {
+        crc = mz_crc32(crc, reinterpret_cast<const unsigned char *>(&v),
+                       static_cast<mz_ulong>(sizeof(v)));
+    };
+    hash_scalar(rp.res.width_px);
+    hash_scalar(rp.res.height_px);
+    hash_scalar(rp.pxdim.w_mm);
+    hash_scalar(rp.pxdim.h_mm);
+    hash_scalar(rp.trafo.mirror_x);
+    hash_scalar(rp.trafo.mirror_y);
+    hash_scalar(rp.trafo.flipXY);
+    hash_scalar(rp.gamma);
+    hash_scalar(rp.aa_steps);
+    hash_scalar(rp.gray_lo);
+    hash_scalar(rp.gray_hi);
+    hash_scalar(rp.blur_pixel);
+    hash_scalar(rp.bottom_layer_count);
+    hash_scalar(static_cast<coord_t>(rp.shift.x()));
+    hash_scalar(static_cast<coord_t>(rp.shift.y()));
+    hash_scalar(rp.picture_grayscale);
 
-    // Hash all layer ExPolygons point data
-    for (const SLAPrint::PrintLayer &layer : printer_input) {
-        const ExPolygons &slices = layer.transformed_slices();
+    // Hash all layer ExPolygons point data.
+    // Dual-track (change: prz-support-binary-output): hash the model-track and
+    // support-track point sets separately rather than the merged union, so a
+    // model<->support reclassification (which changes the rendered output but
+    // can leave the union geometry identical) yields a different key. A 1-byte
+    // track marker between the two sets prevents boundary ambiguity.
+    auto hash_expolygons = [&crc](const ExPolygons &slices) {
         for (const ExPolygon &ep : slices) {
             const Points &pts = ep.contour.points;
             if (!pts.empty())
@@ -49,6 +76,15 @@ RasterCacheKey RasterCache::compute_key(
                         static_cast<mz_ulong>(hpts.size() * sizeof(Point)));
             }
         }
+    };
+    static constexpr unsigned char MODEL_MARK   = 0x4D; // 'M' — model track
+    static constexpr unsigned char SUPPORT_MARK = 0x53; // 'S' — support track
+    for (const SLAPrint::PrintLayer &layer : printer_input) {
+        crc = mz_crc32(crc, &MODEL_MARK, 1);
+        hash_expolygons(layer.transformed_model_slices());
+
+        crc = mz_crc32(crc, &SUPPORT_MARK, 1);
+        hash_expolygons(layer.transformed_support_slices());
     }
 
     // Include CACHE_VERSION so any format change produces a new key.

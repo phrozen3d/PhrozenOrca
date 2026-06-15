@@ -438,5 +438,56 @@ void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level)
     cv::LUT(mat, lut_mat, mat);
 }
 
+void rasterize_layer_dual(
+    cv::Mat                 &dst,
+    cv::Mat                 &support_tmp,
+    const ExPolygons        &model_polys,
+    const ExPolygons        &support_polys,
+    const Resolution        &res,
+    const PixelDim          &pxdim,
+    const RasterBase::Trafo &trafo,
+    double                   gamma,
+    int                      aa_steps,
+    uint8_t                  gray_lo,
+    uint8_t                  gray_hi,
+    int                      blur_pixel,
+    uint8_t                  picture_grayscale,
+    bool                     is_binary)
+{
+    // ---- Model track ----------------------------------------------------------
+    // Bottom/plate-contact layers (is_binary) force the model to pure binary too
+    // (no AA/gray/blur) so the footprint stays solid for adhesion; otherwise the
+    // model keeps its full AA/gray-scale/blur treatment.
+    if (is_binary)
+        expolygons_to_cvmat(dst, model_polys, res, pxdim, trafo,
+                            /*gamma=*/0.0, /*aa_steps=*/0,
+                            /*gray_lo=*/0, /*gray_hi=*/255, /*blur_pixel=*/0);
+    else
+        expolygons_to_cvmat(dst, model_polys, res, pxdim, trafo,
+                            gamma, aa_steps, gray_lo, gray_hi, blur_pixel);
+
+    // picture_grayscale dims the model track ONLY (support is exempt — composited
+    // after the LUT below so it always stays pure 255).
+    apply_picture_grayscale_lut(dst, picture_grayscale);
+
+    // Model-only layer: dst already holds the final image. Skip the support
+    // raster + composite entirely (common for upper layers with no supports).
+    if (support_polys.empty())
+        return;
+
+    // ---- Support track --------------------------------------------------------
+    // ALWAYS pure binary (gamma=0, no AA/gray/blur) and NEVER LUT-scaled.
+    // The in-place expolygons_to_cvmat clears support_tmp fully on every call,
+    // so no explicit pre-clear is needed (Open Question resolved: design.md).
+    expolygons_to_cvmat(support_tmp, support_polys, res, pxdim, trafo,
+                        /*gamma=*/0.0, /*aa_steps=*/0,
+                        /*gray_lo=*/0, /*gray_hi=*/255, /*blur_pixel=*/0);
+
+    // ---- Composite ------------------------------------------------------------
+    // max() AFTER the model LUT: support's 255 always wins, and sub-pixel support
+    // coverage that thresholds to 0 never darkens the model. In-place safe.
+    cv::max(dst, support_tmp, dst);
+}
+
 } // namespace sla
 } // namespace Slic3r

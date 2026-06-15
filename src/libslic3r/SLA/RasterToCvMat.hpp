@@ -64,5 +64,37 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
 // Each pixel p is mapped to round(p * level / 255). level==255 is a no-op.
 void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level);
 
+// Dual-track layer rasterization (change: prz-support-binary-output).
+// Renders the model and support geometry of one layer with DIFFERENT treatment
+// and composites them, so supports come out pure-binary and solid:
+//   * model_polys  → AA/gray-scale/blur + picture_grayscale LUT, UNLESS
+//                    is_binary (bottom/plate-contact layers) which forces the
+//                    model to pure binary too (no AA/gray/blur) for adhesion.
+//   * support_polys → ALWAYS pure binary (gamma=0, no AA/gray/blur) and NEVER
+//                    run through the picture_grayscale LUT (exempt from global
+//                    dimming, always 255).
+//   * composite     → dst = max(model_after_LUT, support_255), so the support's
+//                    255 always wins and sub-pixel support never darkens model.
+// dst holds the final composite; support_tmp is scratch. Both are reused
+// (caller supplies thread-local Mats); neither needs pre-clearing — the in-place
+// expolygons_to_cvmat() fully clears its target frame on every call.
+// This is the single shared implementation called by BOTH the rasterize() main
+// loop and the generate_prz() cache-miss path, guaranteeing byte-identical output.
+void rasterize_layer_dual(
+    cv::Mat                 &dst,
+    cv::Mat                 &support_tmp,
+    const ExPolygons        &model_polys,
+    const ExPolygons        &support_polys,
+    const Resolution        &res,
+    const PixelDim          &pxdim,
+    const RasterBase::Trafo &trafo,
+    double                   gamma,
+    int                      aa_steps,
+    uint8_t                  gray_lo,
+    uint8_t                  gray_hi,
+    int                      blur_pixel,
+    uint8_t                  picture_grayscale,
+    bool                     is_binary);
+
 } // namespace sla
 } // namespace Slic3r

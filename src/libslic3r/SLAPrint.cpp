@@ -35,6 +35,19 @@ bool is_zero_elevation(const SLAPrintObjectConfig &c)
     return c.pad_enable.getBool() && c.pad_around_object.getBool();
 }
 
+// Opt-1 (change: prz-support-binary-output): the legacy union is no longer
+// stored per layer. Compute it on demand from the two tracks. The only caller is
+// the on-demand single-layer vector preview (SLASlice2DCanvas), so this per-call
+// union cost is negligible while saving one redundant ExPolygons copy per layer.
+ExPolygons SLAPrint::PrintLayer::transformed_slices() const
+{
+    ExPolygons combined = m_transformed_model_slices;
+    combined.insert(combined.end(),
+                    m_transformed_support_slices.begin(),
+                    m_transformed_support_slices.end());
+    return union_ex(combined);
+}
+
 // Step 3.1: Helper — map SLAPillarConnectionMode (config) to sla::PillarConnectionMode (internal).
 // Kept as explicit switch because config uses SLAPillarConnectionMode, not sla::PillarConnectionMode.
 static sla::PillarConnectionMode map_pillar_connection_mode(int m)

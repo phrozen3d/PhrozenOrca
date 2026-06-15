@@ -91,7 +91,7 @@ public:
 
 private:
     // Bump this whenever the cache format changes to invalidate old entries.
-    static constexpr int CACHE_VERSION = 6; // bumped: added per-layer preview thumbnail (layer_{lid:04d}_preview.rle, gray-RLE) - old caches lack thumbs
+    static constexpr int CACHE_VERSION = 7; // bumped: compute_key field-wise hashing + bottom_layer_count in SLARasterParams (padding-deterministic) - old caches incompatible
 };
 
 } // namespace sla

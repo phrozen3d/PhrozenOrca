@@ -487,6 +487,7 @@ struct SLARasterParams {
     uint8_t                gray_lo           = 0;
     uint8_t                gray_hi           = 255;
     int                    blur_pixel        = 0;
+    int                    bottom_layer_count = 0; // layers with idx < this are forced binary (no AA/gray/blur)
     Point                  shift;             // bed → display coordinate translation
     uint8_t                picture_grayscale = 255;
 };
@@ -576,11 +577,22 @@ public:
         // The collection of slice records for the current level.
         std::vector<std::reference_wrapper<const SliceRecord>> m_slices;
 
-        ExPolygons m_transformed_slices;
+        // Dual-track geometry (change: prz-support-binary-output): model and
+        // support kept separate so the rasterizer can force supports to pure
+        // binary. The legacy union is NOT stored — transformed_slices() computes
+        // it on demand from the two tracks (Opt-1 memory optimization: avoids
+        // holding a redundant union copy for every layer; its only consumer is
+        // the on-demand vector preview of a single layer).
+        ExPolygons m_transformed_model_slices;
+        ExPolygons m_transformed_support_slices;
 
-        template<class Container> void transformed_slices(Container&& c)
+        template<class Container> void transformed_model_slices(Container&& c)
         {
-            m_transformed_slices = std::forward<Container>(c);
+            m_transformed_model_slices = std::forward<Container>(c);
+        }
+        template<class Container> void transformed_support_slices(Container&& c)
+        {
+            m_transformed_support_slices = std::forward<Container>(c);
         }
 
         friend class SLAPrint::Steps;
@@ -600,8 +612,17 @@ public:
 
         auto slices() const -> const decltype (m_slices)& { return m_slices; }
 
-        const ExPolygons & transformed_slices() const {
-            return m_transformed_slices;
+        // Legacy union accessor: computes union_ex(model ∪ support) on demand
+        // (no longer stored). Returns by value. Only consumer is the on-demand
+        // single-layer vector preview, so the per-call union cost is negligible.
+        ExPolygons transformed_slices() const;
+
+        // Dual-track accessors (model gets AA/gray/blur, support forced binary).
+        const ExPolygons & transformed_model_slices() const {
+            return m_transformed_model_slices;
+        }
+        const ExPolygons & transformed_support_slices() const {
+            return m_transformed_support_slices;
         }
     };
 

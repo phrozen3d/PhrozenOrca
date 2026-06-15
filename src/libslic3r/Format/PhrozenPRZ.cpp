@@ -21,6 +21,7 @@
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/task_arena.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include <libslic3r/SLA/RasterCache.hpp>
 #include "PhrozenPRZOrient.hpp"
@@ -784,27 +785,40 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
     // ---------------------------------------------------------------------------
     // Cache-miss path: on-demand rasterization (existing implementation)
     // ---------------------------------------------------------------------------
+    // Per-thread support-track scratch Mat for the dual-track composite. Declared
+    // at function scope so allocations are bounded by concurrency (not per layer).
+    tbb::enumerable_thread_specific<cv::Mat> support_tls;
+
     for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
         const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
         const size_t batch_n   = batch_end - batch_start;
 
-        // [A] Collect ExPolygons and apply bed→display shift translation
-        std::vector<ExPolygons> batch_polys(batch_n);
+        // [A] Collect dual-track ExPolygons (model / support) and apply
+        // bed→display shift translation. Support is rendered pure-binary below.
+        std::vector<ExPolygons> batch_model(batch_n);
+        std::vector<ExPolygons> batch_support(batch_n);
         for (size_t i = 0; i < batch_n; ++i) {
-            batch_polys[i] = layers[batch_start + i].transformed_slices();
-            for (ExPolygon &ep : batch_polys[i])
-                ep.translate(rp.shift);
+            batch_model[i]   = layers[batch_start + i].transformed_model_slices();
+            batch_support[i] = layers[batch_start + i].transformed_support_slices();
+            for (ExPolygon &ep : batch_model[i])   ep.translate(rp.shift);
+            for (ExPolygon &ep : batch_support[i]) ep.translate(rp.shift);
         }
 
-        // [B] TBB parallel rasterize + picture_grayscale LUT
+        // [B] TBB parallel dual-track rasterize + composite (shared helper so the
+        // cache-miss byte stream stays identical to the SLAPrintSteps main path).
         std::vector<cv::Mat> batch_mats(batch_n);
         tbb::parallel_for(tbb::blocked_range<size_t>(0, batch_n),
             [&](const tbb::blocked_range<size_t> &r) {
                 for (size_t i = r.begin(); i < r.end(); ++i) {
-                    batch_mats[i] = sla::expolygons_to_cvmat(
-                        batch_polys[i], rp.res, rp.pxdim, rp.trafo,
-                        rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi, rp.blur_pixel);
-                    sla::apply_picture_grayscale_lut(batch_mats[i], rp.picture_grayscale);
+                    const size_t lid = batch_start + i;
+                    const bool is_binary =
+                        (lid < static_cast<size_t>(rp.bottom_layer_count));
+                    sla::rasterize_layer_dual(
+                        batch_mats[i], support_tls.local(),
+                        batch_model[i], batch_support[i],
+                        rp.res, rp.pxdim, rp.trafo,
+                        rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
+                        rp.blur_pixel, rp.picture_grayscale, is_binary);
                     // Phase 1.5: same R₉₀cw rotation as SLAPrintSteps main path
                     // (cache-miss fallback must produce identical byte stream).
                     cv::Mat rotated;

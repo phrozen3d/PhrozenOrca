@@ -1320,13 +1320,15 @@ void SLAPrint::Steps::merge_slices_and_eval_stats() {
             Lock lck(mutex); supports_volume += layer_support_area * l_height;
         }
 
-        // Here we can save the expensively calculated polygons for printing
-        ExPolygons trslices;
-        trslices.reserve(model_polygons.size() + supports_polygons.size());
-        for(ExPolygon& poly : model_polygons) trslices.emplace_back(std::move(poly));
-        for(ExPolygon& poly : supports_polygons) trslices.emplace_back(std::move(poly));
-
-        layer.transformed_slices(union_ex(trslices));
+        // Here we can save the expensively calculated polygons for printing.
+        // Dual-track (change: prz-support-binary-output): retain model and
+        // support geometry separately for differential rasterization. The legacy
+        // union is NOT stored (Opt-1): transformed_slices() recomputes it on
+        // demand for its single on-demand consumer (vector preview), avoiding a
+        // redundant per-layer union copy. model_polygons is already union_ex'd
+        // and supports_polygons already diff_ex'd vs model above.
+        layer.transformed_model_slices(std::move(model_polygons));
+        layer.transformed_support_slices(std::move(supports_polygons));
 
         // Calculation of the slow and fast layers to the future controlling those values on FW
 
@@ -1456,16 +1458,20 @@ void SLAPrint::Steps::rasterize()
             }
         }
 
-        SLARasterParams rp;
-        rp.res               = res;
-        rp.pxdim             = pxdim;
-        rp.trafo             = trafo;
-        rp.gamma             = gamma;
-        rp.aa_steps          = aa_steps;
-        rp.gray_lo           = gray_lo;
-        rp.gray_hi           = gray_hi;
-        rp.blur_pixel        = blur_pixel;
-        rp.shift             = raster_shift;
+        // Value-initialize so any struct padding is zeroed (defense-in-depth:
+        // compute_key now hashes field-by-field, but a zeroed snapshot keeps the
+        // raw bytes deterministic too).
+        SLARasterParams rp{};
+        rp.res                = res;
+        rp.pxdim              = pxdim;
+        rp.trafo              = trafo;
+        rp.gamma              = gamma;
+        rp.aa_steps           = aa_steps;
+        rp.gray_lo            = gray_lo;
+        rp.gray_hi            = gray_hi;
+        rp.blur_pixel         = blur_pixel;
+        rp.bottom_layer_count = m_print->m_tolerance_bottom_layer_count;
+        rp.shift              = raster_shift;
         rp.picture_grayscale = static_cast<uint8_t>(
             std::clamp(cfg.picture_grayscale.getInt(), 0, 255));
         m_print->m_raster_params = rp;
@@ -1526,6 +1532,7 @@ void SLAPrint::Steps::rasterize()
         struct TLSData {
             cv::Mat            mat;
             cv::Mat            mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
+            cv::Mat            support_mat; // support-track scratch for dual-track composite (reused per layer)
             std::vector<char>  rle_buf;
             cv::Mat            thumb;       // downsampled preview (panel orient.), reused per layer
             std::vector<uchar> thumb_rle;   // gray-RLE-encoded thumb bytes, reused per layer
@@ -1544,21 +1551,32 @@ void SLAPrint::Steps::rasterize()
                     for (size_t lid = range.begin(); lid < range.end(); ++lid) {
                         throw_if_canceled();
 
-                        ExPolygons polys = printer_input[lid].transformed_slices();
-                        for (ExPolygon &ep : polys)
-                            ep.translate(rp.shift);
+                        // Dual-track (change: prz-support-binary-output): model and
+                        // support geometry rasterized separately so supports come out
+                        // pure-binary and solid. Both tracks translated by rp.shift.
+                        ExPolygons model_polys   = printer_input[lid].transformed_model_slices();
+                        ExPolygons support_polys = printer_input[lid].transformed_support_slices();
+                        for (ExPolygon &ep : model_polys)   ep.translate(rp.shift);
+                        for (ExPolygon &ep : support_polys) ep.translate(rp.shift);
 
-                        // Reuse thread-local Mat and RLE buffer — no malloc after first layer.
+                        // Reuse thread-local Mats and RLE buffer — no malloc after first layer.
                         TLSData        &tls_data = tls.local();
                         cv::Mat        &mat      = tls_data.mat;
                         std::vector<char> &rle_buf = tls_data.rle_buf;
 
-                        sla::expolygons_to_cvmat(
-                            mat, polys, rp.res, rp.pxdim, rp.trafo,
-                            rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
-                            rp.blur_pixel);
+                        // Bottom/plate-contact layers (idx < bottom_layer_count) force
+                        // the model to binary too (no AA/gray/blur) for adhesion.
+                        const bool is_binary =
+                            (lid < static_cast<size_t>(rp.bottom_layer_count));
 
-                        sla::apply_picture_grayscale_lut(mat, rp.picture_grayscale);
+                        // Differential rasterization + picture_grayscale LUT (model only)
+                        // + support composite — all inside the shared helper so the PRZ
+                        // cache-miss path produces byte-identical output.
+                        sla::rasterize_layer_dual(
+                            mat, tls_data.support_mat, model_polys, support_polys,
+                            rp.res, rp.pxdim, rp.trafo,
+                            rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
+                            rp.blur_pixel, rp.picture_grayscale, is_binary);
 
                         // Preview thumbnail (sla-preview-thumb-cache): capture from the
                         // panel-orientation `mat` AFTER the picture_grayscale LUT and BEFORE

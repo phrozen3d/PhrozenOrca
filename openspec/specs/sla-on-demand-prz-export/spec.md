@@ -6,11 +6,15 @@
 
 **快取命中路徑**：以批次大小 `EXPORT_BATCH = 8` 迭代所有 N 層，每批次以 `tbb::task_arena(EXPORT_BATCH)` 限制並行數，平行呼叫 `RasterCache::read_layer` 讀取原生 PRZ-RLE bytes（`.rle` 檔案）至 `rle_results[]`；再循序寫入 per-layer header（`prz_layer_content`）、4-byte BE 長度、RLE payload、CRLF，最後一層附加 DLP end tag；每層寫完後立即 `clear()` + `shrink_to_fit()`；不執行光柵化、不使用 `cv::imdecode`。
 
-**快取未命中路徑**：以批次大小 `BATCH_SZ = 8` 迭代 `print.print_layers()`，TBB 平行呼叫 `expolygons_to_cvmat()` on-demand 光柵化，RLE 編碼後串流輸出，`cv::Mat` 立即釋放。
+**快取未命中路徑**：以批次大小 `BATCH_SZ = 8` 迭代 `print.print_layers()`，TBB 平行對每層執行**雙軌光柵化**——取 model-track 與 support-track 幾何（各平移 `rp.shift`），依 `lid < bottom_layer_count` 決定 model 是否走二值，support 恆走二值，model 套 `apply_picture_grayscale_lut` 後與 support 以 `max` 合成（`output = max(model_after_LUT, support_255)`）。此雙軌合成 SHALL 呼叫與 `rasterize()` 主迴圈相同的共用函式，確保 byte 一致；其後接 `cv::rotate(90°CW)` 與 `prz_orient_after_rotate(prz_x_mirror)`，RLE 編碼後串流輸出，`cv::Mat` 立即釋放。
 
 ### Scenario: 快取命中時 PRZ 匯出成功且輸出 Bit-Perfect
 - **WHEN** 使用者點擊匯出 PRZ，且 `RasterCache::is_valid()` 為 `true`
 - **THEN** 輸出的 PRZ 檔案中每層的 RLE 編碼像素資料，與重構前版本產生的結果完全相同（bit-perfect）
+
+### Scenario: 快取未命中路徑與主迴圈輸出一致
+- **WHEN** 快取未命中，`generate_prz()` 以雙軌光柵化 on-demand 產生各層 RLE
+- **THEN** 每層 RLE bytes 與 `rasterize()` 主迴圈經 RasterCache 寫入者完全相同（bit-perfect），支撐區域為純二值且豁免 `picture_grayscale`
 
 ### Scenario: 批次邊界正確處理
 - **WHEN** 切層總數不為 EXPORT_BATCH 整數倍（例如 100 層，最後一批為 4 層）
