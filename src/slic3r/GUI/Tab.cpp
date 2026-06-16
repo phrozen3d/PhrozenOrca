@@ -6893,7 +6893,8 @@ void TabSLAPrint::build()
 
     // Distance — two JSON keys per row (primary + second_distance); UI: primary + " + " + second.
     page     = add_options_page(L("Distance"), "custom-gcode_strength"); // ORCA: icon only visible on placeholders
-    optgroup = page->new_optgroup(L("Lift & Retract Distance"), L"PhrozenImages_Resin/param_distance");
+    // Label column width (em); default OptionsGroup::label_width is 20. Tune per group like Speed below.
+    optgroup = page->new_optgroup(L("Lift & Retract Distance"), L"PhrozenImages_Resin/param_distance", 19);
     {
         auto append_distance_pair = [optgroup](const wxString& row_label, const char* k_primary, const char* k_second, bool primary_readonly = false) {
             Line line(row_label, wxString());
@@ -6927,9 +6928,8 @@ void TabSLAPrint::build()
         append_distance_pair(L("Retract Distance"), "retract_distance", "retract_second_distance", true);
     }
 
-    // Speed — two JSON keys per row (primary + second_speed); UI: primary + " + " + second, unit on the right.
+    // Speed — two JSON keys per row (primary + second_speed); layout matches Distance tab.
     page     = add_options_page(L("Speed"), "custom-gcode_speed"); // ORCA: icon only visible on placeholders
-    // Increase label column to push speed pair inputs right.
     optgroup = page->new_optgroup(L("Lift & Retract Speed"), L"PhrozenImages_Resin/param_speed", 19);
     {
         auto append_speed_pair = [optgroup](const wxString& row_label, const char* k_primary, const char* k_second) {
@@ -7278,6 +7278,19 @@ void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& 
     if (m_support_point_top_field_update)
         return;
 
+    auto schedule_support_top_ui_sync = [this]() {
+        if (m_support_top_ui_sync_pending)
+            return;
+        m_support_top_ui_sync_pending = true;
+        wxTheApp->CallAfter([this]() {
+            m_support_top_ui_sync_pending = false;
+            if (!wxGetApp().checked_tab(this))
+                return;
+            update_changed_ui();
+            toggle_options();
+        });
+    };
+
     if (GLGizmoSlaSupports::is_sla_support_top_option(opt_key)) {
         if (GLGizmoSlaSupports *gizmo = get_active_sla_supports_gizmo()) {
             if (gizmo->has_selected_support_points()) {
@@ -7289,6 +7302,7 @@ void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& 
             } else {
                 // No selected point: Top edits define the template for the next manual support point.
                 GLGizmoSlaSupports::flush_process_top_fields_to_config();
+                schedule_support_top_ui_sync();
                 if (GLCanvas3D *canvas = wxGetApp().plater()->get_view3D_canvas3D())
                     canvas->set_as_dirty();
                 return;
@@ -7296,6 +7310,7 @@ void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& 
         } else {
             // SlaSupports gizmo inactive: still a Top template edit — do not run Tab::update().
             GLGizmoSlaSupports::flush_process_top_fields_to_config();
+            schedule_support_top_ui_sync();
             if (GLCanvas3D *canvas = wxGetApp().plater() ? wxGetApp().plater()->get_view3D_canvas3D() : nullptr)
                 canvas->set_as_dirty();
             return;

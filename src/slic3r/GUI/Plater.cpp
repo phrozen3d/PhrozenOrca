@@ -712,7 +712,7 @@ static DynamicFilamentList dynamic_filament_list;
 static DynamicFilamentList1Based dynamic_filament_list_1_based;
 
 Sidebar::Sidebar(Plater *parent)
-    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(42 * wxGetApp().em_unit(), -1)), p(new priv(parent))
+    : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(lround(43.5 * wxGetApp().em_unit()), -1)), p(new priv(parent))
 {
     Choice::register_dynamic_list("support_filament", &dynamic_filament_list);
     Choice::register_dynamic_list("support_interface_filament", &dynamic_filament_list);
@@ -1801,7 +1801,7 @@ void Sidebar::change_top_border_for_mode_sizer(bool increase_border)
 
 void Sidebar::msw_rescale()
 {
-    SetMinSize(wxSize(42 * wxGetApp().em_unit(), -1));
+    SetMinSize(wxSize(lround(43.5 * wxGetApp().em_unit()), -1));
     p->m_panel_printer_title->GetSizer()->SetMinSize(-1, 3 * wxGetApp().em_unit());
     p->m_panel_filament_title->GetSizer()
         ->SetMinSize(-1, 3 * wxGetApp().em_unit());
@@ -3307,7 +3307,7 @@ Plater::priv::priv(Plater *q, MainFrame *main_frame)
                                    .TopDockable(false)
                                    .BottomDockable(false)
                                    .Floatable(true)
-                                   .BestSize(wxSize(42 * wxGetApp().em_unit(), 90 * wxGetApp().em_unit())));
+                                   .BestSize(wxSize(lround(43.5 * wxGetApp().em_unit()), 90 * wxGetApp().em_unit())));
 
     auto* panel_sizer = new wxBoxSizer(wxHORIZONTAL);
     panel_sizer->Add(view3D, 1, wxEXPAND | wxALL, 0);

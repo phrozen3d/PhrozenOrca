@@ -8,6 +8,7 @@
 
 #include <wx/utils.h>
 #include <wx/dcclient.h>
+#include <algorithm>
 #include <boost/algorithm/string/split.hpp>
 #include "libslic3r/Utils.hpp"
 #include "I18N.hpp"
@@ -28,10 +29,9 @@ static wxCoord mid_slot_for_plus_between_fields(wxDC& dc, const wxFont& font, in
 {
     wxFont old = dc.GetFont();
     dc.SetFont(font);
-    const wxCoord tw = dc.GetTextExtent(" +").x;
+    const wxCoord tw = dc.GetTextExtent("+").x;
     dc.SetFont(old);
-    // Keep no extra horizontal padding to avoid visible blank after '+'.
-    const wxCoord pad_each = 0;
+    const wxCoord pad_each = lround(0.2 * em_unit);
     if (out_tw)
         *out_tw = tw;
     return tw + 2 * pad_each;
@@ -84,6 +84,7 @@ OG_CustomCtrl::OG_CustomCtrl(   wxWindow*            parent,
 
     //m_bmp_mode_sz       = get_bitmap_size(create_scaled_bitmap("mode_simple", this, wxOSX ? 10 : 12));
     m_bmp_blinking_sz   = get_bitmap_size(create_scaled_bitmap("blank_16", this));
+    m_bmp_undo_sz       = get_bitmap_size(create_scaled_bitmap("undo", this));
 
     init_ctrl_lines();// from og.lines()
 
@@ -287,19 +288,19 @@ wxPoint OG_CustomCtrl::get_pos(const Line& line, Field* field_in/* = nullptr*/)
                     v_pos += (ctrl_line.height - m_v_gap + m_v_gap2) / option_set.size();
                 } else {
                     // BBS: new layout
-                    h_pos += field->getWindow()->GetSize().x;
-                    add_buttons_width(blinking_button_width);
+                    h_pos += field->getWindow()->GetSize().x + m_h_gap;
+                    h_pos += undo_button_slot_width();
                     if (option_set.size() == 1 && option_set.front().opt.full_width)
                         break;
 
-                    // add sidetext if any
-                    if (!field->combine_side_text() && (!opt.opt.sidetext.empty() || opt_group->sidetext_width > 0))
-                        h_pos += opt_group->sidetext_width * m_em_unit + m_h_gap;
-
-                    // Between dual fields (Option::side_widget), e.g. primary + second speed — must match CtrlLine::render
+                    // field → reset → "+" → next field; unit sidetext only after the last field.
                     if (opt.side_widget != nullptr) {
                         wxClientDC dc(this);
                         h_pos += mid_slot_for_plus_between_fields(dc, m_font, m_em_unit, nullptr);
+                        // Mirror the gap between reset icon and "+" (button-slot tail + mid-slot lead).
+                        h_pos += m_h_gap;
+                    } else if (!field->combine_side_text() && (!opt.opt.sidetext.empty() || opt_group->sidetext_width > 0)) {
+                        h_pos += opt_group->sidetext_width * m_em_unit + m_h_gap;
                     }
 
                     if (opt.opt_id != option_set.back().opt_id) { //! istead of (opt != option_set.back())
@@ -670,6 +671,7 @@ void OG_CustomCtrl::msw_rescale()
 
     //m_bmp_mode_sz = create_scaled_bitmap("mode_simple", this, wxOSX ? 10 : 12).GetSize();
     m_bmp_blinking_sz = create_scaled_bitmap("blank_16", this).GetSize();
+    m_bmp_undo_sz     = create_scaled_bitmap("undo", this).GetSize();
 
     m_max_win_width = 0;
 
@@ -721,17 +723,21 @@ OG_CustomCtrl::CtrlLine::CtrlLine(  wxCoord         height,
 
 int OG_CustomCtrl::CtrlLine::get_max_win_width()
 {
-    int max_win_width = 0;
+    return get_max_field_width();
+}
+
+int OG_CustomCtrl::CtrlLine::get_max_field_width() const
+{
+    int max_w = 0;
     if (!draw_just_act_buttons) {
         const std::vector<Option>& option_set = og_line.get_options();
-        for (auto opt : option_set) {
-            Field* field = ctrl->opt_group->get_field(opt.opt_id);
-            if (field && field->getWindow())
-                max_win_width = field->getWindow()->GetSize().GetWidth();
+        for (const Option& opt : option_set) {
+            if (Field* field = ctrl->opt_group->get_field(opt.opt_id))
+                if (field && field->getWindow())
+                    max_w = std::max(max_w, field->getWindow()->GetSize().GetWidth());
         }
     }
-
-    return max_win_width;
+    return max_w;
 }
 
 void OG_CustomCtrl::CtrlLine::correct_items_positions()
@@ -899,23 +905,24 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
     // so we need a horizontal sizer to arrange these things
 
     auto add_field_width = [&h_pos, this] (Field* field) {
-        if (field) {
-            if (field->getSizer())
-            {
-                auto children = field->getSizer()->GetChildren();
-                for (auto child : children)
-                    if (child->IsWindow())
-                        h_pos += child->GetWindow()->GetSize().x + ctrl->m_h_gap;
-            }
-            else if (field->getWindow()) {
-                h_pos += field->getWindow()->GetSize().x + ctrl->m_h_gap;
-            }
+        if (!field)
+            return;
+        if (field->getWindow())
+            h_pos += field->getWindow()->GetSize().x + ctrl->m_h_gap;
+        else if (field->getSizer()) {
+            auto children = field->getSizer()->GetChildren();
+            for (auto child : children)
+                if (child->IsWindow())
+                    h_pos += child->GetWindow()->GetSize().x + ctrl->m_h_gap;
+            return; // sizer path keeps legacy width sum
         }
     };
 
     auto draw_buttons = [&h_pos, &dc, &v_pos, this](Field* field, size_t bmp_rect_id = 0) {
         if (field && field->undo_to_sys_bitmap()) {
             h_pos = draw_act_bmps(dc, wxPoint(h_pos, v_pos), field->undo_to_sys_bitmap()->bmp(), field->undo_bitmap()->bmp(), field->blink(), bmp_rect_id).x;
+        } else if (field) {
+            h_pos += ctrl->undo_button_slot_width();
         }
 #ifndef DISABLE_BLINKING
         else if (field && !field->undo_to_sys_bitmap() && field->blink()) 
@@ -977,31 +984,23 @@ void OG_CustomCtrl::CtrlLine::render(wxDC& dc, wxCoord h_pos, wxCoord v_pos)
         // add field
         if (option_set.size() == 1 && option_set.front().opt.full_width)
             break;
-        if (!ctrl->opt_group->option_label_at_right) // BBS
+        if (!ctrl->opt_group->option_label_at_right) {
             add_field_width(field);
-        // add sidetext if any
-        // BBS: new layout
-        wxCoord offset = 0;
-        if (field && !field->combine_side_text() && (!option.sidetext.empty() || ctrl->opt_group->sidetext_width > 0)) {
-            wxCoord h_pos2 = h_pos + dc.GetTextExtent(_(option.sidetext)).x;
-            h_pos = draw_text(dc, wxPoint(h_pos, v_pos), _(option.sidetext), nullptr, ctrl->opt_group->sidetext_width * ctrl->m_em_unit);
-            offset = h_pos - h_pos2;
+            draw_buttons(field, bmp_rect_id++);
         }
-        // Option::side_widget (custom sizer in non-custom_ctrl mode) — OG_CustomCtrl paints "+" centered in band between fields
+        // field → reset → "+" → next field; unit sidetext only after the last field.
         if (opt.side_widget != nullptr) {
             wxCoord tw = 0;
             const wxCoord mid_total = mid_slot_for_plus_between_fields(dc, ctrl->m_font, ctrl->m_em_unit, &tw);
             const wxCoord h_band_start = h_pos;
             const wxCoord plus_x = h_band_start + (mid_total - tw) / 2;
             wxColour plus_clr(134, 134, 134, 255);
-            draw_text(dc, wxPoint(plus_x + 10, v_pos), "+", &plus_clr, -1, false, false, false);
+            draw_text(dc, wxPoint(plus_x, v_pos), "+", &plus_clr, -1, false, false, false);
             h_pos = h_band_start + mid_total;
-        }
-        // BBS: new layout
-        if (!ctrl->opt_group->option_label_at_right) {
-            offset -= ctrl->m_h_gap; h_pos -= offset;
-            draw_buttons(field, bmp_rect_id++);
-            h_pos += offset;
+            // Mirror the gap between reset icon and "+" (button-slot tail + mid-slot lead).
+            h_pos += ctrl->m_h_gap;
+        } else if (field && !field->combine_side_text() && (!option.sidetext.empty() || ctrl->opt_group->sidetext_width > 0)) {
+            h_pos = draw_text(dc, wxPoint(h_pos, v_pos), _(option.sidetext), nullptr, ctrl->opt_group->sidetext_width * ctrl->m_em_unit);
         }
 
         if (opt.opt_id != option_set.back().opt_id) { //! istead of (opt != option_set.back())
@@ -1107,12 +1106,14 @@ wxPoint OG_CustomCtrl::CtrlLine::draw_act_bmps(wxDC& dc, wxPoint pos, const wxBi
 
     h_pos += bmp_dim + ctrl->m_h_gap;
 #endif
-    dc.DrawBitmap(og_line.undo_to_sys ? bmp_undo_to_sys : bmp_undo, h_pos, v_pos);
+    const wxBitmap& bmp_visible = og_line.undo_to_sys ? bmp_undo_to_sys : bmp_undo;
+    dc.DrawBitmap(bmp_visible, h_pos, v_pos);
 
-    int bmp_dim2 = get_bitmap_size(bmp_undo).GetWidth();
+    int bmp_dim2 = get_bitmap_size(bmp_visible).GetWidth();
     (og_line.undo_to_sys ? rects_undo_to_sys_icon[rect_id] : rects_undo_icon[rect_id]) = wxRect(h_pos, v_pos, bmp_dim2, bmp_dim2);
 
-    h_pos += bmp_dim2 + ctrl->m_h_gap;
+    // Advance by fixed slot width so paint track matches get_pos() (revert icon can be wider than blank_16).
+    h_pos = pos.x + ctrl->undo_button_slot_width();
 
     return wxPoint(h_pos, v_pos);
 }

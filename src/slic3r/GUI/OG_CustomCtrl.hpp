@@ -33,6 +33,7 @@ class OG_CustomCtrl :public wxPanel
 
     wxSize  m_bmp_mode_sz;
     wxSize  m_bmp_blinking_sz;
+    wxSize  m_bmp_undo_sz;
 
     int     m_max_win_width{0};
 
@@ -55,6 +56,7 @@ class OG_CustomCtrl :public wxPanel
         ~CtrlLine() { ctrl = nullptr; }
 
         int     get_max_win_width();
+        int     get_max_field_width() const;
         void    correct_items_positions();
         void    msw_rescale();
         void    update_visibility(ConfigOptionMode mode);
@@ -76,6 +78,8 @@ class OG_CustomCtrl :public wxPanel
     };
 
     std::vector<CtrlLine> ctrl_lines;
+
+    int undo_button_slot_width() const { return std::max(m_bmp_blinking_sz.GetWidth(), m_bmp_undo_sz.GetWidth()) + m_h_gap; }
 
 public:
     OG_CustomCtrl(  wxWindow* parent,

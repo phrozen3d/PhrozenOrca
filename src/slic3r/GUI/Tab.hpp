@@ -668,6 +668,7 @@ public:
 	// Read-only display (2 decimals) for layer_print_time_compensation; value comes from calculator dialog or preset.
 	TextInput*    m_layer_print_time_compensation_display     = nullptr;
     bool          m_support_point_top_field_update = false;
+    bool          m_support_top_ui_sync_pending    = false;
 
     bool        is_support_point_top_field_update() const { return m_support_point_top_field_update; }
     bool        should_skip_preset_ui_refresh() const;
