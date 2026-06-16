@@ -1872,8 +1872,16 @@ void merge_parts_and_fix_process(IslandParts &island_parts,
         else if (p.i > remove_index)
             --p.i; // decrease index
 
-    // fix index for current item
-    if (item.i > remove_index)
+    // fix index for current item - mirror the process-queue fix above. The
+    // current item can itself point at the removed part (when remove_index was
+    // swapped to equal the caller's item.i), so it must be repointed to the
+    // merged survivor, not just decreased. Missing the `== remove_index` case
+    // left item.i pointing at a removed/out-of-bounds part; once that item was
+    // re-queued, a later loop-back passed its stale index as remove_index and
+    // island_parts.erase() ran past the end -> heap corruption.
+    if (item.i == remove_index)
+        item.i = index;
+    else if (item.i > remove_index)
         --item.i; // decrease index
 }
 
