@@ -975,7 +975,7 @@ PhrozenSelectMachineDialog::PhrozenSelectMachineDialog(Plater *plater)
     m_sizer_main->Add(0, 0, 0, wxEXPAND | wxTOP, FromDIP(14));
 
 
-#if 1
+#if 0
     // Temporarily closed because there is not enough time to improve it.
     m_sizer_main->Add(sizer_split_filament, 1, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(15));
     m_sizer_main->Add(m_filament_panel, 0, wxALIGN_CENTER|wxLEFT|wxRIGHT, FromDIP(15));
@@ -1933,16 +1933,8 @@ void PhrozenSelectMachineDialog::on_send_print()
         return;
     }
 
-    // Phrozen: 計算末端線材通道重映射（原始工具號 -> 目標工具號）。
-    m_remap_output_path.clear(); // 預設無旁路檔；恆等送印維持空字串（不重導上傳）。
-    const std::map<int, int> remap = get_tool_remap();
-    if (is_tool_remap_identity()) {
-        // 無變更 → 直接走原送印流程，不備份、不改檔。
-        do_send_to_printer();
-        return;
-    }
-    // 有變更 → 切片守門 + 背景改檔 + CallAfter 串接（非阻塞）。
-    start_tool_remap_then_send(remap);
+    // Phrozen: 線材通道重映射功能暫時關閉（穩定發版用），直接送印。
+    do_send_to_printer();
 }
 
 void PhrozenSelectMachineDialog::do_send_to_printer()
