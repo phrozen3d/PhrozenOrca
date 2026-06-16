@@ -52,7 +52,7 @@ jobs:
           cmakeVersion: "~3.28.0"  # use most recent 3.28.x version
           
       - name: Get the version and date on Ubuntu and macOS
-        if: inputs.os != 'windows-latest'
+        if: "!startsWith(inputs.os, 'windows')"
         run: |
           ver_pure=$(grep 'set(Phrozen_VERSION' version.inc | cut -d '"' -f2)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
@@ -66,7 +66,7 @@ jobs:
         shell: bash
 
       - name: Get the version and date on Windows
-        if: inputs.os == 'windows-latest'
+        if: startsWith(inputs.os, 'windows')
         run: |
           $date = Get-Date -Format 'yyyyMMdd'
           $ref = "${{ github.ref }}"
@@ -154,11 +154,11 @@ jobs:
 
 # Windows
       - name: setup MSVC
-        if: inputs.os == 'windows-latest'
+        if: startsWith(inputs.os, 'windows')
         uses: microsoft/setup-msbuild@v2
 
       - name: Build slicer Win
-        if: inputs.os == 'windows-latest'
+        if: startsWith(inputs.os, 'windows')
         working-directory: ${{ github.workspace }}
         env:
           WindowsSdkDir: 'C:\Program Files (x86)\Windows Kits\10\'
@@ -167,14 +167,14 @@ jobs:
 
       # Windows packaging is delegated to composite actions based on package_style
       - name: Pack Windows (release)
-        if: inputs.os == 'windows-latest' && (inputs.package_style == 'release' || inputs.package_style == '')
+        if: startsWith(inputs.os, 'windows') && (inputs.package_style == 'release' || inputs.package_style == '')
         uses: ./.github/actions/pack-win-release
         with:
           build_dir: ${{ github.workspace }}/build/PhrozenOrca
           version: ${{ env.ver }}
 
       - name: Pack Windows (nightly)
-        if: inputs.os == 'windows-latest' && inputs.package_style == 'nightly'
+        if: startsWith(inputs.os, 'windows') && inputs.package_style == 'nightly'
         uses: ./.github/actions/pack-win-nightly
         with:
           build_dir: ${{ github.workspace }}/build/PhrozenOrca
