@@ -1028,6 +1028,10 @@
             "name": "SpiderMaker PLA Matte @System",
             "sub_path": "filament/Phrozen/SpiderMaker PLA Matte @System.json"
         },
+		{
+            "name": "SpiderMaker PLA Matte @Phrozen Arco 0.4 nozzle",
+            "sub_path": "filament/Phrozen/SpiderMaker PLA Matte @Phrozen Arco 0.4 nozzle.json"
+        },
         {
             "name": "Polymaker ABS @base",
             "sub_path": "filament/Phrozen/Polymaker ABS @base.json"
