@@ -72,9 +72,11 @@ support-track 的內容 SHALL 與既有一致：`supports_polygons` 已先對 `m
 
 ### Requirement: 像素合併邊界與 picture_grayscale 豁免
 
-最終每層影像 SHALL 由 model-track 影像與 support-track 影像以逐像素取最大值合成：`output[i] = max(model_after_LUT[i], support_255[i])`。合成 SHALL 發生在 `picture_grayscale` LUT **之後**，使 support 的 `255` 不被全域減光削弱。
+最終每層影像 SHALL 由 model-track 影像與 support-track 以逐像素取最大值合成：`output[i] = max(model_after_LUT[i], support_255[i])`。合成 SHALL 發生在 `picture_grayscale` LUT **之後**，使 support 的 `255` 不被全域減光削弱。
 
-合成順序 SHALL 確保：support 覆蓋處最終值恆為 `255`；support 覆蓋率低於門檻（threshold < 50%）的次像素區域輸出 `0`，不得使該處 model 像素變暗。
+合成 SHALL 以 **support 局部 ROI** 進行（`composite_support_binary`）：僅在 support bbox（加 guard band、clamp 至影像）的局部緩衝內把 support-track 光柵化為純二值，再以 ROI-local `cv::max` 合成進全幀 model 影像，取代既有「全幀 support 緩衝 + 全幀 `cv::max`」。此 ROI 合成輸出 SHALL 與全幀合成**逐像素相同（byte-identical）**，故不變動 `CACHE_VERSION`。
+
+合成順序 SHALL 確保：support 覆蓋處最終值恆為 `255`；support 覆蓋率低於門檻（threshold < 50%）的次像素區域輸出 `0`，不得使該處 model 像素變暗；support 洞（`diff_ex` 去除與 model 重疊處）內的 model 像素 SHALL 原值保留。
 
 合成後影像 SHALL 為 thumbnail 擷取與 PRZ-RLE 編碼的唯一來源，使 Thumbnail 與 2D Preview 自動繼承合成結果。
 
@@ -93,7 +95,12 @@ support-track 的內容 SHALL 與既有一致：`supports_polygons` 已先對 `m
 - **WHEN** 某層完成雙軌合成
 - **THEN** 該層 thumbnail 擷取自合成後（`picture_grayscale` LUT 與 support 合成之後、PRZ 方位旋轉之前）的影像，反映支撐二值化結果
 
+#### Scenario: ROI 合成與全幀合成 byte-identical
+
+- **WHEN** 同一層分別以全幀 `cv::max` 與 `composite_support_binary` 的 ROI 合成產生最終影像
+- **THEN** 兩者每一像素值完全相同，PRZ-RLE 編碼結果一致，既有 disk cache 不失效
+
 ## Known Limitations
 
-- **記憶體峰值**：雙軌合成於主迴圈每執行緒新增一張全幀 `support_mat`（~65MB），峰值上升（8 緒約 +520MB）。根治方案（ROI-only support 合成）列為後續技術債（Opt-2）。
+- **記憶體峰值（已根治）**：雙軌合成早期於主迴圈每執行緒新增一張全幀 `support_mat`（~65MB，8 緒約 +520MB）。已由 Opt-2（support ROI 合成，`composite_support_binary`）消除：support 改在局部 ROI 內合成，不再持有全幀 support 緩衝。
 - **多物件 / 非 z=0 起始**：`is_binary = lid < bottom_layer_count` 假設全域前 `bottom_layer_count` 層為貼床底層；多物件不同起始高度時此映射可能需改 per-object 底層集合。

@@ -438,9 +438,109 @@ void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level)
     cv::LUT(mat, lut_mat, mat);
 }
 
+// ---------------------------------------------------------------------------
+// Opt-2 — Support ROI composite (change: prz-support-roi-composite)
+// ---------------------------------------------------------------------------
+void composite_support_binary(
+    cv::Mat                 &dst,
+    const ExPolygons        &support_polys,
+    const Resolution        &res,
+    const PixelDim          &pxdim,
+    const RasterBase::Trafo &trafo)
+{
+    // Task 1.1 — Empty support → nothing to composite (dst untouched).
+    if (support_polys.empty()) return;
+
+    const int W = static_cast<int>(res.width_px);
+    const int H = static_cast<int>(res.height_px);
+
+    const double sx = SCALING_FACTOR / pxdim.w_mm;
+    const double sy = SCALING_FACTOR / pxdim.h_mm;
+    const double cx = trafo.center_x * sx;
+    const double cy = trafo.center_y * sy;
+
+    // Task 1.2 — ROI box: reuse compute_pixel_roi's 2.1–2.3 (world bbox → pixel
+    // bbox, flipXY axis swap, mirror lo/hi swap, floor/ceil + image clamp) with
+    // blur_pixel = 0. DISCARD its new_trafo (2.4): that field truncates the ROI
+    // center to coord_t, which would perturb edge-pixel lround and break the
+    // byte-identical guarantee. We only use the {x0,y0,x1,y1} box here.
+    const PixelROI roi = compute_pixel_roi(
+        support_polys, sx, sy, cx, cy,
+        trafo.flipXY, trafo.mirror_x, trafo.mirror_y,
+        W, H, /*blur_pixel=*/0, trafo);
+
+    // Task 1.3 — Guard band: expand the box by g px each side, re-clamp to image.
+    // g = 2 (>= 1). cv::fillPoly clips the polygon to the destination canvas
+    // rectangle before scan-conversion; the guard band guarantees every pixel the
+    // full-frame fill would touch lands strictly inside the local canvas, so no
+    // boundary clipping divergence is possible. Border pixels stay 0 → cv::max
+    // leaves dst untouched there. Memory cost is negligible.
+    constexpr int g = 2;
+    const int x0g = std::max(0, roi.x0 - g);
+    const int y0g = std::max(0, roi.y0 - g);
+    const int x1g = std::min(W, roi.x1 + g);
+    const int y1g = std::min(H, roi.y1 + g);
+    const int roi_wg = x1g - x0g;
+    const int roi_hg = y1g - y0g;
+    if (roi_wg <= 0 || roi_hg <= 0) return;
+
+    // Task 1.4 — Thread-local ROI buffer + CRITICAL pre-fill zero.
+    thread_local std::vector<uint8_t> small_buf;
+    small_buf.resize(static_cast<size_t>(roi_wg) * static_cast<size_t>(roi_hg));
+
+    // CRITICAL: explicit zero-fill of THIS layer's guarded-ROI region BEFORE
+    // fillPoly. Unlike the AGG slow-path (RasterGrayscaleAA clears its background)
+    // and the full-frame fast-path (dst.setTo(0)), cv::fillPoly writes ONLY the
+    // polygon interiors and never clears the canvas — and small_buf is a
+    // thread-local buffer REUSED across layers (std::vector::resize does NOT
+    // re-zero retained capacity). Without this memset, a previous (larger) layer's
+    // 255 left in an uncovered pixel would be composited via cv::max into this
+    // layer's dst → sparse cross-layer "ghost support" bleed (invisible to a
+    // casual smoke test, but corrupts edge layers and breaks byte-identical).
+    // DO NOT DELETE — this is ROI-fill-specific clearing, not redundant with any
+    // full-frame clear.
+    std::memset(small_buf.data(), 0,
+                static_cast<size_t>(roi_wg) * static_cast<size_t>(roi_hg));
+
+    // ROI-local Mat view over small_buf (continuous, stride = roi_wg).
+    cv::Mat sb(roi_hg, roi_wg, CV_8UC1, small_buf.data());
+
+    // Task 1.5 — Integer-shift fillPoly. Pixel coordinates are computed at
+    // FULL-FRAME precision via to_cv_point (identical to the old fast path), then
+    // translated by the integer ROI origin (x0g, y0g). Because the shift is an
+    // exact integer, lround(px_full) - x0g equals the full-frame pixel minus a
+    // constant → the ROI fill set maps 1:1 onto the full-frame fill set.
+    thread_local std::vector<cv::Point> contour_buf;
+    auto fill_into_sb = [&](const Polygon &poly, uchar color) {
+        const auto &pts = poly.points;
+        contour_buf.resize(pts.size());
+        for (size_t k = 0; k < pts.size(); ++k) {
+            const cv::Point p = to_cv_point(pts[k], sx, sy, cx, cy,
+                                            trafo.flipXY, trafo.mirror_x,
+                                            trafo.mirror_y, W, H);
+            contour_buf[k] = cv::Point(p.x - x0g, p.y - y0g);
+        }
+        const cv::Point *ptr  = contour_buf.data();
+        int              npts = static_cast<int>(contour_buf.size());
+        cv::fillPoly(sb, &ptr, &npts, 1, cv::Scalar(color));
+    };
+
+    // Same iteration order as the old full-frame fast path: per ExPolygon fill the
+    // contour (255) then its holes (0).
+    for (const ExPolygon &ep : support_polys) {
+        fill_into_sb(ep.contour, 255);
+        for (const Polygon &hole : ep.holes)
+            fill_into_sb(hole, 0);
+    }
+
+    // Task 1.6 — ROI-local composite. max(): support 255 wins; holes (0) preserve
+    // the underlying model; the guard-band border (0) leaves dst untouched.
+    cv::Mat dst_roi = dst(cv::Rect(x0g, y0g, roi_wg, roi_hg));
+    cv::max(dst_roi, sb, dst_roi);
+}
+
 void rasterize_layer_dual(
     cv::Mat                 &dst,
-    cv::Mat                 &support_tmp,
     const ExPolygons        &model_polys,
     const ExPolygons        &support_polys,
     const Resolution        &res,
@@ -475,18 +575,12 @@ void rasterize_layer_dual(
     if (support_polys.empty())
         return;
 
-    // ---- Support track --------------------------------------------------------
-    // ALWAYS pure binary (gamma=0, no AA/gray/blur) and NEVER LUT-scaled.
-    // The in-place expolygons_to_cvmat clears support_tmp fully on every call,
-    // so no explicit pre-clear is needed (Open Question resolved: design.md).
-    expolygons_to_cvmat(support_tmp, support_polys, res, pxdim, trafo,
-                        /*gamma=*/0.0, /*aa_steps=*/0,
-                        /*gray_lo=*/0, /*gray_hi=*/255, /*blur_pixel=*/0);
-
-    // ---- Composite ------------------------------------------------------------
-    // max() AFTER the model LUT: support's 255 always wins, and sub-pixel support
-    // coverage that thresholds to 0 never darkens the model. In-place safe.
-    cv::max(dst, support_tmp, dst);
+    // ---- Support track + composite (Opt-2: prz-support-roi-composite) ---------
+    // ALWAYS pure binary (gamma=0, no AA/gray/blur) and NEVER LUT-scaled. The
+    // support is rasterized + composited within a local ROI only, replacing the
+    // old "full-frame support_tmp + full-frame cv::max" path. Output is
+    // byte-identical to that path (see composite_support_binary).
+    composite_support_binary(dst, support_polys, res, pxdim, trafo);
 }
 
 } // namespace sla

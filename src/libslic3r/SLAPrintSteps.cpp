@@ -1532,7 +1532,6 @@ void SLAPrint::Steps::rasterize()
         struct TLSData {
             cv::Mat            mat;
             cv::Mat            mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
-            cv::Mat            support_mat; // support-track scratch for dual-track composite (reused per layer)
             std::vector<char>  rle_buf;
             cv::Mat            thumb;       // downsampled preview (panel orient.), reused per layer
             std::vector<uchar> thumb_rle;   // gray-RLE-encoded thumb bytes, reused per layer
@@ -1570,10 +1569,11 @@ void SLAPrint::Steps::rasterize()
                             (lid < static_cast<size_t>(rp.bottom_layer_count));
 
                         // Differential rasterization + picture_grayscale LUT (model only)
-                        // + support composite — all inside the shared helper so the PRZ
-                        // cache-miss path produces byte-identical output.
+                        // + support ROI composite — all inside the shared helper so the
+                        // PRZ cache-miss path produces byte-identical output. Support is
+                        // composited in a local ROI (no full-frame scratch Mat).
                         sla::rasterize_layer_dual(
-                            mat, tls_data.support_mat, model_polys, support_polys,
+                            mat, model_polys, support_polys,
                             rp.res, rp.pxdim, rp.trafo,
                             rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
                             rp.blur_pixel, rp.picture_grayscale, is_binary);

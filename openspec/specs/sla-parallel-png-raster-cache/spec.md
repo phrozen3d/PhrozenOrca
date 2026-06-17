@@ -8,7 +8,9 @@
 
 ### Requirement: 全層完全平行光柵化
 
-`SLAPrint::Steps::rasterize()` SHALL 以 `tbb::parallel_for(blocked_range<size_t>(0, N))` 對所有 N 層同時執行，各執行緒獨立完成：**雙軌光柵化（model-track 與 support-track 分別 AGG 光柵化）→ model 套 `apply_picture_grayscale_lut` → 雙軌合成（`output = max(model_after_LUT, support_255)`）** → 預覽 thumb 擷取（`cv::resize` + 灰階 RLE 編碼 `rle_encode_gray` + 寫入 RasterCache）→ stack blur（若啟用，於 model-track 光柵化內部完成）→ PRZ-RLE 編碼 → 磁碟寫入（RasterCache `.rle`），不使用 producer-consumer queue 或集中式輸出緩衝。
+`SLAPrint::Steps::rasterize()` SHALL 以 `tbb::parallel_for(blocked_range<size_t>(0, N))` 對所有 N 層同時執行，各執行緒獨立完成：**雙軌光柵化（model-track AGG 光柵化；support-track 於局部 ROI 二值光柵化）→ model 套 `apply_picture_grayscale_lut` → support 局部 ROI 合成（`output = max(model_after_LUT, support_255)`，`composite_support_binary`）** → 預覽 thumb 擷取（`cv::resize` + 灰階 RLE 編碼 `rle_encode_gray` + 寫入 RasterCache）→ stack blur（若啟用，於 model-track 光柵化內部完成）→ PRZ-RLE 編碼 → 磁碟寫入（RasterCache `.rle`），不使用 producer-consumer queue 或集中式輸出緩衝。
+
+support 合成 SHALL **不**使用每緒全幀 `cv::Mat`（`TLSData.support_mat` 移除）；改為在 support 局部 ROI（加 guard band、clamp 至影像）的 thread-local 小緩衝內二值光柵化，再以 ROI-local `cv::max` 合成。此 ROI 合成輸出 SHALL 與全幀合成逐像素相同。
 
 雙軌處理 SHALL 依層索引決定模式：`lid >= bottom_layer_count` 時 model 套 AA／灰階／模糊、support 走二值；`lid < bottom_layer_count` 時 model 與 support 皆走二值。support-track 恆不套 `picture_grayscale` LUT。此雙軌合成邏輯 SHALL 封裝為單一共用函式，供本主迴圈與 `generate_prz()` 快取未命中路徑共同呼叫，以保證兩路徑 byte 一致。
 
@@ -17,12 +19,12 @@ thumb 擷取 SHALL 在 `cv::rotate` 與 `prz_orient_after_rotate` 之前、雙�
 #### Scenario: 全層並行完成，速度目標達成
 
 - **WHEN** `rasterize()` 對 360 層 13320×5120 執行（無快取命中）
-- **THEN** 所有層在 TBB scheduler 分配下並行處理，每層同時產生 `.rle` 與 `_preview.rle`，wall time 因雙軌新增第二次 AGG fill 與合成而上升（預估 +30~60% 光柵化時間），屬已知取捨
+- **THEN** 所有層在 TBB scheduler 分配下並行處理，每層同時產生 `.rle` 與 `_preview.rle`；support 合成因改走局部 ROI（消除全幀 `setTo(0)` 與全幀 `cv::max`，後半段全幀流量 −40~45%）而較全幀版加速
 
 #### Scenario: 各執行緒獨立不共享輸出緩衝區
 
 - **WHEN** N 個 TBB worker thread 同時處理不同層
-- **THEN** 各執行緒使用獨立的 model `cv::Mat`、support `cv::Mat`、thumb 緩衝、thumb-RLE 緩衝與 PRZ-RLE buffer，皆為 thread-local 重用，不存在輸出側的共享可寫資料結構
+- **THEN** 各執行緒使用獨立的 model `cv::Mat`、support 局部 ROI 小緩衝（非全幀）、thumb 緩衝、thumb-RLE 緩衝與 PRZ-RLE buffer，皆為 thread-local 重用，不存在輸出側的共享可寫資料結構
 
 #### Scenario: thumb 擷取位於 PRZ 方位轉換之前
 
@@ -132,6 +134,22 @@ thumb 擷取 SHALL 在 `cv::rotate` 與 `prz_orient_after_rotate` 之前、雙�
 #### Scenario: 無快取命中時不預先配置全量陣列
 - **WHEN** `rasterize()` 啟動
 - **THEN** 不存在長度為 N 的 `cv::Mat` 陣列；各層 Mat 隨 TBB 任務動態配置與釋放
+
+---
+
+### Requirement: ROI 合成不變動 CACHE_VERSION
+
+因 support ROI 合成（`composite_support_binary`，整數平移 + guard band）的輸出與全幀 `cv::max` 合成**逐像素相同**，`CACHE_VERSION` SHALL **維持不變**。Opt-2 前建立的 disk cache 在 Opt-2 後 SHALL 持續 `is_valid()` 命中，且與 cache-miss 重算結果一致；不得觸發非必要的全量快取重建。
+
+#### Scenario: 既有快取在 Opt-2 後續用
+
+- **WHEN** 磁碟存在 Opt-2 前（全幀合成）建立的有效快取，升級至 Opt-2 後重新匯出
+- **THEN** `is_valid()` 因 `CACHE_VERSION` 未變而命中，cache-hit 直接串流舊 bytes，輸出與 Opt-2 cache-miss 重算逐 byte 相同
+
+#### Scenario: ROI 與全幀輸出逐 byte 比對
+
+- **WHEN** 同一切片以 Opt-2 ROI 合成與 Opt-2 前全幀合成各自光柵化
+- **THEN** 每層 PRZ-RLE bytes 完全相同，證明 `CACHE_VERSION` 無需遞增
 
 ---
 

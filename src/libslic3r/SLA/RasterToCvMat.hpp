@@ -64,6 +64,29 @@ std::vector<cv::Mat> expolygons_layers_to_cvmat(
 // Each pixel p is mapped to round(p * level / 255). level==255 is a no-op.
 void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level);
 
+// Composite a pure-binary support track onto dst using ONLY a local ROI
+// (change: prz-support-roi-composite, "Opt-2").
+//
+// Replaces the full-frame "support cv::Mat + full-frame cv::max" path: supports
+// are rasterized (contour→255, holes→0) into a thread-local ROI-sized buffer
+// covering the support bounding box (plus a guard band, clamped to the image),
+// then composited via a ROI-local cv::max(dst(roi), buf, dst(roi)).
+//
+// Byte-identical to the old full-frame composite: pixel coordinates are computed
+// at FULL-FRAME precision (same to_cv_point math as the fast path) and only the
+// destination index is shifted by the integer ROI origin — no coord_t truncation
+// is introduced, so the ROI fill maps 1:1 onto the full-frame fill. Holes (0)
+// preserve underlying model pixels; the guard-band border (0) leaves dst
+// untouched. Empty support → no-op (dst untouched). Because the output matches
+// the full-frame version pixel-for-pixel, CACHE_VERSION is intentionally NOT
+// bumped.
+void composite_support_binary(
+    cv::Mat                 &dst,
+    const ExPolygons        &support_polys,
+    const Resolution        &res,
+    const PixelDim          &pxdim,
+    const RasterBase::Trafo &trafo);
+
 // Dual-track layer rasterization (change: prz-support-binary-output).
 // Renders the model and support geometry of one layer with DIFFERENT treatment
 // and composites them, so supports come out pure-binary and solid:
@@ -73,16 +96,16 @@ void apply_picture_grayscale_lut(cv::Mat &mat, uint8_t level);
 //   * support_polys → ALWAYS pure binary (gamma=0, no AA/gray/blur) and NEVER
 //                    run through the picture_grayscale LUT (exempt from global
 //                    dimming, always 255).
-//   * composite     → dst = max(model_after_LUT, support_255), so the support's
-//                    255 always wins and sub-pixel support never darkens model.
-// dst holds the final composite; support_tmp is scratch. Both are reused
-// (caller supplies thread-local Mats); neither needs pre-clearing — the in-place
-// expolygons_to_cvmat() fully clears its target frame on every call.
+//   * composite     → support is rasterized + composited within a LOCAL ROI only
+//                    (composite_support_binary): dst = max(model_after_LUT,
+//                    support_255), byte-identical to the old full-frame cv::max.
+// dst holds the final composite (caller supplies a thread-local Mat). No full-frame
+// support scratch buffer is needed — composite_support_binary uses its own
+// thread-local ROI buffer (change: prz-support-roi-composite).
 // This is the single shared implementation called by BOTH the rasterize() main
 // loop and the generate_prz() cache-miss path, guaranteeing byte-identical output.
 void rasterize_layer_dual(
     cv::Mat                 &dst,
-    cv::Mat                 &support_tmp,
     const ExPolygons        &model_polys,
     const ExPolygons        &support_polys,
     const Resolution        &res,

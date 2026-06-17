@@ -21,7 +21,6 @@
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 #include <tbb/task_arena.h>
-#include <tbb/enumerable_thread_specific.h>
 
 #include <libslic3r/SLA/RasterCache.hpp>
 #include "PhrozenPRZOrient.hpp"
@@ -785,9 +784,8 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
     // ---------------------------------------------------------------------------
     // Cache-miss path: on-demand rasterization (existing implementation)
     // ---------------------------------------------------------------------------
-    // Per-thread support-track scratch Mat for the dual-track composite. Declared
-    // at function scope so allocations are bounded by concurrency (not per layer).
-    tbb::enumerable_thread_specific<cv::Mat> support_tls;
+    // Support is composited within a local ROI inside rasterize_layer_dual
+    // (change: prz-support-roi-composite) — no per-thread full-frame scratch Mat.
 
     for (size_t batch_start = 0; batch_start < N; batch_start += BATCH_SZ) {
         const size_t batch_end = std::min(batch_start + BATCH_SZ, N);
@@ -814,7 +812,7 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                     const bool is_binary =
                         (lid < static_cast<size_t>(rp.bottom_layer_count));
                     sla::rasterize_layer_dual(
-                        batch_mats[i], support_tls.local(),
+                        batch_mats[i],
                         batch_model[i], batch_support[i],
                         rp.res, rp.pxdim, rp.trafo,
                         rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
