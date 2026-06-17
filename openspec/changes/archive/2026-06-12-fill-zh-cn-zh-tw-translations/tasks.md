@@ -24,3 +24,14 @@
 - [x] 4.2 Spot-check placeholder parity on all multi-line and `%`-containing msgids
 - [x] 4.3 Run `scripts/run_gettext.bat` to compile updated `.mo` resources
 - [x] 4.4 Manual smoke test: switch UI to 简体中文 and 繁體中文; verify SLA gizmo, print settings, and export dialogs show Chinese text
+
+## 5. Follow-up: Restore Daily Tips (`hints.ini`) translations
+
+Regression discovered after initial backfill: POT was regenerated without `HintsToPot.py`, obsoleting 37 Daily Tips entries in zh_CN/zh_TW `.po` files. Daily Tips body text reverted to English after `.mo` recompile.
+
+- [x] 5.1 Run `scripts/run_gettext.bat --full` to regenerate POT with xgettext + `HintsToPot.py` and `msgmerge` all `.po` files
+- [x] 5.2 Confirm `PhrozenOrca.pot` contains 37 `resources/data/hints.ini` msgid references
+- [x] 5.3 Confirm zh_CN and zh_TW each have 37 active (non-obsolete) hint entries with non-empty `msgstr`
+- [x] 5.4 Remove `#, fuzzy` from hint blocks that already have valid translations (so `msgfmt` includes them in `.mo`)
+- [x] 5.5 Run `scripts/run_gettext.bat` to recompile `.mo`
+- [x] 5.6 Manual smoke test: open Daily Tips (每日提示) in 简体中文 and 繁體中文; verify headline and body text are localized (e.g. "Improve strength" → 提升強度 / 简体 equivalent), not English

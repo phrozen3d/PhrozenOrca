@@ -78,3 +78,38 @@ The project SHALL provide a script that compares POT against zh_CN and zh_TW PO 
 
 - **WHEN** a developer runs `node scripts/check_missing_translations.js`
 - **THEN** the script SHALL print counts of missing zh_CN and zh_TW entries and write a machine-readable report
+
+### Requirement: Daily Tips (`hints.ini`) are included in POT and localized in Chinese
+
+All `text =` strings from `resources/data/hints.ini` SHALL be present in `PhrozenOrca.pot` (via `scripts/HintsToPot.py` during `scripts/run_gettext.bat --full`) and SHALL have non-empty zh_CN and zh_TW `msgstr` values in the corresponding `.po` files.
+
+Daily Tips render hint body text through `_utf8()` at runtime (`HintDatabase::load_hints_from_file`). If hint msgids are missing from POT or marked `#~` obsolete in `.po`, the UI SHALL fall back to English even when the rest of the application is localized.
+
+#### Scenario: POT contains all hint msgids
+
+- **WHEN** `scripts/run_gettext.bat --full` has been run after any POT regeneration
+- **THEN** `PhrozenOrca.pot` SHALL contain one msgid entry per `[hint:*]` section in `resources/data/hints.ini` (currently 37 entries), each annotated with `#: resources/data/hints.ini: [hint:…]`
+
+#### Scenario: Daily Tips show Chinese body text in zh_TW
+
+- **WHEN** the UI language is 繁體中文 and the user opens Daily Tips (每日提示)
+- **THEN** the hint headline and body (e.g. "Improve strength" / its translation) SHALL display in Traditional Chinese, not English
+
+#### Scenario: Daily Tips show Chinese body text in zh_CN
+
+- **WHEN** the UI language is 简体中文 and the user opens Daily Tips
+- **THEN** the hint headline and body SHALL display in Simplified Chinese, not English
+
+#### Scenario: POT regeneration does not drop hints
+
+- **WHEN** a developer regenerates `PhrozenOrca.pot`
+- **THEN** they SHALL use `scripts/run_gettext.bat --full` (xgettext + `HintsToPot.py` + `msgmerge`), not xgettext alone
+
+### Requirement: Hint entries are compiled into MO without fuzzy exclusion
+
+After `msgmerge`, hint `.po` entries that have valid `msgstr` values SHALL NOT retain a `#, fuzzy` flag when compiling `.mo` files, because `msgfmt` omits fuzzy translations by default.
+
+#### Scenario: Fuzzy hints are compiled
+
+- **WHEN** hint entries are restored via `msgmerge` and marked `#, fuzzy` with non-empty `msgstr`
+- **THEN** `#, fuzzy` SHALL be removed before `msgfmt` so Daily Tips translations appear in the compiled `.mo`

@@ -21,6 +21,7 @@ SLA/resin strings account for 107 of the 369 gaps. A reference translation dicti
 
 - Achieve zero missing translations in zh_CN and zh_TW relative to `PhrozenOrca.pot`.
 - Apply SLA/resin strings first so resin-mode UI is fully localized.
+- Include Daily Tips (`resources/data/hints.ini`) in POT and keep zh_CN/zh_TW hint translations active (not `#~` obsolete).
 - Reuse existing zh_TW translations as the source of truth when backfilling zh_CN (109 entries).
 - Preserve gettext placeholders, escape sequences, and formatting.
 - Provide a repeatable validation script for future POT updates.
@@ -81,9 +82,27 @@ SLA/resin strings account for 107 of the 369 gaps. A reference translation dicti
 
 ### 5. Validation before compile
 
-**Decision:** After patching, run `node scripts/check_missing_translations.js` and confirm zero gaps; then run `scripts/run_gettext.bat` (Windows) to compile `.mo` files.
+**Decision:** After patching, run `node scripts/check_missing_translations.js` and confirm zero gaps; then compile `.mo` files.
 
 **Rationale:** Catches regressions before build.
+
+### 6. POT regeneration MUST include `hints.ini` (Daily Tips)
+
+**Decision:** Regenerating `PhrozenOrca.pot` SHALL use `scripts/run_gettext.bat --full`, which runs:
+
+1. `xgettext` — C/C++ `L()` / `_L()` / `_u8L()` strings from `localization/i18n/list.txt`
+2. `python scripts/HintsToPot.py` — appends `resources/data/hints.ini` `text =` entries to the POT
+3. `msgmerge -N` — updates every `.po` file against the combined POT
+
+Plain `scripts/run_gettext.bat` (without `--full`) only runs `msgfmt` and MUST NOT be used to regenerate POT.
+
+**Rationale:** Daily Tips load English from `hints.ini` and translate at runtime via `_utf8()` against compiled `.mo`. If hint msgids are absent from POT, `msgmerge` obsoletes their `.po` entries and `msgfmt` omits them — the UI shows English body text even when the rest of the app is localized.
+
+**Regression observed (2026-06):** Commit `23d55cfed` regenerated POT without `HintsToPot.py`. POT hint count went from 37 → 0; zh_TW active hint entries went from 37 → 0 (moved to `#~` obsolete). `check_missing_translations.js` still reported zero gaps because hint msgids were no longer in POT.
+
+**Remediation:** Re-run `--full`, confirm POT contains 37 `resources/data/hints.ini` references, confirm zh_CN/zh_TW each have 37 non-empty hint `msgstr` entries, strip `#, fuzzy` from hint blocks, then compile `.mo`.
+
+**Alternative considered:** Translating `hints.ini` directly in the INI file — rejected; existing Orca/PrusaSlicer architecture uses gettext for hint text.
 
 ## Risks / Trade-offs
 
@@ -92,6 +111,8 @@ SLA/resin strings account for 107 of the 369 gaps. A reference translation dicti
 | Placeholder corruption (`%1$d`, `%s`, `%%`) | Script validates placeholder parity between msgid and msgstr; spot-check SLA strings |
 | zh_CN/zh_TW terminology inconsistency with existing entries | Cross-reference existing translated neighbors in `.po` files before applying |
 | POT updates during implementation add new gaps | Re-run check script; document as follow-up if new strings appear |
+| POT regenerated without `HintsToPot.py` silently drops Daily Tips translations | Always use `run_gettext.bat --full` when updating POT; verify POT contains `resources/data/hints.ini` entries (expect 37) |
+| `msgfmt` skips `#, fuzzy` hint entries | After `msgmerge`, remove `#, fuzzy` from hint blocks that already have valid `msgstr` before compiling `.mo` |
 | Over-long UI strings in narrow panels | Prefer concise phrasing; match existing style for similar labels |
 | `.po` merge conflicts | Single focused PR; apply in one commit per locale |
 
@@ -99,10 +120,12 @@ SLA/resin strings account for 107 of the 369 gaps. A reference translation dicti
 
 1. Patch `PhrozenOrca_zh_CN.po` and `PhrozenOrca_zh_TW.po`.
 2. Run validation script — expect 0 missing.
-3. Compile gettext resources via `run_gettext.bat`.
-4. Smoke-test in app: switch UI language to 简体中文 and 繁體中文; verify SLA gizmo, printer settings dialog, and export dialogs show Chinese text.
-5. Rollback: revert `.po` and recompiled `.mo` files.
+3. If POT was regenerated: run `scripts/run_gettext.bat --full` (not plain `run_gettext.bat`).
+4. Compile gettext resources via `scripts/run_gettext.bat`.
+5. Smoke-test in app: switch UI language to 简体中文 and 繁體中文; verify SLA gizmo, printer settings dialog, export dialogs, and **Daily Tips** show Chinese text.
+6. Rollback: revert `.po` and recompiled `.mo` files.
 
 ## Open Questions
 
 - None blocking implementation. Translation suggestions from exploration are complete for all 369 msgids.
+- Follow-up (optional): extend `check_missing_translations.js` to assert POT contains all `hints.ini` msgids so hint regressions are caught by automation.
