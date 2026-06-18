@@ -42,6 +42,9 @@ jobs:
 
       - name: load cached deps
         uses: actions/cache@v4
+        env:
+          # actions/cache@v4 isn't yet verified against the Node 24 default forced on 2026-06-16; stay on Node 20 until it is.
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           path: ${{ inputs.cache-path }}
           key: ${{ inputs.cache-key }}
@@ -90,14 +93,14 @@ jobs:
 
 #   Mac
       - name: Install tools mac
-        if: inputs.os == 'macos-14'
+        if: startsWith(inputs.os, 'macos')
         run: |
           brew install libtool
           brew list
           mkdir -p ${{ github.workspace }}/deps/build
 
       - name: Free disk space
-        if: inputs.os == 'macos-14'
+        if: startsWith(inputs.os, 'macos')
         run: |
           df -hI /dev/disk3s1s1
           sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
@@ -105,14 +108,14 @@ jobs:
           df -hI /dev/disk3s1s1
 
       - name: Build slicer mac
-        if: inputs.os == 'macos-14'
+        if: startsWith(inputs.os, 'macos')
         working-directory: ${{ github.workspace }}
         run: |
           ./build_release_macos.sh -s -n -x -a universal -t 10.15 -1
 
  # Thanks to RaySajuuk, it's working now
       - name: Sign app and notary
-        if: inputs.sign-and-notarize == true && inputs.os == 'macos-14'
+        if: inputs.sign-and-notarize == true && startsWith(inputs.os, 'macos')
         working-directory: ${{ github.workspace }}
         env:
           MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
@@ -138,14 +141,14 @@ jobs:
           xcrun stapler staple PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
 
       - name: Create DMG without notary
-        if: (inputs.sign-and-notarize != true) && inputs.os == 'macos-14'
+        if: (inputs.sign-and-notarize != true) && startsWith(inputs.os, 'macos')
         working-directory: ${{ github.workspace }}
         run: |
           ln -s /Applications ${{ github.workspace }}/build/universal/PhrozenOrca/Applications
           hdiutil create -volname "PhrozenOrca" -srcfolder ${{ github.workspace }}/build/universal/PhrozenOrca -ov -format UDZO PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
 
       - name: Upload artifacts mac
-        if: inputs.os == 'macos-14'
+        if: startsWith(inputs.os, 'macos')
         uses: actions/upload-artifact@v4
         with:
           name: PhrozenOrca_Mac_universal_${{ env.ver }}

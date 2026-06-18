@@ -47,6 +47,9 @@ jobs:
 
       - name: load cached deps
         uses: actions/cache@v4
+        env:
+          # actions/cache@v4 isn't yet verified against the Node 24 default forced on 2026-06-16; stay on Node 20 until it is.
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           path: ${{ inputs.cache-path }}
           key: ${{ inputs.cache-key }}
@@ -81,7 +84,7 @@ jobs:
             cd ${{ github.workspace }}/deps/build
 
       - name: Build on Mac ${{ inputs.arch }}
-        if: inputs.os == 'macos-14'
+        if: startsWith(inputs.os, 'macos')
         working-directory: ${{ github.workspace }}
         run: |
             brew install automake texinfo libtool

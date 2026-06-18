@@ -40,9 +40,9 @@ jobs:
       - name: set outputs
         id: set_outputs
         env:
-          # Instead of an exact match, check for characters starting with 'windows'.
+          # Instead of an exact match, check for characters starting with 'windows'/'macos'.
           is-windows: ${{ startsWith(inputs.os, 'windows') }}
-          dep-folder-name: ${{ startsWith(inputs.os, 'windows') && '/PhrozenOrca_dep' || inputs.os == 'macos-14' && '' || !startsWith(inputs.os, 'windows') && '/destdir' || '' }}
+          dep-folder-name: ${{ startsWith(inputs.os, 'windows') && '/PhrozenOrca_dep' || startsWith(inputs.os, 'macos') && '' || (!startsWith(inputs.os, 'windows') && !startsWith(inputs.os, 'macos')) && '/destdir' || '' }}
           output-cmd: ${{ startsWith(inputs.os, 'windows') && '$env:GITHUB_OUTPUT' || '"$GITHUB_OUTPUT"'}}
         run: |
           echo cache-key=${{ inputs.os }}-cache-phrozenorca_deps-build-${{ hashFiles('deps/**') }} >> ${{ env.output-cmd }}
@@ -51,6 +51,9 @@ jobs:
       - name: load cache
         id: cache_deps
         uses: actions/cache@v4
+        env:
+          # actions/cache@v4 isn't yet verified against the Node 24 default forced on 2026-06-16; stay on Node 20 until it is.
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           path: ${{ steps.set_outputs.outputs.cache-path }}
           key: ${{ steps.set_outputs.outputs.cache-key }}
