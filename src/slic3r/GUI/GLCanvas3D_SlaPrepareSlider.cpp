@@ -27,9 +27,26 @@ void GLCanvas3D::update_sla_prepare_layers_slider()
 
     m_gcode_viewer.init(wxGetApp().get_mode(), wxGetApp().preset_bundle);
 
-    _update_prepare_scene_max_z();
-    const double min_z = m_prepare_scene_min_z;
-    const double max_z = m_prepare_scene_max_z;
+    // In an SLA gizmo session (Hollow / Drill / SLA Support), set_hide_full_scene(true)
+    // marks every model object GLVolume as is_active=false, which would make
+    // _update_prepare_scene_max_z() see no printable volume and fall back to 50mm.
+    // Use the selected object's bbox Z range cached by enter_gizmo_slider_mode()
+    // instead, so the slider reflects the object actually being edited.
+    double min_z = 0.0;
+    double max_z = 50.0;
+    if (m_sla_oc_clip_slider_session) {
+        min_z = m_gizmo_obj_z_min;
+        max_z = m_gizmo_obj_z_max;
+        if (max_z <= min_z) {
+            // Only happens if the bbox passed to enter_gizmo_slider_mode() was invalid.
+            min_z = 0.0;
+            max_z = 50.0;
+        }
+    } else {
+        _update_prepare_scene_max_z();
+        min_z = m_prepare_scene_min_z;
+        max_z = m_prepare_scene_max_z;
+    }
 
     PresetBundle* pb = wxGetApp().preset_bundle;
     double        layer_h = pb->sla_prints.get_edited_preset().config.opt_float("layer_height");
@@ -91,7 +108,15 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
 
     const std::vector<double>& zs = m_sla_prepare_layers_z;
 
-    auto set_planes_and_state = [this](bool full_low, bool full_high, double z_low_mm, double z_high_mm) {
+    // In a gizmo session the zs vector was built from the selected object's bbox,
+    // so the "full top" reference is the object's max Z, not the whole scene's.
+    // Bottom reference stays at 0 because the slider is still allowed to clip
+    // below the object (the gizmo only constrains how Z values are interpreted).
+    const double effective_max_z = m_sla_oc_clip_slider_session
+                                       ? m_gizmo_obj_z_max
+                                       : m_prepare_scene_max_z;
+
+    auto set_planes_and_state = [this, effective_max_z](bool full_low, bool full_high, double z_low_mm, double z_high_mm) {
         if (full_low)
             set_clipping_plane(0, ClippingPlane::ClipsNothing());
         else
@@ -105,11 +130,11 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
         const bool full_range   = full_low && full_high;
         m_use_clipping_planes   = !full_range;
         m_prepare_clip_z_low    = full_low ? 0.0 : z_low_mm;
-        m_prepare_clip_z_high   = full_high ? m_prepare_scene_max_z : z_high_mm;
+        m_prepare_clip_z_high   = full_high ? effective_max_z : z_high_mm;
     };
 
     double z_low_mm  = 0.0;
-    double z_high_mm = m_prepare_scene_max_z;
+    double z_high_mm = effective_max_z;
     bool   full_low  = true;
     bool   full_high = true;
 
@@ -117,9 +142,9 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
         const double z_bot = (low_pos == 0) ? 0.0 : zs[low_pos - 1];
         const double z_top = zs[low_pos];
         full_low  = (low_pos == 0);
-        full_high = (z_top >= m_prepare_scene_max_z - 1e-6);
+        full_high = (z_top >= effective_max_z - 1e-6);
         z_low_mm  = full_low ? 0.0 : z_bot;
-        z_high_mm = full_high ? m_prepare_scene_max_z : z_top;
+        z_high_mm = full_high ? effective_max_z : z_top;
         set_planes_and_state(full_low, full_high, z_low_mm, z_high_mm);
     } else {
         z_low_mm  = zs[low_pos];
@@ -136,8 +161,19 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
             auto* oc = pool->object_clipper();
             if (oc) {
                 if (m_sla_oc_clip_slider_session) {
-                    // SLA Support / Hollow / Drill 等：Gizmo 網格用 set_position_by_ratio（物件 Z 比例），
-                    // 與 GLGizmoSlaBase::render_volumes 的 get_position() 語意一致。
+                    // Align ObjectClipper's m_clp with the visual Z-range plane so the
+                    // cap mesh, contour and raycaster cut at the same world Z as the
+                    // shader's z_range clip. set_position_by_ratio() internally builds
+                    // the plane from (mo->max_z - mo->min_z) and the instance offset
+                    // assuming a model centered at z=0; SLA hollow / drill / support
+                    // meshes are typically bed-aligned (model.min_z = 0) and Support
+                    // adds a non-zero z_shift (elevation lift), so the implicit-plane
+                    // formula lands at a world Z that doesn't match m_clipping_planes[1]
+                    // (which is world-Z based). The mismatch leaves the cap mesh at the
+                    // wrong cross-section and renders a thin un-clipped slab between
+                    // the two planes, most visible in Support mode where z_shift > 0.
+                    // set_range_and_pos() sets m_clp directly with the world-Z offset
+                    // already used by the visual clip.
                     const double z_high_eff = full_high
                         ? m_gizmo_obj_z_max
                         : std::clamp(z_high_mm, m_gizmo_obj_z_min, m_gizmo_obj_z_max);
@@ -145,7 +181,10 @@ void GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
                     m_gizmo_clip_ratio      = (z_span > 1e-6)
                         ? std::clamp((m_gizmo_obj_z_max - z_high_eff) / z_span, 0.0, 1.0)
                         : 0.0;
-                    oc->set_position_by_ratio(m_gizmo_clip_ratio, true, true);
+                    // Normal (+Z) so GLGizmosManager::get_clipping_plane() flips it
+                    // to (-Z, z_high_eff), matching the visual clipping plane set
+                    // above (set_clipping_plane(1, ClippingPlane(-Z, z_high_mm))).
+                    oc->set_range_and_pos(Vec3d(0., 0., 1.), z_high_eff, m_gizmo_clip_ratio);
                 } else if (m_use_clipping_planes) {
                     const double z_high_eff  = m_prepare_clip_z_high;
                     const double rough_ratio = (m_prepare_scene_max_z > 0.0)

@@ -268,3 +268,39 @@ _render_objects():
 | Gizmo 離場後 clip 位置跳動 | ObjectClipper 離場後 position 可能被重置 | on_set_state(Off) 中明確回寫 m_clipping_planes |
 | FDM 無影響 | 所有新邏輯均有 ptSLA + CanvasView3D guard | 逐一驗證 |
 | Preview 無影響 | 獨立 canvas 實例 | 不共用任何狀態，自然隔離 |
+
+---
+
+## Post-archive bugfix notes（2026-06-18）
+
+> 本 change 已封存於 2026-04-20。封存後在多物件與 Support 浮空場景發現一批回歸 / 邊界 bug，於 2026-06-18 完成修正。修正未另開 active change（沿用既有「bugfix 直接補進 main spec」慣例），詳細行為規格已落到 `openspec/specs/prepare-z-clip-slider/spec.md` 的 **v3.1 區塊**（SLA-3 與 SLA-4 註記、新增 SLA-10～SLA-12、驗收 T15–T19、Out of Scope 註記）。
+>
+> 本檔保留封存時的原始設計，**不大改**；以下僅補關鍵技術決策摘要，作為從 archive 反查 v3.1 行為的 bridge。
+
+### B1：scene_max_z 永遠遍歷全場景
+
+`_update_prepare_scene_max_z()` 移除「`if (!m_selection.is_empty()) only_iterate_selection`」分支。理由：Hollow / Drill / Support 退出後 selection 仍非空，舊分支會把全場景 max 算成「所選物件 max」，造成 100 mm 物件被卡在 30 mm 高度顯示。
+
+### B2：Gizmo session 用 selected object bbox + z_shift
+
+Gizmo session 期間 `InstancesHider::set_hide_full_scene(true)` 把所有 model object GLVolumes 設為 `is_active = false`，原 `scene_max_z` 必然 fallback 到 50 mm。`update_sla_prepare_layers_slider()` 在 session active 時改取 `m_gizmo_obj_z_min/max`（由 `enter_gizmo_slider_mode` cache）作 slider range。
+
+### B3：ObjectClipper plane 與 visual world Z 對齊
+
+Gizmo session 中 ObjectClipper 同步從 `set_position_by_ratio(ratio, true, true)` 改成 `set_range_and_pos(Vec3d(0, 0, 1), z_high_eff, ratio)`。原 `set_position_by_ratio` 內部公式假設 model centered，Support 的非零 z_shift 與 bed-aligned mesh 一起把 cap mesh 推到錯誤 world Z，產生「多出薄片」。新呼叫直接以 world Z offset 設定 `m_clp`，與 `set_clipping_plane(1, ClippingPlane(-Z, z_high_mm))` 落在同一個平面。
+
+### B4：Full visible 退出映射到 prepare scene max
+
+`exit_gizmo_slider_mode()` 偵測 `m_gizmo_clip_ratio <= 1e-6`，true 時 `restore_high = m_prepare_scene_max_z`；否則保留 `clamp(z_cur_abs, 0, scene_max)` 的世界 Z 保留行為。對應 main spec SLA-10。
+
+### B5：Gizmo 互切 re-enter（ObjectClipper 不 release）
+
+Hollow / Drill / SLA Support 都把 ObjectClipper 列在 `on_get_requirements()`，互切時 `CommonGizmosDataPool` 不 release，原本只靠 ObjectClipper valid 邊緣的 `just_entered` 偵測會漏掉同 session 內的 gizmo type 切換。`GLGizmosManager` 新增 `m_last_oc_gizmo_type` 追蹤，偵測 `oc_valid && m_oc_was_valid_last_frame && m_current != m_last_oc_gizmo_type` 時呼叫 `enter_gizmo_slider_mode()`；後者區分「第一次進入」與「已 session 內 re-enter」兩條路徑（後者只更新 bbox、不覆寫 saved）。對應 main spec SLA-11。
+
+### B6：data_changed() 必須先於 SLA session 偵測
+
+`GLGizmoSlaSupports::data_changed()` 內 `SelectionInfo::set_use_config_elevation(true)` 才會把 `m_z_shift` 算成含 elevation lift 的值。`update_data()` 把 `data_changed()` 移到 SLA session 偵測之前，確保 `enter_gizmo_slider_mode()` 讀 `get_sla_shift()` 時拿到 lifted 後的 z_shift。Hollow / Drill 不呼叫 `set_use_config_elevation()`，順序對它們等效。對應 main spec SLA-12。
+
+### Out of Scope
+
+`GLGizmoSlaSupports` 中 Points 預覽縮放錯位（物件 scale 後 Points 預覽柱狀位置 / 尺寸對應未放大前物件，Structure 與實際支撐正確）為**既有 / 另案問題**。本批 bugfix 完全未碰 `GLGizmoSlaSupports.cpp` / `GLGizmoSlaBase.cpp` / 任何 raycaster scaling 邏輯。

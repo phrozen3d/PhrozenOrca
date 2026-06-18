@@ -433,3 +433,36 @@
 - `GUI_Preview.cpp`（Preview slider 邏輯完全不動）
 - `GCodeViewer.hpp/.cpp`（IMSlider 定義不動，若不直接複用）
 - 所有 FDM 相關檔案
+
+---
+
+## Post-archive bugfix follow-up（2026-06-18）
+
+> 封存後在多物件 / Support 浮空場景發現一批回歸與邊界 bug，本日完成修正。**不另開 active change**，行為規格落到 main spec `openspec/specs/prepare-z-clip-slider/spec.md` 的 v3.1 區塊；技術決策摘要見本 change 的 `design.md` 末尾 **Post-archive bugfix notes**。本段以 checklist 形式記錄已完成的修正項，**不修改前述已封存的 Stage 1～5 任務語意**。
+
+### 已完成項
+
+- [x] Fix gizmo slider range fallback to 50 mm when scene volumes are hidden — `update_sla_prepare_layers_slider()` 在 `m_sla_oc_clip_slider_session == true` 時改用 `m_gizmo_obj_z_min/max` 而非 `_update_prepare_scene_max_z()` 結果（main spec SLA-3 v3.1）
+- [x] Rebuild prepare range from full scene after exiting gizmo — 移除 `_update_prepare_scene_max_z()` 中的 selection-only 分支，永遠遍歷 `m_volumes.volumes`；`exit_gizmo_slider_mode()` 先 `m_sla_prepare_layers_z.clear()` 再 `update_sla_prepare_layers_slider()`（main spec SLA-3 v3.1）
+- [x] Preserve full-visible state when exiting gizmo into a larger scene range — `exit_gizmo_slider_mode()` 用 `m_gizmo_clip_ratio <= 1e-6` 偵測 full visible，是則 `restore_high = m_prepare_scene_max_z`，否則保留 `clamp(z_cur_abs, 0, scene_max)`（main spec SLA-10）
+- [x] Refresh gizmo slider range when switching between Hollow / Drill / Support while ObjectClipper remains valid — `GLGizmosManager::update_data()` 新增 `m_last_oc_gizmo_type`，偵測 `oc_valid && m_oc_was_valid_last_frame && m_current != m_last_oc_gizmo_type` 時呼叫 `enter_gizmo_slider_mode()`；`enter_gizmo_slider_mode()` 處理「已 session 內 re-enter」分支，更新 bbox 但不覆寫 `m_saved_clip_z_*`（main spec SLA-11）
+- [x] Read Support z_shift after data_changed() — `update_data()` 把 `m_gizmos[m_current]->data_changed()` 移到 SLA session 偵測之前，使 `GLGizmoSlaSupports::data_changed()` 內 `set_use_config_elevation(true)` 先觸發 `recompute_z_shift()`，再讓 `enter_gizmo_slider_mode()` 讀含 elevation lift 的 `get_sla_shift()`（main spec SLA-12）
+- [x] Align ObjectClipper cap plane with visual world Z clipping plane in Support — `_apply_sla_prepare_clip_from_layers_slider()` gizmo session 分支改用 `oc->set_range_and_pos(Vec3d(0, 0, 1), z_high_eff, ratio)` 取代 `set_position_by_ratio(ratio, true, true)`，繞開內部公式的 model-centered 假設，讓 cap mesh 與 `set_clipping_plane(1, ClippingPlane(-Z, z_high_mm))` 對齊同一 world Z（main spec SLA-4 v3.1）
+
+### 不在本批範圍
+
+- [ ] SLA Support gizmo **Points 預覽**在物件 scale 後柱狀預覽位置 / 尺寸對應未放大前的物件 — 既有 / 另案問題，**本批完全未碰** `GLGizmoSlaSupports.cpp` / `GLGizmoSlaBase.cpp` 與所有 raycaster / scaling / picking transform 邏輯。Structure 預覽與實際支撐生成不受影響。建議另案追 `update_point_raycasters_for_picking_transform()` 在 scale 事件後是否被重新呼叫。
+
+### 對應實作檔案
+
+- `src/slic3r/GUI/GLCanvas3D.cpp`
+- `src/slic3r/GUI/GLCanvas3D_SlaPrepareSlider.cpp`
+- `src/slic3r/GUI/Gizmos/GLGizmosManager.cpp`
+- `src/slic3r/GUI/Gizmos/GLGizmosManager.hpp`
+
+### 不修改（本批）
+
+- `IMSlider.cpp/.hpp` — Prepare 與 Preview 共用此 class，未動
+- `GUI_Preview.cpp` / `GCodeViewer.cpp` — Preview layer slider 行為未變
+- `GLGizmoSlaSupports.cpp/.hpp`、`GLGizmoSlaBase.cpp/.hpp`、`GLGizmoHollow.cpp/.hpp`、`GLGizmoDrill.cpp/.hpp` — Gizmo 自身與 set_use_config_elevation / z_shift 計算邏輯未動
+- 所有 FDM 相關檔案

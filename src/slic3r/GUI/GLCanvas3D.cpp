@@ -8972,7 +8972,7 @@ void GLCanvas3D::_render_selection_sidebar_hints()
     m_selection.render_sidebar_hints(m_sidebar_field, m_gizmos.get_uniform_scaling());
 }
 
-// Stage 1: Prepare view global Z-clip slider ----------------------------
+// SLA Prepare view global Z-clip slider -------------------------------------
 
 void GLCanvas3D::_update_prepare_scene_max_z()
 {
@@ -8996,13 +8996,13 @@ void GLCanvas3D::_update_prepare_scene_max_z()
         }
     };
 
-    if (!m_selection.is_empty()) {
-        for (unsigned int volume_idx : m_selection.get_volume_idxs())
-            merge_printable_volume_z(m_selection.get_volume(volume_idx));
-    } else {
-        for (const GLVolume *vol : m_volumes.volumes)
-            merge_printable_volume_z(vol);
-    }
+    // Always merge across the whole scene. The Prepare Z-clip slider represents
+    // the scene's tallest printable object; restricting to selection volumes
+    // makes the range follow whatever the user happens to have selected, which
+    // collapses to "selected object's height" instead of "scene max" after a
+    // Hollow / Drill / SLA Support session (selection stays non-empty on exit).
+    for (const GLVolume *vol : m_volumes.volumes)
+        merge_printable_volume_z(vol);
     if (!found || max_z <= min_z) {
         min_z = 0.0;
         max_z = 50.0;  // default when scene is empty
@@ -9062,8 +9062,24 @@ void GLCanvas3D::_on_prepare_clip_changed(double z_low, double z_high)
 
 void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
 {
-    if (m_sla_oc_clip_slider_session)
+    const double new_min = obj_z_min;
+    const double new_max = std::max(obj_z_max, obj_z_min + 0.1);
+
+    if (m_sla_oc_clip_slider_session) {
+        // Already in a gizmo session — this call is a switch between SLA gizmos
+        // (Hollow ↔ Support ↔ Drill) while ObjectClipper stayed valid. Update
+        // the bbox to reflect the new gizmo's z_shift (Support adds elevation
+        // lift, Hollow / Drill do not) and snap the IMSlider back to full
+        // visible over the new range. Do NOT overwrite m_saved_clip_z_low/high
+        // — those still hold the original prepare-mode positions to restore
+        // when the entire gizmo session ends.
+        m_gizmo_obj_z_min = new_min;
+        m_gizmo_obj_z_max = new_max;
+        m_sla_prepare_layers_z.clear();
+        update_sla_prepare_layers_slider();
+        set_as_dirty();
         return;
+    }
 
     // Save current prepare-mode slider positions for restore on exit.
     m_saved_clip_z_low  = m_prepare_clip_z_low;
@@ -9071,8 +9087,15 @@ void GLCanvas3D::enter_gizmo_slider_mode(double obj_z_min, double obj_z_max)
 
     m_slider_in_gizmo_mode = false;
     m_sla_oc_clip_slider_session = true;
-    m_gizmo_obj_z_min      = obj_z_min;
-    m_gizmo_obj_z_max      = std::max(obj_z_max, obj_z_min + 0.1);
+    m_gizmo_obj_z_min      = new_min;
+    m_gizmo_obj_z_max      = new_max;
+
+    // Clearing forces update_sla_prepare_layers_slider() below to see
+    // size_changed=true and snap the IMSlider handles to [0, maxp], so the
+    // slider reflects the selected object's full Z range. Without this, the
+    // slider would keep the layer index it held in prepare mode (now mapping
+    // to a different absolute Z under the gizmo's bbox range).
+    m_sla_prepare_layers_z.clear();
 
     update_sla_prepare_layers_slider();
     set_as_dirty();
@@ -9083,35 +9106,58 @@ void GLCanvas3D::exit_gizmo_slider_mode()
     if (!m_sla_oc_clip_slider_session)
         return;
 
+    // Convert gizmo ratio back to absolute world Z before flipping out of
+    // session, so we can restore the prepare slider near where the gizmo
+    // cross-section was.
+    const double z_range   = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
+    const double z_cur_abs = m_gizmo_obj_z_max - m_gizmo_clip_ratio * z_range;
+
+    // "Full visible" inside the gizmo: top handle at the object's max Z (ratio
+    // collapses to 0). When the gizmo cross-section was never clipped, the
+    // prepare slider on exit must stay at the prepare scene's max Z, not the
+    // selected object's max Z — otherwise clamping z_cur_abs (≈ obj_z_max) to
+    // [0, scene_max_z] turns a no-clip state into clipping of any taller
+    // objects in the scene, which violates the SLA-10 invariant that an
+    // untouched full-visible gizmo state never produces clipping on exit.
+    const bool gizmo_full_visible = (m_gizmo_clip_ratio <= 1e-6);
+
     m_sla_oc_clip_slider_session = false;
     m_slider_in_gizmo_mode = false;
 
-    // Stage 4.2: Convert gizmo ratio back to absolute Z for the prepare slider,
-    // so the global slider tracks wherever the user left the gizmo cross-section.
-    const double z_range   = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
-    const double z_cur_abs = m_gizmo_obj_z_max - m_gizmo_clip_ratio * z_range;
-    m_saved_clip_z_high = std::clamp(z_cur_abs, 0.0, m_prepare_scene_max_z);
+    // Force update_sla_prepare_layers_slider() to rebuild the layer Z vector
+    // for the whole-scene prepare range. Without this, m_sla_prepare_layers_z
+    // is still the object-bbox vector built on gizmo entry, so the IMSlider's
+    // max value (and the implied slider top) stays stuck at the selected
+    // object's height even after returning to prepare mode. Clearing triggers
+    // size_changed=true inside update(), which also snaps the handles back to
+    // [0, maxp] over the freshly-built scene-range zs.
+    m_sla_prepare_layers_z.clear();
+    update_sla_prepare_layers_slider();
 
+    // m_prepare_scene_max_z is now valid for prepare mode again (refreshed by
+    // _update_prepare_scene_max_z() inside the call above). Use it to clamp
+    // the restored top Z and to seed _on_prepare_clip_changed() below.
+    m_saved_clip_z_high = gizmo_full_visible
+                              ? m_prepare_scene_max_z
+                              : std::clamp(z_cur_abs, 0.0, m_prepare_scene_max_z);
     const double restore_high = (m_saved_clip_z_high < 0.0)
                                 ? m_prepare_scene_max_z
                                 : m_saved_clip_z_high;
-    _on_prepare_clip_changed(m_saved_clip_z_low, restore_high);
 
     IMSlider* sl = m_gcode_viewer.get_layers_slider();
     if (sl != nullptr && !m_sla_prepare_layers_z.empty()) {
         sl->Show();
+        // Map restore_high onto the new prepare-mode zs vector.
         int hi = 0;
-        const double ztarget = m_prepare_clip_z_high;
         for (int i = 0; i < (int)m_sla_prepare_layers_z.size(); ++i) {
-            if (m_sla_prepare_layers_z[i] <= ztarget + 1e-3)
+            if (m_sla_prepare_layers_z[i] <= restore_high + 1e-3)
                 hi = i;
         }
         const int maxp = (int)m_sla_prepare_layers_z.size() - 1;
-        sl->SetMaxValue(maxp);
-        sl->SetLowerValue(0);
         sl->SetHigherValue(std::clamp(hi, 0, maxp));
-        sl->SetSelectionSpan(0, maxp);
         _apply_sla_prepare_clip_from_layers_slider();
+    } else {
+        _on_prepare_clip_changed(m_saved_clip_z_low, restore_high);
     }
 
     set_as_dirty();
@@ -9119,259 +9165,12 @@ void GLCanvas3D::exit_gizmo_slider_mode()
 
 void GLCanvas3D::_render_prepare_clip_slider()
 {
-    // Retired: Prepare 一律使用 IMSlider（含 Overhang / SLA Support 等 Gizmo）。
-    return;
-
-    // Only show in SLA prepare view.
-    if (m_canvas_type != ECanvasType::CanvasView3D)
-        return;
-    if (current_printer_technology() != ptSLA)
-        return;
-    if (!m_slider_in_gizmo_mode)
-        return;
-
-    // Refresh scene max Z each frame (cheap: just iterates volumes).
-    _update_prepare_scene_max_z();
-
-    const Size  canvas_size = get_canvas_size();
-    const float canvas_w    = static_cast<float>(canvas_size.get_width());
-    const float canvas_h    = static_cast<float>(canvas_size.get_height());
-    const float sc          = get_scale();          // DPI scale factor
-
-    // ---- Stage 1.5: Visual constants (unscaled px, multiply by sc) ----
-    constexpr float PANEL_W   = 34.f;   // dark background panel width
-    constexpr float TRACK_W   = 4.f;    // vertical track width
-    constexpr float HANDLE_R  = 8.f;    // handle circle radius
-    constexpr float MARGIN_R  = 8.f;    // right gap from canvas edge
-    constexpr float LABEL_W   = 64.f;   // reserved label text area width
-    constexpr float LABEL_GAP = 8.f;    // gap between label right edge and panel left
-    const float slider_h = canvas_h * 0.6f;
-
-    // Panel screen rect (absolute screen coords)
-    const float panel_r = canvas_w - MARGIN_R * sc;
-    const float panel_l = panel_r   - PANEL_W  * sc;
-    const float panel_y = (canvas_h - slider_h) * 0.5f;
-    const float panel_b = panel_y + slider_h;
-
-    // ImGui window covers label area + panel (for mouse capture & DrawList clip rect)
-    const float win_l = panel_l - (LABEL_W + LABEL_GAP) * sc;
-    const float win_w = panel_r - win_l;
-
-    // Track geometry (screen coords)
-    const float track_x  = (panel_l + panel_r) * 0.5f;
-    const float track_y0 = panel_y + HANDLE_R * sc + 4.f * sc; // top (high Z)
-    const float track_y1 = panel_b - HANDLE_R * sc - 4.f * sc; // bottom (low Z)
-    const float track_len = track_y1 - track_y0;
-
-    // Colors
-    const ImU32 COL_BG          = IM_COL32( 40,  40,  40, 160);
-    const ImU32 COL_TRACK       = IM_COL32(100, 100, 100, 220);
-    const ImU32 COL_RANGE       = IM_COL32( 88, 166, 255, 200);
-    const ImU32 COL_HANDLE_HI   = IM_COL32(224, 224, 224, 255);
-    const ImU32 COL_HANDLE_LO   = IM_COL32(160, 160, 160, 255);
-    const ImU32 COL_HANDLE_HIOV = IM_COL32(255, 255, 255, 255);
-    const ImU32 COL_HANDLE_LOOV = IM_COL32(200, 200, 200, 255);
-    const ImU32 COL_OUTLINE     = IM_COL32(  0,   0,   0, 100);
-    const ImU32 COL_LABEL_BG    = IM_COL32(255, 255, 255, 235); // white badge background
-    const ImU32 COL_LABEL       = IM_COL32(  0,   0,   0, 220); // black text
-
-    const float handle_rs = HANDLE_R * sc;
-    const float hit_r     = handle_rs + 4.f * sc;
-    constexpr float PAD_X = 4.f, PAD_Y = 2.f;   // badge padding (unscaled)
-
-    // ---- ImGui window (transparent – provides DrawList clip rect + mouse capture) ----
-    ImGui::SetNextWindowPos (ImVec2(win_l, panel_y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(win_w, slider_h), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.0f);
-    const ImGuiWindowFlags win_flags =
-        ImGuiWindowFlags_NoTitleBar  | ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove      | ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
-    ImGui::Begin("##prepare_clip_slider", nullptr, win_flags);
-
-    // ---- Common mouse state ----
-    ImVec2 mouse    = ImGui::GetIO().MousePos;
-    bool   lmb_down = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-
-    auto dist2 = [](ImVec2 a, ImVec2 b) {
-        float dx = a.x - b.x, dy = a.y - b.y;
-        return dx * dx + dy * dy;
-    };
-
-    bool over_panel = mouse.x >= win_l  && mouse.x <= panel_r
-                   && mouse.y >= panel_y && mouse.y <= panel_b;
-
-    // ---- Drawing ----
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-
-    // Background panel (dark, rounded) — shared between both modes
-    float tw = TRACK_W * sc * 0.5f;
-    dl->AddRectFilled({panel_l, panel_y}, {panel_r, panel_b}, COL_BG, 6.f * sc);
-    dl->AddRectFilled({track_x - tw, track_y0}, {track_x + tw, track_y1}, COL_TRACK, 2.f * sc);
-
-    if (m_slider_in_gizmo_mode) {
-        // ================================================================
-        // GIZMO MODE: single handle, object bbox range, set_position_by_ratio
-        // ratio=0 → track_y0 (top, no clip)   ratio=1 → track_y1 (bottom, full clip)
-        // ================================================================
-
-        auto ratio_to_y = [&](double r) -> float {
-            return track_y0 + (float)r * track_len;
-        };
-        auto y_to_ratio = [&](float y) -> double {
-            return (track_len > 0.f)
-                ? std::clamp((double)((y - track_y0) / track_len), 0.0, 1.0)
-                : 0.0;
-        };
-
-        const float y_gizmo  = ratio_to_y(m_gizmo_clip_ratio);
-        bool near_gizmo = dist2(mouse, {track_x, y_gizmo}) <= hit_r * hit_r;
-
-        // Start / release drag
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && near_gizmo)
-            m_prepare_dragging_high = true;
-        if (!lmb_down)
-            m_prepare_dragging_high = false;
-
-        // Apply drag → set_position_by_ratio
-        if (m_prepare_dragging_high && lmb_down) {
-            double new_ratio = y_to_ratio(mouse.y);
-            if (new_ratio != m_gizmo_clip_ratio) {
-                m_gizmo_clip_ratio = new_ratio;
-                auto* pool = m_gizmos.get_common_gizmos_data();
-                if (pool) {
-                    auto* oc = pool->object_clipper();
-                    if (oc) oc->set_position_by_ratio(m_gizmo_clip_ratio, true);
-                }
-                set_as_dirty();
-            }
-        }
-
-        // Scroll wheel: fine-adjust (0.01 ratio per notch)
-        if (over_panel) {
-            float wheel = ImGui::GetIO().MouseWheel;
-            if (wheel != 0.f) {
-                m_gizmo_clip_ratio = std::clamp(m_gizmo_clip_ratio - (double)wheel * 0.01, 0.0, 1.0);
-                auto* pool = m_gizmos.get_common_gizmos_data();
-                if (pool) {
-                    auto* oc = pool->object_clipper();
-                    if (oc) oc->set_position_by_ratio(m_gizmo_clip_ratio, true);
-                }
-                set_as_dirty();
-            }
-        }
-
-        // Draw single handle
-        ImU32 col_h = (near_gizmo || m_prepare_dragging_high) ? COL_HANDLE_HIOV : COL_HANDLE_HI;
-        dl->AddCircleFilled({track_x, y_gizmo}, handle_rs, col_h, 16);
-        dl->AddCircle      ({track_x, y_gizmo}, handle_rs, COL_OUTLINE, 16, 1.5f);
-
-        // Label: Z position at current ratio
-        const double z_range = m_gizmo_obj_z_max - m_gizmo_obj_z_min;
-        const double z_cur   = m_gizmo_obj_z_max - m_gizmo_clip_ratio * z_range;
-        char buf_g[24];
-        std::snprintf(buf_g, sizeof(buf_g), "%.1f mm", (float)z_cur);
-        ImVec2 sz_g = ImGui::CalcTextSize(buf_g);
-        float lx_g  = panel_l - LABEL_GAP * sc - sz_g.x - PAD_X * 2 * sc;
-        float ty_g  = y_gizmo - sz_g.y * 0.5f;
-        dl->AddRectFilled({lx_g,            ty_g - PAD_Y * sc},
-                          {lx_g + sz_g.x + PAD_X * 2 * sc, ty_g + sz_g.y + PAD_Y * sc},
-                          COL_LABEL_BG, 3.f * sc);
-        dl->AddText({lx_g + PAD_X * sc, ty_g}, COL_LABEL, buf_g);
-
-    } else {
-        // ================================================================
-        // PREPARE MODE: two handles, scene Z range, ClippingPlane
-        // ================================================================
-
-        // Z ↔ screen-Y mapping (Z=0 → bottom, Z=max → top)
-        const double max_z = m_prepare_scene_max_z;
-        auto z_to_y = [&](double z) -> float {
-            float t = (max_z > 0.0) ? (float)std::clamp(z / max_z, 0.0, 1.0) : 0.f;
-            return track_y1 - t * track_len;
-        };
-        auto y_to_z = [&](float y) -> double {
-            float t = (track_len > 0.f) ? std::clamp((track_y1 - y) / track_len, 0.f, 1.f) : 0.f;
-            return (double)t * max_z;
-        };
-
-        const float y_hi = z_to_y(m_prepare_clip_z_high);
-        const float y_lo = z_to_y(m_prepare_clip_z_low);
-
-        bool near_hi = dist2(mouse, {track_x, y_hi}) <= hit_r * hit_r;
-        bool near_lo = dist2(mouse, {track_x, y_lo}) <= hit_r * hit_r;
-
-        // Start drag on click
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            if (near_hi) { m_prepare_dragging_high = true;  m_prepare_dragging_low  = false; }
-            else if (near_lo) { m_prepare_dragging_low = true; m_prepare_dragging_high = false; }
-        }
-        // Release drag
-        if (!lmb_down) {
-            m_prepare_dragging_high = false;
-            m_prepare_dragging_low  = false;
-        }
-        // Apply drag
-        if (m_prepare_dragging_high && lmb_down) {
-            double nz = std::clamp(y_to_z(mouse.y), m_prepare_clip_z_low, max_z);
-            _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
-        }
-        if (m_prepare_dragging_low && lmb_down) {
-            double nz = std::clamp(y_to_z(mouse.y), 0.0, m_prepare_clip_z_high);
-            _on_prepare_clip_changed(nz, m_prepare_clip_z_high);
-        }
-
-        // Scroll wheel: fine-adjust High handle (0.1 mm per notch)
-        if (over_panel) {
-            float wheel = ImGui::GetIO().MouseWheel;
-            if (wheel != 0.f) {
-                double nz = std::clamp(m_prepare_clip_z_high + (double)wheel * 0.1,
-                                       m_prepare_clip_z_low, max_z);
-                _on_prepare_clip_changed(m_prepare_clip_z_low, nz);
-            }
-        }
-
-        // Range highlight between two handles
-        if (y_hi < y_lo - 1.f)
-            dl->AddRectFilled({track_x - tw, y_hi}, {track_x + tw, y_lo},
-                              COL_RANGE, 2.f * sc);
-
-        // High handle (top / lighter)
-        ImU32 col_hi = (near_hi || m_prepare_dragging_high) ? COL_HANDLE_HIOV : COL_HANDLE_HI;
-        dl->AddCircleFilled({track_x, y_hi}, handle_rs, col_hi, 16);
-        dl->AddCircle      ({track_x, y_hi}, handle_rs, COL_OUTLINE, 16, 1.5f);
-
-        // Low handle (bottom / darker)
-        ImU32 col_lo = (near_lo || m_prepare_dragging_low) ? COL_HANDLE_LOOV : COL_HANDLE_LO;
-        dl->AddCircleFilled({track_x, y_lo}, handle_rs, col_lo, 16);
-        dl->AddCircle      ({track_x, y_lo}, handle_rs, COL_OUTLINE, 16, 1.5f);
-
-        // Z-value labels (white badge, left of panel)
-        char buf_hi[24], buf_lo[24];
-        std::snprintf(buf_hi, sizeof(buf_hi), "%.1f mm", (float)m_prepare_clip_z_high);
-        std::snprintf(buf_lo, sizeof(buf_lo), "%.1f mm", (float)m_prepare_clip_z_low);
-        ImVec2 sz_hi = ImGui::CalcTextSize(buf_hi);
-        ImVec2 sz_lo = ImGui::CalcTextSize(buf_lo);
-        float  lx_hi = panel_l - LABEL_GAP * sc - sz_hi.x - PAD_X * 2 * sc;
-        float  lx_lo = panel_l - LABEL_GAP * sc - sz_lo.x - PAD_X * 2 * sc;
-        float  ty_hi = y_hi - sz_hi.y * 0.5f;
-        float  ty_lo = y_lo - sz_lo.y * 0.5f;
-        dl->AddRectFilled({lx_hi,            ty_hi - PAD_Y * sc},
-                          {lx_hi + sz_hi.x + PAD_X * 2 * sc, ty_hi + sz_hi.y + PAD_Y * sc},
-                          COL_LABEL_BG, 3.f * sc);
-        dl->AddRectFilled({lx_lo,            ty_lo - PAD_Y * sc},
-                          {lx_lo + sz_lo.x + PAD_X * 2 * sc, ty_lo + sz_lo.y + PAD_Y * sc},
-                          COL_LABEL_BG, 3.f * sc);
-        dl->AddText({lx_hi + PAD_X * sc, ty_hi}, COL_LABEL, buf_hi);
-        dl->AddText({lx_lo + PAD_X * sc, ty_lo}, COL_LABEL, buf_lo);
-    }
-
-    ImGui::End();
-    ImGui::PopStyleVar();
+    // The SLA Prepare Z-clip UI is driven by the IMSlider returned from
+    // GCodeViewer::get_layers_slider() (rendered as part of the GCodeViewer's
+    // overlay). This legacy self-drawn slider path is intentionally disabled
+    // and kept only so existing call sites resolve; remove the call site and
+    // this function in a future cleanup once no header references remain.
 }
-
-// End Stage 1.5 ---------------------------------------------------------
 
 void GLCanvas3D::_update_volumes_hover_state()
 {

@@ -176,7 +176,9 @@ public:
         IC_NAME_COUNT,
     };
 
-    // Stage 2: expose common data pool for prepare-clip ObjectClipper sync
+    // Exposes the common data pool so GLCanvas3D::_apply_sla_prepare_clip_from_layers_slider()
+    // can drive the ObjectClipper directly from the Prepare IMSlider without going
+    // through a gizmo.
     CommonGizmosDataPool* get_common_gizmos_data() const { return m_common_gizmos_data.get(); }
 
     explicit GLGizmosManager(GLCanvas3D& parent);
@@ -313,8 +315,14 @@ public:
     bool get_uniform_scaling() const { return m_object_manipulation.get_uniform_scaling();}
 
 private:
-    // Stage 2: track ObjectClipper validity across frames to detect gizmo-enter moment
+    // Track ObjectClipper validity across frames to detect SLA gizmo-session entry
+    // and exit (rising / falling edge on oc != nullptr).
     bool m_oc_was_valid_last_frame = false;
+    // Track which SLA gizmo owned the ObjectClipper last frame so we can detect a
+    // gizmo-type switch (Hollow ↔ Support ↔ Drill) that doesn't release ObjectClipper.
+    // Without this, switching between SLA gizmos would skip enter_gizmo_slider_mode()
+    // and the cached obj_z_min/max (and Support's z_shift) would be stale.
+    EType m_last_oc_gizmo_type = Undefined;
 
     bool gizmo_event(SLAGizmoEventType action,
                      const Vec2d &     mouse_position = Vec2d::Zero(),

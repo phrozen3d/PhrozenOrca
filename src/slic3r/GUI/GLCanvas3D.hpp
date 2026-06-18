@@ -539,23 +539,37 @@ private:
     bool m_use_clipping_planes;
     std::array<SlaCap, 2> m_sla_caps;
 
-    // Stage 1: Prepare view global Z-clip slider (SLA only)
-    double m_prepare_clip_z_low  = 0.0;   // bottom clipping plane Z (mm)
-    double m_prepare_clip_z_high = -1.0;  // top clipping plane Z (-1 = uninitialized)
-    double m_prepare_scene_min_z = 0.0;   // cached: printable convex-hull min Z (mm, world)
-    double m_prepare_scene_max_z = 50.0;  // cached: printable convex-hull max Z (mm, world)
-    std::vector<double> m_sla_prepare_layers_z; // layer top Z (mm) for Prepare IMSlider
-    // Stage 1.5: DrawList slider drag state
-    bool m_prepare_dragging_high = false; // true while user drags the High handle
-    bool m_prepare_dragging_low  = false; // true while user drags the Low handle
-    // Stage 2: ObjectClipper sync re-entrancy guard
+    // SLA Prepare view global Z-clip slider state (SLA only).
+    // Bottom / top clipping plane Z in world mm. z_high = -1 means uninitialized;
+    // first _update_prepare_scene_max_z() seeds it to the current scene max.
+    double m_prepare_clip_z_low  = 0.0;
+    double m_prepare_clip_z_high = -1.0;
+    // Cached printable convex-hull Z range across the whole view3D scene (mm, world).
+    double m_prepare_scene_min_z = 0.0;
+    double m_prepare_scene_max_z = 50.0;
+    // Layer top Z (mm) the Prepare IMSlider's discrete handles map onto.
+    std::vector<double> m_sla_prepare_layers_z;
+    // Drag state for the retired self-drawn slider path; kept only for ABI/header
+    // stability with the unused _render_prepare_clip_slider() stub.
+    bool m_prepare_dragging_high = false;
+    bool m_prepare_dragging_low  = false;
+    // Guards re-entry between Prepare slider apply and ObjectClipper sync, which
+    // would otherwise feed each other's updates back into a tight loop.
     bool m_syncing_clipper = false;
-    // Gizmo slider mode: right-side slider controls ObjectClipper directly
-    bool   m_slider_in_gizmo_mode = false;  // unused; legacy DrawList slider retired
-    bool   m_sla_oc_clip_slider_session = false; // ObjectClipper gizmos: sync clip ratio on exit
-    double m_gizmo_obj_z_min      = 0.0;    // selected object bbox z_min in world coords
-    double m_gizmo_obj_z_max      = 50.0;   // selected object bbox z_max in world coords
-    double m_gizmo_clip_ratio     = 0.0;    // 0 = top (no clip), 1 = bottom (full clip)
+    // Inherited from the retired self-drawn slider path; the IMSlider-based
+    // Prepare slider never sets it. Retained only because enter/exit helpers
+    // still clear it for consistency with the (unused) declaration.
+    bool   m_slider_in_gizmo_mode = false;
+    // True while a Hollow / Drill / SLA Support gizmo session owns ObjectClipper;
+    // gates the gizmo-mode branches of update_sla_prepare_layers_slider() and
+    // _apply_sla_prepare_clip_from_layers_slider().
+    bool   m_sla_oc_clip_slider_session = false;
+    // Selected object bbox in world Z (includes SelectionInfo::get_sla_shift()).
+    // Cached on gizmo entry / on Hollow ↔ Drill ↔ Support switch.
+    double m_gizmo_obj_z_min      = 0.0;
+    double m_gizmo_obj_z_max      = 50.0;
+    // 0 = top handle at obj_z_max (no clip), 1 = top handle at obj_z_min (full clip).
+    double m_gizmo_clip_ratio     = 0.0;
     // Saved prepare-mode slider state – restored when gizmo exits
     double m_saved_clip_z_low     = 0.0;
     double m_saved_clip_z_high    = -1.0;   // -1 = never saved
@@ -1237,7 +1251,7 @@ private:
 #endif // ENABLE_SHOW_CAMERA_TARGET
     void _render_sla_slices();
     void _render_selection_sidebar_hints();
-    // Stage 1: Prepare view global Z-clip slider
+    // SLA Prepare view global Z-clip slider helpers.
     void _update_prepare_scene_max_z();
     void _on_prepare_clip_changed(double z_low, double z_high);
     void _render_prepare_clip_slider();

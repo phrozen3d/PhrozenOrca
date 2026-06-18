@@ -432,15 +432,34 @@ void GLGizmosManager::update_data()
                                    ? get_current()->get_requirements()
                                    : CommonGizmosDataID(0));
 
+    // data_changed() must run before we read SelectionInfo::get_sla_shift() for
+    // enter_gizmo_slider_mode(). GLGizmoSlaSupports::data_changed() calls
+    // SelectionInfo::set_use_config_elevation(true), which recomputes m_z_shift
+    // to include the Support gizmo's lift (the object floats up to expose the
+    // underside). If we ran enter_gizmo_slider_mode() first it would cache
+    // obj_z_min / obj_z_max using the pre-lift z_shift; the IMSlider zs would
+    // then span the un-lifted Z range while the visible mesh sits at world
+    // Z + lift, so the visual clip and the slider would disagree by exactly
+    // the lift distance. Hollow / Drill don't call set_use_config_elevation()
+    // so they are unaffected by this reorder.
+    if (m_current != Undefined) m_gizmos[m_current]->data_changed(m_serializing);
+
     // SLA ObjectClipper session: keep Prepare IMSlider visible; cache clip ratio for exit sync.
     if (m_common_gizmos_data && m_parent.get_printer_technology() == ptSLA) {
         auto* oc       = m_common_gizmos_data->object_clipper();
         bool  oc_valid = (oc != nullptr);
         bool  just_entered = ( oc_valid && !m_oc_was_valid_last_frame);
         bool  just_left    = (!oc_valid &&  m_oc_was_valid_last_frame);
+        // Detect Hollow ↔ Support ↔ Drill switching while ObjectClipper stays
+        // valid the whole time. enter_gizmo_slider_mode() must re-run so the
+        // cached obj_z_min/max picks up the new gizmo's z_shift — most notably
+        // Support's elevation lift, which is applied by data_changed() above.
+        bool  gizmo_changed_while_oc_valid = (oc_valid && m_oc_was_valid_last_frame
+                                              && m_current != m_last_oc_gizmo_type);
         m_oc_was_valid_last_frame = oc_valid;
+        m_last_oc_gizmo_type      = oc_valid ? m_current : Undefined;
 
-        if (just_entered) {
+        if (just_entered || gizmo_changed_while_oc_valid) {
             // Compute selected object's world-space Z extents (including SLA shift).
             double obj_z_min = 0.0;
             double obj_z_max = m_parent.get_prepare_scene_max_z();
@@ -452,7 +471,8 @@ void GLGizmosManager::update_data()
                 obj_z_min = bb.min.z() + z_shift;
                 obj_z_max = bb.max.z() + z_shift;
             }
-            // Track session; clip ratio synced from Prepare IMSlider in enter_gizmo_slider_mode / _apply.
+            // enter_gizmo_slider_mode() handles both first-time entry and the
+            // re-enter-while-already-in-session case (used here for gizmo switching).
             m_parent.enter_gizmo_slider_mode(obj_z_min, obj_z_max);
         }
 
@@ -463,8 +483,6 @@ void GLGizmosManager::update_data()
             m_parent.cache_sla_gizmo_clip_ratio_for_exit(oc->get_position());
         }
     }
-
-    if (m_current != Undefined) m_gizmos[m_current]->data_changed(m_serializing);
 
     // Orca: hack: Fix issue that flatten gizmo faces not updated after reload from disk
     if (m_current != Flatten && !m_gizmos.empty()) m_gizmos[Flatten]->data_changed(m_serializing);
