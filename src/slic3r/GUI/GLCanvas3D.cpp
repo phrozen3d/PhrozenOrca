@@ -2309,7 +2309,7 @@ void GLCanvas3D::mirror_selection(Axis axis)
 // 3) SLA support meshes for their respective ModelObjects / ModelInstances
 // 4) Wipe tower preview
 // 5) Out of bed collision status & message overlay (texture)
-void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_refresh)
+void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_refresh, bool force_load_sla_support)
 {
     if (m_canvas == nullptr || m_config == nullptr || m_model == nullptr)
         return;
@@ -2409,8 +2409,12 @@ void GLCanvas3D::reload_scene(bool refresh_immediately, bool force_full_scene_re
     // completion — if no supports have been applied the steps will not be DONE.
     const bool sla_gizmo_active =
         m_gizmos.get_current_type() == GLGizmosManager::EType::SlaSupports;
+    // Resin: force_load_sla_support lets an offscreen consumer (e.g. PRZ thumbnail
+    // export) pull the support/pad meshes into m_volumes even while the SLA support
+    // gizmo is active. The gizmo's double-render concern only applies to the on-screen
+    // canvas, not to the offscreen thumbnail framebuffer.
     const bool load_sla_support_pad_in_scene =
-        m_canvas_type != ECanvasType::CanvasView3D || !sla_gizmo_active;
+        force_load_sla_support || m_canvas_type != ECanvasType::CanvasView3D || !sla_gizmo_active;
     if (printer_technology == ptSLA) {
         const SLAPrint* sla_print = this->sla_print();
 #ifndef NDEBUG

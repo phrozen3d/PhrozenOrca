@@ -79,7 +79,7 @@ public:
     bool is_dragging() const;
     bool is_reload_delayed() const;
 
-    void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
+    void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false, bool force_load_sla_support = false);
     void render();
 
 private:

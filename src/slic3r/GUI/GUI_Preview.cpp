@@ -221,10 +221,10 @@ bool View3D::is_reload_delayed() const
     return (m_canvas != nullptr) ? m_canvas->is_reload_delayed() : false;
 }
 
-void View3D::reload_scene(bool refresh_immediately, bool force_full_scene_refresh)
+void View3D::reload_scene(bool refresh_immediately, bool force_full_scene_refresh, bool force_load_sla_support)
 {
     if (m_canvas != nullptr)
-        m_canvas->reload_scene(refresh_immediately, force_full_scene_refresh);
+        m_canvas->reload_scene(refresh_immediately, force_full_scene_refresh, force_load_sla_support);
 }
 
 void View3D::render()

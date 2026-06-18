@@ -974,7 +974,7 @@ public:
 
     void mirror_selection(Axis axis);
 
-    void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false);
+    void reload_scene(bool refresh_immediately, bool force_full_scene_refresh = false, bool force_load_sla_support = false);
     //Orca: shell preview improvement
     void set_shell_transparence(float alpha = 0.2f);
     void load_shells(const Print& print, bool force_previewing = false);

@@ -12533,9 +12533,24 @@ void Plater::export_prz(bool prefer_removable)
 
         ThumbnailData thumb;
         {
-            const ThumbnailsParams tparams = { {}, false, true, true, true,
+            // Resin: force-load the SLA support/pad meshes into the View3D scene before
+            // rendering the thumbnail, so the PRZ preview always includes supports even
+            // when the SLA support gizmo is currently active. reload_scene() is synchronous,
+            // so the meshes are present in m_volumes by the time generate_thumbnail() runs
+            // (no race with the deferred paint events of a UI tool switch).
+            p->view3D->reload_scene(false, false, /*force_load_sla_support=*/true);
+
+            // parts_only=false lets the support/pad aux volumes (composite_id.volume_id < 0)
+            // pass the thumbnail volume filter. Scoped to this local tparams only — the
+            // global filter (GLCanvas3D) and FDM/3MF thumbnails are untouched.
+            const ThumbnailsParams tparams = { {}, false, false, true, true,
                 p->partplate_list.get_curr_plate_index() };
             p->generate_thumbnail(thumb, 290, 290, tparams, Camera::EType::Ortho);
+
+            // Restore the on-screen scene to its pre-export state (revert the forced
+            // support load so a still-active support gizmo does not leave the full support
+            // mesh double-rendered alongside its editable point preview).
+            p->view3D->reload_scene(false);
         }
 
         auto job = std::make_unique<ExportPRZJob>(
