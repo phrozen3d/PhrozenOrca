@@ -570,6 +570,14 @@ void GLGizmoSlaSupports::on_render()
 // Added: raycaster active/clipped state management.
 void GLGizmoSlaSupports::render_points(const Selection& selection)
 {
+    // View-mode gate: when the user has switched to "Structure" view outside of
+    // manual editing, the Points preview cones must not be drawn. They would
+    // otherwise overlap the actual support/pad mesh rendered by render_volumes()
+    // and visually leak through after the toggle. Editing mode keeps drawing
+    // cones unconditionally so manual selection / drag still works.
+    if (m_show_support_structure && !m_editing_mode)
+        return;
+
     const size_t cache_size = m_editing_mode ? m_editing_cache.size() : m_normal_cache.size();
     if (cache_size == 0)
         return;
@@ -600,9 +608,35 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     });
 
     const GLVolume* vol = selection.get_volume(*selection.get_volume_idxs().begin());
-    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
-    // PhrozenOrca: get_sla_shift() instead of print_object()->get_current_elevation() (model_instance() unavailable)
-    const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
+    // Coordinate convention:
+    //   - sla::SupportPoint::pos is in raw model-object coordinates (the same
+    //     space as the raycaster in CommonGizmosDataObjects::Raycaster, which is
+    //     built from the raw ModelVolume mesh).
+    //   - The visible mesh shown by GLGizmoSlaBase::update_volumes() is rendered
+    //     with the full instance transform including scale.
+    //
+    // Anchor position must follow instance scale so the preview cone sits on the
+    // visible surface, but cone diameter / length must stay in mm regardless of
+    // instance scale (those are user-facing support-parameter sizes, not model
+    // dimensions). The render path therefore separates the two:
+    //   - head.pos is built in raw frame but scaled by S below, so the head ITS
+    //     vertices land at (S * raw_pos + mm_offset).
+    //   - model_matrix uses the instance transform with positive scale removed
+    //     (T_zshift * T * R, with mirror preserved through signed get_matrix()
+    //     vs. unsigned get_scaling_factor_matrix()).
+    // Per-vertex world position is then T_zshift * T * R * (S * raw_pos + mm_offset).
+    //
+    // PhrozenOrca: get_sla_shift() replaces PrusaSlicer's print_object()->
+    // get_current_elevation() — the latter requires a ModelInstance pointer that
+    // SelectionInfo here does not expose.
+    const Transform3d instance_scaling_matrix         = vol->get_instance_transformation().get_scaling_factor_matrix();
+    const Transform3d instance_scaling_matrix_inverse = instance_scaling_matrix.inverse();
+    const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
+    const Transform3d instance_matrix_no_scale = instance_matrix * instance_scaling_matrix_inverse;
+    // Surface-normal transform under instance scale: inverse-transpose of S.
+    // Identity-direction for uniform scale; corrects orientation under non-uniform
+    // scale so the cone axis follows the scaled-mesh's visible surface normal.
+    const Matrix3d    normal_xform             = instance_scaling_matrix_inverse.linear().transpose();
 
     ColorRGBA render_color;
     for (size_t i = 0; i < cache_size; ++i) {
@@ -640,19 +674,25 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         m_cone.model.set_color(render_color);
         m_sphere.model.set_color(render_color);
 
-        Vec3f normal = Vec3f::UnitZ();
+        Vec3f raw_normal = Vec3f::UnitZ();
         if (m_editing_mode) {
             if (m_editing_cache[i].normal == Vec3f::Zero())
                 m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
-            normal = m_editing_cache[i].normal;
+            raw_normal = m_editing_cache[i].normal;
         } else if (m_normal_cache.size() > i) {
-            m_c->raycaster()->raycaster()->get_closest_point(support_point.pos, &normal);
+            m_c->raycaster()->raycaster()->get_closest_point(support_point.pos, &raw_normal);
         }
+        // Scaled-mesh surface normal direction for orienting the cone axis.
+        const Vec3f scaled_normal = (normal_xform * raw_normal.cast<double>()).cast<float>();
 
         const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
 
         // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
-        const sla::Head head = preview_sla_head_for_point(support_point, normal, use_stored_geometry);
+        // head.pos is overwritten with the scale-applied anchor so the head ITS sits
+        // on the visible surface. Size fields (head/pillar/contact radii, width,
+        // penetration) come from the support-parameter mm values and stay untouched.
+        sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry);
+        head.pos = instance_scaling_matrix * support_point.pos.cast<double>();
         const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
         static constexpr size_t kManualPreviewSteps = 45;
         indexed_triangle_set top_its = manual_preview
@@ -664,7 +704,9 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
 
             m_cone.model.reset();
             m_cone.model.init_from(top_its, manual_preview);
-            const Transform3d model_matrix = instance_matrix * instance_scaling_matrix_inverse;
+            // Render with the scale-free instance transform: cone geometry stays
+            // mm-sized; the anchor is already scaled into head.pos above.
+            const Transform3d model_matrix = instance_matrix_no_scale;
 
             // Manual preview: flat shader (uniform color, no directional shading).
             use_shader(manual_preview ? flat_shader : gouraud_shader);
@@ -1264,13 +1306,24 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         draw_view_btn(_u8L("Structure").c_str(), m_show_support_structure, [&](){
             m_show_support_structure = true;
             show_sla_supports(true);
+            // Drop Points-preview picking raycasters so the (now hidden) cones do
+            // not intercept hover/click on the support/pad mesh. In editing mode
+            // we keep them: the user still needs to interact with points.
+            if (!m_editing_mode)
+                unregister_point_raycasters_for_picking();
             if (!m_normal_cache.empty())
                 reslice_until_step(slaposPad);
+            m_parent.set_as_dirty();
         });
         ImGui::SameLine();
         draw_view_btn(_u8L("Points").c_str(), !m_show_support_structure, [&](){
             m_show_support_structure = false;
             show_sla_supports(false);
+            // Restore Points-preview picking. register_point_raycasters_for_picking()
+            // is a no-op outside editing mode and when the list is already populated,
+            // so the call is safe in both Auto and Manual contexts.
+            register_point_raycasters_for_picking();
+            m_parent.set_as_dirty();
         });
     }
 
@@ -2177,8 +2230,13 @@ void GLGizmoSlaSupports::activate_structure_view()
 {
     m_show_support_structure = true;
     show_sla_supports(true);
+    // Match the in-panel Structure button: drop Points-preview picking raycasters
+    // outside editing mode so cones do not intercept hover/click after the switch.
+    if (!m_editing_mode)
+        unregister_point_raycasters_for_picking();
     if (!m_normal_cache.empty())
         reslice_until_step(slaposPad);
+    m_parent.set_as_dirty();
 }
 
 void GLGizmoSlaSupports::auto_generate()
@@ -2311,8 +2369,15 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const GLVolume* vol = selection.get_first_volume();
     if (!vol)
         return;  // Selection not ready (e.g. during Undo/Redo before set_deserialized()); transforms update next frame.
-    const Transform3d instance_scaling_matrix_inverse = vol->get_instance_transformation().get_scaling_factor_matrix().inverse();
-    const Transform3d instance_matrix = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
+    // Picking must use the same convention as render_points(): the sphere centre
+    // lands on the scaled-mesh surface (S * raw_pos), and the sphere radius stays
+    // in mm because pick_matrix excludes positive instance scale. Mirror flows
+    // through the signed instance matrix so hit-test still matches a mirrored
+    // visible cone.
+    const Transform3d instance_scaling_matrix         = vol->get_instance_transformation().get_scaling_factor_matrix();
+    const Transform3d instance_scaling_matrix_inverse = instance_scaling_matrix.inverse();
+    const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
+    const Transform3d pick_matrix              = instance_matrix * instance_scaling_matrix_inverse;
 
     for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
         const sla::SupportPoint& sp = m_editing_cache[i].support_point;
@@ -2322,13 +2387,16 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
 
         const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
 
+        // head is only consulted for pick_r (the visible cone's pin / contact
+        // radius in mm). The picking sphere is radially symmetric, so head.dir
+        // does not need the non-uniform-scale correction used by render_points().
         const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry);
-        const Transform3d pick_matrix = instance_matrix * instance_scaling_matrix_inverse;
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
+        const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
         m_point_raycasters[i].second->set_active(false);
         const Transform3d sphere_matrix = pick_matrix *
-            Geometry::assemble_transform(sp.pos.cast<double>(), Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
+            Geometry::assemble_transform(scaled_pos, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
         m_point_raycasters[i].first->set_transform(sphere_matrix);
         m_point_raycasters[i].first->set_active(true);
     }
