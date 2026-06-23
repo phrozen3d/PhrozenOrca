@@ -153,6 +153,8 @@ set(lisbslic3r_sources
     Format/SLAArchiveFormatRegistry.cpp
     Format/PhrozenPRZ.hpp
     Format/PhrozenPRZ.cpp
+    Format/PhrozenPRZRle.hpp
+    Format/PhrozenPRZRle.cpp
 	Format/svg.hpp
     Format/svg.cpp
     Format/ZipperArchiveImport.hpp

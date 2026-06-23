@@ -24,6 +24,7 @@
 #include <libslic3r/Format/SLAArchiveWriter.hpp>
 #include <libslic3r/Format/PhrozenPRZ.hpp>
 #include <libslic3r/Format/PhrozenPRZOrient.hpp>
+#include <libslic3r/Format/PhrozenPRZRle.hpp>
 #include <libslic3r/AABBTreeIndirect.hpp>
 #include <libslic3r/SLA/RasterToCvMat.hpp>
 #include <libslic3r/SLA/RasterCache.hpp>
@@ -1507,14 +1508,9 @@ void SLAPrint::Steps::rasterize()
         std::atomic<int> completed_layers{0};
         std::atomic<int> last_reported_pct{-1};
 
-        // PRZ-RLE encoding constants — identical to those in generate_prz().
-        // static constexpr avoids lambda-capture requirements.
-        static constexpr uchar RLE_BLACK          = 0x00;
-        static constexpr uchar RLE_WHITE          = 0xc0;
-        static constexpr uchar RLE_GRAY           = 0x40;
-        static constexpr uchar RLE_BYTE_NUMBER[4] = { 0x00, 0x10, 0x20, 0x30 };
-        static constexpr int   RLE_CONT_BOUND[4]  = { 1 << 4, 1 << 12, 1 << 20, 1 << 28 };
-        static constexpr int   RLE_BOUND_0        = 0x0f;
+        // PRZ-RLE encoding (constants + flush logic) now lives in
+        // PhrozenPRZRle.cpp behind prz_encode_layer_banded() — the single source
+        // of truth shared with the PhrozenPRZ.cpp cache-miss path.
 
         // 5.2 Cap concurrency to control cv::Mat memory pressure.
         // At 13320×5120, each layer's Mat is ~65 MB.
@@ -1531,8 +1527,7 @@ void SLAPrint::Steps::rasterize()
         // allocations per layer caused CRT heap lock contention at the 55% peak.
         struct TLSData {
             cv::Mat            mat;
-            cv::Mat            mat_rotated; // landscape buffer for PRZ RLE (Phase 1.5)
-            std::vector<char>  rle_buf;
+            std::vector<char>  rle_buf;     // PRZ-RLE byte stream, reused per layer
             cv::Mat            thumb;       // downsampled preview (panel orient.), reused per layer
             std::vector<uchar> thumb_rle;   // gray-RLE-encoded thumb bytes, reused per layer
         };
@@ -1609,96 +1604,20 @@ void SLAPrint::Steps::rasterize()
                             sla::RasterCache::write_thumb(cache_key, lid, tls_data.thumb_rle);
                         }
 
-                        // Phase 1.5: portrait cv::Mat (rows=display_pixels_x,
-                        // cols=display_pixels_y) → landscape via R₉₀cw so that
-                        // the RLE byte stream has display_pixels_x pixels per row,
-                        // matching PRZ header xr=display_pixels_x (Phase 1 change).
-                        // See design.md §Decision 1.5 for the geometric derivation.
-                        cv::rotate(mat, tls_data.mat_rotated, cv::ROTATE_90_CLOCKWISE);
+                        // Phase 2 (prz-band-tiled-rle-fusion): fused band/tiled
+                        // ROTATE_90_CW + per-tile orientation flip + PRZ-RLE encode,
+                        // in one pass over L2/L3-resident column-slab tiles — no
+                        // full-frame mat_rotated copy is ever materialized. The
+                        // landscape rotation, the per-printer flip (formerly
+                        // prz_orient_after_rotate) and the RLE byte layout are all
+                        // reproduced byte-identically inside prz_encode_layer_banded,
+                        // the single source of truth shared with the PhrozenPRZ.cpp
+                        // cache-miss path. thumb capture above (panel orientation)
+                        // still happens BEFORE this fused encode.
+                        const std::size_t rle_pos = prz_encode_layer_banded(
+                            mat, prz_x_mirror, PRZ_RLE_BAND_COLS, rle_buf);
 
-                        // Compensate the axis projection introduced by the 90° CW
-                        // rotation so the cached layer image matches Chitubox
-                        // per-printer (see openspec fix-prz-image-mirror-axis-swap,
-                        // design.md Decision 1). Same flip is applied at the
-                        // cache-miss site in PhrozenPRZ.cpp to keep bytes identical.
-                        prz_orient_after_rotate(tls_data.mat_rotated, prz_x_mirror);
-
-                        // 5.3 PRZ-RLE encode — no DEFLATE, no PNG checksums.
-                        // Produces the same przByte layout as generate_prz() so
-                        // Phase 6 can stream cached bytes directly to the PRZ output.
-                        const int    total = tls_data.mat_rotated.rows * tls_data.mat_rotated.cols;
-                        const uchar *data  = tls_data.mat_rotated.data;
-
-                        // Worst case: every pixel is its own gray run → 2 bytes each
-                        // + 1 header + 1 checksum. Reserve once; subsequent layers reuse.
-                        const size_t rle_cap = static_cast<size_t>(total) * 2 + 16;
-                        if (rle_buf.size() < rle_cap)
-                            rle_buf.resize(rle_cap);
-
-                        size_t rle_pos = 0;
-                        rle_buf[rle_pos++] = static_cast<char>(0x55); // PRZ layer head
-                        int sum = 0;
-
-                        auto flush_run = [&](uchar color, int count) {
-                            const char *c = reinterpret_cast<const char *>(&count);
-                            if (color == 0x00 || color == 0xff) {
-                                uchar base = (color == 0x00) ? RLE_BLACK : RLE_WHITE;
-                                for (int bid = 0; bid < 4; ++bid) {
-                                    if (count < RLE_CONT_BOUND[bid]) {
-                                        uchar b0 = base + RLE_BYTE_NUMBER[bid] +
-                                                   (count & RLE_BOUND_0);
-                                        count >>= 4;
-                                        sum += static_cast<int>(b0);
-                                        rle_buf[rle_pos++] = static_cast<char>(b0);
-                                        for (int k = bid; k >= 1; --k) {
-                                            rle_buf[rle_pos++] = c[k - 1];
-                                            sum += static_cast<int>(
-                                                static_cast<uchar>(c[k - 1]));
-                                        }
-                                        break;
-                                    }
-                                }
-                            } else {
-                                for (int bid = 0; bid < 4; ++bid) {
-                                    if (count < RLE_CONT_BOUND[bid]) {
-                                        uchar b0 = RLE_GRAY + RLE_BYTE_NUMBER[bid] +
-                                                   (count & RLE_BOUND_0);
-                                        count >>= 4;
-                                        sum += static_cast<int>(b0);
-                                        rle_buf[rle_pos++] = static_cast<char>(b0);
-                                        rle_buf[rle_pos++] = static_cast<char>(color);
-                                        sum += static_cast<int>(color);
-                                        for (int k = bid; k >= 1; --k) {
-                                            rle_buf[rle_pos++] = c[k - 1];
-                                            sum += static_cast<int>(
-                                                static_cast<uchar>(c[k - 1]));
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        };
-
-                        if (total > 0) {
-                            uchar cur   = data[0];
-                            int   count = 1;
-                            for (int j = 1; j < total; ++j) {
-                                uchar px = data[j];
-                                if (px == cur) {
-                                    ++count;
-                                } else {
-                                    flush_run(cur, count);
-                                    cur   = px;
-                                    count = 1;
-                                }
-                            }
-                            flush_run(cur, count);
-                        }
-
-                        rle_buf[rle_pos++] = static_cast<char>(
-                            static_cast<uchar>((~sum) & 0xff)); // checksum
-
-                        // Both mat and rle_buf are TLS — do NOT free them.
+                        // mat and rle_buf are TLS — do NOT free them.
                         // They persist across all layers on this thread.
 
                         sla::RasterCache::write_layer(

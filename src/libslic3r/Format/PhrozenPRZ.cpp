@@ -24,6 +24,7 @@
 
 #include <libslic3r/SLA/RasterCache.hpp>
 #include "PhrozenPRZOrient.hpp"
+#include "PhrozenPRZRle.hpp"
 
 namespace Slic3r {
 
@@ -705,13 +706,14 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
     // cache-miss fallback path, identically to the SLAPrintSteps main path.
     const bool prz_x_mirror = prz_final_x_mirror(print.printer_config());
 
-    static constexpr uchar BLACK = 0x00;
-    static constexpr uchar WHITE = 0xc0;
-    static constexpr uchar GRAY  = 0x40;
-    static constexpr uchar BYTE_NUMBER[4]      = { 0x00, 0x10, 0x20, 0x30 };
-    static constexpr int   CONTINUOUS_BOUND[4] = { 1 << 4, 1 << 12, 1 << 20, 1 << 28 };
-    static constexpr int   BOUND_0             = 0x0f;
-    constexpr size_t       BATCH_SZ            = 8;
+    // PRZ-RLE constants + flush logic now live in PhrozenPRZRle.cpp behind
+    // prz_encode_layer_banded() — the single source of truth shared with the
+    // SLAPrintSteps.cpp main raster loop.
+    constexpr size_t BATCH_SZ = 8;
+
+    // Reused PRZ-RLE byte buffer for the sequential [C] step (zero-malloc
+    // steady state across batches/layers).
+    std::vector<char> rle_scratch;
 
     // Write header (~1.2 KB) to a local buffer, then flush immediately
     {
@@ -817,15 +819,11 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                         rp.res, rp.pxdim, rp.trafo,
                         rp.gamma, rp.aa_steps, rp.gray_lo, rp.gray_hi,
                         rp.blur_pixel, rp.picture_grayscale, is_binary);
-                    // Phase 1.5: same R₉₀cw rotation as SLAPrintSteps main path
-                    // (cache-miss fallback must produce identical byte stream).
-                    cv::Mat rotated;
-                    cv::rotate(batch_mats[i], rotated, cv::ROTATE_90_CLOCKWISE);
-                    batch_mats[i] = std::move(rotated);
-                    // Same compensating flip as the SLAPrintSteps main path so the
-                    // cache-miss byte stream matches cache-hit exactly
-                    // (see openspec fix-prz-image-mirror-axis-swap, design.md).
-                    prz_orient_after_rotate(batch_mats[i], prz_x_mirror);
+                    // Phase 2 (prz-band-tiled-rle-fusion): leave batch_mats[i] in
+                    // PORTRAIT orientation. The R90cw rotation, the per-printer
+                    // flip (formerly prz_orient_after_rotate) and the RLE encode
+                    // are all done together — without any full-frame rotated copy —
+                    // by prz_encode_layer_banded in the sequential [C] step below.
                 }
             });
 
@@ -840,78 +838,15 @@ void generate_prz(std::ostream &out, const SLAPrint &print, const ThumbnailData 
                 out.write(lc.data(), static_cast<std::streamsize>(lc.size()));
             }
 
-            const cv::Mat &img = batch_mats[i]; // CV_8UC1, row-major, landscape after rotation
-            const int total    = img.rows * img.cols;
-            const uchar *data  = img.data;
-
-            int sum = 0;
-            std::string przByte;
-            przByte.reserve(static_cast<size_t>(total) / 2 + 8);
-
-            przByte += static_cast<char>(0x55); // layer head
-
-            // Write one RLE run (color, count) directly into przByte
-            auto flush_run = [&](uchar color, int count) {
-                const char *c_count = reinterpret_cast<const char *>(&count);
-
-                if (color == 0x00 || color == 0xff) {
-                    uchar base = (color == 0x00) ? BLACK : WHITE;
-                    for (int bid = 0; bid < 4; ++bid) {
-                        if (count < CONTINUOUS_BOUND[bid]) {
-                            uchar byte0 = base + BYTE_NUMBER[bid] + (count & BOUND_0);
-                            count >>= 4;
-                            sum += static_cast<int>(byte0);
-                            przByte += static_cast<char>(byte0);
-                            for (int k = bid; k >= 1; --k) {
-                                przByte += c_count[k - 1];
-                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
-                            }
-                            break;
-                        }
-                    }
-                } else {
-                    for (int bid = 0; bid < 4; ++bid) {
-                        if (count < CONTINUOUS_BOUND[bid]) {
-                            uchar byte0 = GRAY + BYTE_NUMBER[bid] + (count & BOUND_0);
-                            count >>= 4;
-                            sum += static_cast<int>(byte0);
-                            przByte += static_cast<char>(byte0);
-                            sum += static_cast<int>(color);
-                            przByte += static_cast<char>(color);
-                            for (int k = bid; k >= 1; --k) {
-                                przByte += c_count[k - 1];
-                                sum += static_cast<int>(static_cast<uchar>(c_count[k - 1]));
-                            }
-                            break;
-                        }
-                    }
-                }
-            };
-
-            // Scan pixels directly — no intermediate encode_pixels vector
-            if (total > 0) {
-                uchar cur   = data[0];
-                int   count = 1;
-                for (int j = 1; j < total; ++j) {
-                    uchar px = data[j];
-                    if (px == cur) {
-                        ++count;
-                    } else {
-                        flush_run(cur, count);
-                        cur   = px;
-                        count = 1;
-                    }
-                }
-                flush_run(cur, count);
-            }
-
-            // Checksum byte
-            uchar checksum = static_cast<uchar>((~sum) & 0xff);
-            przByte += static_cast<char>(checksum);
+            // Fused band/tiled ROTATE_90_CW + per-printer flip + PRZ-RLE encode
+            // of the PORTRAIT mat — byte-identical to the SLAPrintSteps main path
+            // (same shared function), with no full-frame rotated copy.
+            const std::size_t rle_len = prz_encode_layer_banded(
+                batch_mats[i], prz_x_mirror, PRZ_RLE_BAND_COLS, rle_scratch);
 
             // Write: [4-byte big-endian size][przByte][CRLF] directly to stream
-            write_be(out, static_cast<int>(przByte.size()));
-            out.write(przByte.data(), static_cast<std::streamsize>(przByte.size()));
+            write_be(out, static_cast<int>(rle_len));
+            out.write(rle_scratch.data(), static_cast<std::streamsize>(rle_len));
             out.put('\r'); out.put('\n');
 
             // DLP end tag on last layer
