@@ -548,6 +548,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
         init_menubar_as_gcodeviewer();
     else
         init_menubar_as_editor();
+    update_phrozen_mode_button_label();
 
     // BBS
 #if 0
@@ -1872,9 +1873,15 @@ bool MainFrame::can_reslice() const
 
 void MainFrame::update_phrozen_mode_button_label()
 {
-    if (!m_phrozen_mode_btn || !wxGetApp().preset_bundle)
+    if (!wxGetApp().preset_bundle)
         return;
     const bool resin = phrozen_toolbar_mode_is_resin();
+#ifndef __APPLE__
+    if (m_topbar)
+        m_topbar->ShowCalibrationButton(!resin);
+#endif
+    if (!m_phrozen_mode_btn)
+        return;
     const int  ipx   = FromDIP(10);
     m_phrozen_mode_btn->SetIconBitmapName(
         resin ? "PhrozenImages_Resin/Printer_Resin" : "PhrozenImages_Resin/Printer_FDM", ipx);
@@ -4037,6 +4044,11 @@ void MainFrame::jump_to_multipage()
 
 
 //BBS GUI refactor: remove unused layout new/dlg
+int MainFrame::get_selected_tab_position() const
+{
+    return m_tabpanel ? m_tabpanel->GetSelection() : wxNOT_FOUND;
+}
+
 void MainFrame::select_tab(size_t tab/* = size_t(-1)*/)
 {
     //bool tabpanel_was_hidden = false;

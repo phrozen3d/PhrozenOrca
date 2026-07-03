@@ -605,6 +605,10 @@ void GuideFrame::OnScriptMessage(wxWebViewEvent &evt)
             if (wxGetApp().mainframe && wxGetApp().mainframe->plater())
                 wxGetApp().mainframe->plater()->set_printer_technology(pt);
 
+            wxGetApp().app_config->set("phrozen_work_mode", printer_type == "resin" ? "resin" : "filament");
+            if (wxGetApp().mainframe)
+                wxGetApp().mainframe->update_phrozen_mode_button_label();
+
             wxGetApp().app_config->save();
 
             // Notify web that save is done so page 12 can navigate after printer_type is applied (fix LCD_printer empty list)
@@ -1125,6 +1129,12 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
     app_config->set_section(AppConfig::SECTION_FILAMENTS, enabled_filaments);
     app_config->set_vendors(m_appconfig_new);
 
+    // Keep Phrozen toolbar mode in sync with wizard result before reloading presets.
+    // Must not depend on is_phrozen_vendor(): after FDM setup the edited preset is FFF, and
+    // save_printer_type may temporarily select a generic SLA preset before PhrozenSLA is installed.
+    if (app_config)
+        app_config->set("phrozen_work_mode", printer_type == "resin" ? "resin" : "filament");
+
     // Always reload when switching across technologies so ini does not keep previous tech selections.
     const bool need_force_fff = (printer_type != "resin" && preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA);
     // Resin finish must always reload selections so ini does not keep previous FFF printer (even when vendor maps look unchanged).
@@ -1209,11 +1219,6 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
             preset_bundle->printers.select_preset(preset_bundle->printers.first_visible_idx());
     }
 
-    // Keep Phrozen toolbar mode in sync with wizard result on first launch.
-    // get_ui_printer_technology() prioritizes this key over edited preset technology.
-    if (preset_bundle && app_config && preset_bundle->is_phrozen_vendor())
-        app_config->set("phrozen_work_mode", printer_type == "resin" ? "resin" : "filament");
-
     // Sync Prepare sidebar / plater mode to the printer preset actually selected (avoids stuck SLA UI with FFF preset)
     wxGetApp().load_current_presets(false, true);
     if (wxGetApp().mainframe) {
@@ -1264,6 +1269,9 @@ bool GuideFrame::run()
         this->SetPosition(wxPoint(guide_x, guide_y));
     }
 
+    const int saved_main_tab = app.mainframe
+        ? app.mainframe->get_selected_tab_position() : wxNOT_FOUND;
+
     int result = this->ShowModal();
     if (result == wxID_OK) {
         bool apply_keeped_changes = false;
@@ -1279,6 +1287,11 @@ bool GuideFrame::run()
         app.update_mode();
         // BBS
         //app.obj_manipul()->update_ui_from_settings();
+        if (saved_main_tab == MainFrame::tp3DEditor && app.mainframe) {
+            app.mainframe->select_tab(MainFrame::tp3DEditor);
+            if (app.plater())
+                app.plater()->select_view_3D("3D", true);
+        }
         BOOST_LOG_TRIVIAL(info) << "GuideFrame applied";
         this->Close();
         return true;

@@ -3531,6 +3531,8 @@ void GUI_App::ShowUserGuide() {
     // BBS:Show NewUser Guide
     try {
         bool res = false;
+        const int saved_main_tab = mainframe
+            ? mainframe->get_selected_tab_position() : wxNOT_FOUND;
         GuideFrame GuideDlg(this);
                 //if (GuideDlg.IsFirstUse())
         res = GuideDlg.run();
@@ -3538,6 +3540,15 @@ if (res) {
             load_current_presets();
             update_mode();
             update_ui_from_settings();
+            if (mainframe) {
+                mainframe->update_phrozen_mode_button_label();
+                mainframe->update_side_preset_ui();
+                if (saved_main_tab == MainFrame::tp3DEditor) {
+                    mainframe->select_tab(MainFrame::tp3DEditor);
+                    if (plater())
+                        plater()->select_view_3D("3D", true);
+                }
+            }
             update_publish_status();
             mainframe->refresh_plugin_tips();
             // BBS: remove SLA related message
@@ -6522,10 +6533,19 @@ bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage
     else if (start_page == ConfigWizard::SP_MATERIALS)
         page = GuideFrame::BBL_LCD_RESIN_ONLY;
     wizard.SetStartPage(page);
+    const int saved_main_tab = mainframe
+        ? mainframe->get_selected_tab_position() : wxNOT_FOUND;
     bool       res = wizard.run();
 
     if (res) {
         load_current_presets();
+        mainframe->update_phrozen_mode_button_label();
+        mainframe->update_side_preset_ui();
+        if (saved_main_tab == MainFrame::tp3DEditor) {
+            mainframe->select_tab(MainFrame::tp3DEditor);
+            if (plater())
+                plater()->select_view_3D("3D", true);
+        }
         update_publish_status();
         mainframe->refresh_plugin_tips();
         // BBS: remove SLA related message

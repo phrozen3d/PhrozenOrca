@@ -1649,8 +1649,22 @@ void Sidebar::update_all_preset_comboboxes()
         p->combo_printer->update();
 
     // Orca:: show device tab based on vendor type
+    const int tab_before_device_update = p_mainframe->m_tabpanel->GetSelection();
     p_mainframe->show_device(preset_bundle.use_bbl_device_tab());
-    p_mainframe->m_tabpanel->SetSelection(p_mainframe->m_tabpanel->GetSelection());
+    int tab_to_select = tab_before_device_update;
+    const int page_count = p_mainframe->m_tabpanel->GetPageCount();
+    if (tab_to_select < 0 || tab_to_select >= page_count)
+        tab_to_select = std::min<int>(MainFrame::tp3DEditor, std::max(0, page_count - 1));
+    // Removing device/monitor tabs (e.g. FDM→resin) can land wx on Preview; keep Prepare when that was the editor tab.
+    if (tab_before_device_update == MainFrame::tpMonitor
+        || tab_before_device_update == MainFrame::tpMultiDevice
+        || tab_before_device_update == MainFrame::tpCalibration)
+        tab_to_select = MainFrame::tp3DEditor;
+    else if (tab_before_device_update == MainFrame::tp3DEditor
+             && p_mainframe->m_tabpanel->GetSelection() == MainFrame::tpPreview)
+        tab_to_select = MainFrame::tp3DEditor;
+    if (tab_to_select != p_mainframe->m_tabpanel->GetSelection())
+        p_mainframe->m_tabpanel->SetSelection(tab_to_select);
 
     // Show/hide FDM vs SLA preset panels based on printer technology
     p->show_preset_comboboxes();
