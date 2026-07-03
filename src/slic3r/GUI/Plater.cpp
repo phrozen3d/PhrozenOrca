@@ -12594,7 +12594,9 @@ void Plater::export_gcode_3mf(bool export_all)
         show_error(this, ex.what(), false);
         return;
     }
-    default_output_file.replace_extension(".gcode.3mf");
+    const bool is_sla = printer_technology() == ptSLA;
+    const char *slice_ext = is_sla ? ".3mf" : ".gcode.3mf";
+    default_output_file.replace_extension(slice_ext);
     default_output_file = fs::path(Slic3r::fold_utf8_to_ascii(default_output_file.string()));
 
     //Get a last save path
@@ -12606,7 +12608,7 @@ void Plater::export_gcode_3mf(bool export_all)
         wxFileDialog dlg(this, _L("Save Sliced file as:"),
             start_dir,
             from_path(default_output_file.filename()),
-            GUI::file_wildcards(FT_GCODE_3MF, ""),
+            GUI::file_wildcards(is_sla ? FT_3MF : FT_GCODE_3MF, ""),
             wxFD_SAVE | wxFD_OVERWRITE_PROMPT
         );
         if (dlg.ShowModal() == wxID_OK) {
