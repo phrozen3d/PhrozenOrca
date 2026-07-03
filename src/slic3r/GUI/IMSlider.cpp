@@ -905,7 +905,9 @@ bool IMSlider::vertical_slider(const char* str_id, int* higher_value, int* lower
     auto sla_prepare_nav_button = [&](const char* btn_id, const ImVec2& pos, float sz, ImGuiDir dir) -> bool {
         const ImGuiID id = window->GetID(btn_id);
         const ImRect  bb(pos, pos + ImVec2(sz, sz));
-        ImGui::ItemSize(bb);
+        // Custom screen-space buttons: do not ItemSize() — it would auto-grow the
+        // laysers_slider window (set_next_window_pos uses size 0,0) and shift the
+        // whole slider when the focus readout appears after click.
         if (!ImGui::ItemAdd(bb, id))
             return false;
 
@@ -1304,6 +1306,9 @@ bool IMSlider::render(int canvas_width, int canvas_height)
             (VERTICAL_SLIDER_WINDOW_WIDTH + (m_sla_prepare_mode ? VERTICAL_SLIDER_PREPARE_EXTRA_W : 0.f)) * m_scale;
         ImVec2 size = ImVec2(vslider_w, 0.8f * canvas_height);
         imgui.set_next_window_pos(canvas_width, 0.5f * static_cast<float>(canvas_height), ImGuiCond_Always, 1.0f, 0.5f);
+        // Prepare: pin window height so focus readout / nav buttons cannot reflow layout.
+        if (m_sla_prepare_mode)
+            imgui.set_next_window_size(size.x, size.y, ImGuiCond_Always);
         imgui.begin(std::string("laysers_slider"), windows_flag);
 
         render_menu();
