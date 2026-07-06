@@ -1202,9 +1202,11 @@ bool SLAPrintObject::invalidate_all_steps()
 double SLAPrintObject::get_elevation() const {
     if (is_zero_elevation(m_config)) return 0.;
 
-    bool en = m_config.generate_support.getBool();
+    // Pad is only generated alongside supports (kPadRequiresSupport policy).
+    // When supports are off, no elevation is needed regardless of pad_enable.
+    if (kPadRequiresSupport && !m_config.generate_support.getBool()) return 0.;
 
-    double ret = en ? m_config.support_object_elevation.getFloat() : 0.;
+    double ret = m_config.support_object_elevation.getFloat();
 
     if(m_config.pad_enable.getBool()) {
         // Normally the elevation for the pad itself would be the thickness of

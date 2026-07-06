@@ -1031,6 +1031,16 @@ void SLAPrint::Steps::generate_pad(SLAPrintObject &po) {
     // repeated)
 
     if(po.m_config.pad_enable.getBool()) {
+        // Pad only makes sense as a base for the support tree; skip when
+        // supports are not being generated (kPadRequiresSupport policy).
+        if (kPadRequiresSupport && !po.m_config.generate_support.getBool()) {
+            if (po.m_supportdata && po.m_supportdata->support_tree_ptr)
+                po.m_supportdata->support_tree_ptr->remove_pad();
+            throw_if_canceled();
+            report_status(-1, L("Visualizing supports"), SlicingStatus::RELOAD_SCENE);
+            return;
+        }
+
         // Get the distilled pad configuration from the config
         sla::PadConfig pcfg = make_pad_cfg(po.m_config);
 
@@ -1039,10 +1049,11 @@ void SLAPrint::Steps::generate_pad(SLAPrintObject &po) {
         const TriangleMesh &trmesh = po.transformed_mesh();
 
         if (!po.m_config.generate_support.getBool() || pcfg.embed_object) {
-            // No support (thus no elevation) or zero elevation mode
-            // we sometimes call it "builtin pad" is enabled so we will
-            // get a sample from the bottom of the mesh and use it for pad
-            // creation.
+            // No support (thus no elevation) or zero elevation mode:
+            // sample the bottom of the mesh as the pad base plate.
+            // When kPadRequiresSupport=true the guard above already returned,
+            // so this branch is only reached in the embed_object sub-case.
+            // When kPadRequiresSupport=false this also covers the no-support case.
             sla::pad_blueprint(trmesh.its, bp, float(pad_h),
                                float(po.m_config.layer_height.getFloat()),
                                [this](){ throw_if_canceled(); });
@@ -1071,8 +1082,13 @@ void SLAPrint::Steps::slice_supports(SLAPrintObject &po) {
 
     if(sd) sd->support_slices.clear();
 
-    // Don't bother if no supports and no pad is present.
-    if (!po.m_config.generate_support.getBool() && !po.m_config.pad_enable.getBool())
+    // Skip when there is nothing to slice.
+    // Under kPadRequiresSupport, pad is only generated alongside supports, so
+    // generate_support alone is the gate; otherwise fall back to the upstream
+    // check (skip only when both supports and pad are off).
+    const bool need_support_slices = po.m_config.generate_support.getBool() ||
+                                     (!kPadRequiresSupport && po.m_config.pad_enable.getBool());
+    if (!need_support_slices)
         return;
 
     if(sd && sd->support_tree_ptr) {

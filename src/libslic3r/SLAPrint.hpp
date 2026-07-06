@@ -73,6 +73,12 @@ using _SLAPrintObjectBase =
 
 enum SliceOrigin { soSupport, soModel };
 
+// Phrozen product policy: pad is only generated alongside supports.
+// When true, suppresses the upstream "builtin pad" (pad under unsupported objects),
+// zeroes the object elevation when supports are off, and skips support slicing
+// in the same situation.  Set to false to restore upstream behaviour.
+inline constexpr bool kPadRequiresSupport = true;
+
 namespace sla {
 
 // One island contour: a floating part that has no connection to any lower layer.
