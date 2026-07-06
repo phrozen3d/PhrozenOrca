@@ -83,6 +83,8 @@ public:
 
     // Sync dialog before Slice: Yes=apply, No=discard, Cancel=abort. Returns true to continue slicing.
     bool resolve_unsaved_manual_edits_before_slice();
+    // Leave manual editing before app close: resolve uncommitted edits, then exit editing mode.
+    bool resolve_editing_mode_before_close();
 
     // Process → Support → Top: per-point params (not global preset while editing selection).
     static bool is_sla_support_top_option(const std::string &opt_key);

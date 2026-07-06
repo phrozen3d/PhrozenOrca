@@ -703,10 +703,10 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
     // declare events
     Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent& event) {
         BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< ": mainframe received close_widow event";
-        if (event.CanVeto() && m_plater->get_view3D_canvas3D()->get_gizmos_manager().is_in_editing_mode(true)) {
-            // prevents to open the save dirty project dialog
+        if (event.CanVeto()
+            && !m_plater->get_view3D_canvas3D()->get_gizmos_manager().resolve_editing_mode_before_close()) {
             event.Veto();
-            BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< "cancelled by gizmo in editing";
+            BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< "cancelled by sla manual support editing";
             return;
         }
 

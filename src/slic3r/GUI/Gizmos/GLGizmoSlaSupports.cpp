@@ -2118,6 +2118,16 @@ bool GLGizmoSlaSupports::resolve_unsaved_manual_edits_before_slice()
     return false;
 }
 
+bool GLGizmoSlaSupports::resolve_editing_mode_before_close()
+{
+    if (!m_editing_mode)
+        return true;
+    if (!resolve_unsaved_manual_edits_before_slice())
+        return false;
+    disable_editing_mode();
+    return true;
+}
+
 
 
 void GLGizmoSlaSupports::editing_mode_apply_changes()

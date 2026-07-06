@@ -1508,6 +1508,14 @@ bool GLGizmosManager::resolve_sla_support_edits_before_slice()
     return gizmo ? gizmo->resolve_unsaved_manual_edits_before_slice() : true;
 }
 
+bool GLGizmosManager::resolve_editing_mode_before_close()
+{
+    if (m_current != SlaSupports)
+        return true;
+    auto *gizmo = dynamic_cast<GLGizmoSlaSupports *>(get_current());
+    return gizmo ? gizmo->resolve_editing_mode_before_close() : true;
+}
+
 
 bool GLGizmosManager::is_hiding_instances() const
 {

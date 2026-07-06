@@ -282,6 +282,8 @@ public:
     bool is_in_editing_mode(bool error_notification = false) const;
     // SLA manual support: prompt to apply/discard uncommitted edits before Slice.
     bool resolve_sla_support_edits_before_slice();
+    // SLA manual support: resolve edits and leave editing mode before app close.
+    bool resolve_editing_mode_before_close();
     bool is_hiding_instances() const;
 
     void on_change_color_mode(bool is_dark);
