@@ -1727,6 +1727,17 @@ PRINT_CONFIG_CLASS_DEFINE(
     // distance is measured roughly from the centroids of the pads.
     ((ConfigOptionFloat, pad_max_merge_distance))/*= 50*/
 
+    // Split pads by real finished edge-to-edge gap instead of the legacy
+    // centroid-distance merge. On by default; set false to restore the legacy
+    // centroid merge.
+    ((ConfigOptionBool,  pad_split_rafts))/*= true*/
+
+    // Visible finished gap (mm) above which island groups stay as separate rafts.
+    ((ConfigOptionFloat, raft_gap_threshold))/*= 5.0*/
+
+    // Width (mm) of the controlled connector bridge between near islands.
+    ((ConfigOptionFloat, raft_bridge_width))/*= 2.0*/
+
     // The smoothing radius of the pad edges
     // ((ConfigOptionFloat, pad_edge_radius))/*= 1*/;
 

@@ -7754,6 +7754,43 @@ void PrintConfigDef::init_sla_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(50.0));
 
+    // Hidden setting: no GUI category so it never appears in the SLA tab, the
+    // settings search, or the per-object "add settings" gear menu (which lists
+    // all SLAPrintObjectConfig keys grouped by category, skipping empty ones).
+    // Advanced users edit it via .ini / project config. Mirrors the
+    // pad_object_connector_* hidden options. label/tooltip kept as .ini docs.
+    def = this->add("pad_split_rafts", coBool);
+    def->label    = L("Split Rafts By Finished Gap");
+    def->tooltip  = L("When enabled, rafts are split by the real finished edge-to-edge gap between "
+                      "island groups instead of the legacy centroid distance. Groups whose visible "
+                      "finished gap exceeds the threshold become separate rafts. When disabled, the "
+                      "original merge behavior is kept unchanged.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(true));
+
+    // Hidden setting (see pad_split_rafts note above).
+    def = this->add("raft_gap_threshold", coFloat);
+    def->label    = L("Raft Gap Threshold");
+    def->tooltip  = L("Visible finished gap between two rafts. Island groups whose finished "
+                      "footprint gap is larger than this value stay as independent rafts. Note "
+                      "there is a physical floor of about 2x the pad brim/waffle offset below "
+                      "which islands are always bridged.");
+    def->sidetext = "mm";
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(5.0));
+
+    // Hidden setting (see pad_split_rafts note above).
+    def = this->add("raft_bridge_width", coFloat);
+    def->label    = L("Raft Bridge Width");
+    def->tooltip  = L("Width of the controlled connector bridge drawn between near island groups "
+                      "that must stay merged. A wider bridge provides more mechanical strength "
+                      "against MSLA peel forces and prevents the bridge from snapping.");
+    def->sidetext = "mm";
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(2.0));
+
     def = this->add("pad_wall_slope", coFloat);
     def->label    = L("Pad Wall Slope");
     def->category = L("Support");

@@ -16,6 +16,10 @@ inline Polygons get_contours(const ExPolygons &poly)
 
 using ThrowOnCancel = std::function<void()>;
 
+/// Tag selecting the optional edge-gap raft-splitting construction path
+/// (pad_split_rafts). Disambiguates the constructor overload below.
+struct EdgeGapMerge {};
+
 /// A fake concave hull that is constructed by connecting separate shapes
 /// with explicit bridges. Bridges are generated from each shape's centroid
 /// to the center of the "scene" which is the centroid calculated from the shape
@@ -40,6 +44,13 @@ public:
         : ConcaveHull{to_polygons(polys), merge_dist, thr} {}
 
     ConcaveHull(const Polygons& polys, double mergedist, ThrowOnCancel thr);
+
+    /// Edge-gap raft-splitting path (pad_split_rafts=true). Islands whose real
+    /// contour gap exceeds the threshold stay as separate rafts. raw_gap_threshold
+    /// is the scaled raw-contour gap threshold (already folded with 2*waffle_offset,
+    /// see design D-2). bridge_width is the scaled controlled-bridge width used to
+    /// join island pairs within the threshold (nearest-point quad with penetration).
+    ConcaveHull(const ExPolygons& islands, coord_t raw_gap_threshold, coord_t bridge_width, EdgeGapMerge, ThrowOnCancel thr);
 
     const Polygons & polygons() const { return m_polys; }
 

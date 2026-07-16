@@ -146,6 +146,40 @@ static inline double get_merge_distance(const PadConfig &c)
     return 2. * (1.8 * c.wall_thickness_mm) + c.max_merge_dist_mm;
 }
 
+// Dispatch between the legacy centroid-distance merge and the optional
+// edge-gap raft splitting (cfg.split_rafts). Both AroundPadSkeleton and
+// BelowPadSkeleton route their ConcaveHull construction through here so the
+// dispatch lives in a single choke point.
+// STAGE 2 skeleton: the split_rafts==true branch currently falls back to the
+// legacy path so behavior is unchanged. STAGE 3 will replace the TODO branch
+// with the edge-gap merge (broad/narrow phase + controlled bridges).
+static ConcaveHull make_pad_concave_hull(const ExPolygons &islands,
+                                         const PadConfig  &cfg,
+                                         ThrowOnCancel     thr)
+{
+    if (cfg.split_rafts) {
+        // Route B (design D-2): fold the waffle expansion into the threshold and
+        // measure on the raw contour. g_finished = g_raw - 2*waffle_offset, so a
+        // finished gap <= raft_gap_threshold corresponds to
+        //   g_raw <= scaled(raft_gap_threshold) + 2*waffle_offset.
+        //
+        // Physical floor clamp (design D-5): offset_waffle_style() runs a closing
+        // of (+2*wo, -wo), which by itself welds any pair with g_raw <= 4*wo, i.e.
+        // g_finished <= 2*wo. Islands in that band must get a controlled bridge --
+        // otherwise they would be welded by the waffle with an uncontrolled, near
+        // zero-height neck that slices into slivers. Clamping the effective
+        // threshold to at least 2*wo guarantees "whatever the waffle would weld,
+        // we bridge first". Only bites when the user sets raft_gap_threshold below
+        // 2*wo (~3.2mm at the default 1.6mm brim); the default 5mm is unaffected.
+        coord_t wo         = get_waffle_offset(cfg);
+        coord_t raw_thresh = std::max<coord_t>(scaled(cfg.raft_gap_threshold_mm), 2 * wo) + 2 * wo;
+        coord_t bridge_w   = scaled(cfg.raft_bridge_width_mm);
+        return ConcaveHull{islands, raw_thresh, bridge_w, EdgeGapMerge{}, thr};
+    }
+
+    return ConcaveHull{islands, get_merge_distance(cfg), thr};
+}
+
 // Part of the pad configuration that is used for 3D geometry generation
 struct PadConfig3D {
     double thickness, height, wing_height, slope;
@@ -299,7 +333,7 @@ private:
         for (auto &ep : supp_bp) allin.emplace_back(ep.contour);
         for (auto &ep : model_bp) allin.emplace_back(ep.contour);
 
-        ConcaveHull cchull{allin, get_merge_distance(cfg), thr};
+        ConcaveHull cchull = make_pad_concave_hull(allin, cfg, thr);
         return offset_waffle_style_ex(cchull, get_waffle_offset(cfg));
     }
 
@@ -331,7 +365,7 @@ public:
         for (auto &ep : support_blueprint) outer.emplace_back(ep.contour);
         for (auto &ep : model_blueprint) outer.emplace_back(ep.contour);
 
-        ConcaveHull ochull{outer, get_merge_distance(cfg), thr};
+        ConcaveHull ochull = make_pad_concave_hull(outer, cfg, thr);
 
         outer = offset_waffle_style_ex(ochull, get_waffle_offset(cfg));
     }

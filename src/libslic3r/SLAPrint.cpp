@@ -202,6 +202,11 @@ sla::PadConfig make_pad_cfg(const SLAPrintObjectConfig& c)
     pcfg.wall_height_mm = c.pad_wall_height.getFloat();
     pcfg.brim_size_mm = c.pad_brim_size.getFloat();
 
+    // Optional edge-gap raft splitting (hidden setting).
+    pcfg.split_rafts = c.pad_split_rafts.getBool();
+    pcfg.raft_gap_threshold_mm = c.raft_gap_threshold.getFloat();
+    pcfg.raft_bridge_width_mm = c.raft_bridge_width.getFloat();
+
     // set builtin pad implicitly ON
     pcfg.embed_object = builtin_pad_cfg(c);
 

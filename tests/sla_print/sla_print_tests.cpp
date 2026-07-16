@@ -9,6 +9,7 @@
 #include <libslic3r/TriangleMeshSlicer.hpp>
 #include <libslic3r/SLA/SupportTreeMesher.hpp>
 #include <libslic3r/SLA/Concurrency.hpp>
+#include <libslic3r/SLA/ConcaveHull.hpp>
 
 namespace {
 
@@ -29,6 +30,18 @@ const char *const SUPPORT_TEST_MODELS[] = {
     "A_upsidedown.obj",
     "extruder_idler.obj"
 };
+
+// An axis-aligned square island for the edge-gap unit tests. Arguments in mm.
+ExPolygon make_square_island(double cx_mm, double cy_mm, double size_mm)
+{
+    const coord_t h  = scaled(size_mm / 2.);
+    const coord_t cx = scaled(cx_mm), cy = scaled(cy_mm);
+
+    Polygon p;
+    p.points = {{cx - h, cy - h}, {cx + h, cy - h}, {cx + h, cy + h}, {cx - h, cy + h}};
+
+    return ExPolygon{p};
+}
 
 } // namespace
 
@@ -87,43 +100,191 @@ TEST_CASE("Support point generator should be deterministic if seeded",
 
 TEST_CASE("Flat pad geometry is valid", "[SLASupportGeneration]") {
     sla::PadConfig padcfg;
-    
+
     // Disable wings
     padcfg.wall_height_mm = .0;
-    
+
+    // Exercise the legacy centroid merge path explicitly (split_rafts is on by default)
+    padcfg.split_rafts = false;
+
     for (auto &fname : BELOW_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
 }
 
 TEST_CASE("WingedPadGeometryIsValid", "[SLASupportGeneration]") {
     sla::PadConfig padcfg;
-    
+
     // Add some wings to the pad to test the cavity
     padcfg.wall_height_mm = 1.;
-    
+
+    // Exercise the legacy centroid merge path explicitly (split_rafts is on by default)
+    padcfg.split_rafts = false;
+
     for (auto &fname : BELOW_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
 }
 
 TEST_CASE("FlatPadAroundObjectIsValid", "[SLASupportGeneration]") {
     sla::PadConfig padcfg;
-    
+
     // Add some wings to the pad to test the cavity
     padcfg.wall_height_mm = 0.;
     // padcfg.embed_object.stick_stride_mm = 0.;
     padcfg.embed_object.enabled = true;
     padcfg.embed_object.everywhere = true;
-    
+
+    // Exercise the legacy centroid merge path explicitly (split_rafts is on by default)
+    padcfg.split_rafts = false;
+
     for (auto &fname : AROUND_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
 }
 
 TEST_CASE("WingedPadAroundObjectIsValid", "[SLASupportGeneration]") {
     sla::PadConfig padcfg;
-    
+
     // Add some wings to the pad to test the cavity
     padcfg.wall_height_mm = 1.;
     padcfg.embed_object.enabled = true;
     padcfg.embed_object.everywhere = true;
-    
+
+    // Exercise the legacy centroid merge path explicitly (split_rafts is on by default)
+    padcfg.split_rafts = false;
+
     for (auto &fname : AROUND_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
+}
+
+// pad_split_rafts is ON by default: the pad tests above opt out explicitly to keep
+// covering the legacy centroid path. The tests below cover the default edge-gap
+// path on both pad routes and its core decisions.
+
+TEST_CASE("SplitRaftsPadGeometryIsValid", "[SLASupportGeneration]") {
+    sla::PadConfig padcfg;
+
+    padcfg.wall_height_mm        = .0;
+    padcfg.split_rafts           = true;
+    padcfg.raft_gap_threshold_mm = 5.;
+    padcfg.raft_bridge_width_mm  = 2.;
+
+    for (auto &fname : BELOW_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
+}
+
+TEST_CASE("SplitRaftsPadAroundObjectIsValid", "[SLASupportGeneration]") {
+    sla::PadConfig padcfg;
+
+    padcfg.wall_height_mm          = .0;
+    padcfg.split_rafts             = true;
+    padcfg.raft_gap_threshold_mm   = 5.;
+    padcfg.raft_bridge_width_mm    = 2.;
+    padcfg.embed_object.enabled    = true;
+    padcfg.embed_object.everywhere = true;
+
+    for (auto &fname : AROUND_PAD_TEST_OBJECTS) test_pad(fname, padcfg);
+}
+
+TEST_CASE("Edge gap raft splitting decides merging by real contour gap",
+          "[SLASupportGeneration]") {
+    // Two 10mm squares 33mm apart centre to centre => 23mm contour gap.
+    ExPolygons islands = {make_square_island(0., 0., 10.),
+                          make_square_island(33., 0., 10.)};
+
+    const coord_t bridge_w = scaled(2.);
+    auto          nocancel = [] {};
+
+    SECTION("threshold below the gap keeps the islands as separate rafts") {
+        sla::ConcaveHull hull{islands, scaled(8.2), bridge_w,
+                              sla::EdgeGapMerge{}, nocancel};
+
+        REQUIRE(hull.polygons().size() == 2);
+    }
+
+    SECTION("threshold above the gap bridges them into a single raft") {
+        sla::ConcaveHull hull{islands, scaled(30.), bridge_w,
+                              sla::EdgeGapMerge{}, nocancel};
+
+        REQUIRE(hull.polygons().size() == 1);
+    }
+}
+
+TEST_CASE("Edge gap raft splitting is deterministic", "[SLASupportGeneration]") {
+    // Three islands within the threshold of each other: every pair is bridged
+    // (no MST pruning), which closes a loop.
+    ExPolygons islands = {make_square_island(0., 0., 10.),
+                          make_square_island(14., 0., 10.),
+                          make_square_island(7., 14., 10.)};
+
+    const coord_t raw_thresh = scaled(8.2), bridge_w = scaled(2.);
+    auto          nocancel   = [] {};
+
+    sla::ConcaveHull a{islands, raw_thresh, bridge_w, sla::EdgeGapMerge{}, nocancel};
+    sla::ConcaveHull b{islands, raw_thresh, bridge_w, sla::EdgeGapMerge{}, nocancel};
+
+    REQUIRE(a.polygons().size() == b.polygons().size());
+
+    for (size_t i = 0; i < a.polygons().size(); ++i) {
+        const Points &pa = a.polygons()[i].points;
+        const Points &pb = b.polygons()[i].points;
+
+        REQUIRE(pa.size() == pb.size());
+
+        for (size_t k = 0; k < pa.size(); ++k) {
+            REQUIRE(pa[k].x() == pb[k].x());
+            REQUIRE(pa[k].y() == pb[k].y());
+        }
+    }
+}
+
+TEST_CASE("Edge gap raft bridges are clamped to tiny islands",
+          "[SLASupportGeneration]") {
+    // A 10mm island and a 1mm island 2.5mm apart, asked for a bridge five times
+    // wider than the tiny island. Without the clamp the bridge would penetrate by
+    // the full bridge width and shoot straight through the tiny island.
+    ExPolygons islands = {make_square_island(0., 0., 10.),
+                          make_square_island(8., 0., 1.)};
+
+    const coord_t raw_thresh = scaled(8.);   // 2.5mm gap is well within it
+    const coord_t bridge_w   = scaled(5.);
+    auto          nocancel   = [] {};
+
+    sla::ConcaveHull hull{islands, raw_thresh, bridge_w, sla::EdgeGapMerge{},
+                          nocancel};
+
+    // Within the threshold, so the two islands end up bridged into one raft.
+    REQUIRE(hull.polygons().size() == 1);
+
+    // The tiny island spans x = 7.5..8.5mm. The clamp caps the penetration at
+    // half its size, so the bridge must stop inside it and never widen the raft
+    // past the island's own far edge.
+    const BoundingBox bb = hull.polygons().front().bounding_box();
+
+    REQUIRE(bb.max.x() <= scaled(8.5));
+}
+
+TEST_CASE("Edge gap raft bridges penetrate the islands and leave no sliver",
+          "[SLASupportGeneration]") {
+    // Two 10mm islands with a 2mm gap: x = -5..5 and x = 7..17.
+    ExPolygons islands = {make_square_island(0., 0., 10.),
+                          make_square_island(12., 0., 10.)};
+
+    const coord_t raw_thresh = scaled(8.);
+    const coord_t bridge_w   = scaled(2.);
+    auto          nocancel   = [] {};
+
+    sla::ConcaveHull hull{islands, raw_thresh, bridge_w, sla::EdgeGapMerge{},
+                          nocancel};
+
+    // One connected raft: a vertex-only touch would leave separate pieces here.
+    REQUIRE(hull.polygons().size() == 1);
+
+    ExPolygons ex = hull.to_expolygons();
+
+    REQUIRE(ex.size() == 1);
+
+    // The middle of the gap is solid, so the bridge really spans it.
+    REQUIRE(ex.front().contains(Point{scaled(6.), scaled(0.)}));
+
+    // The bridge adds material in the gap on top of the two islands, which a
+    // degenerate zero-overlap connector would not.
+    const double islands_area = 2. * double(scaled(10.)) * double(scaled(10.));
+
+    REQUIRE(ex.front().area() > islands_area);
 }
 
 TEST_CASE("ElevatedSupportGeometryIsValid", "[SLASupportGeneration]") {

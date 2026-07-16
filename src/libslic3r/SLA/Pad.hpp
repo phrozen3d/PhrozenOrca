@@ -42,6 +42,12 @@ struct PadConfig {
     double wall_slope = std::atan(1.0);          // Universal constant for Pi/4
     double brim_size_mm = 1.6;
 
+    // Edge-gap raft splitting (hidden setting), on by default. Setting
+    // split_rafts to false restores the legacy centroid-distance merge path.
+    bool   split_rafts = true;
+    double raft_gap_threshold_mm = 5.0;
+    double raft_bridge_width_mm = 2.0;
+
     struct EmbedObject {
         double object_gap_mm = 1.;
         double stick_stride_mm = 10.;
