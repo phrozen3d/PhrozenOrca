@@ -70,7 +70,7 @@
     "support_head_front_diameter": "0.4",
     "support_head_penetration": "0.4",
     "support_head_width": "2",
-    "support_pillar_diameter": "1",
+    "support_pillar_diameter": "1.2",
     "support_pillar_connection_mode": "zigzag",
     "support_buildplate_only": "0",
     "support_enforcers_only": "0",

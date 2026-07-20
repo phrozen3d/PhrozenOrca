@@ -40,12 +40,15 @@ struct SupportWeightPreset {
     float base_diameter;
     float base_height;
     float head_width;
+    float head_penetration;
+    float segment_length;
 };
 
 static constexpr SupportWeightPreset k_weight_presets[3] = {
-    { 0.6f, 0.3f, 0.4f, 2.0f, 0.5f, 0.5f },  // Light
-    { 1.0f, 0.4f, 0.6f, 3.0f, 1.0f, 1.0f },  // Medium
-    { 1.5f, 0.6f, 0.8f, 4.0f, 1.5f, 1.5f },  // Heavy
+    // pillar, head_front, contact, base_dia, base_h, head_width, head_penetration, segment_length
+    { 0.8f, 0.3f, 0.5f, 2.0f, 0.5f, 0.5f, 0.3f, 2.0f },  // Light
+    { 1.2f, 0.4f, 0.8f, 3.0f, 1.0f, 1.0f, 0.4f, 2.0f },  // Medium
+    { 1.5f, 0.6f, 1.0f, 4.0f, 1.5f, 1.5f, 0.6f, 3.0f },  // Heavy
 };
 
 namespace Slic3r {
@@ -1850,6 +1853,8 @@ void GLGizmoSlaSupports::apply_weight_preset(sla::SupportWeight w)
     cfg.set("support_base_height",         (double)p.base_height,         true);
     cfg.set("support_head_width",          (double)p.head_width,          true);
     cfg.set("support_head_back_diameter",  (double)p.pillar_diameter,     true);
+    cfg.set("support_head_penetration",    (double)p.head_penetration,    true);
+    cfg.set("support_segment_length",      (double)p.segment_length,      true);
     m_new_point_head_diameter   = p.head_front_diameter;
     m_new_point_pillar_diameter = p.pillar_diameter;
     m_new_point_weight          = w;
