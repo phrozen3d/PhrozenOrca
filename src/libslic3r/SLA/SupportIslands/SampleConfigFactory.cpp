@@ -2,6 +2,35 @@
 
 using namespace Slic3r::sla;
 
+namespace {
+// ── Contact-spacing calibration (change: sla-support-contact-spacing-4mm) ──
+// Re-scales the whole island sampling geometry chain so that, at the reference
+// support head, the thin-region neighbouring contact-point spacing matches a
+// target baseline (~4 mm) closer to industry practice than the original ~5.19 mm.
+// The 4 mm target is anchored ONLY at the reference head; other head diameters
+// scale proportionally (larger head -> larger spacing).
+constexpr double kRefHeadDiameter   = 0.4; // [mm] reference support head diameter
+constexpr double kTargetThinSpacing = 4.0; // [mm] target thin_max_distance at reference head
+
+// Unscaled thin_max_distance [mm] as derived by create() for a given head
+// diameter, using the same Prusa-derived constants (2.9, 1.3, 3.9, 0.8) but
+// WITHOUT the calibration factor. MUST stay in sync with create()'s L1/L2 chain.
+inline double unscaled_thin_max_distance_mm(double head_diameter_mm) {
+    const double r = head_diameter_mm / 2.;
+    const double head_area = M_PI * r * r; // Pi r^2
+    const double l1 = head_area * 2.9 + 1.3;                     // max_length_for_one_support_point
+    const double l2 = l1 * 3.9;                                  // max_length_for_two_support_points
+    return l2 * 0.8;                                             // thin_max_distance
+}
+
+// Calibration factor applied uniformly to the geometry chain (used by create()).
+// Derived from the named constants above so that changing the Prusa constants
+// keeps the ~4 mm invariant at the reference head, instead of a hard-coded literal.
+inline double contact_spacing_scale() {
+    return kTargetThinSpacing / unscaled_thin_max_distance_mm(kRefHeadDiameter);
+}
+} // namespace
+
 bool SampleConfigFactory::verify(SampleConfig &cfg) {
     auto verify_max = [](coord_t &c, coord_t max) {
         assert(c <= max);
@@ -62,8 +91,18 @@ SampleConfig SampleConfigFactory::create(float support_head_diameter_in_mm) {
     // head 0.4mm cca 1.65 mm
     // head 0.5mm cca 1.85 mm
     // This values are used for solvig equation(to find 2.9 and 1.3)
+    //
+    // Contact-spacing calibration (change: sla-support-contact-spacing-4mm):
+    // max_length_for_one_support_point (L1) is the single geometric root from which
+    // every spacing field below is derived as a pure L1/L2 multiple. Multiplying the
+    // calibration factor into L1 here uniformly scales the whole chain (thin/inner/
+    // outline, widths, min_part_length, max_align_distance, ...) while leaving the
+    // physical head fields (head_radius, minimal_distance_from_outline) untouched,
+    // since those are computed independently from the head diameter. The factor is
+    // applied to the double before scale_() so rounding happens only once.
     double head_area = M_PI * sqr(support_head_diameter_in_mm / 2); // Pi r^2
-    result.max_length_for_one_support_point = static_cast<coord_t>(scale_(head_area * 2.9 + 1.3));
+    result.max_length_for_one_support_point =
+        static_cast<coord_t>(scale_((head_area * 2.9 + 1.3) * contact_spacing_scale()));
 
     // https://cfl.prusa3d.com/display/SLA/Double+Supports+-+Rectangles
     // head 0.4mm cca 6.5 mm
