@@ -988,7 +988,11 @@ void GUI_App::post_init()
             bool        sys_preset  = app_config->get("sync_system_preset") == "true";
             this->preset_updater->sync(http_url, language, network_ver, sys_preset ? preset_bundle : nullptr);
 
+#ifndef PHROZEN_ORCA_ENABLE_RESIN
+            // resin-build-update-check-gate: main-line update check would false-positive
+            // against the main (FDM) release feed on the resin/FDM mixed build.
             this->check_new_version_sf();
+#endif
             if (is_user_login() && !app_config->get_stealth_mode()) {
               // this->check_privacy_version(0);
               request_user_handle(0);
@@ -4323,6 +4327,7 @@ void GUI_App::check_update(bool show_tips, int by_user)
     auto curr_version = Semver::parse(SLIC3R_VERSION);
     auto remote_version = Semver::parse(version_info.version_str);
     if (curr_version && remote_version && (*remote_version > *curr_version)) {
+#ifndef PHROZEN_ORCA_ENABLE_RESIN
         if (version_info.force_upgrade) {
             wxGetApp().app_config->set_bool("force_upgrade", version_info.force_upgrade);
             wxGetApp().app_config->set("upgrade", "force_upgrade", true);
@@ -4331,7 +4336,9 @@ void GUI_App::check_update(bool show_tips, int by_user)
             wxGetApp().app_config->set("upgrade", "url", version_info.url);
             GUI::wxGetApp().enter_force_upgrade();
         }
-        else {
+        else
+#endif
+        {
             GUI::wxGetApp().request_new_version(by_user);
         }
     } else {
