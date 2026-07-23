@@ -136,6 +136,10 @@ endif ()
 option(SLIC3R_BUILD_SANDBOXES   "Build development sandboxes" OFF)
 option(SLIC3R_BUILD_TESTS       "Build unit tests" OFF)
 option(PHROZEN_ORCA_TOOLS       "Build PhrozenOrca tools" OFF)
+# Resin/FDM mixed build variant (independent of BUILD_PHROZEN_ORCA, which
+# identifies the PhrozenOrca fork itself, not this variant). Default OFF so a
+# forgotten flag falls back to the main (FDM) build's behavior.
+option(PHROZEN_ORCA_ENABLE_RESIN "Enable resin/FDM mixed build features (currently: gates the app-update check)" OFF)
 
 if (IS_CROSS_COMPILE)
     message("Detected cross compilation setup. Tests and encoding checks will be forcedly disabled!")
@@ -158,6 +162,10 @@ endif ()
 
 if(SLIC3R_DESKTOP_INTEGRATION)
     add_definitions(-DSLIC3R_DESKTOP_INTEGRATION)
+endif ()
+
+if(PHROZEN_ORCA_ENABLE_RESIN)
+    add_definitions(-DPHROZEN_ORCA_ENABLE_RESIN)
 endif ()
 
 if (MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
