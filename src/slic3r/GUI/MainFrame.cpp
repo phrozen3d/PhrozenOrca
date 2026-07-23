@@ -2700,12 +2700,16 @@ static wxMenu* generate_help_menu()
     //        //TODO
     //    });
     // Check New Version
+    // resin-build-update-check-gate: hidden on the resin/FDM mixed build,
+    // whose version would false-positive against the main build's release feed.
+#ifndef PHROZEN_ORCA_ENABLE_RESIN
     append_menu_item(helpMenu, wxID_ANY, _L("Check for Update"), _L("Check for Update"),
         [](wxCommandEvent&) {
             wxGetApp().check_new_version_sf(true, 1);
         }, "", nullptr, []() {
             return true;
         });
+#endif
 
     //append_menu_item(helpMenu, wxID_ANY, _L("Open Network Test"), _L("Open Network Test"), [](wxCommandEvent&) {
     //        NetworkTestDialog dlg(wxGetApp().mainframe);
