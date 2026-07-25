@@ -455,9 +455,10 @@ void ParamsPanel::rebuild_panels()
     // Shared paged view (m_page_view / m_page_sizer): technology switch retargets m_tab_print and
     // re-embeds tab rows, but wx controls from the previous tab can be destroyed while inactive
     // Tab objects still hold non-null ConfigOptionsGroup::sizer/custom_ctrl -> AV in Page::refresh().
-    for (Tab* tab : wxGetApp().tabs_list)
-        if (tab && tab->GetParent() == this)
-            tab->clear_pages();
+    // clear_page() itself walks every Tab attached to this panel (tabs_list, model_tabs_list,
+    // plate_tab) and nulls their own Page/OptionsGroup pointers before destroying the shared
+    // sizer -- see ParamsPanel::clear_page().
+    clear_page();
 
     refresh_tabs();
     free_sizers();
@@ -536,6 +537,28 @@ void ParamsPanel::refresh_tabs()
 
 void ParamsPanel::clear_page()
 {
+    // m_page_sizer is shared by every Tab attached to this panel -- tabs_list
+    // (Process/Filament/Printer/...) AND model_tabs_list/plate_tab (the Objects/Plate
+    // per-item override tabs). This is the single place that actually destroys those
+    // shared wx controls (Clear(true) below), and it's reached from several call sites
+    // besides ParamsPanel::rebuild_panels() -- e.g. TabPrinter::update_pages() on a
+    // printer technology change (Tab.cpp), or Tab::tree_sel_change_delayed() /
+    // Tab::update_current_page_in_background() switching pages/tabs -- none of which
+    // know about every other Tab sharing this sizer. So every attached Tab must null
+    // its own Page/OptionsGroup pointers via clear_own_pages() HERE, unconditionally,
+    // before the sizer is destroyed, or whichever Tab wasn't cleared keeps dangling
+    // ConfigOptionsGroup::sizer/custom_ctrl pointers and AVs the next time it's read
+    // (e.g. TabPrintModel::update_model_config() -> OG_CustomCtrl::get_title_width()).
+    for (Tab* tab : wxGetApp().tabs_list)
+        if (tab && tab->GetParent() == this)
+            tab->clear_own_pages();
+    for (Tab* tab : wxGetApp().model_tabs_list)
+        if (tab && tab->GetParent() == this)
+            tab->clear_own_pages();
+    if (Tab* tab = wxGetApp().plate_tab)
+        if (tab->GetParent() == this)
+            tab->clear_own_pages();
+
     if (m_page_sizer)
         m_page_sizer->Clear(true);
 }

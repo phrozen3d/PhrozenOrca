@@ -334,6 +334,10 @@ public:
 	bool		may_discard_current_dirty_preset(PresetCollection* presets = nullptr, const std::string& new_printer_name = "", bool no_transfer = false);
 
     virtual void    clear_pages();
+    // Null out this Tab's own Page/OptionsGroup pointers WITHOUT touching the
+    // shared ParamsPanel page sizer. Used when multiple Tabs share one page
+    // view and must all release their pointers before the sizer is destroyed once.
+    virtual void    clear_own_pages();
     virtual void    update_description_lines();
     virtual void    activate_selected_page(std::function<void()> throw_if_canceled);
 
@@ -460,6 +464,7 @@ public:
 	void		toggle_options() override;
 	void		update() override;
 	void		clear_pages() override;
+	void		clear_own_pages() override;
 	bool 		supports_printer_technology(const PrinterTechnology tech) const override { return tech == ptFFF; }
 
 private:
@@ -579,6 +584,7 @@ public:
 	void		toggle_options() override;
 	void		update() override;
 	void		clear_pages() override;
+	void		clear_own_pages() override;
 	bool 		supports_printer_technology(const PrinterTechnology tech) const override { return tech == ptFFF; }
 
     const std::string&	get_custom_gcode(const t_config_option_key& opt_key) override;
@@ -621,6 +627,7 @@ public:
 	void		reload_config() override;
 	void		activate_selected_page(std::function<void()> throw_if_canceled) override;
 	void		clear_pages() override;
+	void		clear_own_pages() override;
 	void		toggle_options() override;
     void		update() override;
     void		update_fff();
@@ -681,6 +688,7 @@ public:
     void		toggle_options() override;
     void		update() override;
 	void		clear_pages() override;
+	void		clear_own_pages() override;
     void		init_options_list() override;
     void        on_value_change(const std::string& opt_key, const boost::any& value) override;
     void        begin_support_point_top_field_display(const DynamicPrintConfig &point_cfg);

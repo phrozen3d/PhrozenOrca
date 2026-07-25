@@ -2801,6 +2801,14 @@ void TabPrint::clear_pages()
     m_top_bottom_shell_thickness_explanation = nullptr;
 }
 
+void TabPrint::clear_own_pages()
+{
+    Tab::clear_own_pages();
+
+    m_recommended_thin_wall_thickness_description_line = nullptr;
+    m_top_bottom_shell_thickness_explanation = nullptr;
+}
+
 
 //BBS: GUI refactor
 
@@ -4008,6 +4016,17 @@ void TabFilament::clear_pages()
     m_overrides_options.clear();
 }
 
+void TabFilament::clear_own_pages()
+{
+    Tab::clear_own_pages();
+
+    m_volumetric_speed_description_line = nullptr;
+	m_cooling_description_line = nullptr;
+
+    //BBS: GUI refactor
+    m_overrides_options.clear();
+}
+
 wxSizer* Tab::description_line_widget(wxWindow* parent, ogStaticText* *StaticText, wxString text /*= wxEmptyString*/)
 {
     *StaticText = new ogStaticText(parent, text);
@@ -4851,6 +4870,12 @@ void TabPrinter::clear_pages()
     m_reset_to_filament_color = nullptr;
 }
 
+void TabPrinter::clear_own_pages()
+{
+    Tab::clear_own_pages();
+    m_reset_to_filament_color = nullptr;
+}
+
 void TabPrinter::toggle_options()
 {
     if (!m_active_page || m_presets->get_edited_preset().printer_technology() == ptSLA)
@@ -5623,14 +5648,29 @@ bool Tab::may_discard_current_dirty_preset(PresetCollection* presets /*= nullptr
 
 void Tab::clear_pages()
 {
+    clear_own_pages();
+    //BBS: clear page in Parent
+    //m_page_sizer->Clear(true);
+    m_parent->clear_page();
+}
+
+// BBS: fix crash when importing/deleting a model while the Objects panel is
+// active. m_page_sizer (owned by ParamsPanel) is one sizer shared by every
+// Tab, including the model_tabs_list tabs used by the Objects panel. When
+// only SOME tabs null their own Page/OptionsGroup pointers before the shared
+// sizer is destroyed, the tabs that were skipped keep dangling
+// ConfigOptionsGroup::sizer/custom_ctrl pointers and AV the next time they're
+// touched (e.g. TabPrintModel::update_model_config() -> Page::update_visibility()
+// -> OG_CustomCtrl::get_title_width()). This method lets a caller null out
+// every tab's own pointers first, and destroy the shared sizer exactly once
+// afterwards (see ParamsPanel::rebuild_panels()).
+void Tab::clear_own_pages()
+{
     // invalidated highlighter, if any exists
     m_highlighter.invalidate();
     // clear pages from the controlls
     for (auto p : m_pages)
         p->clear();
-    //BBS: clear page in Parent
-    //m_page_sizer->Clear(true);
-    m_parent->clear_page();
 
     // nulling pointers
     m_parent_preset_description_line = nullptr;
@@ -7476,6 +7516,14 @@ void TabSLAPrint::update()
 void TabSLAPrint::clear_pages()
 {
     Tab::clear_pages();
+
+    m_support_object_elevation_description_line  = nullptr;
+    m_layer_print_time_compensation_display        = nullptr;
+}
+
+void TabSLAPrint::clear_own_pages()
+{
+    Tab::clear_own_pages();
 
     m_support_object_elevation_description_line  = nullptr;
     m_layer_print_time_compensation_display        = nullptr;
