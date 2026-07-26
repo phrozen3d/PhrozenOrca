@@ -335,6 +335,9 @@ public:
     // Propagate changed configuration from the Tab to the Plater and save changes to the AppConfig
     void        on_config_changed(DynamicPrintConfig* cfg) const ;
     void        set_print_button_to_default(PrintSelectType select_type);
+    // Resin (SLA) mode has no "Slice all" option (see create_side_tools()); if it was left
+    // selected from FDM mode, fall back to "Slice plate" so the button matches the hidden menu.
+    void        reset_slice_button_if_needed();
 
     bool can_save() const;
     bool can_save_as() const;

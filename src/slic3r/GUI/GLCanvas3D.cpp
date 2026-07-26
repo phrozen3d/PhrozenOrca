@@ -6518,8 +6518,14 @@ bool GLCanvas3D::_init_main_toolbar()
     item.sprite_id++;
     item.left.action_callback = [this]() { if (m_canvas != nullptr) wxPostEvent(m_canvas, SimpleEvent(EVT_GLTOOLBAR_ADD_PLATE)); };
     item.enabling_callback = []()->bool {return wxGetApp().plater()->can_add_plate(); };
+    item.visibility_callback = []()->bool {
+        // Hide Add plate button in resin (SLA) mode: multi-plate slicing does not yet
+        // fully process PRZ/2D preview generation per plate. Revert by removing this callback.
+        return wxGetApp().get_ui_printer_technology() != ptSLA;
+    };
     if (!m_main_toolbar.add_item(item))
         return false;
+    item.visibility_callback = GLToolbarItem::Default_Visibility_Callback;
 
     item.name = "orient";
     item.icon_filename = m_is_dark ? "toolbar_orient_dark.svg" : "toolbar_orient.svg";

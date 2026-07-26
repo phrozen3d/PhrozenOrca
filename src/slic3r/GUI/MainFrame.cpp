@@ -2070,20 +2070,26 @@ wxBoxSizer* MainFrame::create_side_tools()
             m_slice_option_popup_btn = new SidePopup(this);
             auto p = m_slice_option_popup_btn;
 
-            SideButton* slice_all_btn = new SideButton(p, _L("Slice all"), "");
-            slice_all_btn->SetCornerRadius(0);
+            // Hide "Slice all" in resin (SLA) mode: multi-plate slicing does not yet fully
+            // process PRZ/2D preview generation per plate. Revert by removing this guard.
+            bool bIsFDMMode = wxGetApp().get_ui_printer_technology() == ptFFF;
+
+            SideButton* slice_all_btn = nullptr;
+            if (bIsFDMMode) {
+                slice_all_btn = new SideButton(p, _L("Slice all"), "");
+                slice_all_btn->SetCornerRadius(0);
+                slice_all_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                    m_slice_btn->SetLabel(_L("Slice all"));
+                    m_slice_select = eSliceAll;
+                    m_slice_enable = get_enable_slice_status();
+                    m_slice_btn->Enable(m_slice_enable);
+                    this->Layout();
+                    p->Dismiss();
+                    });
+            }
+
             SideButton* slice_plate_btn = new SideButton(p, _L("Slice plate"), "");
             slice_plate_btn->SetCornerRadius(0);
-
-            slice_all_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                m_slice_btn->SetLabel(_L("Slice all"));
-                m_slice_select = eSliceAll;
-                m_slice_enable = get_enable_slice_status();
-                m_slice_btn->Enable(m_slice_enable);
-                this->Layout();
-                p->Dismiss();
-                });
-
             slice_plate_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
                 m_slice_btn->SetLabel(_L("Slice plate"));
                 m_slice_select = eSlicePlate;
@@ -2092,7 +2098,9 @@ wxBoxSizer* MainFrame::create_side_tools()
                 this->Layout();
                 p->Dismiss();
                 });
-            p->append_button(slice_all_btn);
+
+            if (slice_all_btn)
+                p->append_button(slice_all_btn);
             p->append_button(slice_plate_btn);
             p->Popup(m_slice_btn);
         }
@@ -4451,8 +4459,21 @@ void MainFrame::update_side_preset_ui()
     if (m_param_panel)
         m_param_panel->switch_process_tab_for_printer_technology();
 
+    reset_slice_button_if_needed();
+
     //take off multi machine
     if(m_multi_machine){m_multi_machine->clear_page();}
+}
+
+void MainFrame::reset_slice_button_if_needed()
+{
+    // Resin (SLA) mode hides the "Slice all" option (multi-plate PRZ/2D preview is not
+    // fully processed yet); if it was selected while in FDM mode, fall back to "Slice plate".
+    if (wxGetApp().get_ui_printer_technology() == ptSLA && m_slice_select == eSliceAll) {
+        m_slice_select = eSlicePlate;
+        if (m_slice_btn)
+            m_slice_btn->SetLabel(_L("Slice plate"));
+    }
 }
 
 void MainFrame::on_select_default_preset(SimpleEvent& evt)

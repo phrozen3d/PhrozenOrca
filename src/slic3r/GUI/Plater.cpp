@@ -1533,6 +1533,8 @@ void Sidebar::update_all_preset_comboboxes()
     auto p_mainframe = wxGetApp().mainframe;
     auto cfg = preset_bundle.printers.get_edited_preset().config;
 
+    p_mainframe->reset_slice_button_if_needed();
+
     if (preset_bundle.use_bbl_network()) {
         //only show connection button for not-BBL printer
         connection_btn->Hide();
