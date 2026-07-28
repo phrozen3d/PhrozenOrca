@@ -26,20 +26,14 @@
 - **WHEN** 某個 `sla_prints` preset 的 alias，不論是原樣還是加上 `"Phrozen "` 前綴，都對不上任何一個 `sla_materials` preset 的名稱
 - **THEN** 該 preset 預設為可見，並記錄一筆警告 log 標明是哪個對不上的 preset 名稱
 
-### Requirement: SLA Material preset 的選取要跟著目前作用中的 SLA Process preset
-系統 SHALL 讓目前選中的 `sla_materials` preset，跟目前選中的 `sla_prints` preset 所對應的那個材料 preset 保持同步，比對方式跟可見度反推用的是同一套名稱解析規則。
+### Requirement: SLA Material preset 的選取不需要跟著 SLA Process preset 同步
+系統 SHALL NOT 嘗試讓 `sla_materials` 的選取跟著 `sla_prints` 的選取連動。一顆樹脂材料理論上可能貢獻的每一個參數，實際上都已經被合併進對應的 `sla_prints` preset（PhrozenOrca 依「材料 × 印表機型號」在 process JSON 裡個別校正），所以 `sla_materials` 目前技術上選中哪一個 preset，不會影響任何切層輸出；`combo_sla_material` 本身也不會顯示給使用者看（[Plater.cpp](PhrozenOrca/src/slic3r/GUI/Plater.cpp) 讓它的那一列保持隱藏）。這個決定的背景記錄在 design.md D4。
 
-#### Scenario: 透過整批重新載入選取 Process preset 時會同步 Material 選取
-- **WHEN** 某個 `sla_prints` preset 是在一次整批 preset 重新載入（wizard 套用、切換印表機、或應用程式啟動）的過程中被選中
-- **THEN** 那個 Process preset 解析出來的材料名稱所對應的 `sla_materials` preset，會變成目前選中的材料 preset
+（本專案曾經在同一輪工作階段裡實作過完整的三個 choke point 同步機制並手動驗證通過，之後才確認材料端的參數實際上不會被使用，因而決定移除；相關程式碼異動與理由仍保留在 git 歷史與 design.md 裡。）
 
-#### Scenario: 手動在下拉選單裡選 Process preset 時也會同步 Material 選取
-- **WHEN** 使用者手動在 `combo_sla_print` 下拉選單裡選了另一個項目，且沒有觸發整批 preset 重新載入
-- **THEN** 新選中的 Process preset 解析出來的材料名稱所對應的 `sla_materials` preset，會變成目前選中的材料 preset
-
-#### Scenario: 同步邏輯在重複觸發下要是幂等的
-- **WHEN** 針對同一個目前作用中的 `sla_prints` 選取，同步邏輯被觸發超過一次（例如因為 UI 其他地方的重複刷新呼叫）
-- **THEN** 不管同步邏輯實際跑了幾次，最終算出來的 `sla_materials` 選取結果都要一樣
+#### Scenario: 選擇者不需要處理使用者自訂（另存新檔）的 SLA Process preset 名稱
+- **WHEN** 使用者把 `sla_prints` preset 修改參數後另存成一份使用者自訂名稱的新 preset（不再遵守 `"材料@印表機"` 命名慣例）
+- **THEN** 系統不需要嘗試從這個自訂名稱解析出對應材料——`sla_materials` 的選取維持原樣不受影響，因為它本來就不需要跟 `sla_prints` 保持同步
 
 ### Requirement: preset 被隱藏時要有 fallback 選取
 系統 SHALL 在使用者於 wizard 裡取消勾選、導致目前選中的 `sla_prints` 或 `sla_materials` preset 被隱藏時，改選一個仍然可見／相容的 fallback preset。
