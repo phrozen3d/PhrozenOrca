@@ -1227,8 +1227,9 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
             preset_bundle->printers.select_preset_by_name(p->name, true);
             if (const ConfigOption* o = p->config.optptr("default_sla_print_profile"))
                 preset_bundle->sla_prints.select_preset_by_name(static_cast<const ConfigOptionString*>(o)->value, true);
-            if (const ConfigOption* o = p->config.optptr("default_sla_material_profile"))
-                preset_bundle->sla_materials.select_preset_by_name(static_cast<const ConfigOptionString*>(o)->value, true);
+            // sla_materials is intentionally left alone here (Default Setting) — see
+            // PresetBundle::load_selections() and
+            // openspec/changes/archive/2026-07-28-fix-sla-resin-material-selector design.md D4.
             preset_bundle->export_selections(*app_config);
         }
     }

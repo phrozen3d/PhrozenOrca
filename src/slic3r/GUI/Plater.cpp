@@ -7263,6 +7263,11 @@ void Plater::priv::on_select_preset(wxCommandEvent &evt)
         //wxWindowUpdateLocker noUpdates1(sidebar->print_panel());
         wxWindowUpdateLocker noUpdates2(sidebar->filament_panel());
         wxGetApp().get_tab(preset_type)->select_preset(preset_name);
+        // sla_materials is intentionally not kept in sync with sla_prints here — see the comment in
+        // PresetBundle::load_selections() (openspec/changes/archive/2026-07-28-fix-sla-resin-material-selector
+        // design.md D4): every parameter a resin material could contribute is already merged into the
+        // sla_print preset, so combo_sla_material's selection has no effect on slicing and is never shown
+        // to users.
     }
 
     // update plater with new config

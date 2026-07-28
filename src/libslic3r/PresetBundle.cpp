@@ -1773,11 +1773,12 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
                 if ((!initial_print_profile_name.compare("Default Setting")) && (prefered_print_profile.size() > 0))
                     initial_print_profile_name = prefered_print_profile;
             }
-            if (const ConfigOption* opt = preferred_printer->config.optptr("default_sla_material_profile")) {
-                const std::string& prefered_material_profile = static_cast<const ConfigOptionString*>(opt)->value;
-                if ((!initial_filament_profile_name.compare("Default Filament")) && (prefered_material_profile.size() > 0))
-                    initial_filament_profile_name = prefered_material_profile;
-            }
+            // sla_materials is intentionally left on "Default Filament" (-> Default Setting) here, even
+            // though the printer may declare a default_sla_material_profile: every parameter a resin
+            // material could contribute is already merged into the sla_print preset, so which
+            // sla_materials preset is selected has no effect on slicing, and combo_sla_material is never
+            // shown to users. See openspec/changes/archive/2026-07-28-fix-sla-resin-material-selector
+            // design.md D4.
         } else {
             // FDM printer: use default_print_profile and default_filament_profile
             const std::string& prefered_print_profile = preferred_printer->config.opt_string("default_print_profile");
@@ -1806,6 +1807,12 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
         // stale copy for whichever preset happens to be the current selection.
         if (! sla_prints.get_selected_preset().is_visible)
             sla_prints.select_preset(sla_prints.first_compatible_idx());
+        // sla_materials is not kept in sync with sla_prints' selection here: every parameter a resin
+        // material could contribute is already merged into the sla_print preset (PhrozenOrca calibrates
+        // per material x printer model in the process JSON), so which sla_materials preset is technically
+        // selected has no effect on slicing output, and combo_sla_material is never shown to users
+        // (Plater.cpp keeps its row hidden). See
+        // openspec/changes/archive/2026-07-28-fix-sla-resin-material-selector design.md D4.
         sla_materials.select_preset_by_name_strict(initial_filament_profile_name);
     } else {
         prints.select_preset_by_name_strict(initial_print_profile_name);
