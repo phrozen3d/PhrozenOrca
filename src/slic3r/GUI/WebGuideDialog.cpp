@@ -1178,11 +1178,23 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
         app_config->set_section(AppConfig::SECTION_MATERIALS, section_resin);
         for (auto &preset : preset_bundle->sla_materials)
             preset.set_visible_from_appconfig(*app_config);
-        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG after resin re-assert, sla_materials selected=%1%")
-            % preset_bundle->sla_materials.get_selected_preset_name();
-        for (auto &preset : preset_bundle->sla_materials)
-            if (preset.is_system)
-                BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG sla_material '%1%' is_visible=%2%") % preset.name % preset.is_visible;
+        // load_presets() above already ran PresetBundle::load_selections(), which derives sla_prints'
+        // is_visible from sla_materials' is_visible — but at that point sla_materials still had the
+        // pre-re-assert (stale) visibility. Recompute now that sla_materials is authoritative, or the
+        // Process dropdown (what the user actually sees) keeps showing the stale state. If the
+        // currently selected sla_print/sla_materials preset just became invisible as a result, fall
+        // back to a visible+compatible one (same pattern as PresetBundle::load_selections()).
+        preset_bundle->update_sla_print_visibility_from_materials();
+        // get_selected_preset() (== m_presets[m_idx_selected]), not get_edited_preset(): is_visible was
+        // just bulk-written directly onto m_presets[] entries (both the materials loop above and
+        // update_sla_print_visibility_from_materials()) without going through select_preset(), which is
+        // the only thing that refreshes the separate m_edited_preset copy. Reading get_edited_preset()
+        // here can see a stale is_visible for whichever preset happens to be the current selection —
+        // this was the actual cause of the Process dropdown still showing an unchecked material.
+        if (! preset_bundle->sla_prints.get_selected_preset().is_visible)
+            preset_bundle->sla_prints.select_preset(preset_bundle->sla_prints.first_compatible_idx());
+        if (! preset_bundle->sla_materials.get_selected_preset().is_visible)
+            preset_bundle->sla_materials.select_preset(preset_bundle->sla_materials.first_compatible_idx());
     }
 
     // Update the selections from the compatibilty.

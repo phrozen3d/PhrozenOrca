@@ -814,6 +814,17 @@ private:
     int m_errors = 0;
 };
 
+// Resolves the sla_materials preset a sla_prints preset's name refers to, given PhrozenOrca's
+// "<material>@<printer model>" process preset naming convention. process_alias is expected to be
+// a sla_prints Preset's alias (the part before '@', already parsed at load time). Tries the alias
+// as-is, then with a "Phrozen " prefix, mirroring the fuzzy match in Preset::set_visible_from_appconfig().
+// Returns nullptr if process_alias is empty or no match is found in either form.
+// Takes sla_materials by non-const reference: internally calls find_preset(..., /*real=*/true) to
+// bypass PresetCollection's "return m_edited_preset if this is the selected preset" substitution,
+// which the const find_preset() overload cannot request. See definition in Preset.cpp for why that
+// substitution matters here.
+const Preset* find_sla_material_for_process_alias(const std::string &process_alias, PresetCollection &sla_materials);
+
 // Printer supports the FFF and SLA technologies, with different set of configuration values,
 // therefore this PresetCollection needs to handle two defaults.
 class PrinterPresetCollection : public PresetCollection

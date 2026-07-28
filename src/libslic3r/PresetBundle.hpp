@@ -253,6 +253,14 @@ public:
     void                        update_compatible(PresetSelectCompatibleType select_other_print_if_incompatible, PresetSelectCompatibleType select_other_filament_if_incompatible);
     void                        update_compatible(PresetSelectCompatibleType select_other_if_incompatible) { this->update_compatible(select_other_if_incompatible, select_other_if_incompatible); }
 
+    // sla_prints has no install/visibility concept of its own (PhrozenOrca names each sla_print preset
+    // "<material>@<printer model>"). Derives each sla_prints preset's is_visible from the sla_materials
+    // preset its name/alias refers to (see find_sla_material_for_process_alias() in Preset.hpp). Must be
+    // called whenever sla_materials' visibility changes — both from load_selections() and from wizard code
+    // that re-asserts sla_materials visibility after PresetBundle::load_presets() (see
+    // openspec/changes/fix-sla-resin-material-selector).
+    void                        update_sla_print_visibility_from_materials();
+
     // Set the is_visible flag for printer vendors, printer models and printer variants
     // based on the user configuration.
     // If the "vendor" section is missing, enable all models and variants of the particular vendor.

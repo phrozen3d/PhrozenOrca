@@ -688,6 +688,22 @@ void Preset::set_visible_from_appconfig(const AppConfig &app_config)
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__ << boost::format(": name %1%, is_visible set to %2%")%name % is_visible;
 }
 
+const Preset* find_sla_material_for_process_alias(const std::string &process_alias, PresetCollection &sla_materials)
+{
+    if (process_alias.empty())
+        return nullptr;
+    // real=true: PresetCollection::find_preset()/preset() substitutes m_edited_preset for whichever
+    // entry is currently selected (the const overload can't forward this flag, hence the non-const
+    // PresetCollection& param). We need the actual stored is_visible/config here, not the possibly
+    // stale edited copy — bulk updates like Preset::set_visible_from_appconfig() write m_presets[]
+    // directly and never touch m_edited_preset.
+    if (const Preset *p = sla_materials.find_preset(process_alias, false, true))
+        return p;
+    // sla_prints presets are named "<material>@<printer model>" without the "Phrozen " prefix that
+    // sla_materials presets use (same mismatch handled in set_visible_from_appconfig() above).
+    return sla_materials.find_preset(std::string("Phrozen ") + process_alias, false, true);
+}
+
 std::string Preset::get_filament_type(std::string &display_filament_type)
 {
     return config.get_filament_type(display_filament_type);
@@ -1080,6 +1096,10 @@ static std::vector<std::string> s_Preset_sla_material_options {
     "bottle_volume",
     "bottle_weight",
     "material_density",
+    // NOTE: "exposure_time" also belongs to s_Preset_sla_print_options. PresetBundle::full_sla_config()
+    // unconditionally prefers the sla_prints value (PhrozenOrca calibrates it per material x printer
+    // model in the process JSON), so a value set here on a sla_materials preset currently has no effect
+    // on slicing. Kept for PrusaSlicer schema compatibility; see openspec/changes/fix-sla-resin-material-selector.
     "exposure_time",
     "initial_exposure_time",
     "material_correction",

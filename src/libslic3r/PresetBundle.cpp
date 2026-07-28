@@ -1694,6 +1694,31 @@ void PresetBundle::update_selections(AppConfig &config)
 
 }
 
+// sla_prints has no install/visibility concept of its own (PhrozenOrca names each sla_print preset
+// "<material>@<printer model>", one per material x compatible-printer combination). Derive its
+// visibility from the material's own is_visible so the wizard's resin material checkboxes (which only
+// ever touch sla_materials) also filter the Process dropdown the user actually interacts with.
+// Callers must ensure sla_materials' is_visible is already up to date before calling this (see
+// load_selections() and GuideFrame::apply_config() in openspec/changes/fix-sla-resin-material-selector).
+void PresetBundle::update_sla_print_visibility_from_materials()
+{
+    for (auto &sla_print_preset : sla_prints) {
+        const Preset *material = find_sla_material_for_process_alias(sla_print_preset.alias, sla_materials);
+        if (material != nullptr) {
+            sla_print_preset.is_visible = material->is_visible;
+            continue;
+        }
+        // Unrecognized naming — fail open rather than hiding something we can't classify. Only warn
+        // when the name actually looked like "<material>@<printer>" but the material half didn't
+        // resolve; a plain name with no '@' (e.g. a shared/common process preset) is expected, not an error.
+        sla_print_preset.is_visible = true;
+        if (sla_print_preset.name.find('@') != std::string::npos)
+            BOOST_LOG_TRIVIAL(warning) << __FUNCTION__ << boost::format(
+                ": sla_print preset '%1%' looks material-specific but no matching sla_materials preset was found; defaulting is_visible=true")
+                % sla_print_preset.name;
+    }
+}
+
 // Load selections (current print, current filaments, current printer) from config.ini
 // This is done on application start up or after updates are applied.
 void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& preferred_selection/* = PresetPreferences()*/)
@@ -1705,6 +1730,9 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     // Update visibility of filament and sla material presets
     this->load_installed_filaments(config);
     this->load_installed_sla_materials(config);
+
+    // Must run after load_installed_sla_materials() above.
+    this->update_sla_print_visibility_from_materials();
 
     // Parse the initial print / filament / printer profile names.
     // std::string initial_sla_print_profile_name    = remove_ini_suffix(config.get("presets", PRESET_SLA_PRINT_NAME));
@@ -1768,6 +1796,16 @@ void PresetBundle::load_selections(AppConfig &config, const PresetPreferences& p
     PrinterTechnology selected_tech = selected_printer.config.opt_enum<PrinterTechnology>("printer_technology");
     if (selected_tech == ptSLA) {
         sla_prints.select_preset_by_name_strict(initial_print_profile_name);
+        // If the resin material backing the stored/active sla_print selection was just unchecked in the
+        // wizard, its is_visible (derived above) can now be false — select_preset_by_name_strict() leaves
+        // whatever was previously selected in that case, so it won't self-correct. Fall back to a
+        // visible+compatible preset instead of leaving an invisible one selected.
+        // get_selected_preset() (not get_edited_preset()) here: is_visible was just bulk-written onto
+        // m_presets[] entries above without going through select_preset(), which is the only thing that
+        // refreshes m_edited_preset — reading get_edited_preset().is_visible here would risk seeing a
+        // stale copy for whichever preset happens to be the current selection.
+        if (! sla_prints.get_selected_preset().is_visible)
+            sla_prints.select_preset(sla_prints.first_compatible_idx());
         sla_materials.select_preset_by_name_strict(initial_filament_profile_name);
     } else {
         prints.select_preset_by_name_strict(initial_print_profile_name);
@@ -2408,9 +2446,12 @@ DynamicPrintConfig PresetBundle::full_sla_config() const
     out.apply(this->sla_prints.get_edited_preset().config);
     out.apply(this->sla_materials.get_edited_preset().config);
     out.apply(this->printers.get_edited_preset().config);
-    // `exposure_time` exists on both sla_materials (Prusa SLAMaterialConfig, code default often 3s)
-    // and sla_prints (Phrozen process JSON under resources/.../process/). Prefer the print/process
-    // preset so 3MF project_settings and slicing match the SLA Print Settings JSON the user edits.
+    // `exposure_time` exists on both sla_materials (Prusa SLAMaterialConfig, code default often 3s;
+    // see the field's comment in s_Preset_sla_material_options, Preset.cpp) and sla_prints (Phrozen
+    // process JSON under resources/.../process/). Prefer the print/process preset so 3MF
+    // project_settings and slicing match the SLA Print Settings JSON the user edits. sla_prints
+    // presets always resolve a value here (schema default if not set in the leaf JSON), so this is
+    // effectively unconditional — a sla_materials-side exposure_time currently never takes effect.
     if (const ConfigOption *co = this->sla_prints.get_edited_preset().config.option("exposure_time"))
         out.set_key_value("exposure_time", co->clone());
     // There are no project configuration values as of now, the project_config is reserved for FFF printers.
