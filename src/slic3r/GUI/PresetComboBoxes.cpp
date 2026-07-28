@@ -1019,14 +1019,6 @@ void PlaterPresetComboBox::update()
         m_preset_bundle->filament_presets.size() <= (size_t)m_filament_idx) )
         return;
 
-    if (m_type == Preset::TYPE_SLA_MATERIAL) {
-        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": DEBUG PlaterPresetComboBox::update() entered for TYPE_SLA_MATERIAL";
-        for (const auto &preset : m_preset_bundle->sla_materials)
-            if (preset.is_system)
-                BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG combo sees sla_material '%1%' is_visible=%2% is_compatible=%3%")
-                    % preset.name % preset.is_visible % preset.is_compatible;
-    }
-
     // Otherwise fill in the list from scratch.
     this->Freeze();
     this->Clear();

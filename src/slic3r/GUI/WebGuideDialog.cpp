@@ -835,13 +835,8 @@ int GuideFrame::SaveProfile()
     // set resin (SLA materials) to app_config when user finished from LCD Resin page
     if (m_ProfileJson.contains("resin_selected") && m_ProfileJson["resin_selected"].is_array()) {
         std::map<std::string, std::string> section_resin = resin_section_from_selection(m_ProfileJson["resin_selected"]);
-        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG writing [sla_materials], %1% checked entries") % section_resin.size();
-        for (const auto &kv : section_resin)
-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG   checked: %1%") % kv.first;
         m_MainPtr->app_config->set_section(AppConfig::SECTION_MATERIALS, section_resin);
         m_MainPtr->app_config->save();
-    } else {
-        BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": DEBUG no resin_selected in m_ProfileJson at SaveProfile() time";
     }
 
     // FDM vs resin guide pages share one ProfileJson model list; only rebuild the vendor map
@@ -1154,13 +1149,9 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
     // Always reload when switching across technologies so ini does not keep previous tech selections.
     const bool need_force_fff = (printer_type != "resin" && preset_bundle->printers.get_edited_preset().printer_technology() == ptSLA);
     // Resin finish must always reload selections so ini does not keep previous FFF printer (even when vendor maps look unchanged).
-    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG before load_presets, sla_materials selected=%1%")
-        % preset_bundle->sla_materials.get_selected_preset_name();
     if (check_unsaved_preset_changes || !preferred_model.empty() || printer_type == "resin" || need_force_fff)
         preset_bundle->load_presets(*app_config, ForwardCompatibilitySubstitutionRule::Enable,
                                     {preferred_model, preferred_variant, first_added_filament, std::string()});
-    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG after load_presets, sla_materials selected=%1%")
-        % preset_bundle->sla_materials.get_selected_preset_name();
 
     // load_presets() above walks PresetBundle::load_installed_sla_materials(), which treats any
     // compatible SLA material missing from [sla_materials] as "never seen" and silently re-installs
@@ -1168,13 +1159,8 @@ bool GuideFrame::apply_config(AppConfig *app_config, PresetBundle *preset_bundle
     // ever visiting the LCD Resin page). That auto-fill has no way to tell "never seen" apart from
     // "user just unchecked it on the LCD Resin page in this session", so it can undo SaveProfile()'s
     // write. Re-assert the wizard's authoritative resin selection now that presets are (re)loaded.
-    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG m_ProfileJson has resin_selected=%1%, is_array=%2%")
-        % m_ProfileJson.contains("resin_selected")
-        % (m_ProfileJson.contains("resin_selected") && m_ProfileJson["resin_selected"].is_array());
     if (m_ProfileJson.contains("resin_selected") && m_ProfileJson["resin_selected"].is_array()) {
         std::map<std::string, std::string> section_resin = resin_section_from_selection(m_ProfileJson["resin_selected"]);
-        for (const auto &kv : section_resin)
-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(": DEBUG re-asserting checked resin: %1%") % kv.first;
         app_config->set_section(AppConfig::SECTION_MATERIALS, section_resin);
         for (auto &preset : preset_bundle->sla_materials)
             preset.set_visible_from_appconfig(*app_config);

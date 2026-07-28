@@ -457,9 +457,7 @@ void Sidebar::priv::show_preset_comboboxes()
         if (m_hsizer_sla_print_in_resin)
             m_hsizer_sla_print_in_resin->Show(showSLA);
         if (m_hsizer_sla_material_row)
-            // TEMP DIAGNOSTIC: force-show the real sla_materials row (normally Show(!showSLA)) to verify
-            // whether combo_sla_material correctly reflects the wizard's checked resin materials.
-            m_hsizer_sla_material_row->Show(true);
+            m_hsizer_sla_material_row->Show(!showSLA);
     }
 
     // ptSLA: keep Printer Settings entry visible, but hide other edit buttons.
