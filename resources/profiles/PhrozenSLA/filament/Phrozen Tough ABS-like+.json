@@ -7,6 +7,12 @@
     "name": "Phrozen Tough ABS-like+",
     "inherits": "sla_material_common",
     "compatible_printers_condition": "printer_model=~\"^(Mighty Revo 16K|Mega 8K S|Mega 8K V2)$\"",
+	"compatible_printers": [
+        "Phrozen Sonic Mega 8K S",
+		"Phrozen Sonic Mega 8K V2",
+		"Phrozen Sonic Mighty Revo 16K",
+		"PhrozenSLA"
+    ],
     "initial_exposure_time": "45",
     "initial_layer_height": "0.1",
     "material_correction": [
