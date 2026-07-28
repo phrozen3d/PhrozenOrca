@@ -53,6 +53,13 @@ void GLGizmoDrill::data_changed(bool is_serializing)
         return;
 
     const ModelObject* mo = m_c->selection_info()->model_object();
+    if (m_state == On && !mo) {
+        // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
+        // by a structural mutation that was not routed through the containment choke point).
+        // Self-close rather than silently stalling with a dangling reference.
+        m_parent.get_gizmos_manager().reset_all_states();
+        return;
+    }
     if (m_state == On && mo) {
         if (m_old_mo_id != mo->id()) {
             // New object: initialize working set from committed model state.
@@ -94,9 +101,16 @@ void GLGizmoDrill::on_render()
     }
     const Selection& selection = m_parent.get_selection();
     const CommonGizmosDataObjects::SelectionInfo* sel_info = m_c->selection_info();
+    if (!sel_info)
+        return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
 
+    // resin-mode-structural-mutation-safety: bounds-check before indexing. An empty or
+    // out-of-range selection (e.g. right after the focused object was deleted) must not index
+    // objects[] with an invalid index (get_object_idx() returns -1 when nothing is selected).
+    const int obj_idx = selection.get_object_idx();
     if (m_state == On
-     && (sel_info->model_object() != selection.get_model()->objects[selection.get_object_idx()]
+     && (obj_idx < 0 || !selection.get_model() || obj_idx >= (int)selection.get_model()->objects.size()
+      || sel_info->model_object() != selection.get_model()->objects[obj_idx]
       || sel_info->get_active_instance() != selection.get_instance_idx())) {
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
         return;
@@ -751,16 +765,22 @@ void GLGizmoDrill::on_render_input_window(float x, float y, float bottom_limit)
     if (!m_c->selection_info())
         return;
     ModelObject* mo = m_c->selection_info()->model_object();
-    if (!mo)
+    if (!mo) {
+        // resin-mode-structural-mutation-safety: focused ModelObject vanished; self-close.
+        m_parent.get_gizmos_manager().reset_all_states();
         return;
+    }
     // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
     // the model. Compare against the current selection before passing mo to render functions.
     {
         const Selection& sel = m_parent.get_selection();
         const int obj_idx = sel.get_object_idx();
         if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
-            || mo != sel.get_model()->objects[obj_idx])
+            || mo != sel.get_model()->objects[obj_idx]) {
+            // resin-mode-structural-mutation-safety: stale/vanished object reference; self-close.
+            m_parent.get_gizmos_manager().reset_all_states();
             return;
+        }
     }
 
     bool first_run = true;
@@ -836,6 +856,11 @@ void GLGizmoDrill::on_set_state()
         }
     }
 
+    if (m_state == On && m_old_state != On) {
+        // resin-mode-scoped-undo-stack: opening Drill anchors a scoped undo/redo baseline.
+        enter_mode_undo_stack();
+    }
+
     if (m_state == Off && m_old_state != Off) {
         // Discard pending working set. mo->sla_drain_holes is never written during the session,
         // so the model already holds the correct committed state — no restore needed.
@@ -843,6 +868,9 @@ void GLGizmoDrill::on_set_state()
         m_old_mo_id = ObjectID{};
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
         m_c->instances_hider()->set_hide_full_scene(false);
+        // resin-mode-scoped-undo-stack: collapse the session into at most one main-stack
+        // snapshot (or none, if no Apply produced a net change since the baseline).
+        leave_mode_undo_stack();
     }
 
     m_old_state = m_state;

@@ -308,6 +308,33 @@ std::string GLGizmoBase::get_action_snapshot_name() const
     return "Gizmo action";
 }
 
+void GLGizmoBase::enter_mode_undo_stack()
+{
+    Plater* plater = wxGetApp().plater();
+    if (plater->is_gizmos_stack_active())
+        // Idempotent: a session is already open (e.g. direct mode->mode switch without an
+        // intervening Off transition) — collapse it before anchoring a fresh baseline so the
+        // two sessions' edits are never mixed into a single sub-stack.
+        leave_mode_undo_stack();
+    plater->enter_gizmos_stack();
+}
+
+void GLGizmoBase::leave_mode_undo_stack()
+{
+    Plater* plater = wxGetApp().plater();
+    if (!plater->is_gizmos_stack_active())
+        // Idempotent: nothing to leave, e.g. called redundantly or after a structural mutation
+        // already force-collapsed this session.
+        return;
+    // leave_gizmos_stack() switches the active stack back to main and reports whether the
+    // sub-stack held any undoable snapshot relative to its baseline (structural "changed?").
+    // Order matters: switch to main FIRST, then snapshot, so the collapsed result lands on the
+    // main stack rather than the (now-cleared) sub-stack.
+    bool changed = plater->leave_gizmos_stack();
+    if (changed)
+        Plater::TakeSnapshot snapshot(plater, get_mode_leave_snapshot_name());
+}
+
 void GLGizmoBase::set_icon_filename(const std::string &filename) {
     m_icon_filename = filename;
 }

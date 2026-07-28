@@ -122,6 +122,11 @@ public:
     bool wants_enter_leave_snapshots() const override { return true; }
     std::string get_gizmo_entering_text() const override { return "Entering SLA support points"; }
     std::string get_gizmo_leaving_text() const override { return "Leaving SLA support points"; }
+    // Scoped mode undo/redo (resin-mode-scoped-undo-stack): name for the main-stack snapshot
+    // recorded when a Manual editing session (switch_to_editing_mode/commit) collapses. This is
+    // a distinct, nested sub-session from the wants_enter_leave_snapshots() markers above, which
+    // bracket the whole gizmo on/off cycle on the main stack (Mechanism A).
+    std::string get_mode_leave_snapshot_name() const override { return "Support points edit"; }
 
 private:
     bool on_init() override;

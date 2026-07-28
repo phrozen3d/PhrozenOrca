@@ -446,6 +446,15 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
 
     ModelObject* mo = m_c->selection_info()->model_object();
 
+    if (m_state == On && !mo) {
+        // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
+        // by a structural mutation that was not routed through the containment choke point).
+        // Self-close rather than silently stalling with a dangling reference; disable_editing_mode()
+        // (invoked via on_set_state(Off)) discards any uncommitted sub-stack session safely.
+        m_parent.get_gizmos_manager().reset_all_states();
+        return;
+    }
+
     if (m_state == On && mo && mo->id() != m_old_mo_id) {
         disable_editing_mode();
         reload_cache();
@@ -598,12 +607,20 @@ void GLGizmoSlaSupports::on_render()
         m_cone.mesh_raycaster = std::make_unique<MeshRaycaster>(std::make_shared<const TriangleMesh>(std::move(its)));
     }
 
+    if (!m_c->selection_info())
+        return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
+
     ModelObject* mo = m_c->selection_info()->model_object();
     const Selection& selection = m_parent.get_selection();
 
+    // resin-mode-structural-mutation-safety: bounds-check before indexing. An empty or
+    // out-of-range selection (e.g. right after the focused object was deleted) must not index
+    // objects[] with an invalid index (get_object_idx() returns -1 when nothing is selected).
+    const int obj_idx = selection.get_object_idx();
     // If current m_c->m_model_object does not match selection, ask GLCanvas3D to turn us off
     if (m_state == On
-     && (mo != selection.get_model()->objects[selection.get_object_idx()]
+     && (!mo || obj_idx < 0 || !selection.get_model() || obj_idx >= (int)selection.get_model()->objects.size()
+      || mo != selection.get_model()->objects[obj_idx]
       || m_c->selection_info()->get_active_instance() != selection.get_instance_idx())) {
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
         return;
@@ -2180,8 +2197,12 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     for (const CacheEntry& ce : m_editing_cache)
         m_normal_cache.push_back(ce.support_point);
 
-    wxGetApp().plater()->leave_gizmos_stack();
-    Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
+    // resin-mode-scoped-undo-stack / Decision A (commit-and-keep-editing): collapse the
+    // in-progress sub-stack session into one main-stack snapshot. This is safe because the
+    // unsaved_changes() guard above guarantees a real edit happened, and every point
+    // add/move/delete already takes its own sub-stack snapshot (see e.g. "Add support point"),
+    // so leave_mode_undo_stack()'s structural changed-check is guaranteed true here.
+    leave_mode_undo_stack();
 
     ModelObject* mo_apply = m_c->selection_info()->model_object();
     mo_apply->sla_points_status = sla::PointsStatus::UserModified;
@@ -2189,7 +2210,9 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     mo_apply->sla_support_points = m_normal_cache;
     sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
 
-    wxGetApp().plater()->enter_gizmos_stack();
+    // Re-open a fresh sub-stack baseline so further point edits remain individually
+    // undoable in-session, bounded by this just-committed state.
+    enter_mode_undo_stack();
 
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
@@ -2419,7 +2442,8 @@ void GLGizmoSlaSupports::auto_generate()
 
 void GLGizmoSlaSupports::switch_to_editing_mode()
 {
-    wxGetApp().plater()->enter_gizmos_stack();
+    // resin-mode-scoped-undo-stack: entering Manual editing anchors a scoped undo/redo baseline.
+    enter_mode_undo_stack();
     m_editing_mode = true;
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
@@ -2440,6 +2464,15 @@ void GLGizmoSlaSupports::disable_editing_mode()
         m_editing_mode = false;
         notify_process_tab_selection_changed();
         unregister_point_raycasters_for_picking();
+        // Intentionally the raw leave_gizmos_stack() call, NOT the shared leave_mode_undo_stack():
+        // callers of disable_editing_mode() are responsible for their own main-stack snapshot.
+        // editing_mode_apply_changes() calls disable_editing_mode() first (per its comment, "this
+        // leaves the editing mode undo/redo stack and must be done before the snapshot is taken")
+        // and then takes its own explicit "Support points edit" snapshot afterwards; if this used
+        // leave_mode_undo_stack() instead, that would record a second, duplicate main-stack
+        // snapshot for a single Apply. The other caller (on_set_state's Off branch, reached only
+        // when there are no unsaved changes or the object has vanished) correctly wants a pure
+        // discard with no snapshot at all, which the raw call already provides.
         wxGetApp().plater()->leave_gizmos_stack();
         show_sla_supports(m_show_support_structure); // Step 4.2: restore support structure visibility
         m_parent.set_as_dirty();

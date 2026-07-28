@@ -90,3 +90,65 @@ TEST_CASE("sla::DrainHoles round-trip preserves empty vector", "[SLA][UndoRedo][
 
     REQUIRE(restored.empty());
 }
+
+// ---------------------------------------------------------------------------
+// GLGizmoHollow::on_save/on_load serialize exactly this tuple of primitives
+// (m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing).
+// GLGizmoHollow itself lives in slic3r/GUI (wx-dependent, not linkable here), so
+// this test pins the cereal round-trip fidelity of that exact primitive tuple shape
+// directly: if anyone changes the field order/types in on_save/on_load without a
+// matching change on both sides, a real (non-libslic3r-visible) bug would result,
+// but this at least guards the serialization mechanics those calls rely on.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("Hollow pending-params primitive tuple survives cereal round-trip", "[SLA][UndoRedo][L1]")
+{
+    float original_offset    = 3.25f;
+    float original_quality   = 0.75f;
+    float original_closing_d = 1.5f;
+    bool  original_enable    = true;
+
+    std::ostringstream oss;
+    {
+        cereal::BinaryOutputArchive ar(oss);
+        ar(original_offset, original_quality, original_closing_d, original_enable);
+    }
+
+    float restored_offset = 0.f, restored_quality = 0.f, restored_closing_d = 0.f;
+    bool restored_enable = false;
+    std::istringstream iss(oss.str());
+    {
+        cereal::BinaryInputArchive ar(iss);
+        ar(restored_offset, restored_quality, restored_closing_d, restored_enable);
+    }
+
+    REQUIRE_THAT(restored_offset,    WithinAbs(3.25f, 1e-6f));
+    REQUIRE_THAT(restored_quality,   WithinAbs(0.75f, 1e-6f));
+    REQUIRE_THAT(restored_closing_d, WithinAbs(1.5f,  1e-6f));
+    REQUIRE(restored_enable == true);
+}
+
+TEST_CASE("Hollow pending-params tuple round-trip preserves disabled/zero state", "[SLA][UndoRedo][L1]")
+{
+    float original_offset = 0.f, original_quality = 0.f, original_closing_d = 0.f;
+    bool original_enable = false;
+
+    std::ostringstream oss;
+    {
+        cereal::BinaryOutputArchive ar(oss);
+        ar(original_offset, original_quality, original_closing_d, original_enable);
+    }
+
+    float restored_offset = 9.f, restored_quality = 9.f, restored_closing_d = 9.f;
+    bool restored_enable = true;
+    std::istringstream iss(oss.str());
+    {
+        cereal::BinaryInputArchive ar(iss);
+        ar(restored_offset, restored_quality, restored_closing_d, restored_enable);
+    }
+
+    REQUIRE_THAT(restored_offset,    WithinAbs(0.f, 1e-6f));
+    REQUIRE_THAT(restored_quality,   WithinAbs(0.f, 1e-6f));
+    REQUIRE_THAT(restored_closing_d, WithinAbs(0.f, 1e-6f));
+    REQUIRE(restored_enable == false);
+}

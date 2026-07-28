@@ -4046,6 +4046,11 @@ void ObjectList::remove()
     if (GetSelectedItemsCount() == 0)
         return;
 
+    // resin-mode-structural-mutation-safety: this path (bound to wxID_DELETE) bypasses
+    // Plater::can_delete()'s gate, so force-collapse an active resin-mode sub-stack here too,
+    // before any snapshot/delete below.
+    wxGetApp().plater()->get_view3D_canvas3D()->get_gizmos_manager().reset_all_states();
+
     auto delete_item = [this](wxDataViewItem item)
     {
         wxDataViewItem parent = m_objects_model->GetParent(item);

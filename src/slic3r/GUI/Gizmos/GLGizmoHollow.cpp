@@ -70,6 +70,14 @@ void GLGizmoHollow::data_changed(bool is_serializing)
         return;
 
     const ModelObject* mo = m_c->selection_info()->model_object();
+    if (m_state == On && !mo) {
+        // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
+        // by a structural mutation that was not routed through the containment choke point).
+        // Self-close rather than silently stalling with a dangling reference; leave_mode_undo_stack()
+        // (invoked via on_set_state(Off)) is safe here since it only inspects undo-stack state.
+        m_parent.get_gizmos_manager().reset_all_states();
+        return;
+    }
     if (m_state == On && mo) {
         // PhrozenOrca: required_step < 0 means no minimum step (no-step constructor was used).
         const int required_step = get_min_sla_print_object_step();
@@ -99,9 +107,14 @@ void GLGizmoHollow::on_render()
     if (!sel_info)
         return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
 
+    // resin-mode-structural-mutation-safety: bounds-check before indexing. An empty or
+    // out-of-range selection (e.g. right after the focused object was deleted) must not index
+    // objects[] with an invalid index (get_object_idx() returns -1 when nothing is selected).
+    const int obj_idx = selection.get_object_idx();
     // If current m_c->m_model_object does not match selection, ask GLCanvas3D to turn us off
     if (m_state == On
-     && (sel_info->model_object() != selection.get_model()->objects[selection.get_object_idx()]
+     && (obj_idx < 0 || !selection.get_model() || obj_idx >= (int)selection.get_model()->objects.size()
+      || sel_info->model_object() != selection.get_model()->objects[obj_idx]
       || sel_info->get_active_instance() != selection.get_instance_idx())) {
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
         return;
@@ -225,16 +238,22 @@ void GLGizmoHollow::on_render_input_window(float x, float y, float bottom_limit)
     if (!m_c->selection_info())
         return;
     ModelObject* mo = m_c->selection_info()->model_object();
-    if (!mo)
+    if (!mo) {
+        // resin-mode-structural-mutation-safety: focused ModelObject vanished; self-close.
+        m_parent.get_gizmos_manager().reset_all_states();
         return;
+    }
     // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
     // the model. Compare against the current selection before dereferencing mo->config.
     {
         const Selection& sel = m_parent.get_selection();
         const int obj_idx = sel.get_object_idx();
         if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
-            || mo != sel.get_model()->objects[obj_idx])
+            || mo != sel.get_model()->objects[obj_idx]) {
+            // resin-mode-structural-mutation-safety: stale/vanished object reference; self-close.
+            m_parent.get_gizmos_manager().reset_all_states();
             return;
+        }
     }
 
     // Clamp y so the panel stays on screen
@@ -525,6 +544,11 @@ void GLGizmoHollow::on_set_state()
         }
     }
 
+    if (m_state == On && m_old_state != On) {
+        // resin-mode-scoped-undo-stack: opening Hollow anchors a scoped undo/redo baseline.
+        enter_mode_undo_stack();
+    }
+
     if (m_state == Off && m_old_state != Off) {
         // the gizmo was just turned Off
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
@@ -532,6 +556,9 @@ void GLGizmoHollow::on_set_state()
         m_c->instances_hider()->set_hide_full_scene(false);
         // Note: set_use_shift() not available in PhrozenOrca's SelectionInfo.
         m_pending_owner = nullptr;  // discard pending params so re-entry re-reads from config
+        // resin-mode-scoped-undo-stack: collapse the session into at most one main-stack
+        // snapshot (or none, if no Apply produced a net change since the baseline).
+        leave_mode_undo_stack();
     }
 
     m_old_state = m_state;
