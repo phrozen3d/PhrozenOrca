@@ -217,14 +217,43 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
     return sp.type == sla::SupportPointType::manual_add && sp.has_explicit_geometry();
 }
 
-// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
-static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point)
+// One snapshot of the Process → Support → Top live field values.
+// Reading a field goes through Tab::get_field(), a linear scan over every Process
+// page, plus a native text-control read — far too expensive to repeat per support
+// point. Callers that loop over the point cache read this once per frame and reuse
+// it, which keeps the live semantics (values are still re-read every frame, so
+// edits show up on the next frame even before the field loses focus).
+struct PreviewTopParams
 {
-    const float live_seg     = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
-    const float live_pen     = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
-    const double live_upper_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
-    const double live_lower_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
-    const bool   preset_sphere = process_contact_type_is_sphere();
+    float  seg_len_mm        = 2.f;
+    float  penetration_mm    = 0.4f;
+    double upper_r_mm        = 0.2;
+    double lower_r_mm        = 0.5;
+    float  contact_sphere_r_mm = 0.4f;
+    bool   contact_sphere    = false;
+};
+
+static PreviewTopParams read_preview_top_params_live()
+{
+    PreviewTopParams p;
+    p.seg_len_mm          = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
+    p.penetration_mm      = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
+    p.upper_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
+    p.lower_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
+    p.contact_sphere_r_mm = default_contact_sphere_radius_mm();
+    p.contact_sphere      = process_contact_type_is_sphere();
+    return p;
+}
+
+// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
+static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point,
+                                            const PreviewTopParams &top)
+{
+    const float live_seg     = top.seg_len_mm;
+    const float live_pen     = top.penetration_mm;
+    const double live_upper_r = top.upper_r_mm;
+    const double live_lower_r = top.lower_r_mm;
+    const bool   preset_sphere = top.contact_sphere;
 
     const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_upper_r;
 
@@ -243,9 +272,9 @@ static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const V
     double contact_r = 0.;
     if (use_stored_point) {
         if (sla::point_uses_contact_sphere(sp, preset_sphere))
-            contact_r = double(sla::point_contact_sphere_radius_mm(sp, default_contact_sphere_radius_mm()));
+            contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
     } else if (preset_sphere) {
-        contact_r = double(default_contact_sphere_radius_mm());
+        contact_r = double(top.contact_sphere_r_mm);
     }
 
     const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
@@ -641,6 +670,10 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     // scale so the cone axis follows the scaled-mesh's visible surface normal.
     const Matrix3d    normal_xform             = instance_scaling_matrix_inverse.linear().transpose();
 
+    // Read the Process tab live fields once per frame instead of once per point.
+    // Still re-read every frame, so edits are reflected on the next frame.
+    const PreviewTopParams top_params = read_preview_top_params_live();
+
     ColorRGBA render_color;
     for (size_t i = 0; i < cache_size; ++i) {
         const sla::SupportPoint& support_point = m_editing_mode ? m_editing_cache[i].support_point : m_normal_cache[i];
@@ -694,7 +727,7 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // head.pos is overwritten with the scale-applied anchor so the head ITS sits
         // on the visible surface. Size fields (head/pillar/contact radii, width,
         // penetration) come from the support-parameter mm values and stay untouched.
-        sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry);
+        sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
         head.pos = instance_scaling_matrix * support_point.pos.cast<double>();
         const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
         static constexpr size_t kManualPreviewSteps = 45;
@@ -2394,6 +2427,9 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
     const Transform3d pick_matrix              = instance_matrix * instance_scaling_matrix_inverse;
 
+    // Same rule as render_points(): read the Process tab live fields once, not per point.
+    const PreviewTopParams top_params = read_preview_top_params_live();
+
     for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
         const sla::SupportPoint& sp = m_editing_cache[i].support_point;
 
@@ -2405,7 +2441,7 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         // head is only consulted for pick_r (the visible cone's pin / contact
         // radius in mm). The picking sphere is radially symmetric, so head.dir
         // does not need the non-uniform-scale correction used by render_points().
-        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry);
+        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry, top_params);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
