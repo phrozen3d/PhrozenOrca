@@ -150,6 +150,10 @@ private:
     CacheEntry m_point_before_drag;         // undo/redo - so we know what state was edited
     mutable std::vector<CacheEntry> m_editing_cache; // a support point and whether it is currently selected
     std::vector<sla::SupportPoint> m_normal_cache; // to restore after discarding changes or undo/redo
+    // Surface normals for m_normal_cache, one per entry (non-editing mode only).
+    // Cleared wherever m_normal_cache is replaced; Vec3f::Zero() means "not yet
+    // queried". Editing mode keeps using CacheEntry::normal instead.
+    std::vector<Vec3f> m_normal_cache_normals;
     ObjectID m_old_mo_id;
 
     IconManager m_icon_manager;   // Step 4.5+: manages texture atlas for support structure view-mode icons
