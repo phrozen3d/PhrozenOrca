@@ -14,10 +14,16 @@
 
 #include <cereal/types/vector.hpp>
 
+#include <cstdint>
+#include <map>
+#include <tuple>
+
 
 namespace Slic3r {
 
 class ConfigOption;
+
+namespace sla { struct Head; }
 
 namespace GUI {
 
@@ -57,6 +63,23 @@ private:
             ar(support_point, selected, normal);
         }
     };
+
+    // Identity of a preview pinhead's geometry: every size field consumed by
+    // sla::head_mesh_body(), plus the preview flag (manual_add points use
+    // pinhead_preview() with 45 steps, auto points pinhead() with 24 — the two
+    // shapes are not interchangeable). Millimetre values are quantised to 1e-4 mm
+    // so floats never act as a map key.
+    struct HeadGeomKey {
+        int64_t r_pin = 0, r_back = 0, width = 0, penetration = 0, r_contact = 0;
+        bool    preview = false;
+
+        bool operator<(const HeadGeomKey& rhs) const {
+            return std::tie(r_pin, r_back, width, penetration, r_contact, preview) <
+                   std::tie(rhs.r_pin, rhs.r_back, rhs.width, rhs.penetration, rhs.r_contact, rhs.preview);
+        }
+    };
+
+    static HeadGeomKey head_geom_key(const sla::Head& head, bool preview);
 
 public:
     GLGizmoSlaSupports(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
@@ -134,6 +157,13 @@ private:
 
     PickingModel m_cone;
     PickingModel m_sphere;
+    // Preview pinhead meshes shared by every support point with matching size
+    // parameters, so render_points() no longer rebuilds and re-uploads one mesh
+    // per point per frame. Bounded by k_head_model_cache_limit; on overflow the
+    // whole map is dropped and refilled — there is deliberately no second,
+    // per-point rendering path to keep the visible result single-sourced.
+    static constexpr size_t k_head_model_cache_limit = 64;
+    std::map<HeadGeomKey, GLModel> m_head_model_cache;
     // Step 4.2: removed GLModel m_cylinder (drain holes are GLGizmoHollow's responsibility)
     std::vector<std::pair<std::shared_ptr<SceneRaycasterItem>, std::shared_ptr<SceneRaycasterItem>>> m_point_raycasters;
 

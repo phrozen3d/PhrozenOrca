@@ -32,6 +32,7 @@
 #include "libslic3r/Utils.hpp" // ScopeGuard
 
 #include <array>
+#include <cmath>
 
 struct SupportWeightPreset {
     float pillar_diameter;
@@ -597,6 +598,22 @@ void GLGizmoSlaSupports::on_render()
     glsafe(::glDisable(GL_BLEND));
 }
 
+GLGizmoSlaSupports::HeadGeomKey GLGizmoSlaSupports::head_geom_key(const sla::Head &head, bool preview)
+{
+    // Quantise to 1e-4 mm — well below any visible difference, and far coarser than
+    // the float noise that would otherwise make identical parameters miss the cache.
+    auto q = [](double mm) { return int64_t(std::llround(mm * 10000.0)); };
+
+    HeadGeomKey key;
+    key.r_pin       = q(head.r_pin_mm);
+    key.r_back      = q(head.r_back_mm);
+    key.width       = q(head.width_mm);
+    key.penetration = q(head.penetration_mm);
+    key.r_contact   = q(head.r_contact_mm);
+    key.preview     = preview;
+    return key;
+}
+
 // Step 4.2: render_points() rewritten to match PrusaSlicer.
 // Removed: bool picking parameter (PickingModel handles picking), drain hole rendering (GLGizmoHollow's job).
 // Added: raycaster active/clipped state management.
@@ -651,12 +668,15 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     // visible surface, but cone diameter / length must stay in mm regardless of
     // instance scale (those are user-facing support-parameter sizes, not model
     // dimensions). The render path therefore separates the two:
-    //   - head.pos is built in raw frame but scaled by S below, so the head ITS
-    //     vertices land at (S * raw_pos + mm_offset).
-    //   - model_matrix uses the instance transform with positive scale removed
-    //     (T_zshift * T * R, with mirror preserved through signed get_matrix()
-    //     vs. unsigned get_scaling_factor_matrix()).
-    // Per-vertex world position is then T_zshift * T * R * (S * raw_pos + mm_offset).
+    //   - the cached head mesh is pure local-frame geometry in mm (anchor at the
+    //     origin, axis along -Z) and carries no placement at all.
+    //   - model_matrix places it: the instance transform with positive scale
+    //     removed (T_zshift * T * R, with mirror preserved through signed
+    //     get_matrix() vs. unsigned get_scaling_factor_matrix()), then a
+    //     translation to the scaled anchor S * raw_pos, then the rotation q that
+    //     takes -Z onto the scaled surface normal.
+    // Per-vertex world position is then T_zshift * T * R * (q * v_local + S * raw_pos),
+    // identical to the earlier path that baked q and S * raw_pos into the vertices.
     //
     // PhrozenOrca: get_sla_shift() replaces PrusaSlicer's print_object()->
     // get_current_elevation() — the latter requires a ModelInstance pointer that
@@ -707,7 +727,6 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         else
             render_color = ColorRGBA { 0.5f, 0.5f, 0.5f, 1.f };
 
-        m_cone.model.set_color(render_color);
         m_sphere.model.set_color(render_color);
 
         Vec3f raw_normal = Vec3f::UnitZ();
@@ -724,40 +743,62 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
 
         // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
-        // head.pos is overwritten with the scale-applied anchor so the head ITS sits
-        // on the visible surface. Size fields (head/pillar/contact radii, width,
-        // penetration) come from the support-parameter mm values and stay untouched.
-        sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
-        head.pos = instance_scaling_matrix * support_point.pos.cast<double>();
+        // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
+        // the local-frame body only, and placement is applied through model_matrix
+        // below. Size fields (head/pillar/contact radii, width, penetration) come from
+        // the support-parameter mm values and stay untouched.
+        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
         const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
         static constexpr size_t kManualPreviewSteps = 45;
-        indexed_triangle_set top_its = manual_preview
-            ? sla::get_mesh_preview(head, kManualPreviewSteps)
-            : sla::get_mesh(head, 24);
-        if (!top_its.vertices.empty()) {
-            if (vol->is_left_handed())
-                glFrontFace(GL_CW);
 
-            m_cone.model.reset();
-            m_cone.model.init_from(top_its, manual_preview);
-            // Render with the scale-free instance transform: cone geometry stays
-            // mm-sized; the anchor is already scaled into head.pos above.
-            const Transform3d model_matrix = instance_matrix_no_scale;
+        GLModel *cone_model = nullptr;
+        const HeadGeomKey key = head_geom_key(head, manual_preview);
+        if (auto it = m_head_model_cache.find(key); it != m_head_model_cache.end())
+            cone_model = &it->second;
+        else {
+            // Overflow: drop everything and refill rather than branching into a
+            // second rendering path, so the visible result always comes from here.
+            if (m_head_model_cache.size() >= k_head_model_cache_limit)
+                m_head_model_cache.clear();
 
-            // Manual preview: flat shader (uniform color, no directional shading).
-            use_shader(manual_preview ? flat_shader : gouraud_shader);
-            active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-            if (active_shader != flat_shader) {
-                const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
-                    model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
-                active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
-                active_shader->set_uniform("emission_factor", 0.5f);
-            }
-            m_cone.model.render();
+            const indexed_triangle_set top_its = sla::head_mesh_body(
+                head, manual_preview ? kManualPreviewSteps : 24, manual_preview);
+            if (top_its.vertices.empty())
+                continue;
 
-            if (vol->is_left_handed())
-                glFrontFace(GL_CCW);
+            GLModel &model = m_head_model_cache[key];
+            model.init_from(top_its, manual_preview);
+            cone_model = &model;
         }
+
+        if (vol->is_left_handed())
+            glFrontFace(GL_CW);
+
+        cone_model->set_color(render_color);
+        // Placement that the mesh no longer carries: anchor follows instance scale
+        // (S * raw_pos) so the cone sits on the visible surface, then the head is
+        // rotated from its local -Z axis onto the scaled surface normal. Identical
+        // per-vertex world positions as the old baked-in path:
+        //   M_ns * (q * v_local + S * raw_pos)
+        const Transform3d model_matrix = instance_matrix_no_scale *
+            Geometry::translation_transform(instance_scaling_matrix * support_point.pos.cast<double>()) *
+            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir));
+
+        // Manual preview: flat shader (uniform color, no directional shading).
+        use_shader(manual_preview ? flat_shader : gouraud_shader);
+        active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
+        if (active_shader != flat_shader) {
+            // Must be derived from the model matrix actually used above — it now
+            // carries the placement rotation, unlike instance_matrix_no_scale.
+            const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
+                model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+            active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
+            active_shader->set_uniform("emission_factor", 0.5f);
+        }
+        cone_model->render();
+
+        if (vol->is_left_handed())
+            glFrontFace(GL_CCW);
     }
     // Note: drain hole rendering removed — that is GLGizmoHollow's responsibility (Step 4.2).
 }
@@ -1946,6 +1987,8 @@ void GLGizmoSlaSupports::on_set_state()
             // we are actually shutting down
             disable_editing_mode(); // so it is not active next time the gizmo opens
             m_old_mo_id = -1;
+            // Release the preview pinhead GPU buffers (~GLModel calls reset()).
+            m_head_model_cache.clear();
             // Step 4.2: restore full scene visibility when gizmo actually closes
             if (m_c && m_c->selection_info())
                 m_c->selection_info()->set_use_config_elevation(false);
