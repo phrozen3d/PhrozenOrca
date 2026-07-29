@@ -84,18 +84,24 @@
 
 `update_point_raycasters_for_picking_transform()` SHALL 遵循相同規則。
 
+讀取 SHALL 每幀重做一次，且 SHALL 取用 `wxTextCtrl` 的當下文字（`TextCtrl::get_value()` 內部即 `ctrl->GetValue()`），不得改為跨幀快取——否則欄位值與 preview 之間會出現快取造成的落差。
+
+本 requirement 不規範「何時重繪」。打字本身不會請求重繪（無 `set_as_dirty()`），因此使用者感知到的更新時機為下一次重繪（按下 Enter、欄位失焦、滑鼠移入 3D 視圖等）。此為既有行為，本 capability SHALL NOT 改變它。
+
 #### Scenario: 大量 auto 點下的欄位讀取次數
 
 - **GIVEN** 非編輯模式，`m_normal_cache` 含 500 個點
 - **WHEN** 渲染一幀
 - **THEN** 每個 opt key 的 `Tab::get_field()` 呼叫次數為 1，而非 500
 
-#### Scenario: live 參數編輯仍即時反映
+#### Scenario: live 參數編輯於下一次重繪即反映
 
 - **GIVEN** Points preview 正在顯示
 - **WHEN** 使用者在 Process tab 修改 `support_head_front_diameter` 的文字欄位且尚未失焦
-- **THEN** 下一幀的 preview cone 直徑即反映新值
+- **AND** 畫面因任何原因重繪
+- **THEN** 該幀的 preview cone 直徑即反映新值
 - **AND** 與逐點讀取的舊行為產生相同的幾何
+- **AND** 不因欄位尚未失焦而取到舊值
 
 #### Scenario: clamp 規則不變
 
