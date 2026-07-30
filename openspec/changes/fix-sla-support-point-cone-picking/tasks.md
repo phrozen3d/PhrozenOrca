@@ -1,3 +1,9 @@
+## 0. 前置條件
+
+- 相依的 `perf-sla-support-points-preview-render` 已於 2026-07-29 archive，其 design D2 的擺放矩陣 `M_ns · Translation(S · sp.pos) · Rotation(q)` 已實作並通過驗收 7.6。**前置已滿足，可立即進行**（第 2 節僅需覆核）
+
+> 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。
+
 ## 1. 根因確認（已於提案階段完成）
 
 - [x] 1.1 確認命中判定僅由 sphere raycaster 承擔：`update_point_raycasters_for_picking_transform()`（`:2397-2417`）只對 `.first` 呼叫 `set_transform()`（`:2415`），`.second` 始終停留在註冊時的 `Transform3d::Identity()`（`:2364`）

@@ -1,13 +1,9 @@
 ## 0. 前置條件與實施順序
 
 - 本 change **無硬前置**，可獨立進行第 1 節的契約定義
-- 但 **1.9 應優先執行**：它只需 30 秒，卻會決定本 change 的**範圍**是否要縮小
-- 建議全域順序：
-  1. `fix-sla-support-top-config-enum-set` — crash，最高優先
-  2. `fix-sla-support-preview-stored-geometry-in-auto-mode`
-  3. `fix-sla-support-preview-geometry-source-semantics` — 需 1、2 先完成
-  4. `fix-sla-support-points-invalidate-on-trafo-change`
-  5. **`fix-sla-support-points-undo-snapshot`（本 change）**
+- 但 **1.8 應優先執行**：它只需 30 秒，卻會決定本 change 的**範圍**是否要縮小
+
+> 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。
 
 ## 1. 契約定義（產品決策，須先完成才進入實作）
 

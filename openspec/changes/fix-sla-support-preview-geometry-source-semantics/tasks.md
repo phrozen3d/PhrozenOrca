@@ -3,13 +3,7 @@
 - [ ] 0.1 `fix-sla-support-top-config-enum-set` 已完成。**硬前置**：crash 未修好前，選中點編輯 Top 欄位會使應用程式終止，無法完成第 1 節所需的觀察
 - [ ] 0.2 建議 `fix-sla-support-preview-stored-geometry-in-auto-mode` 已完成，以消除「切到自動模式尺寸就變」這個變因（見 design.md D3）
 
-建議全域順序：
-
-1. `fix-sla-support-top-config-enum-set` — crash，最高優先，亦為本 change 的硬前置
-2. `fix-sla-support-preview-stored-geometry-in-auto-mode` — 本 change 的建議前置
-3. **`fix-sla-support-preview-geometry-source-semantics`（本 change）**
-4. `fix-sla-support-points-invalidate-on-trafo-change`
-5. `fix-sla-support-points-undo-snapshot`
+> 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。
 
 ## 1. 語意定義（產品決策，須先完成才進入實作）
 

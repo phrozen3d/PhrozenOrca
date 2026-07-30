@@ -1,12 +1,8 @@
 ## 0. 前置條件與實施順序
 
 - 本 change **無硬前置**，但建議 `fix-sla-support-preview-stored-geometry-in-auto-mode` 先完成——它會消除「切到自動模式尺寸就變」這個變因，使第 1 節的觀察不受干擾
-- 建議全域順序：
-  1. `fix-sla-support-top-config-enum-set` — crash，最高優先，亦為 3 的硬前置
-  2. `fix-sla-support-preview-stored-geometry-in-auto-mode`
-  3. `fix-sla-support-preview-geometry-source-semantics` — 需 1、2 先完成
-  4. **`fix-sla-support-points-invalidate-on-trafo-change`（本 change）**
-  5. `fix-sla-support-points-undo-snapshot`
+
+> 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。
 
 ## 1. 診斷（必須先完成才進入修正）
 
