@@ -38,6 +38,7 @@
 
 ## 6. Follow-up（out of scope）
 
+- 編輯模式下選取狀態造成幾何來源切換、以及仲裁粒度與切片端不同（整顆點 vs 逐欄位）→ `fix-sla-support-preview-geometry-source-semantics`。本 change 處理真值表的最後一列（非編輯模式恆用 preset），該 change 處理其餘各列；**建議本 change 先實施**，以消除「切到自動模式尺寸就變」這個變因
 - `sla_trafo` 改變後前端支撐點快取不失效 → `fix-sla-support-points-invalidate-on-trafo-change`
 - 支撐點 undo/redo 資料不正確 → `fix-sla-support-points-undo-snapshot`
 - `cfg.set()` 對 `coEnum` 誤用導致 per-point Top 欄位顯示失效 → `fix-sla-support-top-config-enum-set`

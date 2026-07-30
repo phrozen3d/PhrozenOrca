@@ -94,7 +94,36 @@
 - **AND** 欄位回填後仍顯示 `Sphere`
 - **AND** 3D 視圖被標記為需要重畫
 
-### Requirement: 不得持續拋出 BadOptionTypeException
+### Requirement: per-point Top 編輯不得使應用程式終止
+
+選取支撐點並編輯 Top 欄位的完整流程 SHALL NOT 使應用程式終止。
+
+per-point Top 投影邏輯所拋出的任何例外 SHALL NOT 傳播至 UI thread 的主迴圈。`BadOptionTypeException` 的繼承鏈包含 `Slic3r::CriticalException`，依其定義即不得傳到 UI thread；一旦傳到，`generic_exception_handle()` 會記錄後重新拋出，使 `OnExceptionInMainLoop()` 無法正常返回，應用程式隨即終止。
+
+`support_top_config_from_selection()` 的呼叫點 SHALL 具備例外邊界，使同類錯誤降級為「該次欄位更新失敗並記錄」而非致命。
+
+#### Scenario: 選取點後修改欄位並失焦
+
+- **GIVEN** 編輯模式且已選取一顆支撐點
+- **WHEN** 使用者修改 `support_head_front_diameter` 並使欄位失焦
+- **THEN** 應用程式繼續執行，不終止
+- **AND** 該編輯正確套用至選中點
+- **AND** 3D 視圖被標記為需要重畫
+
+#### Scenario: 反覆選取與編輯
+
+- **GIVEN** 編輯模式，存在若干參數各異的支撐點
+- **WHEN** 使用者反覆選取不同的點並修改其 Top 參數
+- **THEN** 應用程式在整個過程中不終止
+
+#### Scenario: 投影邏輯拋出時不致命
+
+- **GIVEN** per-point Top 投影邏輯因任何原因拋出例外
+- **WHEN** 該例外於 `support_top_config_from_selection()` 的呼叫點被處理
+- **THEN** 例外不傳播至 wx 主迴圈
+- **AND** 應用程式繼續執行
+
+### Requirement: 正常操作下不得拋出 BadOptionTypeException
 
 Points preview 與 Top 欄位顯示路徑在正常操作下 SHALL NOT 拋出 `BadOptionTypeException`。
 
@@ -103,3 +132,10 @@ Points preview 與 Top 欄位顯示路徑在正常操作下 SHALL NOT 拋出 `Ba
 - **GIVEN** 編輯模式，存在若干支撐點
 - **WHEN** 使用者依序選取數顆點並修改其 Top 參數
 - **THEN** 整個過程中 `BadOptionTypeException` 的拋出次數為 0
+
+#### Scenario: 取消選取不觸發投影
+
+- **GIVEN** 編輯模式且已選取一顆支撐點
+- **WHEN** 使用者點選空白處取消選取
+- **THEN** 不呼叫 per-point 投影邏輯
+- **AND** 不拋出任何例外
