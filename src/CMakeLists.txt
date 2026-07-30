@@ -126,8 +126,13 @@ if (NOT WIN32 AND NOT APPLE)
 endif ()
 
 if (APPLE AND CMAKE_MACOSX_BUNDLE)
-    # Bundle folder name (<name>.app) and the binary inside Contents/MacOS on macOS bundle builds
-    set_target_properties(PhrozenOrca PROPERTIES OUTPUT_NAME "${PHROZEN_ORCA_EXE_BASENAME}")
+    # Bundle folder name (<name>.app) and the binary inside Contents/MacOS on macOS
+    # bundle builds. Driven by SLIC3R_APP_KEY (not the unix-style exe basename) so it
+    # matches Info.plist's CFBundleExecutable, which is also configured from
+    # SLIC3R_APP_KEY -- a mismatch here makes macOS unable to locate the binary and the
+    # app fails to launch. SLIC3R_APP_KEY already carries the "-Education" suffix for
+    # the resin variant, so the two variants still get distinct bundle names.
+    set_target_properties(PhrozenOrca PROPERTIES OUTPUT_NAME "${SLIC3R_APP_KEY}")
 endif ()
 
 target_link_libraries(PhrozenOrca libslic3r cereal::cereal)
@@ -244,9 +249,9 @@ else ()
     endif ()
     if (CMAKE_MACOSX_BUNDLE)
         if (CMAKE_CONFIGURATION_TYPES)
-            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${PHROZEN_ORCA_EXE_BASENAME}.app/Contents/Resources")
+            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${SLIC3R_APP_KEY}.app/Contents/Resources")
         else()
-            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PHROZEN_ORCA_EXE_BASENAME}.app/Contents/Resources")
+            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/${SLIC3R_APP_KEY}.app/Contents/Resources")
         endif()
         set(MACOSX_BUNDLE_ICON_FILE Icon.icns)
         set(MACOSX_BUNDLE_BUNDLE_NAME "PhrozenOrca")
