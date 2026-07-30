@@ -8,6 +8,7 @@
 
 #include <boost/log/trivial.hpp>
 #include "libslic3r/Utils.hpp"
+#include "libslic3r/libslic3r.h"
 #include "NetworkAgent.hpp"
 
 
@@ -211,10 +212,11 @@ std::string NetworkAgent::get_libpath_in_current_directory(std::string library_n
     std::string file_name_string(size_needed, 0);
     ::WideCharToMultiByte(0, 0, file_name, wcslen(file_name), file_name_string.data(), size_needed, nullptr, nullptr);
 
-    std::size_t found = file_name_string.find("phrozen-orca.exe");
-    if (found == (file_name_string.size() - 16)) {
+    static const std::string exe_file_name = std::string(PHROZEN_ORCA_EXE_BASENAME) + ".exe";
+    std::size_t found = file_name_string.find(exe_file_name);
+    if (found == (file_name_string.size() - exe_file_name.size())) {
         lib_path = library_name + ".dll";
-        lib_path = file_name_string.replace(found, 16, lib_path);
+        lib_path = file_name_string.replace(found, exe_file_name.size(), lib_path);
     }
 #else
 #endif
