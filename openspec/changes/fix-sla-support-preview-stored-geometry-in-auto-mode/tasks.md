@@ -1,3 +1,15 @@
+## 0. 前置條件與實施順序
+
+- 本 change **無硬前置**，根因與修法皆已從程式碼確定，可直接進入第 2 節
+- 但 `fix-sla-support-top-config-enum-set` 是 crash，**應先處理**；本 change 的驗收會反覆選取與編輯支撐點，crash 未修時難以完整測試
+- 本 change 是 `fix-sla-support-preview-geometry-source-semantics` 的**建議前置**：它處理幾何來源真值表的最後一列（非編輯模式恆用 preset），先完成可消除「切到自動模式尺寸就變」這個變因
+- 建議全域順序：
+  1. `fix-sla-support-top-config-enum-set` — crash，最高優先
+  2. **`fix-sla-support-preview-stored-geometry-in-auto-mode`（本 change）**
+  3. `fix-sla-support-preview-geometry-source-semantics` — 需 1、2 先完成
+  4. `fix-sla-support-points-invalidate-on-trafo-change`
+  5. `fix-sla-support-points-undo-snapshot`
+
 ## 1. 根因確認（已於提案階段完成）
 
 - [x] 1.1 確認 `render_points()`（`GLGizmoSlaSupports.cpp:750`）的 `use_stored_geometry = m_editing_mode && preview_use_stored_top(...)` 中，`m_editing_mode &&` 前綴使非編輯模式下恆為 false

@@ -1,3 +1,14 @@
+## 0. 前置條件與實施順序
+
+- 本 change **無硬前置**，可獨立進行第 1 節的契約定義
+- 但 **1.9 應優先執行**：它只需 30 秒，卻會決定本 change 的**範圍**是否要縮小
+- 建議全域順序：
+  1. `fix-sla-support-top-config-enum-set` — crash，最高優先
+  2. `fix-sla-support-preview-stored-geometry-in-auto-mode`
+  3. `fix-sla-support-preview-geometry-source-semantics` — 需 1、2 先完成
+  4. `fix-sla-support-points-invalidate-on-trafo-change`
+  5. **`fix-sla-support-points-undo-snapshot`（本 change）**
+
 ## 1. 契約定義（產品決策，須先完成才進入實作）
 
 見 design.md D1。現況難以直接修，是因為「auto generate 應該是什麼樣的可還原操作」本身沒有定義。
@@ -9,7 +20,12 @@
 - [ ] 1.5 **決定語意**：S1 結果導向 / S2 設定導向 / S3 不可還原（見 design.md D1 對照表）。與需求方確認並記錄理由
 - [ ] 1.6 決定密度／權重變更快照（`:1437`）與 auto generate 快照的關係——是否應合併為單一可還原操作
 - [ ] 1.7 定義每個還原點的 `sla_points_status` 應為何值
-- [ ] 1.8 **產出書面契約**並回填至 design.md。未完成前不進入第 2 節
+- [ ] 1.8 **判別「手動模式下 undo 沒反應」屬於哪一種**（30 秒即可完成，**建議最先做**）：
+      進手動模式 → 新增一個點 → Ctrl+Z（看似沒反應）→ **直接退出編輯模式**，觀察那個點還在不在
+      → **點不在了**：undo 有跑，只是顯示沒刷新 → 屬既有候選 change `fix-sla-supports-active-undo-routing`
+        （見 `sla-supports-apply-undo-stack` 的 [KB-4] 註記），本 change 的 Non-goals 維持現狀
+      → **點還在**：undo 真的沒跑 → **必須納入本 change**，proposal 的 Non-goals 與 Impact 需一併修改
+- [ ] 1.9 **產出書面契約**並回填至 design.md。未完成前不進入第 2 節
 
 ## 2. 快照時點修正
 

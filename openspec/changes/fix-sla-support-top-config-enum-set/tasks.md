@@ -1,3 +1,15 @@
+## 0. 前置條件與實施順序
+
+- 本 change **無前置，且優先級最高**——它是可穩定重現的 crash（選中支撐點後編輯 Top 欄位並失焦即終止應用程式）
+- 它是 `fix-sla-support-preview-geometry-source-semantics` 的**硬前置**：crash 未修好前，無法完成該 change 第 1 節所需的 per-point 編輯觀察
+- 也建議在 `fix-sla-support-preview-stored-geometry-in-auto-mode` 之前完成——後者的驗收會反覆選取與編輯支撐點
+- 建議全域順序：
+  1. **`fix-sla-support-top-config-enum-set`（本 change）** — crash，最高優先
+  2. `fix-sla-support-preview-stored-geometry-in-auto-mode`
+  3. `fix-sla-support-preview-geometry-source-semantics` — 需 1、2 先完成
+  4. `fix-sla-support-points-invalidate-on-trafo-change`
+  5. `fix-sla-support-points-undo-snapshot`
+
 ## 1. 根因確認（已於提案階段完成）
 
 - [x] 1.1 確認 `support_top_apply_point()`（`GLGizmoSlaSupports.cpp:302`）第一行 `cfg.set("support_contact_type", use_sphere ? spSphere : spNone2)` 因 `ContactType` 整數提升選到 `ConfigBase::set(key, int, bool)`（`Config.cpp:515`），而 `support_contact_type` 為 `coEnum`、不在該 switch 內 → `default: throw BadOptionTypeException`
