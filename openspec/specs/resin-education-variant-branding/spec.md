@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Spec: resin-education-variant-branding
+
+## Purpose
+
+Define how PhrozenOrca's resin/FDM mixed build variant (`PHROZEN_ORCA_ENABLE_RESIN=ON`) must present distinct, non-colliding user-facing and OS-facing identity strings — AppData/user-data folder, install directory, registry keys, executable filename, window title, and macOS bundle identity — so that installing and running the resin/education variant alongside the main (FDM) build never overwrites files, settings, or registry entries belonging to the other variant. The main (FDM) build's behavior (flag `OFF`) must remain completely unchanged.
+
+## Requirements
 
 ### Requirement: Education 尾綴命名規則
 當建置旗標 `PHROZEN_ORCA_ENABLE_RESIN` 為 `ON` 時，系統的所有使用者可見與作業系統可見識別字串 SHALL 帶有尾綴：若該字串開頭為大寫字母，尾綴為 "-Education"；若開頭為小寫字母，尾綴為 "-education"。當旗標為 `OFF` 時，所有識別字串 SHALL 與旗標存在前的行為完全相同，不帶任何尾綴。
@@ -61,3 +67,7 @@ resin/education 版的 macOS `CFBundleIdentifier` 與自訂 URL scheme SHALL 與
 #### Scenario: macOS 上安裝兩個變體
 - **WHEN** 使用者在同一台 Mac 上安裝主線版與 resin/education 版
 - **THEN** 系統偏好設定或 Launch Services 資料庫中，兩者以不同的 Bundle Identifier 註冊，不互相覆蓋對方的應用程式套件
+
+#### Scenario: `.app` 套件資料夾名稱本身也隔離
+- **WHEN** 使用者把主線版與 resin/education 版的 `.app` 都複製到「應用程式」資料夾
+- **THEN** 兩者的 `.app` 資料夾名稱不同（例如 `PhrozenOrca.app` 與 `phrozen-orca-education.app`），不會因為同名而互相覆蓋
