@@ -8536,7 +8536,7 @@ void Plater::priv::set_project_name(const wxString& project_name)
     m_project_name = project_name;
     //update topbar title
 #ifdef __WINDOWS__
-    wxGetApp().mainframe->SetTitle(m_project_name + " - PhrozenOrca");
+    wxGetApp().mainframe->SetTitle(m_project_name + " - " + SLIC3R_APP_NAME);
     wxGetApp().mainframe->topbar()->SetTitle(m_project_name);
 #else
     wxGetApp().mainframe->SetTitle(m_project_name);
