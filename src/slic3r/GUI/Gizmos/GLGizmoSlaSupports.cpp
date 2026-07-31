@@ -299,7 +299,11 @@ static void support_top_apply_point(const sla::SupportPoint &sp, DynamicPrintCon
     const bool preset_sphere = process_contact_type_is_sphere();
     const bool use_sphere    = sla::point_uses_contact_sphere(sp, preset_sphere);
 
-    cfg.set("support_contact_type", use_sphere ? spSphere : spNone2);
+    // support_contact_type is coEnum: ConfigBase::set(key, int) has no case for it and
+    // throws BadOptionTypeException on the implicit enum->int promotion. Write it through
+    // the typed enum path instead.
+    cfg.set_key_value("support_contact_type",
+                      new ConfigOptionEnum<ContactType>(use_sphere ? spSphere : spNone2));
 
     float contact_d = 0.8f;
     if (sp.contact_sphere_radius > float(EPSILON))
