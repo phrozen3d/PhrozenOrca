@@ -3,7 +3,7 @@
 # =============================================================================
 # 這是 resin/education 變體（PHROZEN_ORCA_ENABLE_RESIN=ON）的專屬建置流程。
 #
-# 給主線維護者的說明（請勿刪除此檔案）:
+# 給主線維護者的說明（請勿刪除此檔案）: 
 #   * 主線（phrozen-custom-dev）**永遠不會自動觸發**這個 workflow。
 #     它沒有任何 push / pull_request / schedule 觸發條件。
 #   * 這個檔案存在於主線的唯一目的，是讓 GitHub Actions 頁面出現
