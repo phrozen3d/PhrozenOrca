@@ -38,10 +38,13 @@ phrozen-education-variant（目前的開發分支）
 
 ### 關鍵實測數據（驅動本設計的證據）
 
-- `.github/` 目錄在 `phrozen-custom-dev` 與 `phrozen-resin-dev` 之間**目前完全相同（零分歧）**。
-- `build_orca.yml` 在主線歷史上被改過 **71 次**，且近期仍在密集修正（macOS deps cache 路徑錯誤導致快取從未建立、`windows-latest` 硬寫造成步驟全跳過、notarize 流程修正）。
-- `build_release_macos.sh` 目前兩分支也完全相同。
-- 這代表：任何讓這些檔案在兩分支間結構性分歧的做法，都會把「目前零成本」的月度 merge 變成「反覆手動解衝突」。
+- **resin 支線從未修改過 `.github/` 下的任何檔案**。目前兩分支的 `.github/` 內容不同，純粹是因為 resin 支線尚未合併主線較新的 commit（落後 4 個 CI 修正），而非 resin 自行改動所致。這個「resin 不碰共用 CI 檔案」的性質正是本設計要保住的 —— 只要維持它，主線的 CI 修正 merge 下來就永遠是乾淨套用。
+- `build_orca.yml` 在主線歷史上被改過 **71 次**，且近期仍在密集修正（`windows-latest` 已不再提供 VS 2022 而改釘 `windows-2022`、`actions/cache@v4` 需停留 Node 20、macOS deps cache 路徑錯誤導致快取從未建立、notarize 流程修正）。
+- `build_release_macos.sh` 目前兩分支完全相同（resin 支線亦未改動過）。
+- 這代表：任何讓 resin 支線去修改這些檔案的做法，都會把「目前零成本」的月度 merge 變成「反覆手動解衝突」。
+
+> **實地驗證（2026-07-31）**：階段 1-A 首次執行時，Windows 建置因 CMake 找不到 Visual Studio 而失敗。根因是 `build_education.yml` 照著 resin 支線上**較舊**的 `build_all.yml` 寫成 `windows-latest`，而主線早在 `8359f943aa` 就已改釘 `windows-2022`。同一批主線修正還包含 `actions/cache@v4` 必須設定 `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`。
+> 這正是決策 5（漂移偵測）要防的情境的真實案例，且證實了它的必要性 —— 差別只在這次是「一開始就沒跟上」而非「事後漂移」。設計漂移偵測時，其基準值應以**主線最新版本**為準，而非 resin 支線當下的（可能落後的）版本。
 
 ## Goals / Non-Goals
 

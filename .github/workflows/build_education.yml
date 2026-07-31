@@ -46,7 +46,10 @@ concurrency:
 jobs:
   build_windows:
     name: Build Education (Windows)
-    runs-on: windows-latest
+    # 必須釘住 windows-2022，不可用 windows-latest：後者已不再提供
+    # Visual Studio 2022，CMake 的 "Visual Studio 17 2022" generator 會找不到
+    # 任何 VS 實例。主線已於 8359f943aa 做過相同修正。
+    runs-on: windows-2022
     env:
       date:
       ver:
@@ -87,6 +90,10 @@ jobs:
       - name: Load cached deps
         id: cache_deps
         uses: actions/cache@v4
+        env:
+          # actions/cache@v4 尚未通過 2026-06-16 起強制的 Node 24 預設環境驗證，
+          # 暫時維持 Node 20。主線已於 d4c40f1f6d 做過相同處理。
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           path: ${{ github.workspace }}/deps/build-resin/PhrozenOrca_dep
           key: windows-latest-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}
@@ -105,6 +112,26 @@ jobs:
           choco install strawberryperl
           .\build_resin_release_vs2022.bat deps
           .\build_resin_release_vs2022.bat pack
+
+      # build_resin_release_vs2022.bat 的 deps 分支以無條件的 `exit /b 0` 結尾，
+      # cmake 失敗時步驟仍會回報成功。若不在此攔截，一份空的/不完整的 deps 會被
+      # actions/cache 存進快取，導致之後每次都「命中」壞快取並以更難診斷的方式失敗。
+      - name: Verify deps were actually built
+        if: steps.cache_deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $depsRoot = "${{ github.workspace }}/deps/build-resin/PhrozenOrca_dep/usr/local"
+          if (-not (Test-Path $depsRoot)) {
+              Write-Error "deps 建置失敗：找不到 $depsRoot。請檢查上一步 Build deps 的 cmake 輸出（此腳本會吞掉 cmake 的錯誤碼）。"
+              exit 1
+          }
+          $libDir = Join-Path $depsRoot 'lib'
+          $count = (Get-ChildItem -Path $libDir -File -Recurse -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($count -lt 1) {
+              Write-Error "deps 建置不完整：$libDir 底下沒有任何檔案。"
+              exit 1
+          }
+          Write-Host "deps 驗證通過：$libDir 底下有 $count 個檔案"
 
       - name: Upload deps artifacts
         if: steps.cache_deps.outputs.cache-hit != 'true'
