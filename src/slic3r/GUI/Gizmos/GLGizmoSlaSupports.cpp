@@ -32,6 +32,7 @@
 #include "libslic3r/Utils.hpp" // ScopeGuard
 
 #include <array>
+#include <cmath>
 
 struct SupportWeightPreset {
     float pillar_diameter;
@@ -217,14 +218,43 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
     return sp.type == sla::SupportPointType::manual_add && sp.has_explicit_geometry();
 }
 
-// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
-static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point)
+// One snapshot of the Process → Support → Top live field values.
+// Reading a field goes through Tab::get_field(), a linear scan over every Process
+// page, plus a native text-control read — far too expensive to repeat per support
+// point. Callers that loop over the point cache read this once per frame and reuse
+// it, which keeps the live semantics (values are still re-read every frame, so
+// edits show up on the next frame even before the field loses focus).
+struct PreviewTopParams
 {
-    const float live_seg     = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
-    const float live_pen     = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
-    const double live_upper_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
-    const double live_lower_r = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
-    const bool   preset_sphere = process_contact_type_is_sphere();
+    float  seg_len_mm        = 2.f;
+    float  penetration_mm    = 0.4f;
+    double upper_r_mm        = 0.2;
+    double lower_r_mm        = 0.5;
+    float  contact_sphere_r_mm = 0.4f;
+    bool   contact_sphere    = false;
+};
+
+static PreviewTopParams read_preview_top_params_live()
+{
+    PreviewTopParams p;
+    p.seg_len_mm          = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
+    p.penetration_mm      = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
+    p.upper_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
+    p.lower_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
+    p.contact_sphere_r_mm = default_contact_sphere_radius_mm();
+    p.contact_sphere      = process_contact_type_is_sphere();
+    return p;
+}
+
+// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
+static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point,
+                                            const PreviewTopParams &top)
+{
+    const float live_seg     = top.seg_len_mm;
+    const float live_pen     = top.penetration_mm;
+    const double live_upper_r = top.upper_r_mm;
+    const double live_lower_r = top.lower_r_mm;
+    const bool   preset_sphere = top.contact_sphere;
 
     const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_upper_r;
 
@@ -243,9 +273,9 @@ static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const V
     double contact_r = 0.;
     if (use_stored_point) {
         if (sla::point_uses_contact_sphere(sp, preset_sphere))
-            contact_r = double(sla::point_contact_sphere_radius_mm(sp, default_contact_sphere_radius_mm()));
+            contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
     } else if (preset_sphere) {
-        contact_r = double(default_contact_sphere_radius_mm());
+        contact_r = double(top.contact_sphere_r_mm);
     }
 
     const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
@@ -568,6 +598,22 @@ void GLGizmoSlaSupports::on_render()
     glsafe(::glDisable(GL_BLEND));
 }
 
+GLGizmoSlaSupports::HeadGeomKey GLGizmoSlaSupports::head_geom_key(const sla::Head &head, bool preview)
+{
+    // Quantise to 1e-4 mm — well below any visible difference, and far coarser than
+    // the float noise that would otherwise make identical parameters miss the cache.
+    auto q = [](double mm) { return int64_t(std::llround(mm * 10000.0)); };
+
+    HeadGeomKey key;
+    key.r_pin       = q(head.r_pin_mm);
+    key.r_back      = q(head.r_back_mm);
+    key.width       = q(head.width_mm);
+    key.penetration = q(head.penetration_mm);
+    key.r_contact   = q(head.r_contact_mm);
+    key.preview     = preview;
+    return key;
+}
+
 // Step 4.2: render_points() rewritten to match PrusaSlicer.
 // Removed: bool picking parameter (PickingModel handles picking), drain hole rendering (GLGizmoHollow's job).
 // Added: raycaster active/clipped state management.
@@ -622,12 +668,15 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     // visible surface, but cone diameter / length must stay in mm regardless of
     // instance scale (those are user-facing support-parameter sizes, not model
     // dimensions). The render path therefore separates the two:
-    //   - head.pos is built in raw frame but scaled by S below, so the head ITS
-    //     vertices land at (S * raw_pos + mm_offset).
-    //   - model_matrix uses the instance transform with positive scale removed
-    //     (T_zshift * T * R, with mirror preserved through signed get_matrix()
-    //     vs. unsigned get_scaling_factor_matrix()).
-    // Per-vertex world position is then T_zshift * T * R * (S * raw_pos + mm_offset).
+    //   - the cached head mesh is pure local-frame geometry in mm (anchor at the
+    //     origin, axis along -Z) and carries no placement at all.
+    //   - model_matrix places it: the instance transform with positive scale
+    //     removed (T_zshift * T * R, with mirror preserved through signed
+    //     get_matrix() vs. unsigned get_scaling_factor_matrix()), then a
+    //     translation to the scaled anchor S * raw_pos, then the rotation q that
+    //     takes -Z onto the scaled surface normal.
+    // Per-vertex world position is then T_zshift * T * R * (q * v_local + S * raw_pos),
+    // identical to the earlier path that baked q and S * raw_pos into the vertices.
     //
     // PhrozenOrca: get_sla_shift() replaces PrusaSlicer's print_object()->
     // get_current_elevation() — the latter requires a ModelInstance pointer that
@@ -640,6 +689,13 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     // Identity-direction for uniform scale; corrects orientation under non-uniform
     // scale so the cone axis follows the scaled-mesh's visible surface normal.
     const Matrix3d    normal_xform             = instance_scaling_matrix_inverse.linear().transpose();
+
+    // Read the Process tab live fields once per frame instead of once per point.
+    // Still re-read every frame, so edits are reflected on the next frame.
+    const PreviewTopParams top_params = read_preview_top_params_live();
+
+    if (!m_editing_mode && m_normal_cache_normals.size() != m_normal_cache.size())
+        m_normal_cache_normals.assign(m_normal_cache.size(), Vec3f::Zero());
 
     ColorRGBA render_color;
     for (size_t i = 0; i < cache_size; ++i) {
@@ -674,7 +730,6 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         else
             render_color = ColorRGBA { 0.5f, 0.5f, 0.5f, 1.f };
 
-        m_cone.model.set_color(render_color);
         m_sphere.model.set_color(render_color);
 
         Vec3f raw_normal = Vec3f::UnitZ();
@@ -683,7 +738,14 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
                 m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
             raw_normal = m_editing_cache[i].normal;
         } else if (m_normal_cache.size() > i) {
-            m_c->raycaster()->raycaster()->get_closest_point(support_point.pos, &raw_normal);
+            // Auto points never move on their own, so the closest-point query only
+            // has to run once per point per cache generation.
+            if (m_normal_cache_normals[i] == Vec3f::Zero()) {
+                Vec3f queried = Vec3f::UnitZ();
+                m_c->raycaster()->raycaster()->get_closest_point(support_point.pos, &queried);
+                m_normal_cache_normals[i] = queried;
+            }
+            raw_normal = m_normal_cache_normals[i];
         }
         // Scaled-mesh surface normal direction for orienting the cone axis.
         const Vec3f scaled_normal = (normal_xform * raw_normal.cast<double>()).cast<float>();
@@ -691,40 +753,62 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
 
         // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
-        // head.pos is overwritten with the scale-applied anchor so the head ITS sits
-        // on the visible surface. Size fields (head/pillar/contact radii, width,
-        // penetration) come from the support-parameter mm values and stay untouched.
-        sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry);
-        head.pos = instance_scaling_matrix * support_point.pos.cast<double>();
+        // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
+        // the local-frame body only, and placement is applied through model_matrix
+        // below. Size fields (head/pillar/contact radii, width, penetration) come from
+        // the support-parameter mm values and stay untouched.
+        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
         const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
         static constexpr size_t kManualPreviewSteps = 45;
-        indexed_triangle_set top_its = manual_preview
-            ? sla::get_mesh_preview(head, kManualPreviewSteps)
-            : sla::get_mesh(head, 24);
-        if (!top_its.vertices.empty()) {
-            if (vol->is_left_handed())
-                glFrontFace(GL_CW);
 
-            m_cone.model.reset();
-            m_cone.model.init_from(top_its, manual_preview);
-            // Render with the scale-free instance transform: cone geometry stays
-            // mm-sized; the anchor is already scaled into head.pos above.
-            const Transform3d model_matrix = instance_matrix_no_scale;
+        GLModel *cone_model = nullptr;
+        const HeadGeomKey key = head_geom_key(head, manual_preview);
+        if (auto it = m_head_model_cache.find(key); it != m_head_model_cache.end())
+            cone_model = &it->second;
+        else {
+            // Overflow: drop everything and refill rather than branching into a
+            // second rendering path, so the visible result always comes from here.
+            if (m_head_model_cache.size() >= k_head_model_cache_limit)
+                m_head_model_cache.clear();
 
-            // Manual preview: flat shader (uniform color, no directional shading).
-            use_shader(manual_preview ? flat_shader : gouraud_shader);
-            active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-            if (active_shader != flat_shader) {
-                const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
-                    model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
-                active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
-                active_shader->set_uniform("emission_factor", 0.5f);
-            }
-            m_cone.model.render();
+            const indexed_triangle_set top_its = sla::head_mesh_body(
+                head, manual_preview ? kManualPreviewSteps : 24, manual_preview);
+            if (top_its.vertices.empty())
+                continue;
 
-            if (vol->is_left_handed())
-                glFrontFace(GL_CCW);
+            GLModel &model = m_head_model_cache[key];
+            model.init_from(top_its, manual_preview);
+            cone_model = &model;
         }
+
+        if (vol->is_left_handed())
+            glFrontFace(GL_CW);
+
+        cone_model->set_color(render_color);
+        // Placement that the mesh no longer carries: anchor follows instance scale
+        // (S * raw_pos) so the cone sits on the visible surface, then the head is
+        // rotated from its local -Z axis onto the scaled surface normal. Identical
+        // per-vertex world positions as the old baked-in path:
+        //   M_ns * (q * v_local + S * raw_pos)
+        const Transform3d model_matrix = instance_matrix_no_scale *
+            Geometry::translation_transform(instance_scaling_matrix * support_point.pos.cast<double>()) *
+            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir));
+
+        // Manual preview: flat shader (uniform color, no directional shading).
+        use_shader(manual_preview ? flat_shader : gouraud_shader);
+        active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
+        if (active_shader != flat_shader) {
+            // Must be derived from the model matrix actually used above — it now
+            // carries the placement rotation, unlike instance_matrix_no_scale.
+            const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
+                model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
+            active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
+            active_shader->set_uniform("emission_factor", 0.5f);
+        }
+        cone_model->render();
+
+        if (vol->is_left_handed())
+            glFrontFace(GL_CCW);
     }
     // Note: drain hole rendering removed — that is GLGizmoHollow's responsibility (Step 4.2).
 }
@@ -1913,6 +1997,10 @@ void GLGizmoSlaSupports::on_set_state()
             // we are actually shutting down
             disable_editing_mode(); // so it is not active next time the gizmo opens
             m_old_mo_id = -1;
+            // Release the preview pinhead GPU buffers (~GLModel calls reset()) and
+            // drop the cached surface normals — both are rebuilt lazily on reopen.
+            m_head_model_cache.clear();
+            m_normal_cache_normals.clear();
             // Step 4.2: restore full scene visibility when gizmo actually closes
             if (m_c && m_c->selection_info())
                 m_c->selection_info()->set_use_config_elevation(false);
@@ -1971,6 +2059,9 @@ void GLGizmoSlaSupports::on_load(cereal::BinaryInputArchive& ar)
        m_editing_cache,
        m_selection_empty
     );
+    // Undo/redo can restore a different point set of the same size, which the
+    // size check in render_points() would not catch.
+    m_normal_cache_normals.clear();
 }
 
 
@@ -2056,6 +2147,7 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
         return;
 
     m_normal_cache.clear();
+    m_normal_cache_normals.clear();
     for (const CacheEntry& ce : m_editing_cache)
         m_normal_cache.push_back(ce.support_point);
 
@@ -2145,6 +2237,7 @@ void GLGizmoSlaSupports::editing_mode_apply_changes()
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
 
         m_normal_cache.clear();
+        m_normal_cache_normals.clear();
         for (const CacheEntry& ce : m_editing_cache)
             m_normal_cache.push_back(ce.support_point);
 
@@ -2167,6 +2260,7 @@ void GLGizmoSlaSupports::apply_remove_all()
     // Commit empty support-point state to model without triggering reslice/validate.
     // Callers handle the snapshot; this function only syncs data and clears the mesh.
     m_normal_cache.clear();
+    m_normal_cache_normals.clear();
     m_auto_baseline_initialized = false;
     ModelObject* mo = m_c->selection_info()->model_object();
     mo->sla_points_status = sla::PointsStatus::UserModified;
@@ -2188,6 +2282,7 @@ void GLGizmoSlaSupports::reload_cache()
     if (!mo)
         return;
     m_normal_cache.clear();
+    m_normal_cache_normals.clear();
     if (mo->sla_points_status == sla::PointsStatus::AutoGenerated || mo->sla_points_status == sla::PointsStatus::Generating)
         get_data_from_backend();
     else
@@ -2223,6 +2318,7 @@ void GLGizmoSlaSupports::get_data_from_backend()
     for (const SLAPrintObject* po : m_parent.sla_print()->objects()) {
         if (po->model_object()->id() == mo->id()) {
             m_normal_cache.clear();
+            m_normal_cache_normals.clear();
             const std::vector<sla::SupportPoint>& points = po->get_support_points();
             auto mat = po->trafo().inverse().cast<float>();
             for (unsigned int i = 0; i < points.size(); ++i) {
@@ -2394,6 +2490,9 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
     const Transform3d pick_matrix              = instance_matrix * instance_scaling_matrix_inverse;
 
+    // Same rule as render_points(): read the Process tab live fields once, not per point.
+    const PreviewTopParams top_params = read_preview_top_params_live();
+
     for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
         const sla::SupportPoint& sp = m_editing_cache[i].support_point;
 
@@ -2405,7 +2504,7 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         // head is only consulted for pick_r (the visible cone's pin / contact
         // radius in mm). The picking sphere is radially symmetric, so head.dir
         // does not need the non-uniform-scale correction used by render_points().
-        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry);
+        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry, top_params);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 

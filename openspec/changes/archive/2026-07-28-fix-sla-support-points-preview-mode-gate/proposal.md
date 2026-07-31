@@ -34,7 +34,7 @@ Three correctness defects existed in the Points preview path:
 ### Non-goals
 
 - **Structure-mode async reslice refresh** ([KB-2]). Re-triggering reslice on undo/redo while in Structure view is tracked separately.
-- **Points preview performance** (frame-rate / GPU buffer churn). The render path still rebuilds cone ITS and GL buffers per point per frame; that is a known cost but out of scope for this correctness fix.
+- **Points preview performance** (frame-rate / GPU buffer churn). The render path still rebuilds cone ITS and GL buffers per point per frame; that is a known cost but out of scope for this correctness fix. **Followed up by change `perf-sla-support-points-preview-render`**, which caches pinhead geometry / `GLModel` by parameter key and moves per-point placement into the model matrix, building on the position / size split established here.
 - `GLGizmoSlaBase::render_volumes()`, `get_sla_shift()`, `get_data_from_backend()`, the support generation pipeline, and the Prepare Z-clip / Hollow / Drill sync paths are untouched.
 
 ## Capabilities

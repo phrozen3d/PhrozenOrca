@@ -35,8 +35,9 @@
 ## 6. Follow-up（out of scope，不在本 change 驗收項目內）
 
 - Structure mode undo/redo async reslice 不刷新（[KB-2]） → 候選 follow-up `fix-sla-supports-structure-view-undo-refresh`
-- Points preview 效能（normal cache / geometry cache / per-point GL buffer churn）→ 另一輪 follow-up，本 change 不處理
+- Points preview 效能（normal cache / geometry cache / per-point GL buffer churn）→ **已由 change `perf-sla-support-points-preview-render` 承接**。該 change 以幾何參數為 key 快取 pinhead `GLModel`，並將逐點擺放改由 model matrix 承擔，建立在本 change 第 5 節的位置／尺寸拆解之上
 - `get_data_from_backend()` 內 `po->trafo().inverse()` 的座標系行為作為本 change 的前置假設，已透過閱讀驗證；未修改該函式
+- **Pinhead 外露錐體無法被點選**（事後發現）：本 change 第 5.4 節建立的 picking 拆解只涵蓋 sphere raycaster，命中半徑為 `max(head.r_pin_mm, head.r_contact_mm)`（預設約 0.2 mm）。同時註冊的 cone raycaster（`:2364`）transform 始終為 `Identity()` 且在 `:2412` 永遠 `set_active(false)`，故長約 `width_mm`（預設 2 mm）的外露錐體完全無法被點到。此非本 change 引入（cone raycaster 在此之前即未啟用），但本 change 的拆解是後續修復的基礎 → follow-up `fix-sla-support-point-cone-picking`
 
 ## 7. 建議手動驗證流程（不列入本 change 完成條件，供 QA / regression 參考）
 

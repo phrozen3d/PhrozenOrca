@@ -1,3 +1,10 @@
+> 本 change 範圍為 GLGizmoHollow / GLGizmoDrill，與 SLA 支撐點群組無順序約束。
+> 全域相依圖見 [`openspec/changes/README.md`](../README.md)。
+>
+> ⚠️ 本 change 的 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，
+> 該前提已被 `fix-sla-support-points-undo-snapshot` 推翻（auto 生成的支撐點從未寫入
+> `mo->sla_support_points`，因此不在 undo 快照內）。實施該 change 時需一併更正。
+
 ## 0. Build 環境前置修正（首次啟用測試時執行）
 
 > 這些是 PhrozenOrca fork 時遺留的 build 問題，與本次修改無關，但必須修正才能執行測試。

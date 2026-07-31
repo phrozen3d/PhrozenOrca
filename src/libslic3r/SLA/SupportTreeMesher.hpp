@@ -47,7 +47,13 @@ indexed_triangle_set halfcone(double       baseheight,
                               const Vec3d &pt    = Vec3d::Zero(),
                               size_t       steps = 45);
 
-inline indexed_triangle_set head_mesh_local(const Head &h, size_t steps, bool preview)
+// Pinhead geometry in its local frame: anchor at the origin, axis along -Z.
+// Depends only on the size fields of `h` (r_pin_mm / r_back_mm / width_mm /
+// penetration_mm / r_contact_mm), never on pos / dir. Callers that draw many
+// heads sharing the same size parameters can therefore build this once and
+// place each instance with a model matrix instead of baking the placement
+// into the vertices (see GLGizmoSlaSupports::render_points()).
+inline indexed_triangle_set head_mesh_body(const Head &h, size_t steps, bool preview)
 {
     // Preview: total axial length ~= width_mm (segment length), not width + extra sphere padding.
     const double segment_len = preview
@@ -71,6 +77,13 @@ inline indexed_triangle_set head_mesh_local(const Head &h, size_t steps, bool pr
         for (auto &p : contact.vertices) p.z() += center_z;
         its_merge(mesh, contact);
     }
+
+    return mesh;
+}
+
+inline indexed_triangle_set head_mesh_local(const Head &h, size_t steps, bool preview)
+{
+    indexed_triangle_set mesh = head_mesh_body(h, steps, preview);
 
     using Quaternion = Eigen::Quaternion<float>;
 
