@@ -1,0 +1,167 @@
+# =============================================================================
+# PhrozenOrca Education (resin) build
+# =============================================================================
+# 這是 resin/education 變體（PHROZEN_ORCA_ENABLE_RESIN=ON）的專屬建置流程。
+#
+# 給主線維護者的說明（請勿刪除此檔案）:
+#   * 主線（phrozen-custom-dev）**永遠不會自動觸發**這個 workflow。
+#     它沒有任何 push / pull_request / schedule 觸發條件。
+#   * 這個檔案存在於主線的唯一目的，是讓 GitHub Actions 頁面出現
+#     「Run workflow」手動觸發按鈕 —— GitHub 規定 workflow_dispatch 的檔案
+#     必須存在於預設分支，按鈕才會出現。
+#   * 實際執行時請在 Actions → build_education → Run workflow 選擇
+#     resin 分支作為 ref；GitHub 會使用該分支上的 workflow 定義與程式碼。
+#   * 若從主線 ref 觸發，會因為缺少 build_resin_release_vs2022.bat 而快速失敗，
+#     這是預期行為（不會產出任何看似 education 實為主線的成品）。
+#
+# 本 workflow 刻意「自帶完整邏輯」，不呼叫 build_check_cache.yml 那條共用鏈，
+# 目的是讓主線的共用 CI 檔案在 resin 分支上保持逐位元組相同，使主線的 FDM
+# 更新 merge 進 resin 分支時不會在 .github/ 產生衝突。
+# 詳見 openspec/changes/phrozen-education-cicd/design.md 決策 1。
+# =============================================================================
+
+name: Build Education
+
+on:
+  workflow_dispatch: # 正式觸發方式（純手動）
+
+  # --- 開發期專用觸發，階段 1 結束前整段移除 -------------------------------
+  # 讓 CI 開發可在 phrozen-education-variant 分支上迭代，完全不需要動主線。
+  # paths 過濾確保修改 C++ 程式碼時不會誤觸發昂貴的建置。
+  push:
+    branches: ['phrozen-education-variant']
+    paths:
+      - '.github/workflows/build_education.yml'
+      - 'build_release_macos.sh'
+      - 'build_resin_release_vs2022.bat'
+  # --- 開發期專用觸發結束 --------------------------------------------------
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_windows:
+    name: Build Education (Windows)
+    runs-on: windows-latest
+    env:
+      date:
+      ver:
+      ver_pure:
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: 'true'
+
+      # version.inc 現在只放乾淨的 base 版本號（例如 1.2.0）；"-Education" 尾綴
+      # 是由 CMake 在 PHROZEN_ORCA_ENABLE_RESIN=ON 時動態附加的，因此 CI 這邊
+      # 讀完檔案後必須自己補上，產出物檔名才能與主線區分。
+      - name: Get the version and date
+        shell: pwsh
+        run: |
+          $date = Get-Date -Format 'yyyyMMdd'
+          $versionContent = Get-Content version.inc -Raw
+          if ($versionContent -match 'set\(Phrozen_VERSION "(.*?)"\)') {
+              $ver_pure = $matches[1]
+          } else {
+              Write-Error "無法從 version.inc 解析 Phrozen_VERSION"
+              exit 1
+          }
+          $ver_edu = "$ver_pure-Education"
+          echo "ver_pure=$ver_pure" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          echo "ver=V$ver_edu" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          echo "date=$date" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          Write-Host "base version: $ver_pure / education version: V$ver_edu / date: $date"
+
+      # deps 快取。注意兩件事:
+      #   1. 快取鍵帶有 "education" 識別，不可與主線的
+      #      ${os}-cache-phrozenorca_deps-build-<hash> 相同。若鍵相同但路徑不同，
+      #      會命中主線快取卻把檔案還原到錯誤位置，造成極難診斷的失敗。
+      #   2. 路徑是 deps/build-resin/PhrozenOrca_dep —— 這是
+      #      build_resin_release_vs2022.bat 實際使用的目錄（主線用 deps/build）。
+      - name: Load cached deps
+        id: cache_deps
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/deps/build-resin/PhrozenOrca_dep
+          key: windows-latest-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.28.0" # use most recent 3.28.x version
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build deps
+        if: steps.cache_deps.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          choco install strawberryperl
+          .\build_resin_release_vs2022.bat deps
+          .\build_resin_release_vs2022.bat pack
+
+      - name: Upload deps artifacts
+        if: steps.cache_deps.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhrozenOrca-Education_dep_win64_${{ env.date }}
+          path: ${{ github.workspace }}/deps/build-resin/PhrozenOrca_dep*.zip
+
+      - name: Build slicer
+        working-directory: ${{ github.workspace }}
+        env:
+          WindowsSdkDir: 'C:\Program Files (x86)\Windows Kits\10\'
+          WindowsSDKVersion: '10.0.26100.0\'
+        run: .\build_resin_release_vs2022.bat slicer
+
+      # 打包步驟刻意內聯，不使用共用的 pack-win-release composite action:
+      # 那是主線的共用檔案，且 artifact 名稱寫死 PhrozenOrca_Windows_*。
+      # 見 design.md 決策 7。
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis
+
+      - name: Create installer (NSIS)
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/build-resin
+        run: cpack -G NSIS
+
+      - name: Pack portable ZIP
+        shell: cmd
+        working-directory: ${{ github.workspace }}/build-resin/PhrozenOrcaResin
+        run: '"C:/Program Files/7-Zip/7z.exe" a -tzip ../PhrozenOrca-Education_Windows_${{ env.ver }}_portable.zip .'
+
+      - name: Pack PDB
+        shell: cmd
+        working-directory: ${{ github.workspace }}/build-resin/src/Release
+        run: '"C:/Program Files/7-Zip/7z.exe" a -m0=lzma2 -mx9 Debug_PDB_Education_${{ env.ver }}_for_developers_only.7z *.pdb'
+
+      - name: Upload artifacts (portable folder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhrozenOrca-Education_Windows_${{ env.ver }}_portable
+          path: ${{ github.workspace }}/build-resin/PhrozenOrcaResin
+
+      - name: Upload artifacts (installer)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhrozenOrca-Education_Windows_${{ env.ver }}
+          path: ${{ github.workspace }}/build-resin/PhrozenOrca-Education*.exe
+
+      - name: Upload artifacts (PDB)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDB-Education
+          path: ${{ github.workspace }}/build-resin/src/Release/Debug_PDB_Education_${{ env.ver }}_for_developers_only.7z
+
+  # ===========================================================================
+  # macOS job —— 階段 1-C／1-D 才加入。
+  # 目前刻意留白，避免開發 Windows job 時每次迭代都消耗 macOS runner
+  # 的 10 倍計費額度。見 design.md 決策 10。
+  # ===========================================================================

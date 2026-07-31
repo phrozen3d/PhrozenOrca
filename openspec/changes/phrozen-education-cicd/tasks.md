@@ -1,19 +1,19 @@
 ## 1. 階段 1-A：Windows job（先做，成本最低）
 
-- [ ] 1.1 在 `phrozen-education-variant` 分支建立 `.github/workflows/build_education.yml` 骨架：
+- [x] 1.1 在 `phrozen-education-variant` 分支建立 `.github/workflows/build_education.yml` 骨架：
   - `on:` 同時包含 `workflow_dispatch:`（正式用）與開發期專用的 `push:` 區塊（`branches: ['phrozen-education-variant']`，`paths:` 限定 `.github/workflows/build_education.yml`、`build_release_macos.sh`、`build_resin_release_vs2022.bat`）
   - **不宣告任何 `inputs:`**（見 design.md 決策 3）
   - 檔案開頭加註解說明：resin/education 專用、主線永不自動觸發、存在目的是讓 Actions 出現手動按鈕、請勿刪除
   - 此階段先只放 Windows job，macOS job 整段註解掉或尚未加入（避免每次迭代消耗 10 倍計費）
-- [ ] 1.2 Windows job：checkout（`lfs: 'true'`）＋ deps 快取設定
+- [x] 1.2 Windows job：checkout（`lfs: 'true'`）＋ deps 快取設定
   - 快取鍵**必須含 education 識別**，不可與主線的 `${os}-cache-phrozenorca_deps-build-${hashFiles('deps/**')}` 相同
   - 快取路徑必須是 `deps/build-resin/PhrozenOrca_dep`（`build_resin_release_vs2022.bat` 實際使用的目錄），不是主線的 `deps/build`
-- [ ] 1.3 Windows job：環境準備 —— `lukka/get-cmake@latest`（`cmakeVersion: "~3.28.0"`）、`microsoft/setup-msbuild@v2`、`choco install strawberryperl`
-- [ ] 1.4 Windows job：deps 建置（僅在快取未命中時執行）—— `build_resin_release_vs2022.bat deps` 與 `pack`
-- [ ] 1.5 Windows job：slicer 建置 —— `build_resin_release_vs2022.bat slicer`，並設定 `WindowsSdkDir` 與 `WindowsSDKVersion` env（參考 `build_orca.yml` 的 `Build slicer Win` 步驟）
-- [ ] 1.6 Windows job：版本字串擷取 —— 從 `version.inc` 讀 `Phrozen_VERSION`（現況為乾淨的 `1.2.0`），**並在 CI 端補上 `-Education` 尾綴**後才用於命名（見 design.md 決策 9）
-- [ ] 1.7 Windows job：打包 —— `choco install nsis` 後執行 `cpack -G NSIS`、產生 portable ZIP、以 7z 打包 PDB。**不得**使用既有的 `pack-win-release` composite action（見 design.md 決策 7），改為內聯步驟或另建 education 專用的獨立 composite action
-- [ ] 1.8 Windows job：上傳 artifact，名稱需帶 education 識別，與主線 artifact 名稱不重複
+- [x] 1.3 Windows job：環境準備 —— `lukka/get-cmake@latest`（`cmakeVersion: "~3.28.0"`）、`microsoft/setup-msbuild@v2`、`choco install strawberryperl`
+- [x] 1.4 Windows job：deps 建置（僅在快取未命中時執行）—— `build_resin_release_vs2022.bat deps` 與 `pack`
+- [x] 1.5 Windows job：slicer 建置 —— `build_resin_release_vs2022.bat slicer`，並設定 `WindowsSdkDir` 與 `WindowsSDKVersion` env（參考 `build_orca.yml` 的 `Build slicer Win` 步驟）
+- [x] 1.6 Windows job：版本字串擷取 —— 從 `version.inc` 讀 `Phrozen_VERSION`（現況為乾淨的 `1.2.0`），**並在 CI 端補上 `-Education` 尾綴**後才用於命名（見 design.md 決策 9）
+- [x] 1.7 Windows job：打包 —— `choco install nsis` 後執行 `cpack -G NSIS`、產生 portable ZIP、以 7z 打包 PDB。**不得**使用既有的 `pack-win-release` composite action（見 design.md 決策 7），改為內聯步驟或另建 education 專用的獨立 composite action
+- [x] 1.8 Windows job：上傳 artifact，名稱需帶 education 識別，與主線 artifact 名稱不重複
 
 ## 2. 階段 1-B：macOS 建置腳本支援 resin 旗標
 
