@@ -78,6 +78,12 @@ phrozen-education-variant（目前的開發分支）
 
 **背景限制**：GitHub 規定 `workflow_dispatch` 的 workflow 檔案必須存在於**預設分支**，Actions 頁面才會出現「Run workflow」按鈕。本 repo 預設分支為 `phrozen-custom-dev`（`origin/main` 不存在，只有 `origin/release`）。但「按鈕是否出現」看預設分支，「實際執行什麼」看使用者選的 ref；且 local reusable workflow（`uses: ./…`）從呼叫者所在的同一個 commit 解析。因此按鈕一旦出現，即可選擇任意分支執行該分支的版本。
 
+> **實測確認（2026-07-31）**：workflow 檔案只推到 `phrozen-education-variant`（未合入預設分支）時，Actions 左側欄**會**出現 `Build Education` 項目，但右上角**沒有** `Run workflow` 按鈕。兩者是不同機制：
+> - 左側欄列出項目 ← 該 workflow **曾產生過任何執行紀錄**（本例是開發期 push 觸發造成的）
+> - `Run workflow` 按鈕 ← workflow 檔案**存在於預設分支**
+>
+> 這確認了階段 2 無法省略。同時也帶出一個順序要求：**必須先完成階段 2（按鈕出現），才能移除開發期的 push 觸發**，否則會出現兩種觸發方式都失效的空窗期。
+
 **決策**：正式觸發用 `workflow_dispatch`；開發期額外加上分支觸發，讓階段 1 完全不需要碰主線：
 
 ```yaml

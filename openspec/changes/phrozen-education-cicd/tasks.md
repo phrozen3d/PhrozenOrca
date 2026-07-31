@@ -48,17 +48,22 @@
 - [ ] 5.4 失敗訊息需明確指出：哪個檔案變了、應該去比對什麼、以及確認後如何更新紀錄檔恢復綠燈（讓不熟悉此機制的人也能處理）
 - [ ] 5.5 在紀錄檔或 workflow 註解中寫明更新流程
 
-## 6. 階段 1 收尾
+## 6. 階段 2：讓手動按鈕出現（動主線，僅一個獨立檔案）
 
-- [ ] 6.1 移除 `on:` 中開發期專用的整個 `push:` 區塊，只保留 `workflow_dispatch:`
-- [ ] 6.2 完整跑一次驗證：確認移除開發期觸發後，一般 push 不會再觸發建置
+> **順序很重要**：必須先完成本組（讓 `Run workflow` 按鈕出現），才能執行第 7 組移除開發期觸發。否則會出現「push 不再觸發、按鈕也還沒出現」的空窗期，屆時完全無法觸發此 workflow。
+>
+> 實測確認（2026-07-31）：workflow 檔案只推到 `phrozen-education-variant` 時，Actions 左側欄**會**出現 `Build Education`（因為開發期 push 觸發已產生執行紀錄），但右上角**沒有** `Run workflow` 按鈕 —— 兩者是不同機制，前者看「有無執行紀錄」，後者看「檔案是否在預設分支」。
 
-## 7. 階段 2：讓手動按鈕出現（動主線，僅一個獨立檔案）
+- [ ] 6.1 開 PR 將 `build_education.yml` **單獨**合入 `phrozen-custom-dev`（不夾帶任何其他檔案）
+- [ ] 6.2 PR 描述須寫明三件事：①這是 resin/education 專用；②主線永遠不會自動觸發它；③存在目的是讓 Actions 頁面出現手動觸發按鈕，**請勿刪除**
+- [ ] 6.3 確認此 PR 未觸發完整建置（`build_all.yml` 的 PR 條件只有 `main`／`release`，`phrozen-custom-dev` 不在其中）
+- [ ] 6.4 合入後確認 `Run workflow` 按鈕已出現，且從 UI 選 ref = `phrozen-education-variant` 可正常觸發
+- [ ] 6.5 合入後確認：主線不再修改此檔案，之後由 resin 支線自由演進
 
-- [ ] 7.1 開 PR 將 `build_education.yml` **單獨**合入 `phrozen-custom-dev`（不夾帶任何其他檔案）
-- [ ] 7.2 PR 描述須寫明三件事：①這是 resin/education 專用；②主線永遠不會自動觸發它；③存在目的是讓 Actions 頁面出現手動觸發按鈕，**請勿刪除**
-- [ ] 7.3 確認此 PR 未觸發完整建置（`build_all.yml` 的 PR 條件只有 `main`／`release`，`phrozen-custom-dev` 不在其中）
-- [ ] 7.4 合入後確認：主線不再修改此檔案，之後由 resin 支線自由演進
+## 7. 階段 1 收尾：移除開發期觸發（須在第 6 組完成後才做）
+
+- [ ] 7.1 移除 `on:` 中開發期專用的整個 `push:` 區塊，只保留 `workflow_dispatch:`
+- [ ] 7.2 完整跑一次驗證：確認移除開發期觸發後，一般 push 不會再觸發建置，且仍可從 UI 手動觸發
 
 ## 8. 階段 3：回歸 resin 主維護分支
 
