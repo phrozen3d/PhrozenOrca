@@ -1,5 +1,16 @@
 ## 1. 階段 1-A：Windows job（先做，成本最低）
 
+> **階段 1-A 已完成並驗收通過（2026-07-31）**。Windows 建置全數過關，安裝檔產出正確，第二次執行確認快取命中並跳過 deps 建置。
+>
+> 過程中修掉三個實作缺陷，記錄於此供後續 macOS 階段參考：
+> 1. **`runs-on` 必須釘 `windows-2022`** —— 原本照 resin 支線上較舊的 `build_all.yml` 寫成 `windows-latest`，但主線早在 `8359f943aa` 就已改釘，因為 `windows-latest` 已不再提供 VS 2022，CMake 的 `Visual Studio 17 2022` generator 會找不到任何實例。**這是漂移偵測要防的情境的真實案例**（此次屬「一開始就沒跟上」）。
+> 2. **`actions/cache@v4` 需設 `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION`** —— 同樣來自主線 `d4c40f1f6d`。
+> 3. **快取鍵不可內嵌 `hashFiles()`** —— `key` 在還原與儲存（Post）兩個時機都會被求值，deps 建成後 `deps/build-resin/` 有數萬個檔案，Post 步驟求值必定超過 `hashFiles()` 的 120 秒上限，導致建置成功卻在最後一步失敗且快取存不進去。已改為建置前先算好存成 step output。
+>
+> 另新增一個 `Verify deps were actually built` 步驟：`build_resin_release_vs2022.bat` 的 deps 分支以無條件 `exit /b 0` 結尾，cmake 失敗時步驟仍回報成功，會讓空的 deps 被存進快取。
+>
+> **通則**：凡是主線靠「拆成多個 job」自然迴避掉的問題（快取鍵計算、runner 標籤集中管理），本 change 的自帶邏輯架構都必須顯式處理。
+
 - [x] 1.1 在 `phrozen-education-variant` 分支建立 `.github/workflows/build_education.yml` 骨架：
   - `on:` 同時包含 `workflow_dispatch:`（正式用）與開發期專用的 `push:` 區塊（`branches: ['phrozen-education-variant']`，`paths:` 限定 `.github/workflows/build_education.yml`、`build_release_macos.sh`、`build_resin_release_vs2022.bat`）
   - **不宣告任何 `inputs:`**（見 design.md 決策 3）
@@ -77,9 +88,11 @@
 
 ### 9.1 觸發機制驗收
 
-- [ ] 9.1.1 **（階段 1）開發期分支觸發生效**：對 `phrozen-education-variant` 分支推送一個只修改 `.github/workflows/build_education.yml` 的 commit。
+- [x] 9.1.1 **（階段 1）開發期分支觸發生效**：對 `phrozen-education-variant` 分支推送一個只修改 `.github/workflows/build_education.yml` 的 commit。
   - 開啟 GitHub repo → **Actions** 頁籤 → 左側選擇 `build_education`
   - 預期：出現一筆新的執行記錄，觸發來源顯示為 push
+  - **Pass**（2026-07-31 實測，多次推送皆正確觸發）
+  - 附帶確認：此時 Actions 左側欄**會**出現 `Build Education` 項目，但右上角**沒有** `Run workflow` 按鈕 —— 證實左側欄看「是否曾有執行紀錄」、按鈕看「檔案是否在預設分支」，兩者機制不同，階段 2 無法省略
 
 - [ ] 9.1.2 **（階段 1）paths 過濾生效**：對 `phrozen-education-variant` 分支推送一個**只修改 C++ 原始碼**（例如 `src/slic3r/GUI/` 底下任一檔案）的 commit。
   - 開啟 **Actions** → `build_education`
@@ -103,24 +116,29 @@
 
 ### 9.2 Windows 產出物驗收
 
-- [ ] 9.2.1 **artifact 命名可區分**：在成功執行的頁面下方 **Artifacts** 區塊檢視清單。
+- [x] 9.2.1 **artifact 命名可區分**：在成功執行的頁面下方 **Artifacts** 區塊檢視清單。
   - 預期：各 artifact 名稱皆帶有 education 識別，與主線建置（`build_all` 的執行）的 artifact 名稱不重複
+  - **Pass**（2026-07-31 實測）
 
-- [ ] 9.2.2 **安裝檔檔名**：下載 Windows 安裝檔 artifact 並解壓。
+- [x] 9.2.2 **安裝檔檔名**：下載 Windows 安裝檔 artifact 並解壓。
   - 預期：安裝檔檔名帶有 education 識別與版本尾綴（例如 `PhrozenOrca-Education_Windows_Installer_V1.2.0-Education.exe`），與主線同版本安裝檔可明確區分
+  - **Pass**（2026-07-31 實測）。此檔名完全由 CMake 的 `CPACK_PACKAGE_FILE_NAME` 決定，能對上即同時證明 `PHROZEN_ORCA_ENABLE_RESIN=ON` 有傳進 CMake、`SLIC3R_APP_NAME` 被正確覆寫、`Phrozen_VERSION` 的尾綴由 CMake 動態附加成功
 
-- [ ] 9.2.3 **安裝後的識別隔離**：執行該安裝檔完成安裝。
+- [x] 9.2.3 **安裝後的識別隔離**：執行該安裝檔完成安裝。
   - 檔案總管網址列輸入 `%APPDATA%` → 預期出現 `PhrozenOrca-Education` 資料夾（不是 `PhrozenOrca`）
   - 安裝目錄底下的執行檔 → 預期為 `phrozen-orca-education.exe`
   - Windows「應用程式與功能」→ 預期出現獨立的 `PhrozenOrca-Education` 項目
   - 開啟軟體 →「說明」→「關於」→ 預期版本號顯示 `1.2.0-Education`
+  - **Pass**（2026-07-31 實測：安裝後各處顯示皆帶有 education 尾綴）
 
-- [ ] 9.2.4 **portable ZIP 與 PDB**：確認 artifact 中同時有 portable ZIP 與 PDB 壓縮檔，且皆可正常解壓
+- [x] 9.2.4 **portable ZIP 與 PDB**：確認 artifact 中同時有 portable ZIP 與 PDB 壓縮檔，且皆可正常解壓
+  - **Pass**（2026-07-31 實測，`Pack portable ZIP` 與 `Pack PDB` 步驟皆通過並成功上傳）
 
-- [ ] 9.2.5 **deps 快取行為**：開啟該次執行的 Windows job log，搜尋 cache 相關步驟。
+- [x] 9.2.5 **deps 快取行為**：開啟該次執行的 Windows job log，搜尋 cache 相關步驟。
   - 預期：快取鍵含 education 識別；還原路徑為 `deps/build-resin/PhrozenOrca_dep`
   - 重點確認：**沒有**出現「宣稱快取命中，但後續建置卻找不到 deps」的矛盾情形（這是快取鍵誤用主線的典型症狀）
   - 第二次觸發時應顯示快取命中，且 deps 建置步驟被跳過
+  - **Pass**（2026-07-31 實測：第二次執行確實命中快取並跳過 deps 建置）
 
 ### 9.3 macOS 產出物驗收
 
