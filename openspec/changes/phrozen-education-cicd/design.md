@@ -162,6 +162,12 @@ merge 進 resin 支線 → .github/ 乾淨套用，不衝突（設計使然）
 
 **代價**：education 首次建置（以及每次 `deps/**` 雜湊變動後）需自行完整建 deps（約 1 小時）。使用者已確認不需與主線共用快取，接受此成本。
 
+**自帶邏輯衍生的陷阱（2026-07-31 實地踩到）**：`actions/cache` 的 `key` 在「還原」與「儲存（Post）」兩個時機都會被重新求值，而 `hashFiles()` 有 120 秒上限。deps 建置完成後 `deps/build-resin/` 會有數萬個檔案，Post 步驟再對 `deps/**` 求雜湊必定逾時，導致整個 job 在最後一步失敗且**快取存不進去**（建置本身已成功，白跑一小時）。
+
+主線不會遇到這個問題，因為它把 `hashFiles` 放在獨立的 `check_cache` job 裡算（該 job 不建置任何東西，`deps/` 始終乾淨），下游 job 收到的 `inputs.cache-key` 只是純字串。本設計把邏輯自帶進單一 job 時若直接把 `hashFiles()` 內嵌進 `key`，就會複製出這個 bug。
+
+**對策**：在建置開始前先用一個獨立步驟算出完整快取鍵並寫入 step output，`key` 之後只引用該字串。這是「自帶完整邏輯」這個架構決策必須額外付出的注意成本 —— 凡是主線靠「分成多個 job」自然迴避掉的問題，自帶邏輯都需要顯式處理。
+
 ### 7. Windows 打包不使用既有 composite action
 
 **決策**：不使用 `.github/actions/pack-win-release`，改為在 `build_education.yml` 內聯打包步驟，或另建 education 專用的獨立 composite action。

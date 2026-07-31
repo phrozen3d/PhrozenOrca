@@ -81,6 +81,17 @@ jobs:
           echo "date=$date" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
           Write-Host "base version: $ver_pure / education version: V$ver_edu / date: $date"
 
+      # hashFiles() 有 120 秒上限，而 actions/cache 的 key 在「還原」與「儲存(Post)」
+      # 兩個時機都會被重新求值。deps 建置完成後 deps/build-resin/ 會有數萬個檔案，
+      # 此時 Post 步驟再對 deps/** 求雜湊必定逾時，導致快取存不進去。
+      # （主線沒有這個問題，是因為它把 hashFiles 放在獨立的 check_cache job 裡算，
+      #   那個 job 不建置任何東西，deps/ 始終是乾淨的；下游收到的只是純字串。）
+      # 這裡在建置開始前先算一次並存成 step output，key 之後只引用這個字串。
+      - name: Compute deps cache key
+        id: deps_key
+        shell: bash
+        run: echo "value=windows-2022-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
+
       # deps 快取。注意兩件事:
       #   1. 快取鍵帶有 "education" 識別，不可與主線的
       #      ${os}-cache-phrozenorca_deps-build-<hash> 相同。若鍵相同但路徑不同，
@@ -96,7 +107,7 @@ jobs:
           ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           path: ${{ github.workspace }}/deps/build-resin/PhrozenOrca_dep
-          key: windows-latest-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}
+          key: ${{ steps.deps_key.outputs.value }}
 
       - uses: lukka/get-cmake@latest
         with:
