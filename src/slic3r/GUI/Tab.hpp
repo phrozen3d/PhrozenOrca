@@ -674,7 +674,17 @@ public:
 	ogStaticText* m_support_object_elevation_description_line = nullptr;
 	// Read-only display (2 decimals) for layer_print_time_compensation; value comes from calculator dialog or preset.
 	TextInput*    m_layer_print_time_compensation_display     = nullptr;
+    // Transient re-entrancy guard: true only while a field is being set programmatically
+    // (begin/end below), so SpinCtrl/TextCtrl change events posted during that window are
+    // ignored instead of misread as a user edit. Reset shortly after via CallAfter — do NOT
+    // use this to track "is a per-point Top display currently active" (see the field below).
     bool          m_support_point_top_field_update = false;
+    // Persists for as long as the Top fields are showing a selected point's per-point values
+    // (from begin_support_point_top_field_display() until end_support_point_top_field_display()
+    // runs). Unlike m_support_point_top_field_update, this does NOT get reset by CallAfter —
+    // it must still be true whenever the user later deselects, or end_support_point_top_field_display()
+    // has nothing to tell it that a restore-to-preset is due.
+    bool          m_support_point_top_field_active = false;
     bool          m_support_top_ui_sync_pending    = false;
 
     bool        is_support_point_top_field_update() const { return m_support_point_top_field_update; }

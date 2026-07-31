@@ -7292,6 +7292,7 @@ void TabSLAPrint::apply_support_point_top_fields(const DynamicPrintConfig *point
 
 void TabSLAPrint::begin_support_point_top_field_display(const DynamicPrintConfig &point_cfg)
 {
+    m_support_point_top_field_active = true;
     m_support_point_top_field_update = true;
     apply_support_point_top_fields(&point_cfg);
     // SpinCtrl may post change events after set_value returns; keep the guard until idle.
@@ -7303,12 +7304,22 @@ void TabSLAPrint::begin_support_point_top_field_display(const DynamicPrintConfig
 
 void TabSLAPrint::end_support_point_top_field_display()
 {
-    if (!m_support_point_top_field_update)
+    // Gate on m_support_point_top_field_active, not m_support_point_top_field_update: the
+    // latter is already reset back to false shortly after begin() runs (see above), long
+    // before the user gets around to deselecting. Gating on it here meant this whole restore
+    // silently no-op'd on every deselect and the Top fields kept showing the last-selected
+    // point's values indefinitely.
+    if (!m_support_point_top_field_active)
         return;
-    m_support_point_top_field_update = false;
+    m_support_point_top_field_active = false;
+    m_support_point_top_field_update = true;
     // Restore preset values in the Top fields only; avoid reload_config() here because
     // it can rebuild controls during gizmo mouse handling and crash.
     apply_support_point_top_fields(nullptr);
+    wxTheApp->CallAfter([this]() {
+        if (wxGetApp().checked_tab(this))
+            m_support_point_top_field_update = false;
+    });
 }
 
 void TabSLAPrint::on_value_change(const std::string& opt_key, const boost::any& value)
