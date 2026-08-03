@@ -17,32 +17,32 @@
 
 ## 2. 修正
 
-- [ ] 2.1 將 `render_points()` 的判定改為 `const bool use_stored_geometry = preview_use_stored_top(support_point, point_selected);`
-- [ ] 2.2 更新該處註解，說明規則與切片端一致且不依編輯模式而異
-- [ ] 2.3 確認 `update_point_raycasters_for_picking_transform()`（`:2503` 附近）內的 `preview_use_stored_top(sp, m_editing_cache[i].selected)` **維持現狀**——該處本來就沒有 `m_editing_mode &&` 前綴，不需修改
-- [ ] 2.4 確認未引入第二條參數解析路徑：preview、picking、切片三處仍共用 `preview_use_stored_top()` + `point_*()` 助手
+- [x] 2.1 將 `render_points()` 的判定改為 `const bool use_stored_geometry = preview_use_stored_top(support_point, point_selected);`
+- [x] 2.2 更新該處註解，說明規則與切片端一致且不依編輯模式而異
+- [x] 2.3 確認 `update_point_raycasters_for_picking_transform()`（`:2511`）內的 `preview_use_stored_top(sp, m_editing_cache[i].selected)` **維持現狀**——查證該處本來就沒有 `m_editing_mode &&` 前綴，零 diff
+- [x] 2.4 確認未引入第二條參數解析路徑：`preview_use_stored_top()` 全檔案僅兩處呼叫（`:762` render_points、`:2511` picking），皆直接呼叫同一函式，未複製或改寫任何判定邏輯；切片端 `SupportTreeBuildsteps.cpp` 共用同一組 `point_*()` 助手，未觸碰
 
 ## 3. 驗證：目標行為
 
-- [ ] 3.1 手動模式放置三顆 `support_head_front_diameter` 不同的支撐點，退出編輯模式後於 Points 視圖確認三顆錐體尺寸各自維持建立時的大小
-- [ ] 3.2 切片後比對支撐樹的實際 head 直徑、head width、penetration、contact sphere 半徑與非編輯模式 preview 一致
-- [ ] 3.3 手動點的 `support_head_back_diameter`、`support_segment_length`、`support_head_penetration`、`support_contact_diameter` 各自設不同值，確認四項在非編輯模式皆正確反映
+- [x] 3.1 手動模式放置三顆 `support_head_front_diameter` 不同的支撐點，退出編輯模式後於 Points 視圖確認三顆錐體尺寸各自維持建立時的大小 — **Pass**：手動建完支撐點回到自動模式後，該支撐點顯示的大小保持一致
+- [x] 3.2 切片後比對支撐樹的實際 head 直徑、head width、penetration、contact sphere 半徑與非編輯模式 preview 一致 — **Pass**
+- [x] 3.3 手動點的 `support_head_back_diameter`、`support_segment_length`、`support_head_penetration`、`support_contact_diameter` 各自設不同值，確認四項在非編輯模式皆正確反映 — **Pass**
 
 ## 4. 驗證：不得回歸
 
-- [ ] 4.1 **auto 點顯示不變**：對同一組 auto 生成的點，比對修改前後 preview 錐體尺寸完全相同
-- [ ] 4.2 **編輯模式行為不變**：混合 auto 與 manual 點，比對修改前後編輯模式下每顆錐體的幾何完全相同
-- [ ] 4.3 **選中點仍用自身幾何**：編輯模式選中一顆點，確認其錐體仍依 `point_selected == true` 的既有規則解析
-- [ ] 4.4 **live preset 仍驅動無 explicit geometry 的點**：修改 preset 的 `support_head_front_diameter` 後重繪，確認 auto 點跟著變、有 explicit geometry 的 manual 點不變
-- [ ] 4.5 Structure 模式仍 early return，不受影響
-- [ ] 4.6 Clipping 開啟時逐點 clipped 判定不變
+- [x] 4.1 **auto 點顯示不變**：對同一組 auto 生成的點，比對修改前後 preview 錐體尺寸完全相同 — **Pass**
+- [x] 4.2 **編輯模式行為不變**：混合 auto 與 manual 點，比對修改前後編輯模式下每顆錐體的幾何完全相同 — **Pass**
+- [x] 4.3 **選中點仍用自身幾何**：編輯模式選中一顆點，確認其錐體仍依 `point_selected == true` 的既有規則解析 — **Pass**：再次進入手動模式後點選剛才新增的點，Top 欄位有正確切換成該點的 preset 顯示（`fix-sla-support-top-config-enum-set` 的 per-point Top 顯示功能在本次修改後仍正常運作，間接證明選中點的幾何解析路徑未受影響）
+- [x] 4.4 **live preset 仍驅動無 explicit geometry 的點**：修改 preset 的 `support_head_front_diameter` 後重繪，確認 auto 點跟著變、有 explicit geometry 的 manual 點不變 — **Pass**
+- [x] 4.5 Structure 模式仍 early return，不受影響 — **Pass**
+- [x] 4.6 Clipping 開啟時逐點 clipped 判定不變 — **Pass**
 
 ## 5. 驗證：picking 與效能
 
-- [ ] 5.1 編輯模式下 hover 一顆 explicit geometry 與 preset 差異明顯的 manual 點，確認命中範圍與可見錐體一致，無「看得到點不到」或「點得到看不到」
-- [ ] 5.2 確認 `perf-sla-support-points-preview-render` 建立的 `m_head_model_cache` 在非編輯模式下 key 數為「1 + 相異手動幾何組數」，且穩態每幀 `init_from()` 呼叫次數仍為 0
-- [ ] 5.3 500 點 auto + 若干手動點的情境下旋轉視角，確認流暢度與該 change 完成時相同（無因 key 增加而退化）
-- [ ] 5.4 刻意建立超過 64 組相異手動幾何，確認觸發整份 `clear()` 後重新填充，畫面結果仍正確
+- [x] 5.1 編輯模式下 hover 一顆 explicit geometry 與 preset 差異明顯的 manual 點，確認命中範圍與可見錐體一致，無「看得到點不到」或「點得到看不到」 — **Pass**
+- [x] 5.2 確認 `perf-sla-support-points-preview-render` 建立的 `m_head_model_cache` 在非編輯模式下 key 數為「1 + 相異手動幾何組數」，且穩態每幀 `init_from()` 呼叫次數仍為 0 — **Pass**，未引發效能問題
+- [x] 5.3 500 點 auto + 若干手動點的情境下旋轉視角，確認流暢度與該 change 完成時相同（無因 key 增加而退化）— **Pass**
+- [x] 5.4 刻意建立超過 64 組相異手動幾何，確認觸發整份 `clear()` 後重新填充，畫面結果仍正確 — **Pass**
 
 ## 6. Follow-up（out of scope）
 
