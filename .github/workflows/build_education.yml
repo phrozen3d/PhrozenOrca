@@ -11,13 +11,18 @@
 #     必須存在於預設分支，按鈕才會出現。
 #   * 實際執行時請在 Actions → build_education → Run workflow 選擇
 #     resin 分支作為 ref；GitHub 會使用該分支上的 workflow 定義與程式碼。
-#   * 若從主線 ref 觸發，會因為缺少 build_resin_release_vs2022.bat 而快速失敗，
-#     這是預期行為（不會產出任何看似 education 實為主線的成品）。
+#   * 若從主線 ref 觸發，會因為缺少 build_resin_release_vs2022.bat 與
+#     build_resin_release_macos.sh 而快速失敗，這是預期行為
+#     （不會產出任何看似 education 實為主線的成品）。
 #
 # 本 workflow 刻意「自帶完整邏輯」，不呼叫 build_check_cache.yml 那條共用鏈，
 # 目的是讓主線的共用 CI 檔案在 resin 分支上保持逐位元組相同，使主線的 FDM
 # 更新 merge 進 resin 分支時不會在 .github/ 產生衝突。
 # 詳見 openspec/changes/phrozen-education-cicd/design.md 決策 1。
+#
+# 同理，本 workflow 只呼叫 build_resin_release_vs2022.bat 與
+# build_resin_release_macos.sh 這兩支 resin 專用的獨立腳本，不呼叫也不修改主線的
+# build_release_vs2022.bat / build_release_macos.sh。
 # =============================================================================
 
 name: Build Education
@@ -32,7 +37,7 @@ on:
     branches: ['phrozen-education-variant']
     paths:
       - '.github/workflows/build_education.yml'
-      - 'build_release_macos.sh'
+      - 'build_resin_release_macos.sh'
       - 'build_resin_release_vs2022.bat'
   # --- 開發期專用觸發結束 --------------------------------------------------
 
@@ -199,7 +204,181 @@ jobs:
           path: ${{ github.workspace }}/build-resin/src/Release/Debug_PDB_Education_${{ env.ver }}_for_developers_only.7z
 
   # ===========================================================================
-  # macOS job —— 階段 1-C／1-D 才加入。
-  # 目前刻意留白，避免開發 Windows job 時每次迭代都消耗 macOS runner
-  # 的 10 倍計費額度。見 design.md 決策 10。
+  # macOS job（階段 1-C ＋ 1-D）
+  #
+  # 與主線的差異在於主線把 deps 與 slicer 拆成兩個 job（build_deps.yml →
+  # build_orca.yml），這裡合併成單一 job，因此下列在主線靠「分 job」自然迴避掉
+  # 的事情必須顯式處理：
+  #   * 快取鍵不可內嵌 hashFiles()（deps 建完後求值會超過 120 秒上限）
+  #   * deps 建置後要自行清掉中間產物，否則快取會膨脹到數十 GB
+  #   * deps 建置成功與否要自行驗證，避免壞快取被存起來
   # ===========================================================================
+  build_macos:
+    name: Build Education (macOS)
+    runs-on: macos-14
+    env:
+      date:
+      ver:
+      ver_pure:
+      # .app 套件名稱由 CMake 的 SLIC3R_APP_KEY 決定；PHROZEN_ORCA_ENABLE_RESIN=ON
+      # 時為 PhrozenOrca-Education。build_resin_release_macos.sh 頂端的 APP_NAME
+      # 是同一個值，這裡只是把它重複宣告給 workflow 的路徑與檔名使用
+      # （兩處必須一致，改其中一個要記得改另一個）。
+      APP_NAME: PhrozenOrca-Education
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          lfs: 'true'
+
+      # 與 Windows job 相同：version.inc 只有乾淨的 base 版本號，"-Education"
+      # 尾綴由 CMake 動態附加，CI 端命名時必須自己補上。
+      - name: Get the version and date
+        shell: bash
+        run: |
+          ver_pure=$(grep 'set(Phrozen_VERSION' version.inc | cut -d '"' -f2)
+          if [ -z "$ver_pure" ]; then
+            echo "::error::無法從 version.inc 解析 Phrozen_VERSION"
+            exit 1
+          fi
+          echo "ver_pure=$ver_pure" >> "$GITHUB_ENV"
+          echo "ver=V${ver_pure}-Education" >> "$GITHUB_ENV"
+          echo "date=$(date +'%Y%m%d')" >> "$GITHUB_ENV"
+          echo "base version: $ver_pure / education version: V${ver_pure}-Education"
+
+      # 同 Windows job：必須在 deps 建置「之前」算好，因為 actions/cache 的 key
+      # 在還原與儲存(Post)兩個時機都會被重新求值。
+      - name: Compute deps cache key
+        id: deps_key
+        shell: bash
+        run: echo "value=macos-14-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
+
+      # 路徑是 deps/build-resin —— build_resin_release_macos.sh 實際使用的目錄
+      # （主線的 build_release_macos.sh 用 deps/build），與 Windows 的
+      # build_resin_release_vs2022.bat 同一套命名慣例。
+      # 快取鍵同樣帶 education 識別，與主線的快取項目分開存放。
+      - name: Load cached deps
+        id: cache_deps
+        uses: actions/cache@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+        with:
+          path: ${{ github.workspace }}/deps/build-resin
+          key: ${{ steps.deps_key.outputs.value }}
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~3.28.0" # use most recent 3.28.x version
+
+      - name: Install tools mac
+        run: |
+          brew install automake texinfo libtool
+          brew list
+          mkdir -p ${{ github.workspace }}/deps/build-resin
+
+      - name: Free disk space
+        run: |
+          df -hI /dev/disk3s1s1
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
+          sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
+          df -hI /dev/disk3s1s1
+
+      # 建置後的 find 清理是必要的：deps/build-resin/<arch> 底下會留下數十 GB 的
+      # 中間產物，只有 PhrozenOrca_dep 需要進快取。
+      # （主線是在獨立的 build_deps.yml job 裡做同一件事。）
+      - name: Build deps
+        if: steps.cache_deps.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          brew uninstall --ignore-dependencies zstd
+          ./build_resin_release_macos.sh -dx -a universal -t 10.15 -1
+          for arch in arm64 x86_64; do
+              (cd "${{ github.workspace }}/deps/build-resin/${arch}" && \
+              find . -mindepth 1 -maxdepth 1 ! -name 'PhrozenOrca_dep' -exec rm -rf {} +)
+          done
+          brew install zstd
+
+      # 壞掉的 deps 一旦進了快取，之後每次都會「命中」並以更難診斷的方式失敗，
+      # 而 macOS runner 是 10 倍計費 —— 這裡多花十秒驗證非常划算。
+      - name: Verify deps were actually built
+        if: steps.cache_deps.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          for arch in arm64 x86_64; do
+            lib_dir="${{ github.workspace }}/deps/build-resin/${arch}/PhrozenOrca_dep/usr/local/lib"
+            if [ ! -d "$lib_dir" ]; then
+              echo "::error::deps 建置失敗：找不到 $lib_dir"
+              exit 1
+            fi
+            count=$(find "$lib_dir" -type f | wc -l | tr -d ' ')
+            if [ "$count" -lt 1 ]; then
+              echo "::error::deps 建置不完整：$lib_dir 底下沒有任何檔案"
+              exit 1
+            fi
+            echo "deps 驗證通過（$arch）：$lib_dir 底下有 $count 個檔案"
+          done
+
+      # 旗標與主線的 "Build slicer mac" 完全一致；resin 專屬設定
+      # （-DPHROZEN_ORCA_ENABLE_RESIN=ON、PhrozenOrca-Education.app、build-resin 目錄）
+      # 全部寫在 build_resin_release_macos.sh 內，不靠 workflow 傳參。
+      # 本地化驗證（scripts/run_gettext.sh）已由該腳本內部呼叫。
+      - name: Build slicer mac
+        working-directory: ${{ github.workspace }}
+        run: |
+          ./build_resin_release_macos.sh -s -n -x -a universal -t 10.15 -1
+
+      # 簽章刻意拆成三個步驟（主線是單一大步驟），這樣失敗時能一眼看出是卡在
+      # 憑證匯入、DMG 產生還是公證，不必翻整段 log。
+      - name: Import signing certificate
+        env:
+          MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          echo -n "$MAC_CERTIFICATE_P12" | base64 --decode --output $CERTIFICATE_PATH
+          security create-keychain -p $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P $MAC_CERTIFICATE_PASSWORD -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MAC_CERTIFICATE_PASSWORD $KEYCHAIN_PATH
+
+      - name: Sign app and create DMG
+        env:
+          CERTIFICATE_ID: ${{ secrets.MAC_CERTIFICATE_NAME }}
+        run: |
+          STAGE_DIR="${{ github.workspace }}/build-resin/universal/${{ env.APP_NAME }}"
+          codesign --deep --force --verbose --options runtime --timestamp \
+            --entitlements ${{ github.workspace }}/scripts/disable_validation.entitlements \
+            --sign "$CERTIFICATE_ID" "$STAGE_DIR/${{ env.APP_NAME }}.app"
+          ln -s /Applications "$STAGE_DIR/Applications"
+          hdiutil create -volname "${{ env.APP_NAME }}" -srcfolder "$STAGE_DIR" \
+            -ov -format UDZO ${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg
+          codesign --deep --force --verbose --options runtime --timestamp \
+            --entitlements ${{ github.workspace }}/scripts/disable_validation.entitlements \
+            --sign "$CERTIFICATE_ID" ${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg
+        working-directory: ${{ github.workspace }}
+
+      # 公證失敗不影響 DMG 本身已經產生，因此下面的上傳步驟用 if: always()
+      # 保留產出物 —— 重跑一次 macOS job 要價不低，別讓成品跟著失敗一起消失。
+      - name: Notarize and staple
+        working-directory: ${{ github.workspace }}
+        run: |
+          xcrun notarytool store-credentials "notarytool-profile" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --team-id "${{ secrets.TEAM_ID }}" \
+            --password "${{ secrets.APPLE_APP_PASSWORD }}"
+          xcrun notarytool submit "${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg" \
+            --keychain-profile "notarytool-profile" --wait
+          xcrun stapler staple ${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg
+
+      - name: Upload artifacts mac
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}
+          path: ${{ github.workspace }}/${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg
+          if-no-files-found: warn
