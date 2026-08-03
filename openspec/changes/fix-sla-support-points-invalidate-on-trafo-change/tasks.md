@@ -1,6 +1,6 @@
 ## 0. 前置條件與實施順序
 
-- 本 change **無硬前置**，但建議 `fix-sla-support-preview-stored-geometry-in-auto-mode` 先完成——它會消除「切到自動模式尺寸就變」這個變因，使第 1 節的觀察不受干擾
+- 本 change **無硬前置**。建議前置 `fix-sla-support-preview-stored-geometry-in-auto-mode` 已完成（2026-08-03 archive，23/23）——「切到自動模式尺寸就變」這個變因已消除，第 1 節的觀察不再受此干擾
 
 > 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。
 
