@@ -90,14 +90,20 @@
 
 ## 5. 漂移偵測機制
 
-- [ ] 5.1 建立校驗值紀錄檔（建議 `.github/education-ci-parity.lock`），記錄主線共用檔案的雜湊值，並附註「上次比對時主線的 commit」以利日後人工 diff。監控清單為 **五個**檔案：
+> **已完成（2026-08-03）**。建立時機特別乾淨：實作前先合併了主線進 `phrozen-resin-dev` 再進 `phrozen-education-variant`（見本 change 較早的合併紀錄），此刻五個受監控檔案在本分支與主線的 git blob hash **完全一致**，符合 design.md 47 行「基準值應以主線最新版本為準」的要求，不是拿 resin 支線當下（可能落後）的版本當基準。
+
+- [x] 5.1 建立校驗值紀錄檔 `.github/education-ci-parity.lock`，記錄主線共用檔案的校驗值，並附註「上次比對時主線的 commit」（`LAST_REVIEWED_MAINLINE_COMMIT=dd9e7860b4...`，即目前 `origin/phrozen-custom-dev` 的 HEAD）以利日後人工 diff。監控清單為 **五個**檔案：
   - `.github/workflows/build_orca.yml`、`build_deps.yml`、`build_check_cache.yml` —— `build_education.yml` 自帶邏輯的來源
   - **`build_release_vs2022.bat`、`build_release_macos.sh`** —— `build_resin_release_vs2022.bat` 與 `build_resin_release_macos.sh` 是這兩支的變體副本
   - 補上後兩者的理由：階段 1-B 改採「獨立腳本」後，resin 的建置腳本變成主線腳本的**複本**而非其變體呼叫。複本的好處是主線 merge 下來永不衝突，代價是主線修了 bug（例如新增必要的 cmake 參數、修 SDK 路徑）時 resin 這邊**完全不會有任何訊號**。這正是漂移偵測存在的意義，因此監控範圍必須涵蓋它們，否則等於用「無聲的錯誤」換掉了「吵鬧的衝突」
-- [ ] 5.2 在 `build_education.yml` 中加入 parity check job：僅 checkout ＋ 計算雜湊並與紀錄檔比對，不執行任何編譯／deps／簽章
-- [ ] 5.3 將 Windows 與 macOS 兩個建置 job 設為依賴 parity check job，確保**偵測失敗時昂貴的建置不會啟動**
-- [ ] 5.4 失敗訊息需明確指出：哪個檔案變了、應該去比對什麼、以及確認後如何更新紀錄檔恢復綠燈（讓不熟悉此機制的人也能處理）
-- [ ] 5.5 在紀錄檔或 workflow 註解中寫明更新流程
+  - **實作細節（校驗值選擇 git blob SHA，而非對簽出後檔案內容算 sha256）**：`git rev-parse HEAD:<path>` 取自 git 物件庫，不受 `parity_check`（`ubuntu-latest`）與後續建置 job（`windows-2022`／`macos-14`）checkout 時 CRLF/LF 轉換影響，三種 runner 算出來的值保證一致。若改用對簽出後檔案內容算 sha256，同一個 commit 在不同 OS 的 runner 上可能因 `core.autocrlf` 造成的行尾轉換而算出不同結果，產生假陽性的漂移警報——這點在 `.gitattributes` 設有 `* text=auto` 的本專案尤其重要。
+- [x] 5.2 在 `build_education.yml` 中加入 `parity_check` job（`runs-on: ubuntu-latest`，全 workflow 中唯一非 Windows/macOS 的 job，因為這個檢查不需要任何建置工具鏈，選最便宜最快的 runner）：僅 checkout ＋ 解析 lock 檔逐行比對 blob SHA，不執行任何編譯／deps／簽章
+  - 解析邏輯：以 `grep -e $'\t'` 篩出含 tab 的資料行（跳過註解行與 `LAST_REVIEWED_MAINLINE_COMMIT=` 這行中繼資料），逐行 `git rev-parse "HEAD:$path"` 與紀錄值比對
+  - 已在本機模擬驗證兩種情境：① 現況全部相符 → 通過；② 刻意竄改一個 hash → 正確指名該檔案並回報 blob 差異
+- [x] 5.3 將 Windows 與 macOS 兩個建置 job 都加上 `needs: parity_check`，確保**偵測失敗時昂貴的建置不會啟動**（`needs` 的預設行為：前置 job 失敗，後續 job 自動變成 `skipped`，不需額外的 `if` 判斷）
+- [x] 5.4 失敗訊息需明確指出：哪個檔案變了、應該去比對什麼、以及確認後如何更新紀錄檔恢復綠燈（讓不熟悉此機制的人也能處理）
+  - 錯誤訊息包含：檔案路徑、本分支目前的 blob SHA、lock 檔記錄的 blob SHA、以及「比對主線後決定是否同步、更新該行、更新 `LAST_REVIEWED_MAINLINE_COMMIT`」的具體指引
+- [x] 5.5 在 lock 檔開頭以大段註解寫明格式、五個檔案監控範圍的理由、blob SHA 選型理由、以及完整的六步更新流程
 
 ## 6. 階段 2：讓手動按鈕出現（動主線，僅一個獨立檔案）
 
@@ -230,6 +236,8 @@
 - [ ] 9.3.8 **兩個版本可並存**：確認 `PhrozenOrca.app` 與 `PhrozenOrca-Education.app` 可同時存在於「應用程式」資料夾，安裝其中一個不會覆蓋另一個；刪除其中一個時另一個的檔案與資料夾都不受影響
 
 ### 9.4 漂移偵測機制驗收
+
+> **本機已先行模擬過解析邏輯**（非 CI 環境，僅供參考不能取代下列實測）：複製 lock 檔並竄改 `build_release_macos.sh` 那行的 hash，重跑同一段 bash 解析邏輯，確認能正確指名該檔案並回報 blob 差異；未竄改時五個檔案皆比對通過。下列各項仍需在 GitHub Actions 上實際觸發才算數。
 
 - [ ] 9.4.1 **正常情況通過**：在未變更主線共用 CI 檔案的情況下觸發 education 建置。
   - 開啟該次執行 → 預期 parity check job **通過（綠燈）**，且建置 job 正常接續執行
