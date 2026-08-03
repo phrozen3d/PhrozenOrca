@@ -40,6 +40,9 @@
 #include "../Widgets/PopupWindow.hpp"
 #include <wx/simplebook.h>
 #include <wx/hashmap.h>
+#include <map>
+#include <atomic>
+#include <thread>
 
 #include "../Jobs/Worker.hpp"
 
@@ -258,6 +261,14 @@ private:
 
     Plater *                            m_plater{nullptr};
 
+    // Phrozen: 末端線材通道重映射（送印前同步改檔，背景 worker + CallAfter 非阻塞串接）
+    std::atomic<bool>                   m_remap_cancel{ false };
+    std::thread                         m_remap_worker;
+    bool                                m_is_remapping{ false };
+    std::string                         m_remap_gcode_path;   // 原始切片 gcode（只讀來源）
+    std::string                         m_remap_output_path;  // 旁路輸出 .remapped.gcode（上傳重導目標）
+    wxDialog*                           m_remap_progress_dlg{ nullptr };
+
 protected:
 
     AmsMapingPopup                      m_mapping_popup{ nullptr };
@@ -363,6 +374,16 @@ public:
     void show_errors(wxString& info);
     void on_send_btn_pressed(wxCommandEvent& event);
     void on_send_print();
+    // Phrozen: 實際送印（原流程）。恆等映射時直接呼叫；有變更時於改檔成功後呼叫。
+    void do_send_to_printer();
+    // Phrozen: 有變更時——切片守門 + 確保 pristine 備份 + 啟動背景改檔 worker。
+    void start_tool_remap_then_send(const std::map<int, int>& remap);
+    // Phrozen: worker 完成後於主執行緒（CallAfter）執行：關 spinner、解鎖 UI、續送或回報。
+    void on_tool_remap_finished(bool ok, bool canceled, const std::string& error);
+    // Phrozen: 改檔期間鎖定/解鎖對話框互動（下拉、傳送、刷新等）。
+    void lock_ui_for_remapping(bool lock);
+    // Phrozen: 顯示/關閉「重設線材使用配置」轉圈圈對話框。
+    void show_remap_progress(bool show);
     void Enable_Auto_Refill(bool enable);
     void clear_ip_address_config(wxCommandEvent& e);
     void on_refresh(wxCommandEvent& event);
@@ -396,6 +417,12 @@ public:
     bool Show(bool show);
     bool get_ams_mapping_result(std::string& mapping_array_str, std::string& mapping_array_str2, std::string& ams_mapping_info);
     bool build_nozzles_info(std::string& nozzles_info);
+
+    // Phrozen: 由各通道項目蒐集「原始工具號 -> 目標工具號」映射表（皆為 0-based，對應 G-code 的 T0~T3）。
+    // 允許碰撞（多個來源指向同一目標），不做雙射驗證。
+    std::map<int, int> get_tool_remap();
+    // 是否整體為恆等映射（每個來源的目標皆等於來源），作為送印時是否需改寫 G-code 的依據。
+    bool is_tool_remap_identity();
 
     void ShowMessageNotSupportSdCardView();
     void ShowMessage( const std::string& strMsg );
