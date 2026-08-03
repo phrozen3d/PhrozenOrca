@@ -237,20 +237,27 @@
 
 ### 9.4 漂移偵測機制驗收
 
-> **本機已先行模擬過解析邏輯**（非 CI 環境，僅供參考不能取代下列實測）：複製 lock 檔並竄改 `build_release_macos.sh` 那行的 hash，重跑同一段 bash 解析邏輯，確認能正確指名該檔案並回報 blob 差異；未竄改時五個檔案皆比對通過。下列各項仍需在 GitHub Actions 上實際觸發才算數。
+> **已在 GitHub Actions 上完整實測通過（2026-08-03～2026-08-04）**。三次連續觸發：① 正常狀態 → 綠燈；② 刻意破壞 `build_orca.yml` → 紅燈且準確指名；③ `git revert` 破壞用 commit → 恢復綠燈。
+>
+> 本機模擬（複製 lock 檔竄改 `build_release_macos.sh` 那行的 hash，重跑同一段 bash 解析邏輯）僅在實際 CI 驗證前用來檢查解析邏輯本身有沒有寫錯，不能取代下列這輪真正的 GitHub Actions 實測——這輪已經做過了。
 
-- [ ] 9.4.1 **正常情況通過**：在未變更主線共用 CI 檔案的情況下觸發 education 建置。
+- [x] 9.4.1 **正常情況通過**：在未變更主線共用 CI 檔案的情況下觸發 education 建置。
   - 開啟該次執行 → 預期 parity check job **通過（綠燈）**，且建置 job 正常接續執行
+  - **Pass（2026-08-03 實測）**：push 第 5 組（新增 parity_check job）後首次觸發，parity check 通過，Windows／macOS 兩個建置 job 正常接續執行
 
-- [ ] 9.4.2 **偵測到變更時失敗**：在 resin 支線上刻意修改 `.github/workflows/build_orca.yml` 任意一行（測試用，事後還原）後觸發 education 建置。
+- [x] 9.4.2 **偵測到變更時失敗**：在 resin 支線上刻意修改 `.github/workflows/build_orca.yml` 任意一行（測試用，事後還原）後觸發 education 建置。
   - 預期：parity check job **失敗（紅燈）**，且失敗訊息明確指出是 `build_orca.yml` 發生變更
   - **重點確認**：Windows 與 macOS 兩個建置 job 皆顯示為 **skipped**，未被啟動（避免浪費昂貴的 macOS 額度）
+  - **Pass（2026-08-04 實測，commit `017db157cd`）**：parity check 紅燈，錯誤訊息準確指出 `.github/workflows/build_orca.yml` blob 不符；Windows／macOS 兩個 job 皆顯示 `skipped`，確認未被啟動
 
-- [ ] 9.4.3 **更新校驗值後恢復**：依失敗訊息的指示更新 `.github/education-ci-parity.lock` 後再次觸發。
+- [x] 9.4.3 **更新校驗值後恢復**：依失敗訊息的指示更新 `.github/education-ci-parity.lock` 後再次觸發。
   - 預期：parity check 通過，建置正常進行
+  - **Pass（2026-08-04 實測，commit `2fcfda421a`），但走的是另一條等價路徑**：本次驗證是用 `git revert` 撤銷 9.4.2 的破壞用 commit，讓五個檔案的 blob hash 恢復成與 lock 檔記錄值一致，而非「依錯誤訊息更新 lock 檔的 hash」這條原描述的路徑——兩者本質相同（讓「本分支當下的 blob hash」與「lock 檔記錄值」重新一致），只是這次的落差來源是測試用的刻意修改（用 revert 復原），不是真正的主線同步（用更新 lock 檔記錄值來承認新狀態）。真正走「主線改了東西、同步後更新 lock 檔」這條路徑，會在下次實際合併主線進來時自然發生，屆時再驗一次
+  - parity check 通過，Windows／macOS 兩個建置 job 恢復正常接續執行
 
-- [ ] 9.4.4 **成本確認**：檢視 parity check job 的執行時間。
+- [x] 9.4.4 **成本確認**：檢視 parity check job 的執行時間。
   - 預期：僅數十秒等級（只做 checkout 與雜湊計算），未執行任何編譯、deps 或簽章步驟
+  - **Pass**：三次執行中 parity check job 皆為秒等級完成，符合預期
 
 ### 9.5 主線不受影響的回歸驗收
 
