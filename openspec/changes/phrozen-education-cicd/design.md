@@ -76,7 +76,15 @@ phrozen-education-variant（目前的開發分支）
 
 ### 2. 觸發方式：`workflow_dispatch`（正式）＋ 開發期暫用分支觸發
 
-**背景限制**：GitHub 規定 `workflow_dispatch` 的 workflow 檔案必須存在於**預設分支**，Actions 頁面才會出現「Run workflow」按鈕。本 repo 預設分支為 `phrozen-custom-dev`（`origin/main` 不存在，只有 `origin/release`）。但「按鈕是否出現」看預設分支，「實際執行什麼」看使用者選的 ref；且 local reusable workflow（`uses: ./…`）從呼叫者所在的同一個 commit 解析。因此按鈕一旦出現，即可選擇任意分支執行該分支的版本。
+**背景限制**：GitHub 規定 `workflow_dispatch` 的 workflow 檔案必須存在於**預設分支**，Actions 頁面才會出現「Run workflow」按鈕。
+
+> **更正（2026-08-04）**：本節原本寫「本 repo 預設分支為 `phrozen-custom-dev`」，這是錯的，一直沒有實際查證過。用 GitHub API（`GET /repos/phrozen3d/PhrozenOrca` 的 `default_branch` 欄位）查證後，**實際預設分支是 `release`**。`phrozen-custom-dev` 只是開發用的主要分支，不是 GitHub 認定的 default branch。
+>
+> 這個更正只影響「階段 2 的 PR 要開去哪」（見決策 4 與 tasks.md 第 6 組：目標從 `phrozen-custom-dev` 改為 `release`），不影響本 change 其他任何決策——`release` 目前與 `phrozen-custom-dev` 的檔案內容逐位元組相同（`git diff origin/phrozen-custom-dev origin/release` 無輸出，`release` 領先的 8 個 commit 淨變動為 0），所以「主線共用檔案零修改」「resin 支線與主線保持零差異」等既有結論依然成立，只是「主線」在這裡具體該理解成 `release`。
+>
+> 連帶發現一個更重要的後果：`release` 的 `build_all.yml` 的 `pull_request` 觸發條件包含 `branches: [main, release]` 且 `paths` 含 `.github/workflows/build_*.yml`，而新增的 `build_education.yml` 正好符合這個 glob。**對 `release` 開 PR 加入這個檔案，會自動觸發一次完整的主線 `build_all` 執行**（Windows + macOS + 簽章公證），這在原本假設目標是 `phrozen-custom-dev`（不在該 trigger 的 branches 清單內）時是不會發生的。已評估無法在不修改 `build_all.yml`（共用/受保護檔案，不可修改）的前提下迴避，且此為一次性代價（public repo 無金錢成本，且兩分支 deps 雜湊相同大機率命中快取），使用者已確認接受。
+
+但「按鈕是否出現」看預設分支，「實際執行什麼」看使用者選的 ref；且 local reusable workflow（`uses: ./…`）從呼叫者所在的同一個 commit 解析。因此按鈕一旦出現，即可選擇任意分支執行該分支的版本。
 
 > **實測確認（2026-07-31）**：workflow 檔案只推到 `phrozen-education-variant`（未合入預設分支）時，Actions 左側欄**會**出現 `Build Education` 項目，但右上角**沒有** `Run workflow` 按鈕。兩者是不同機制：
 > - 左側欄列出項目 ← 該 workflow **曾產生過任何執行紀錄**（本例是開發期 push 觸發造成的）

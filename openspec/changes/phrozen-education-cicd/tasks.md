@@ -110,10 +110,16 @@
 > **順序很重要**：必須先完成本組（讓 `Run workflow` 按鈕出現），才能執行第 7 組移除開發期觸發。否則會出現「push 不再觸發、按鈕也還沒出現」的空窗期，屆時完全無法觸發此 workflow。
 >
 > 實測確認（2026-07-31）：workflow 檔案只推到 `phrozen-education-variant` 時，Actions 左側欄**會**出現 `Build Education`（因為開發期 push 觸發已產生執行紀錄），但右上角**沒有** `Run workflow` 按鈕 —— 兩者是不同機制，前者看「有無執行紀錄」，後者看「檔案是否在預設分支」。
+>
+> **更正（2026-08-04）**：本組原本規劃的合入目標寫的是 `phrozen-custom-dev`，經 GitHub API 查證，**此 repo 實際的預設分支是 `release`**，`phrozen-custom-dev` 不是。下列各項的合入目標已改為 `release`。詳見 design.md 決策 2 的更正說明。
+>
+> **連帶發現並已與使用者確認接受**：`release` 的 `build_all.yml` 之 `pull_request` 觸發條件包含 `branches: [main, release]` 且 `paths` 含 `.github/workflows/build_*.yml`，`build_education.yml` 符合此 glob，故**對 `release` 開 PR 會自動觸發一次完整主線 `build_all`**（Windows + macOS + 簽章公證）。已確認無法在不修改共用檔案 `build_all.yml` 的前提下迴避，屬一次性代價（public repo 無金錢成本，且 `release`／`phrozen-custom-dev` 目前 deps 雜湊相同，大機率命中既有快取）。此結果同時可當作 9.5.2「主線既有建置行為不變」的一次免費回歸驗證。
 
-- [ ] 6.1 開 PR 將 `build_education.yml` **單獨**合入 `phrozen-custom-dev`（不夾帶任何其他檔案）
+- [x] 6.1 開 PR 將 `build_education.yml` **單獨**合入 `release`（不夾帶任何其他檔案）
+  - 分支 `ci/add-build-education-workflow` 已從 `origin/release` HEAD（`c53bb94c2f`）建立，僅新增這一個檔案，內容與 `phrozen-education-variant` 上的版本逐位元組相同，已 push 至 origin
+  - PR 尚未實際建立（環境無 `gh` CLI），已準備好可直接點擊的 compare 連結與預先寫好的標題/說明，交由使用者於 GitHub 網頁完成建立動作
 - [ ] 6.2 PR 描述須寫明三件事：①這是 resin/education 專用；②主線永遠不會自動觸發它；③存在目的是讓 Actions 頁面出現手動觸發按鈕，**請勿刪除**
-- [ ] 6.3 確認此 PR 未觸發完整建置（`build_all.yml` 的 PR 條件只有 `main`／`release`，`phrozen-custom-dev` 不在其中）
+- [x] 6.3 ~~確認此 PR 未觸發完整建置~~ → **結論已反轉**：此 PR **會**觸發一次完整 `build_all` 執行（見本組開頭更正說明），非「不會觸發」。已確認這是結構性、無法迴避的一次性代價，且已取得使用者同意接受
 - [ ] 6.4 合入後確認 `Run workflow` 按鈕已出現，且從 UI 選 ref = `phrozen-education-variant` 可正常觸發
 - [ ] 6.5 合入後確認：主線不再修改此檔案，之後由 resin 支線自由演進
 
@@ -147,14 +153,14 @@
 - [ ] 9.1.3 **（階段 1 收尾後）開發期觸發已移除**：再次推送一個修改 `.github/workflows/build_education.yml` 的 commit。
   - 預期：**不再**自動觸發任何執行
 
-- [ ] 9.1.4 **（階段 2）手動按鈕出現**：`build_education.yml` 合入 `phrozen-custom-dev` 後，開啟 **Actions** → 左側選擇 `build_education`。
-  - 預期：右上角出現 **Run workflow** 按鈕（合入主線前不會出現）
+- [ ] 9.1.4 **（階段 2）手動按鈕出現**：`build_education.yml` 合入 `release`（本 repo 實際的預設分支，見第 6 組開頭更正）後，開啟 **Actions** → 左側選擇 `build_education`。
+  - 預期：右上角出現 **Run workflow** 按鈕（合入前不會出現）
 
 - [ ] 9.1.5 **（階段 2）跨 ref 觸發正確**：點 **Run workflow** → 分支下拉選單選擇 `phrozen-education-variant` → 執行。
   - 預期：執行成功，且產出物為 education 變體（依 9.2／9.3 驗證）
 
-- [ ] 9.1.6 **（階段 2）誤選主線分支會安全失敗**：點 **Run workflow** → 分支選擇 `phrozen-custom-dev` → 執行。
-  - 預期：**快速失敗**（因主線沒有 `build_resin_release_vs2022.bat`），且 **artifact 區塊沒有任何產出物**
+- [ ] 9.1.6 **（階段 2）誤選主線分支會安全失敗**：點 **Run workflow** → 分支選擇 `release` 或 `phrozen-custom-dev`（兩者皆缺少 `build_resin_release_vs2022.bat` / `build_resin_release_macos.sh`）→ 執行。
+  - 預期：**快速失敗**，且 **artifact 區塊沒有任何產出物**
   - 重點確認：不可產出任何「看似 education 實為主線」的成品
 
 - [ ] 9.1.7 **（階段 3）從 resin-dev 觸發正常**：merge 回 `phrozen-resin-dev` 後，**Run workflow** 選擇 `phrozen-resin-dev` → 執行。
