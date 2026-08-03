@@ -78,11 +78,15 @@
 
 ## 4. 階段 1-D：加入簽章與公證（最貴，最後做）
 
+> **階段 1-C＋1-D 已完成並驗收通過（2026-08-03）**。push 上 `phrozen-education-variant` 後，`build_education.yml` 首次同時執行 Windows 與 macOS 兩個 job，兩者皆全綠、無任何步驟失敗，成功產出 Windows 安裝檔與 macOS DMG。macOS job 的 `Import signing certificate`、`Sign app and create DMG`、`Notarize and staple` 三個步驟全部通過，證實 7 個簽章／公證用 secrets 皆存在且可用（見 4.4）。
+>
+> **尚未完成的部分**：CI 全綠只證明建置管線本身正確，**不等於**已完成 9.3 節列出的終端使用者體感驗證（bundle identifier、簽章內容、Gatekeeper 通過與否、使用者資料夾隔離、雙版本並存）——這些項目需要在真正的 Mac 上手動執行終端機指令才能確認，CI log 看不出來。9.3 節維持未勾選，待實際在 Mac 上驗證後才更新。
+
 - [x] 4.1 macOS job：加入 codesign 步驟 —— 匯入 `MAC_CERTIFICATE_P12`、建立並解鎖 keychain、以 `MAC_CERTIFICATE_NAME` 簽署 `.app`，使用 `scripts/disable_validation.entitlements`、`--options runtime --timestamp`
 - [x] 4.2 macOS job：建立 `Applications` 符號連結後以 `hdiutil create` 產生 DMG，並對 DMG 本身簽章
 - [x] 4.3 macOS job：以 `xcrun notarytool store-credentials` 與 `submit --wait` 完成公證（使用 `APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`），再以 `xcrun stapler staple` 附加公證票據
-- [ ] 4.4 確認所需 secrets 皆可取得：`MAC_CERTIFICATE_P12`、`MAC_CERTIFICATE_PASSWORD`、`KEYCHAIN_PASSWORD`、`MAC_CERTIFICATE_NAME`、`APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`
-  - 這些 secrets 已被主線的 `build_orca.yml` 使用，理論上存在；但 secrets 內容無法從程式碼確認，**須由第一次 macOS 執行的結果驗證**（若 `Import signing certificate` 步驟失敗，即為 secret 缺失或內容有誤）
+- [x] 4.4 確認所需 secrets 皆可取得：`MAC_CERTIFICATE_P12`、`MAC_CERTIFICATE_PASSWORD`、`KEYCHAIN_PASSWORD`、`MAC_CERTIFICATE_NAME`、`APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`
+  - **Pass（2026-08-03 實測）**：macOS job 首次執行即全綠，`Import signing certificate`／`Notarize and staple` 皆通過，證實 7 個 secrets 全部存在且內容正確可用，不需額外設定
 
 ## 5. 漂移偵測機制
 
@@ -178,6 +182,8 @@
 
 ### 9.3 macOS 產出物驗收
 
+> **CI 管線本身已驗證成功（2026-08-03）**：macOS job 首次執行即全綠（建置、簽章、公證、staple 全部通過），已解除 `phrozen-education-variant-branding` 遺留的「無 mac 產出物可驗」的卡點。以下各項仍需在**真正的 Mac 硬體**上手動執行終端機指令才能確認，CI 日誌本身看不出使用者體感結果，故維持未勾選。
+>
 > **取得產出物**：GitHub repo → **Actions** → 左側 `build_education` → 點選該次執行 → 下方 **Artifacts** 區塊 → 下載 `PhrozenOrca-Education_Mac_universal_V<版本>-Education`（下載下來是 zip，解開後才是 `.dmg`）。
 >
 > **先看 job 有沒有全綠**：macOS job 的最後三個步驟依序是 `Import signing certificate`、`Sign app and create DMG`、`Notarize and staple`。
