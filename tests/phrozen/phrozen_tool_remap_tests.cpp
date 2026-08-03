@@ -1,5 +1,5 @@
 // Phrozen Orca FDM —— G-code 工具號重映射 單元測試（自帶極簡 harness，無 Catch2 相依）。
-// 編譯：cl /EHsc /std:c++17 phrozen_tool_remap_tests.cpp
+// 建置並執行：tests\phrozen\build_and_run_tests.bat（於 repo 根目錄執行）
 // 覆蓋 specs/gcode-tool-remap-rewrite 的各場景。
 
 #include "../../src/slic3r/GUI/PhrozenGUI/PhrozenToolRemap.hpp"

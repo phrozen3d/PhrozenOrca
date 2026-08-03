@@ -1,5 +1,5 @@
 // Phrozen Orca FDM —— 旁路檔重映射（不覆蓋原檔）單元測試（自帶極簡 harness）。
-// 編譯：cl /utf-8 /EHsc /std:c++17 /I<boost-1_84> phrozen_tool_remap_apply_tests.cpp
+// 建置並執行：tests\phrozen\build_and_run_tests.bat（於 repo 根目錄執行）
 // 覆蓋 specs/gcode-tool-remap-rewrite 之「寫入旁路檔、原檔位元不變、冪等、取消刪旁路檔」場景。
 
 #include "../../src/slic3r/GUI/PhrozenGUI/PhrozenToolRemapApply.hpp"
