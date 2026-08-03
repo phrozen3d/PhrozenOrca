@@ -435,6 +435,3 @@ jobs:
           name: ${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}
           path: ${{ github.workspace }}/${{ env.APP_NAME }}_Mac_universal_${{ env.ver }}.dmg
           if-no-files-found: warn
-
-# DRIFT-DETECTION-TEST-MARKER (2026-08-04)：僅用於觸發開發期 push trigger 以驗證
-# 9.4.2（此檔在 paths 過濾清單中，build_orca.yml 不在），會隨同一批 revert 移除。
