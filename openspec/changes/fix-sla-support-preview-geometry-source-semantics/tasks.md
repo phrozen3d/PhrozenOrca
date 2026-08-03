@@ -14,7 +14,9 @@
 - [ ] 1.5 **Q1 決策**：選取是否應改變幾何來源？（design.md D1 傾向「否」）
 - [ ] 1.6 **Q2 決策**：仲裁粒度是否改為逐欄位、與切片端共用解析？（design.md D1/D2 傾向「是」）
 - [ ] 1.7 **Q3 決策**：live 參數編輯的作用對象是否需要更明確的 UI 途徑？若結論為「行為正確但不明顯」，另案處理，不納入本 change
+- [x] 1.7a **具體案例佐證**（見 design.md D2a）：已確認編輯 auto 點的 Top 參數後，`sp.type` 不會轉換成 `manual_add`，導致取消選取後 preview 悄悄放棄剛編輯的值（`has_explicit_geometry()` 卡在 `type == manual_add` 這個條件），但切片端不檢查 type、仍會採用該值——preview 與切片自此分歧且無提示。此為 Q2 選逐欄位方案可自動解決的具體案例
 - [ ] 1.8 **產出書面真值表**並回填至 design.md，逐格標註與切片端的對應關係。未完成前不進入第 2 節
+- [ ] 1.8a 若 Q2 最終**不採**逐欄位方案：決定 `apply_process_top_option()` 編輯 auto 點時是否要把 `sp.type` 轉換成 `manual_add`（見 design.md D2a 與 Open Questions）
 
 ## 2. 實作
 

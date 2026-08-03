@@ -94,6 +94,28 @@ mesh_pen   = point_head_penetration_mesh_mm(sp, preset, pin_r, contact_r)
 - **為何這是首選**：preview 與切片不可能再漂移——它們會是同一段運算。目前三處（編輯模式 preview、非編輯模式 preview、切片）各有一套解析，本 change 加上 `fix-sla-support-preview-stored-geometry-in-auto-mode` 之後可收斂為一套。
 - **需要先確認的事實**：auto 生成的點其 `sp.head_front_radius` 是否一定等於 preset 值？若是，逐欄位方案對 auto 點的顯示零影響；若否（例如生成器會依 island 大小調整），改動會使 auto 點的 preview 尺寸改變，需納入驗收。**這是第一階段必須查清的關鍵事實。**
 
+### D2a. 具體案例佐證：編輯 auto 點會製造一個 preview 與切片分歧的隱藏 bug
+
+於驗收 `fix-sla-support-preview-stored-geometry-in-auto-mode` 期間，透過 explore 討論找到一個具體案例，直接支持 D2 採「逐欄位方案」的理由——不只是「比較優雅」，而是「不採用的話有既存 bug」。
+
+**案例**：編輯模式下選中一顆 auto 生成的點（`type == island` 或 `slope`），修改其 Top 參數。`apply_process_top_option()` 會把新值寫進 `sp.head_front_radius` / `sp.head_width_mm` 等欄位，但**從頭到尾不會碰 `sp.type`**——這顆點的 `type` 永遠維持 `island`/`slope`，不會變成 `manual_add`。
+
+這造成一個選取狀態相關的落差：
+
+```cpp
+static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selected)
+{
+    if (point_selected) return true;                                 // 選中時：無條件顯示剛編輯的值 → 看起來正常
+    return sp.type == manual_add && sp.has_explicit_geometry();       // 取消選取：type 仍是 island/slope → false → 顯示回 live preset
+}
+```
+
+選中時因為 `point_selected == true` 提早 return，preview 正確顯示編輯後的值。**取消選取的瞬間**，`has_explicit_geometry()` 的第一個條件 `type == manual_add` 卡住（type 從未被轉換），preview 悄悄放棄剛剛的編輯、退回 live preset 值——使用者毫無察覺。
+
+更嚴重的是：切片端（`point_head_width_mm()` 等助手）完全不檢查 `type`，只檢查欄位本身是否 `>= 0`。所以**該欄位一旦被寫入實值，切片永遠會採用它**——但 preview 一旦取消選取就不再顯示它。preview 與實際列印結果從此分歧，且沒有任何提示。
+
+**這正是 Q2 逐欄位方案能順手解決的問題**：若 `preview_sla_head_for_point()` 改成直接呼叫 `point_*()` 助手（跟切片端一樣，只看欄位 `>= 0`，不看 `type`），這個 bug 自動消失——不需要另外決定「該不該把 auto 點編輯後的 type 轉成 manual_add」，因為判斷邏輯根本不再問這個問題。反之，若 Q2 最終選擇維持現行「整顆點二選一、依 type 判斷」的方案，則**必須額外決定**是否要在 `apply_process_top_option()` 裡把 type 轉換成 `manual_add`，這會是本 change 的第三個決策點，而不只是 Q1/Q2/Q3。
+
 ### D3. 與相鄰 change 的實施順序
 
 `fix-sla-support-preview-stored-geometry-in-auto-mode` 處理真值表最後一列，根因與修法已確定，可獨立實施。
@@ -126,6 +148,7 @@ mesh_pen   = point_head_penetration_mesh_mm(sp, preset, pin_r, contact_r)
 ## Open Questions
 
 - **Q1：選取是否應改變幾何來源？** 傾向「否」，待確認。
-- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，但需先查清 D2 末段的事實。
+- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a 提供了具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」這個第三決策點。
 - **Q3：live 參數編輯的預期對象是否需要更明確的 UI 途徑？** 若結論為「行為正確但不明顯」，另案處理。
 - **auto 生成的點其 `sp.head_front_radius` 是否恆等於 preset 值？** 決定 D2 方案對 auto 點顯示的影響範圍。
+- **若 Q2 最終不採逐欄位方案：`apply_process_top_option()` 編輯 auto 點時，`sp.type` 該不該轉換成 `manual_add`？** 見 D2a。僅在 Q2 選擇維持現行「整顆點依 type 判斷」時才需要回答；若採逐欄位方案則此問題自動消失。
