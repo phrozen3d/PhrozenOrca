@@ -23,7 +23,7 @@
 - [x] 1.3 Windows job：環境準備 —— `lukka/get-cmake@latest`（`cmakeVersion: "~3.28.0"`）、`microsoft/setup-msbuild@v2`、`choco install strawberryperl`
 - [x] 1.4 Windows job：deps 建置（僅在快取未命中時執行）—— `build_resin_release_vs2022.bat deps` 與 `pack`
 - [x] 1.5 Windows job：slicer 建置 —— `build_resin_release_vs2022.bat slicer`，並設定 `WindowsSdkDir` 與 `WindowsSDKVersion` env（參考 `build_orca.yml` 的 `Build slicer Win` 步驟）
-- [x] 1.6 Windows job：版本字串擷取 —— 從 `version.inc` 讀 `Phrozen_VERSION`（現況為乾淨的 `1.2.0`），**並在 CI 端補上 `-Education` 尾綴**後才用於命名（見 design.md 決策 9）
+- [x] 1.6 Windows job：版本字串擷取 —— 從 `version.inc` 讀 `Phrozen_VERSION`（乾淨的 base 版號，合併主線後為 `1.2.1`），**並在 CI 端補上 `-Education` 尾綴**後才用於命名（見 design.md 決策 9）
 - [x] 1.7 Windows job：打包 —— `choco install nsis` 後執行 `cpack -G NSIS`、產生 portable ZIP、以 7z 打包 PDB。**不得**使用既有的 `pack-win-release` composite action（見 design.md 決策 7），改為內聯步驟或另建 education 專用的獨立 composite action
 - [x] 1.8 Windows job：上傳 artifact，名稱需帶 education 識別，與主線 artifact 名稱不重複
 
@@ -157,14 +157,14 @@
   - **Pass**（2026-07-31 實測）
 
 - [x] 9.2.2 **安裝檔檔名**：下載 Windows 安裝檔 artifact 並解壓。
-  - 預期：安裝檔檔名帶有 education 識別與版本尾綴（例如 `PhrozenOrca-Education_Windows_Installer_V1.2.0-Education.exe`），與主線同版本安裝檔可明確區分
+  - 預期：安裝檔檔名帶有 education 識別與版本尾綴（例如 `PhrozenOrca-Education_Windows_Installer_V1.2.1-Education.exe`），與主線同版本安裝檔可明確區分
   - **Pass**（2026-07-31 實測）。此檔名完全由 CMake 的 `CPACK_PACKAGE_FILE_NAME` 決定，能對上即同時證明 `PHROZEN_ORCA_ENABLE_RESIN=ON` 有傳進 CMake、`SLIC3R_APP_NAME` 被正確覆寫、`Phrozen_VERSION` 的尾綴由 CMake 動態附加成功
 
 - [x] 9.2.3 **安裝後的識別隔離**：執行該安裝檔完成安裝。
   - 檔案總管網址列輸入 `%APPDATA%` → 預期出現 `PhrozenOrca-Education` 資料夾（不是 `PhrozenOrca`）
   - 安裝目錄底下的執行檔 → 預期為 `phrozen-orca-education.exe`
   - Windows「應用程式與功能」→ 預期出現獨立的 `PhrozenOrca-Education` 項目
-  - 開啟軟體 →「說明」→「關於」→ 預期版本號顯示 `1.2.0-Education`
+  - 開啟軟體 →「說明」→「關於」→ 預期版本號顯示 `1.2.1-Education`
   - **Pass**（2026-07-31 實測：安裝後各處顯示皆帶有 education 尾綴）
 
 - [x] 9.2.4 **portable ZIP 與 PDB**：確認 artifact 中同時有 portable ZIP 與 PDB 壓縮檔，且皆可正常解壓

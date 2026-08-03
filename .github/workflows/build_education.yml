@@ -66,7 +66,7 @@ jobs:
         with:
           lfs: 'true'
 
-      # version.inc 現在只放乾淨的 base 版本號（例如 1.2.0）；"-Education" 尾綴
+      # version.inc 現在只放乾淨的 base 版本號（例如 1.2.1）；"-Education" 尾綴
       # 是由 CMake 在 PHROZEN_ORCA_ENABLE_RESIN=ON 時動態附加的，因此 CI 這邊
       # 讀完檔案後必須自己補上，產出物檔名才能與主線區分。
       - name: Get the version and date

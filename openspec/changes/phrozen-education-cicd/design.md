@@ -204,7 +204,7 @@ merge 進 resin 支線 → .github/ 乾淨套用，不衝突（設計使然）
 
 **決策**：CI 讀取 `version.inc` 的 `Phrozen_VERSION` 後，需自行附加 `-Education` 才用於 artifact／DMG 命名。
 
-**理由**：`phrozen-education-variant-branding` 已把 `version.inc` 改為乾淨的 base 版本號（`1.2.0`），`-Education` 尾綴改由 CMake 在 `PHROZEN_ORCA_ENABLE_RESIN=ON` 時動態附加。CI 的版本擷取步驟（現有做法見 `build_orca.yml` 的 `Get the version and date` 步驟）直接讀檔，讀到的是不含尾綴的值，故需在 CI 端補上，否則產出物檔名無法與主線區分。
+**理由**：`phrozen-education-variant-branding` 已把 `version.inc` 改為乾淨的 base 版本號（合併主線後為 `1.2.1`），`-Education` 尾綴改由 CMake 在 `PHROZEN_ORCA_ENABLE_RESIN=ON` 時動態附加。CI 的版本擷取步驟（現有做法見 `build_orca.yml` 的 `Get the version and date` 步驟）直接讀檔，讀到的是不含尾綴的值，故需在 CI 端補上，否則產出物檔名無法與主線區分。
 
 ### 10. 分階段實作順序（把貴的留到最後）
 
