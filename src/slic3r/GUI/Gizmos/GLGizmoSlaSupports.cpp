@@ -754,7 +754,12 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // Scaled-mesh surface normal direction for orienting the cone axis.
         const Vec3f scaled_normal = (normal_xform * raw_normal.cast<double>()).cast<float>();
 
-        const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
+        // Same rule as the slicing pipeline (SupportTreeBuildsteps consumes sp.head_front_radius
+        // and the point_*() helpers unconditionally, with no notion of "editing mode"). Must
+        // NOT be gated on m_editing_mode: point_selected is already forced to false outside
+        // editing mode, so this degrades to "manual_add with explicit geometry" there — exactly
+        // the set of points that should keep their own stored size instead of the live preset.
+        const bool use_stored_geometry = preview_use_stored_top(support_point, point_selected);
 
         // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
         // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
