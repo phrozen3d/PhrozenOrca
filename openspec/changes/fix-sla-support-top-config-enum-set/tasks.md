@@ -20,56 +20,70 @@
 
 ## 2. 修正
 
-- [ ] 2.1 將 `support_top_apply_point()` 中 `support_contact_type` 的寫入改為 `cfg.set_key_value("support_contact_type", new ConfigOptionEnum<ContactType>(use_sphere ? spSphere : spNone2))`
-- [ ] 2.2 確認 `ConfigOptionEnum<ContactType>` 與 `ContactType` 在該 TU 可見（必要時補 include），且編譯零警告
-- [ ] 2.3 掃描 `GLGizmoSlaSupports.cpp` 內全部 `cfg.set(...)` / `config.set(...)` 呼叫（含 `apply_weight_preset()`、`support_top_apply_point()`、`sync_new_point_params_from_config()` 等），逐一比對目標 option 的 `type()`，確認沒有第二處 enum→int 誤用
-- [ ] 2.4 若 2.3 發現其他誤用，一併以相同方式修正並在此列出
+- [x] 2.1 將 `support_top_apply_point()` 中 `support_contact_type` 的寫入改為 `cfg.set_key_value("support_contact_type", new ConfigOptionEnum<ContactType>(use_sphere ? spSphere : spNone2))`
+- [x] 2.2 確認 `ConfigOptionEnum<ContactType>` 與 `ContactType` 在該 TU 可見——同檔案 `:120`/`:124` 已使用，無需補 include
+- [x] 2.3 掃描 `GLGizmoSlaSupports.cpp` 內全部 `cfg.set(...)` / `config.set(...)` 呼叫，逐一比對目標 option 的 `type()`：
+      `sync_generate_support_for_object()` 的 `mo->config.set("generate_support", enable)` — `generate_support` 為 `coBool`（`PrintConfig.cpp:7560`），比對 `set(key, bool)` 多載正確；
+      密度 slider 的 `mo->config.set(density_key, (int)density)` — `support_points_density_relative` 為 `coInt`（`PrintConfig.cpp:7690`），正確；
+      `apply_weight_preset()` 九個 key（`support_pillar_diameter` / `support_head_front_diameter` / `support_contact_diameter` / `support_base_diameter` / `support_base_height` / `support_head_width` / `support_head_back_diameter` / `support_head_penetration` / `support_segment_length`）逐一查證皆為 `coFloat`，與 `cfg.set(key, double)` 用法一致
+- [x] 2.4 掃描結果：**沒有發現第二處 enum→int 誤用**，本任務無需修改
 
 ## 2b. 例外邊界（結構性保險，見 design.md D2b）
 
-- [ ] 2b.1 為 `OptionsGroup.cpp:695` 的 `support_top_config_from_selection()` 呼叫補上例外邊界，使投影失敗降級為記錄而非致命
-- [ ] 2b.2 為 `Tab.cpp:7338` 補上同樣的邊界
-- [ ] 2b.3 確認邊界的例外處理不會吞掉 `apply_process_top_option()` 已成功寫入的編輯，且 `canvas->set_as_dirty()` 在投影失敗時仍會執行
-- [ ] 2b.4 確認**未**修改 `generic_exception_handle()`（`GUI_App.cpp:718`）對 `std::exception` 重新拋出的既有策略——該策略是刻意的，問題在於不該有例外傳到那裡
+- [x] 2b.1 為 `OptionsGroup.cpp:695` 的 `support_top_config_from_selection()` 呼叫補上 `try/catch (const std::exception&)`，失敗時 `BOOST_LOG_TRIVIAL(error)` 記錄而非致命
+- [x] 2b.2 為 `Tab.cpp:7338` 補上同樣的邊界（`TabSLAPrint::on_value_change()` 是與 `OptionsGroup::on_change_OG()` 平行的第二個呼叫點，兩者皆需防護）
+- [x] 2b.3 確認邊界的例外處理不會吞掉 `apply_process_top_option()` 已成功寫入的編輯，且 `canvas->set_as_dirty()` 在投影失敗時仍會執行——兩處皆將 `apply_process_top_option()` 留在 `try` 區塊之外（其呼叫早於 try，且本身不拋出），`set_as_dirty()` 置於 `try/catch` 之後、無條件執行
+- [x] 2b.4 確認**未**修改 `generic_exception_handle()`（`GUI_App.cpp:718`）——本任務未觸碰 `GUI_App.cpp`
+
+## 2c. 修正：取消選取後 Top 欄位未還原為 preset 顯示（驗收 4.6 發現，屬本 change 範圍內，非 follow-up）
+
+驗收 4.6 時發現的既有缺陷，根因與本 change 啟用的「此前從未執行過的下游路徑」直接相關，spec 已有對應 requirement（「取消選取還原 preset 顯示」），故在本 change 內修正，不算 6.4 所指的 out-of-scope 發現。
+
+- [x] 2c.1 根因：`m_support_point_top_field_update` 被同時挪用於兩種不同生命週期——(a) `on_value_change()` / `is_support_point_top_field_update()` 用的「暫時性重入保護」，`begin_support_point_top_field_display()` 設 true 後立刻用 `CallAfter` 排程重設回 false；(b) `end_support_point_top_field_display()` 用來判斷「目前是否正在顯示某點的 per-point 值」的**狀態旗標**。(a) 的 `CallAfter` 幾乎在下一個 idle 週期就把旗標重設為 false，遠早於使用者實際取消選取的時間點，導致 `end_support_point_top_field_display()` 的 `if (!m_support_point_top_field_update) return;` 幾乎每次都提前 return，`apply_support_point_top_fields(nullptr)` 從未被呼叫
+- [x] 2c.2 修正：於 `Tab.hpp` 新增獨立的 `m_support_point_top_field_active`，只負責 (b) 的狀態語意，不受 `CallAfter` 影響；`m_support_point_top_field_update` 保留原本 (a) 的重入保護語意不變
+- [x] 2c.3 `begin_support_point_top_field_display()` 額外設 `m_support_point_top_field_active = true`
+- [x] 2c.4 `end_support_point_top_field_display()` 改為檢查 `m_support_point_top_field_active`；為求對稱與安全，比照 `begin()` 的模式，在呼叫 `apply_support_point_top_fields(nullptr)` 前後也套上 `m_support_point_top_field_update` 的暫時性重入保護（原本這段呼叫完全沒有防護）
+- [x] 2c.5 建置驗證：`libslic3r_gui` 增量建置，四個修改檔案（`GLGizmoSlaSupports.cpp` / `OptionsGroup.cpp` / `Tab.cpp` / `Tab.hpp`）0 warnings 0 errors
 
 ## 3. 驗證：crash 消除（最高優先）
 
-- [ ] 3.0a **主要重現案例**：選中一顆支撐點 → 修改 Upper Diameter → 失焦。確認應用程式不終止、編輯正確套用、3D 視圖立即重畫
-- [ ] 3.0b 反覆選取不同的點並修改各項 Top 參數數十次，確認全程不終止
-- [ ] 3.0c 確認整個過程 `BadOptionTypeException` 拋出次數為 0、`[rethrow]` 為 0
-- [ ] 3.0d 於 Release 版（不掛偵錯器）重跑 3.0a 與 3.0b
+- [x] 3.0a **主要重現案例**：選中一顆支撐點 → 修改 Upper Diameter → 失焦。確認應用程式不終止、編輯正確套用、3D 視圖立即重畫 — **Pass**
+- [x] 3.0b 反覆選取不同的點並修改各項 Top 參數數十次，確認全程不終止 — **Pass**
+- [x] 3.0c 確認整個過程 `BadOptionTypeException` 拋出次數為 0、`[rethrow]` 為 0 — **Pass**
+- [x] 3.0d 於 Release 版（不掛偵錯器）重跑 3.0a 與 3.0b — **Pass**
 
 ## 3. 驗證投影邏輯
 
-- [ ] 3.1 選中 `contact_sphere_radius > 0` 的點，確認 `support_top_config_from_selection()` 回傳的 `support_contact_type` 為 `spSphere`，且其餘六個 key 皆反映該點
-- [ ] 3.2 選中未啟用 contact sphere 的點，確認回傳 `spNone2`
-- [ ] 3.3 無選取點時，確認回傳的 config 等同 `sla_process_config()`
-- [ ] 3.4 確認整個過程 `BadOptionTypeException` 拋出次數為 0
+> 這四項沒有獨立的觸發按鈕——`support_top_config_from_selection()` 是內部函式，只能透過觀察其**結果如何反映在 UI 上**間接驗證。3.1/3.2 實質上與 4.1/4.2 是同一組操作，差別只在於這裡專門盯著 **Contact Type 下拉選單**（因為它正是原本會導致 crash 的那個欄位，值得單獨確認一次）。
+
+- [x] 3.1 選中一顆 Contact Type 為 Sphere 的點，確認 Top 群組的 **Contact Type** 下拉選單顯示 **Sphere**，其餘六個欄位也反映該點的值 — **Pass**
+- [x] 3.2 選中一顆 Contact Type 為 None 的點，確認下拉選單顯示 **None** — **Pass**
+- [x] 3.3 取消選取（套用 2c 修正後），確認下拉選單與其餘欄位都變回目前 preset 的設定值 — **Pass**
+- [x] 3.4 確認整個過程 `BadOptionTypeException` 拋出次數為 0 — 與 3.0c 為同一項量測，已由你確認的「Pass」涵蓋
 
 ## 4. 驗證下游路徑（本 change 的主要風險，該路徑此前從未實際執行）
 
-- [ ] 4.1 建立兩顆 `support_head_front_diameter` 不同的手動支撐點，交替點選，確認 Top 群組的 `Upper Diameter` 欄位隨選取切換為各自的值
-      — **這是關鍵判別**：修復前欄位「看起來有顯示手動改過的值」其實是沒人更新過的殘留 UI 狀態（使用者自己剛打進去的值），交替選取兩顆參數不同的點才能證明欄位確實從點讀回
-- [ ] 4.2 確認七個 Top 欄位（含 `support_contact_type` 下拉選單）皆正確回填
-- [ ] 4.3 **回填不得回寫**：點選一顆點後，確認該點參數與點選前完全相同，且未產生新的 undo 快照
-- [ ] 4.4 確認 `m_support_point_top_field_update` guard（`OptionsGroup.cpp:688` 檢查、`Tab.cpp:7295-7301` 設定與延後解除）正確阻止回填被誤判為使用者編輯
-- [ ] 4.5 SpinCtrl 型欄位：確認 `set_value()` 之後送出的非同步變更事件不被視為使用者編輯（`Tab.cpp:7298` 的 `CallAfter` 是為此而設）
-- [ ] 4.6 取消選取後，確認 `end_support_point_top_field_display()` 正確還原為 preset 顯示
+- [x] 4.1 建立兩顆 `support_head_front_diameter` 不同的手動支撐點，交替點選，確認 Top 群組的 `Upper Diameter` 欄位隨選取切換為各自的值 — **Pass**
+- [x] 4.2 確認七個 Top 欄位（含 `support_contact_type` 下拉選單）皆正確回填 — **Pass**
+- [x] 4.3 **回填不得回寫**：選點 A → 選點 B → 選點 A（不編輯任何欄位）→ 按 Ctrl+Z，確認完全沒有反應（選取本身未寫入任何資料，沒有東西可復原）— **Pass**
+- [x] 4.4 確認 `m_support_point_top_field_update` guard 正確阻止回填被誤判為使用者編輯——與 4.3 為同一機制的兩種驗證角度，由 4.3 的 Pass 一併涵蓋
+- [x] 4.5 ~~SpinCtrl 型欄位~~ — **查證後這項本身文字有誤，已改寫**：7 個 Top 欄位裡 6 個是 `coFloat`（對應 `TextCtrl`），1 個是 `coEnum`（對應 `Choice` 下拉選單），`OptionsGroup.cpp:85-91` 的 widget 對照表裡沒有一個對應到 `SpinCtrl` 類別（`coInt` 才會，這組欄位沒有 `coInt`）。既有的重入保護機制（`m_support_point_top_field_update` + `CallAfter`）仍然正確，只是它防的不是字面上的「SpinCtrl」，而是任何 widget 的 `set_value()` 之後可能延遲送達的變更事件——這點已被 4.1/4.2 的 Pass 間接驗證（回填沒有讓資料跑掉），視為涵蓋
+- [x] 4.6 取消選取後，確認 `end_support_point_top_field_display()` 正確還原為 preset 顯示 — **原為 Fail，2c 修正後於新建置重測，Pass**
 
 ## 5. 驗證編輯回寫
 
-- [ ] 5.1 選中點後修改 `support_head_front_diameter`，確認該點 `head_front_radius` 更新為新值一半
-- [ ] 5.2 確認修改後 3D 視圖立即重畫、preview 錐體尺寸跟著變（此前因例外導致 `set_as_dirty()` 被略過）
-- [ ] 5.3 確認該編輯**未**寫入 SLA print preset（`flush_process_top_fields_to_config()` 在有選取點時應早退）
-- [ ] 5.4 修改 `support_contact_type` 由 `None` 改為 `Sphere`，確認該點 `contact_sphere_radius` 依既有規則更新、欄位回填後仍顯示 `Sphere`、視圖重畫
-- [ ] 5.5 無選取點時修改 Top 欄位，確認仍走「下一顆新點的模板」路徑（`Tab.cpp:7342-7349`），行為不變
+- [x] 5.1 選中點後修改 `support_head_front_diameter`，確認該點 `head_front_radius` 更新為新值一半 — **Pass**
+- [x] 5.2 確認修改後 3D 視圖立即重畫、preview 錐體尺寸跟著變 — **Pass**（與 5.1 一併確認）
+- [x] 5.3 確認該編輯**未**寫入 SLA print preset——preset 下拉選單未出現修改標記，取消選取後欄位正確跳回原本的 preset 值 — **Pass**
+- [x] 5.4 修改 `support_contact_type` 由 `None` 改為 `Sphere`，確認該點 `contact_sphere_radius` 依既有規則更新、欄位回填後仍顯示 `Sphere`、視圖重畫 — **Pass**
+- [x] 5.5 無選取點時修改 Top 欄位，確認仍走「下一顆新點的模板」路徑——preset 下拉選單出現修改標記，新放置的手動點套用剛改的值 — **Pass**
 
 ## 6. 迴歸
 
-- [ ] 6.1 手動放置新支撐點時仍套用當下 Top 欄位值（`freeze_process_top_into_point()` 路徑不受影響）
-- [ ] 6.2 切片輸出不變
+- [x] 6.1 手動放置新支撐點時仍套用當下 Top 欄位值（`freeze_process_top_into_point()` 路徑不受影響）— **Pass**
+- [x] 6.2 切片輸出不變 — **Pass**
 - [x] 6.3 記錄「Release 不掛偵錯器時，點選支撐點的延遲是否消失」— **已實測：Release 版無可感知延遲**，該症狀為偵錯器成本，不屬產品問題，本 change 不需處理
-- [ ] 6.4 若修好後暴露出原本被例外掩蓋的其他缺陷，個別記錄為 follow-up，不併入本 change
+- [x] 6.4 若修好後暴露出原本被例外掩蓋的其他缺陷，個別記錄為 follow-up，不併入本 change — 驗收 4.6 發現的「取消選取未還原」屬本 change spec 明列的 requirement，非 out-of-scope 發現，已於 2c 節直接修正，不算此項所指的 follow-up；本項無其他發現
 
 ## 7. Follow-up（out of scope）
 
