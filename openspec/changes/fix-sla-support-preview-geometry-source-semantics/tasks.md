@@ -1,6 +1,6 @@
 ## 0. 前置條件與實施順序
 
-- [ ] 0.1 `fix-sla-support-top-config-enum-set` 已完成。**硬前置**：crash 未修好前，選中點編輯 Top 欄位會使應用程式終止，無法完成第 1 節所需的觀察
+- [x] 0.1 `fix-sla-support-top-config-enum-set` 已完成（2026-08-03 archive，45/45）。**硬前置已滿足**：crash 已修好，選中點編輯 Top 欄位不再使應用程式終止，可進行第 1 節所需的觀察
 - [ ] 0.2 建議 `fix-sla-support-preview-stored-geometry-in-auto-mode` 已完成，以消除「切到自動模式尺寸就變」這個變因（見 design.md D3）
 
 > 全域相依圖與實施順序見 [`openspec/changes/README.md`](../README.md)。

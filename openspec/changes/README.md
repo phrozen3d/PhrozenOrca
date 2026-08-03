@@ -11,8 +11,7 @@
 ## 相依圖
 
 ```
-fix-sla-support-top-config-enum-set          ← crash，最高優先
-  └─(硬前置)─→ fix-sla-support-preview-geometry-source-semantics
+fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足（見下方註記）
                  ↑
 fix-sla-support-preview-stored-geometry-in-auto-mode
   ├─(建議前置)─┘
@@ -28,11 +27,12 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | 順序 | Change | 前置 | 說明 |
 |---|---|---|---|
-| 1 | `fix-sla-support-top-config-enum-set` | 無 | **可穩定重現的 crash**：選中支撐點後編輯 Top 欄位並失焦即終止應用程式。優先級最高 |
-| 2 | `fix-sla-support-preview-stored-geometry-in-auto-mode` | 無 | 根因與修法皆已確定，可獨立實施。先做可消除「切到自動模式尺寸就變」的變因 |
-| 3 | `fix-sla-support-preview-geometry-source-semantics` | **硬**：1<br>**建議**：2 | crash 未修好前無法完成其第 1 節所需的 per-point 編輯觀察 |
-| 4 | `fix-sla-support-points-invalidate-on-trafo-change` | **建議**：2 | 第 1 節為診斷階段；2 先完成可讓觀察不受「自動模式尺寸變化」干擾 |
-| 5 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
+| 1 | `fix-sla-support-preview-stored-geometry-in-auto-mode` | 無 | 根因與修法皆已確定，可獨立實施。先做可消除「切到自動模式尺寸就變」的變因 |
+| 2 | `fix-sla-support-preview-geometry-source-semantics` | **硬**：`fix-sla-support-top-config-enum-set`（已於 2026-08-03 archive，硬前置已滿足）<br>**建議**：1 | crash 已修好，per-point 編輯路徑可正常測試 |
+| 3 | `fix-sla-support-points-invalidate-on-trafo-change` | **建議**：1 | 第 1 節為診斷階段；1 先完成可讓觀察不受「自動模式尺寸變化」干擾 |
+| 4 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
+
+已完成：`fix-sla-support-top-config-enum-set`（選中支撐點編輯 Top 欄位並失焦即終止應用程式的 crash；2026-08-03 archive，45/45）。
 
 ### 硬前置 vs 建議前置
 
