@@ -13675,7 +13675,7 @@ void Plater::reslice_SLA_until_step(SLAPrintObjectStep step, const ModelObject &
     // and let the background processing start.
     this->p->restart_background_process(state | priv::UPDATE_BACKGROUND_PROCESS_FORCE_RESTART);
 }
-bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf, const std::string& override_print_host)
+bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool use_3mf, const std::string& override_print_host, const std::string& override_gcode_path)
 {
     // if physical_printer is selected, send gcode for this printer
     // DynamicPrintConfig* physical_printer_config = wxGetApp().preset_bundle->physical_printers.get_selected_printer_config();
@@ -13790,6 +13790,14 @@ bool Plater::send_gcode_legacy(int plate_idx, Export3mfProgressFn proFn, bool us
         }
 
         upload_job.upload_data.source_path = p->m_print_job_data._3mf_path;
+    }
+
+    // Phrozen: 若提供 override_gcode_path（末端線材重映射的旁路檔），直接將上傳來源指向該檔，
+    // 不經背景 re-export/copy，也絕不觸碰被預覽鎖定（memory-mapped）的原始 tmp gcode。
+    if (!use_3mf && !override_gcode_path.empty()) {
+        upload_job.upload_data.source_path = boost::filesystem::path(override_gcode_path);
+        GUI::wxGetApp().printhost_job_queue().enqueue(std::move(upload_job));
+        return true;
     }
 
     p->export_gcode(fs::path(), false, std::move(upload_job));
