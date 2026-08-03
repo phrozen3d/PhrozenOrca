@@ -93,7 +93,7 @@ on:
     branches: ['phrozen-education-variant']
     paths:
       - '.github/workflows/build_education.yml'
-      - 'build_release_macos.sh'
+      - 'build_resin_release_macos.sh'
       - 'build_resin_release_vs2022.bat'
 ```
 
@@ -127,7 +127,9 @@ on:
 
 ### 5. 漂移偵測機制
 
-**決策**：在 resin 支線記錄主線三個共用 CI 檔案（`build_orca.yml`、`build_deps.yml`、`build_check_cache.yml`）的校驗值，由 `build_education.yml` 中一個**最前置、最廉價**的 parity check job 驗證。校驗值不符時直接讓 workflow 失敗並輸出明確訊息。
+**決策**：在 resin 支線記錄主線五個共用檔案的校驗值 —— CI 三件（`build_orca.yml`、`build_deps.yml`、`build_check_cache.yml`，`build_education.yml` 自帶邏輯的來源）加上建置腳本兩件（`build_release_vs2022.bat`、`build_release_macos.sh`，resin 兩支獨立腳本的複本來源；此二者為決策 8 推翻後追加，見該節）—— 由 `build_education.yml` 中一個**最前置、最廉價**的 parity check job 驗證。校驗值不符時直接讓 workflow 失敗並輸出明確訊息。
+
+**監控範圍由三件擴充為五件的理由**：本決策原本只監控 CI 三件。決策 8 於 2026-08-03 推翻後，resin 的建置腳本改為主線腳本的**複本**（`build_resin_release_vs2022.bat`、`build_resin_release_macos.sh`），主線對這兩支腳本的修正不再會以 merge 衝突的形式現身，必須由本機制承接 —— 否則等於用「無聲的錯誤」換掉了「吵鬧的衝突」。
 
 **運作方式**：
 
@@ -176,18 +178,27 @@ merge 進 resin 支線 → .github/ 乾淨套用，不衝突（設計使然）
 
 **附註**：該 action 內的 `PhrozenOrca*.exe` glob 剛好也能匹配到 `PhrozenOrca-Education_Windows_Installer_*.exe`，但這不改變上述結論。
 
-### 8. `build_release_macos.sh` 採純新增式修改，不另建複本
+### 8. macOS 改用獨立的 `build_resin_release_macos.sh`（已推翻原決策，2026-08-03）
 
-**決策**：在 resin 支線上修改 `build_release_macos.sh`，新增旗標（例如 `-r`）與依變體推導的 `APP_NAME` 變數，把三處寫死的 `.app` 路徑改為變數。修改盡量「純新增」而非重構。
+**決策**：新增 `build_resin_release_macos.sh`，作為 `build_release_macos.sh` 的變體副本，resin 專屬設定全部寫死其中；共用的 `build_release_macos.sh` 在 resin 支線上保持與主線逐位元組相同。與 Windows 的 `build_resin_release_vs2022.bat` 同一套做法。
 
-**必須涵蓋的寫死處**：
-- 「Fix macOS app package」段落（約 204-212 行）的 `PhrozenOrca.app`
-- `build_universal()`（約 236-250 行）的 `$PROJECT_BUILD_DIR/PhrozenOrca/PhrozenOrca.app` 與 `cp -R .../PhrozenOrca.app`
+**原決策與推翻理由**：本節原本的決策是「在 resin 支線上修改 `build_release_macos.sh`，新增 `-r` 旗標與 `APP_NAME` 變數，採純新增式」，並明確放棄複本方案，理由是「複製約 250 行 macOS 建置邏輯的漂移風險，遠大於少量分歧帶來的 merge 成本」。該版本一度實作完成後由使用者推翻。
+
+推翻的理由是原決策**誤判了約束的優先序**：本 change 從 proposal 起就把「主線共用檔案零修改」列為結構性約束（見 spec 的「主線共用檔案零修改」與「主線更新合併至 resin 支線時不產生 CI 檔案衝突」兩條 Requirement），而 `build_release_macos.sh` 正是共用檔案。原決策把它當成「可以接受少量分歧的一般檔案」來權衡，等於在 CI 檔案上嚴守的原則，到了建置腳本上就自己破例。
+
+成本結構也支持推翻：主線的 FDM 更新每月 merge 進 resin 支線是常態，resin 回主線是一兩年後的事。共用檔案的分歧會讓**每一次**主線 merge 都付出衝突解決成本；複本的漂移則只在主線真的改動該腳本時才需要人工比對一次。兩者不對稱。
+
+**必須涵蓋的寫死處**（複本中已全部處理，仍列出以便日後與主線比對）：
+- 「Fix macOS app package」段落的 `PhrozenOrca.app`
+- `build_universal()` 的 `$PROJECT_BUILD_DIR/PhrozenOrca/PhrozenOrca.app` 與 `cp -R .../PhrozenOrca.app`
 - 特別是 **`BINARY_PATH="Contents/MacOS/PhrozenOrca"`** —— 這是 `lipo` 的輸入檔路徑，未同步會直接找不到檔案而失敗
+- `-DCMAKE_INSTALL_PREFIX="$PWD/PhrozenOrca"` —— 此 install prefix 與 staging 目錄是同一路徑，兩變體共用會讓 DMG 內同時出現兩個 `.app`。已確認 `BIN_RESOURCES_DIR` 取自 `CMAKE_CURRENT_BINARY_DIR` 而非 install prefix，故改動無其他副作用
 
-**替代方案考慮**：另建 `build_education_macos.sh` 複本以保持原檔案完全一致 —— 放棄。複製約 250 行 macOS 建置邏輯的漂移風險，遠大於少量分歧帶來的 merge 成本；且 macOS 建置正是主線近期頻繁修正的區域，複本很快就會過期。
+**原決策提出的漂移風險仍然成立，須由機制承接**：複本的代價是主線修了 bug 時 resin 這邊**完全不會有任何訊號** —— 等於用「無聲的錯誤」換掉了「吵鬧的衝突」。因此決策 5 的漂移偵測監控清單必須從三個 CI 檔案擴充為五個，納入 `build_release_vs2022.bat` 與 `build_release_macos.sh`。**沒有這項擴充，本決策不成立。**
 
-**有利條件**：因為 `phrozen-education-variant-branding` 的 follow-up fix（commit `d29c9830c3`）讓 `.app` 名稱改由 `SLIC3R_APP_KEY` 決定，主線的 `.app` 維持 `PhrozenOrca.app` 原狀。因此上述所有寫死路徑在**主線走的分支全部仍然正確**，只需新增 education 的條件分支，不必改動主線既有行為。
+**建置目錄一併分開**：複本使用 `build-resin/<arch>` 與 `deps/build-resin/<arch>`，與 Windows 的 bat 一致。deps 本身其實與變體無關（`deps/` 底下完全沒有引用 `PHROZEN_ORCA_ENABLE_RESIN`），分開純粹是為了本機同時建兩變體時互不覆蓋、以及維持一致的心智模型；CI 端因快取鍵本來就分開，無額外成本。
+
+**有利條件**：因為 `phrozen-education-variant-branding` 的 follow-up fix（commit `d29c9830c3`）讓 `.app` 名稱改由 `SLIC3R_APP_KEY` 決定，主線的 `.app` 維持 `PhrozenOrca.app` 原狀，故主線腳本完全不需要任何改動。
 
 ### 9. 版本字串需在 CI 端補上尾綴
 
@@ -200,7 +211,8 @@ merge 進 resin 支線 → .github/ 乾淨套用，不衝突（設計使然）
 macOS runner 為 10 倍計費，單次完整建置含 deps（首次約 1 小時）、建置、以及公證等待（5~15 分鐘）。實作順序刻意設計為：
 
 1. **Windows job 先跑通** —— 便宜，先確認 deps 快取鍵/路徑正確、`cpack -G NSIS` 產出、artifact 命名。
-2. **macOS job 但先不簽章** —— 走等同於 `build_orca.yml` 中「Create DMG without notary」的路徑，先確認 `build_release_macos.sh` 的 resin 旗標、`.app` 名稱、`build_universal()` 的 lipo 都正確。
+2. **macOS job 但先不簽章** —— 走等同於 `build_orca.yml` 中「Create DMG without notary」的路徑，先確認 `build_resin_release_macos.sh` 的 `.app` 名稱、`build_universal()` 的 lipo 都正確。
+   **此步驟已於實作時與步驟 3 合併執行**（未簽章的 DMG 在 macOS 14 上會被 Gatekeeper 以「已損毀」擋下，需啟動軟體才能驗的 QA 項目根本跑不了；且分階段是保證跑兩次 10 倍計費的 macOS job）。理由詳見 tasks.md 第 3 組開頭。
 3. **最後才加 codesign + notarize** —— 最貴且最容易卡在憑證匯入、keychain、Apple ID 認證等問題。
 
 階段 1 開發 Windows 時，可先把整個 macOS job 註解掉以避免每次都消耗 10 倍額度。

@@ -33,19 +33,29 @@ education 建置 workflow SHALL 僅能以手動方式觸發，SHALL NOT 因為�
 - **WHEN** 比對本 change 前後主線上的既有建置 workflow 鏈與 Windows 打包 composite action
 - **THEN** 這些檔案的內容完全未被修改
 
-### Requirement: 主線更新合併至 resin 支線時不產生 CI 檔案衝突
-resin 支線上的既有共用 CI 檔案 SHALL 與主線保持內容一致，使主線的 FDM 更新合併進 resin 支線時，不會在這些檔案上產生合併衝突。
+### Requirement: 主線更新合併至 resin 支線時不產生共用檔案衝突
+resin 支線上的既有共用檔案 —— 包含建置 workflow 鏈與**主線的建置腳本** —— SHALL 與主線保持內容一致，使主線的 FDM 更新合併進 resin 支線時，不會在這些檔案上產生合併衝突。education 變體所需的建置邏輯 SHALL 一律置於主線不會使用到的獨立新檔案中，而非以旗標或條件的形式加入共用檔案。
 
 #### Scenario: 主線修正 CI 後合併至 resin 支線
 - **WHEN** 主線修改了既有的建置 workflow 鏈中的任一檔案，之後將主線合併進 resin 支線
 - **THEN** 這些檔案乾淨套用，不產生合併衝突
 
+#### Scenario: 主線修正建置腳本後合併至 resin 支線
+- **WHEN** 主線修改了共用的建置腳本，之後將主線合併進 resin 支線
+- **THEN** 該腳本乾淨套用，不產生合併衝突（education 使用的是獨立的專用腳本，不觸及共用腳本）
+
 ### Requirement: 主線 CI 變更的漂移偵測
-當主線的既有共用 CI 檔案發生變更並被合併進 resin 支線時，系統 SHALL 在下一次執行 education 建置時自動偵測到該變更並使建置失敗，以強制人工評估 education 建置邏輯是否需要同步相同的修正。此偵測 SHALL 在昂貴的建置作業開始之前完成。
+當主線的既有共用 CI 檔案或建置腳本發生變更並被合併進 resin 支線時，系統 SHALL 在下一次執行 education 建置時自動偵測到該變更並使建置失敗，以強制人工評估 education 的建置邏輯與建置腳本是否需要同步相同的修正。此偵測 SHALL 在昂貴的建置作業開始之前完成。
+
+監控範圍 SHALL 涵蓋 education 建置邏輯所複製或參照的所有主線檔案，包含既有的建置 workflow 鏈，以及 education 專用建置腳本所複製自的主線建置腳本。
 
 #### Scenario: 偵測到主線 CI 已變更
 - **WHEN** 主線的共用 CI 檔案變更已合併進 resin 支線，且尚未經人工確認 education 建置邏輯是否需同步
 - **THEN** 下一次觸發 education 建置時，偵測作業失敗並明確指出哪些檔案發生變更，且後續的建置作業不會啟動
+
+#### Scenario: 偵測到主線建置腳本已變更
+- **WHEN** 主線的建置腳本（education 專用腳本的複製來源）發生變更並合併進 resin 支線，且尚未經人工確認 education 專用腳本是否需同步
+- **THEN** 下一次觸發 education 建置時，偵測作業失敗並指出該腳本已變更，且後續的建置作業不會啟動
 
 #### Scenario: 人工確認後恢復正常
 - **WHEN** 人員比對主線變更、完成必要的同步（或確認無須同步）並更新記錄的校驗值後，再次觸發 education 建置

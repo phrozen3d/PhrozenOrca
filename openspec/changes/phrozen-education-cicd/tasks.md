@@ -12,7 +12,8 @@
 > **通則**：凡是主線靠「拆成多個 job」自然迴避掉的問題（快取鍵計算、runner 標籤集中管理），本 change 的自帶邏輯架構都必須顯式處理。
 
 - [x] 1.1 在 `phrozen-education-variant` 分支建立 `.github/workflows/build_education.yml` 骨架：
-  - `on:` 同時包含 `workflow_dispatch:`（正式用）與開發期專用的 `push:` 區塊（`branches: ['phrozen-education-variant']`，`paths:` 限定 `.github/workflows/build_education.yml`、`build_release_macos.sh`、`build_resin_release_vs2022.bat`）
+  - `on:` 同時包含 `workflow_dispatch:`（正式用）與開發期專用的 `push:` 區塊（`branches: ['phrozen-education-variant']`，`paths:` 限定 `.github/workflows/build_education.yml`、`build_resin_release_macos.sh`、`build_resin_release_vs2022.bat`）
+  - 註：`paths` 原列的是 `build_release_macos.sh`，第 2 組改採獨立腳本後同步改為 `build_resin_release_macos.sh` —— 主線腳本的變動**不應**觸發 education 建置
   - **不宣告任何 `inputs:`**（見 design.md 決策 3）
   - 檔案開頭加註解說明：resin/education 專用、主線永不自動觸發、存在目的是讓 Actions 出現手動按鈕、請勿刪除
   - 此階段先只放 Windows job，macOS job 整段註解掉或尚未加入（避免每次迭代消耗 10 倍計費）
@@ -26,34 +27,69 @@
 - [x] 1.7 Windows job：打包 —— `choco install nsis` 後執行 `cpack -G NSIS`、產生 portable ZIP、以 7z 打包 PDB。**不得**使用既有的 `pack-win-release` composite action（見 design.md 決策 7），改為內聯步驟或另建 education 專用的獨立 composite action
 - [x] 1.8 Windows job：上傳 artifact，名稱需帶 education 識別，與主線 artifact 名稱不重複
 
-## 2. 階段 1-B：macOS 建置腳本支援 resin 旗標
+## 2. 階段 1-B：macOS 的 resin 專用建置腳本
 
-- [ ] 2.1 `build_release_macos.sh`：於 getopts 新增旗標（例如 `-r`），使 `build_slicer()` 的 cmake 參數列加上 `-DPHROZEN_ORCA_ENABLE_RESIN=ON`。修改須為**純新增式**，不重構既有結構（見 design.md 決策 8）
-- [ ] 2.2 `build_release_macos.sh`：於腳本前段依旗標推導出 `APP_NAME` 變數（主線 `PhrozenOrca` ／ education `PhrozenOrca-Education`）
-- [ ] 2.3 `build_release_macos.sh`：將「Fix macOS app package」段落（約 204-212 行）中寫死的 `PhrozenOrca.app` 改用 `APP_NAME` 變數
-- [ ] 2.4 `build_release_macos.sh`：將 `build_universal()`（約 236-250 行）中的 `$PROJECT_BUILD_DIR/PhrozenOrca/PhrozenOrca.app` 與 `cp -R .../PhrozenOrca.app` 改用變數
-- [ ] 2.5 `build_release_macos.sh`：將 `build_universal()` 中的 **`BINARY_PATH="Contents/MacOS/PhrozenOrca"`** 改用變數 —— 這是 `lipo` 的輸入檔路徑，未同步會直接找不到檔案而失敗
-- [ ] 2.6 確認主線行為不變：不帶新旗標執行時，所有路徑與產出物皆與修改前完全相同（`APP_NAME` 預設為 `PhrozenOrca`）
+> **原規劃已作廢，改採獨立腳本（使用者要求，2026-08-03）**。
+>
+> 原本第 2 組的規劃是在共用的 `build_release_macos.sh` 上加 `-r` 旗標。該版本一度實作完成，但**違反本專案最高優先的維護性約束**：「主線的共用檔案不得夾帶任何 resin 判斷或條件；單獨給 resin 支線用、主線不會使用到的獨立檔案則可接受」。
+>
+> `build_release_macos.sh` 正是共用檔案。一旦在 resin 支線上改它，主線每次更新該腳本都會在 merge 進 resin 支線時衝突 —— 而主線的 FDM 更新是常態、resin 回主線是一兩年後的事，維護成本完全不對稱。
+>
+> 改為新增 `build_resin_release_macos.sh`，與 Windows 的 `build_resin_release_vs2022.bat` 同一套做法：**resin 專屬設定全部寫死在獨立腳本裡，不靠旗標傳參**。共用的 `build_release_macos.sh` 在 resin 支線上保持與主線逐位元組相同。
+
+- [x] 2.1 新增 `build_resin_release_macos.sh`（`build_release_macos.sh` 的變體副本），檔頭註解說明其為 resin 專用、為何獨立成檔、以及與主線腳本的漂移須人工比對
+- [x] 2.2 腳本頂端集中宣告三個 resin 專屬常數：`APP_NAME="PhrozenOrca-Education"`、`BUILD_DIR_NAME="build-resin"`、`DEPS_BUILD_DIR_NAME="build-resin"`
+  - `APP_NAME` 必須與 CMake 的 `SLIC3R_APP_KEY` 一致，否則 `.app` 名稱與 `Info.plist` 的 `CFBundleExecutable` 不符，app 無法啟動
+- [x] 2.3 `build_slicer()` 的 cmake 參數列固定加上 `-DPHROZEN_ORCA_ENABLE_RESIN=ON`，並將 `-DCMAKE_INSTALL_PREFIX` 改為 `"$PWD/$APP_NAME"`
+  - install prefix 與「Fix macOS app package」的 staging 目錄是同一個路徑，兩變體共用會讓 DMG 內同時出現兩個 `.app`
+  - 已確認 `BIN_RESOURCES_DIR` 取自 `CMAKE_CURRENT_BINARY_DIR` 而非 install prefix，故此改動無其他副作用
+- [x] 2.4 「Fix macOS app package」段落與 `build_universal()` 的所有 `.app` 路徑改用 `$APP_NAME`
+- [x] 2.5 `build_universal()` 的 **`BINARY_PATH="Contents/MacOS/$APP_NAME"`** —— 這是 `lipo` 的輸入檔路徑，最容易漏掉的一處，未同步會直接找不到檔案而失敗
+- [x] 2.6 所有建置目錄與主線分開：`build-resin/<arch>`、`deps/build-resin/<arch>`；`pack_deps()` 的 tar 檔名改為 `PhrozenOrca-Education_dep_mac_*`
+  - 與 Windows 的 `build_resin_release_vs2022.bat`（`build-resin` ／ `deps/build-resin`）同一套命名慣例
+  - deps 本身其實與變體無關（已確認 `deps/` 底下完全沒有引用 `PHROZEN_ORCA_ENABLE_RESIN`），分開純粹是為了本機同時建兩個變體時互不覆蓋、以及與 Windows 保持一致的心智模型。代價是本機開發時 deps 會建兩份；CI 端因為快取鍵本來就分開，無額外成本
+- [x] 2.7 確認主線 `build_release_macos.sh` 未被修改（`git diff` 對該檔無任何輸出）
+- [x] 2.8 確認新腳本的 git 檔案模式為 `100755`（可執行）—— 若為 `100644`，CI 執行 `./build_resin_release_macos.sh` 會 permission denied
+- [x] 2.9 已用 `bash -n` 驗證語法
+  - **既有缺陷（沿用主線，未修）**：optstring `":dpa:snt:xbc:h"` 不含 `1`，因此 CI 傳的 `-1`（單執行緒建置）一直被忽略、`CMAKE_BUILD_PARALLEL_LEVEL` 從未生效。刻意保持與主線相同的行為，以免 education 與主線在建置平行度上出現無謂的差異
 
 ## 3. 階段 1-C：macOS job（先不簽章）
 
-- [ ] 3.1 macOS job：checkout ＋ deps 快取（education 專屬快取鍵；macOS 的 deps 路徑依 `build_release_macos.sh` 實際使用的位置設定）
-- [ ] 3.2 macOS job：環境準備 —— `lukka/get-cmake@latest`、`brew install automake texinfo libtool`、`brew uninstall --ignore-dependencies zstd`（建置後再裝回）、釋放磁碟空間步驟（參考 `build_orca.yml` 的 `Free disk space`）
-- [ ] 3.3 macOS job：deps 建置（僅快取未命中時）—— 呼叫 `build_release_macos.sh` 的 deps 模式並帶上 resin 旗標
-- [ ] 3.4 macOS job：slicer 建置 —— 呼叫 `build_release_macos.sh` 帶 resin 旗標與 universal 架構參數；接著執行 `./scripts/run_gettext.sh`
-- [ ] 3.5 macOS job：先走**不簽章**路徑產生 DMG（等同 `build_orca.yml` 的 `Create DMG without notary`），DMG 檔名須帶 education 識別與版本尾綴
-- [ ] 3.6 macOS job：上傳 DMG artifact（education 命名）
+> **與 design.md 決策 10 的偏離（已與使用者確認）**：原訂「先產出未簽章 DMG，確認無誤後才加簽章公證」，實際改為 **1-C 與 1-D 一次做完**。
+>
+> 理由三點：
+> 1. **未簽章的 DMG 幾乎無法驗收**。macOS 14 對從瀏覽器下載、未簽章的 `.app` 會直接以「已損毀」為由拒絕開啟，測試者必須手動 `xattr -dr com.apple.quarantine` 才能啟動 —— 而 9.3.7（使用者資料夾隔離）與 9.3.8（兩版本並存）都必須真的啟動軟體才能驗。等於未簽章這一輪只能驗到檔名層級的項目。
+> 2. **成本期望值不會比較低**。分兩階段是保證跑兩次 macOS job（10 倍計費）；一次做完則是「順利就一次、簽章有問題才第二次」。
+> 3. **失敗範圍仍可控**。簽章相關步驟全部排在建置之後，且刻意拆成「匯入憑證／簽章＋產 DMG／公證＋staple」三個獨立步驟，失敗時一眼可知卡在哪一段；`Upload artifacts mac` 加上 `if: always()`，公證失敗時已產生的 DMG 仍會上傳，不會連成品一起消失。
+
+- [x] 3.1 macOS job：checkout ＋ deps 快取（education 專屬快取鍵；macOS 的 deps 路徑依 `build_resin_release_macos.sh` 實際使用的位置設定）
+  - 快取路徑為 `deps/build-resin`（resin 腳本實際使用的目錄，主線用 `deps/build`），快取鍵帶 education 識別：`macos-14-cache-phrozenorca_deps-education-build-<hash>`
+  - 同樣套用階段 1-A 學到的教訓：快取鍵先算好存成 step output，不可內嵌在 `key:` 裡（deps 建完後 `deps/**` 會有數萬個檔案，Post 步驟求值必定超過 `hashFiles()` 的 120 秒上限）
+- [x] 3.2 macOS job：環境準備 —— `lukka/get-cmake@latest`、`brew install automake texinfo libtool`、`brew uninstall --ignore-dependencies zstd`（建置後再裝回）、釋放磁碟空間步驟（參考 `build_orca.yml` 的 `Free disk space`）
+- [x] 3.3 macOS job：deps 建置（僅快取未命中時）—— `./build_resin_release_macos.sh -dx -a universal -t 10.15 -1`
+  - 另補上主線 `build_deps.yml` 的中間產物清理迴圈（只保留 `PhrozenOrca_dep`），否則快取會膨脹到數十 GB
+  - 另補 `Verify deps were actually built` 步驟（比照 Windows）：壞快取在 10 倍計費的 macOS 上代價太高
+- [x] 3.4 macOS job：slicer 建置 —— `./build_resin_release_macos.sh -s -n -x -a universal -t 10.15 -1`
+  - 旗標與主線的 `Build slicer mac` 完全一致；resin 專屬設定全部寫死在腳本內，**不靠 workflow 傳參**
+  - `run_gettext.sh` **不需**在 workflow 另外呼叫 —— 腳本的 `build_slicer()` 內部已經會執行
+- [x] 3.5 macOS job：先走**不簽章**路徑產生 DMG（等同 `build_orca.yml` 的 `Create DMG without notary`），DMG 檔名須帶 education 識別與版本尾綴
+  - 依上方偏離說明，改為直接走簽章路徑；DMG 檔名為 `PhrozenOrca-Education_Mac_universal_V<版本>-Education.dmg`，volume 名稱為 `PhrozenOrca-Education`
+- [x] 3.6 macOS job：上傳 DMG artifact（education 命名）
 
 ## 4. 階段 1-D：加入簽章與公證（最貴，最後做）
 
-- [ ] 4.1 macOS job：加入 codesign 步驟 —— 匯入 `MAC_CERTIFICATE_P12`、建立並解鎖 keychain、以 `MAC_CERTIFICATE_NAME` 簽署 `.app`，使用 `scripts/disable_validation.entitlements`、`--options runtime --timestamp`
-- [ ] 4.2 macOS job：建立 `Applications` 符號連結後以 `hdiutil create` 產生 DMG，並對 DMG 本身簽章
-- [ ] 4.3 macOS job：以 `xcrun notarytool store-credentials` 與 `submit --wait` 完成公證（使用 `APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`），再以 `xcrun stapler staple` 附加公證票據
+- [x] 4.1 macOS job：加入 codesign 步驟 —— 匯入 `MAC_CERTIFICATE_P12`、建立並解鎖 keychain、以 `MAC_CERTIFICATE_NAME` 簽署 `.app`，使用 `scripts/disable_validation.entitlements`、`--options runtime --timestamp`
+- [x] 4.2 macOS job：建立 `Applications` 符號連結後以 `hdiutil create` 產生 DMG，並對 DMG 本身簽章
+- [x] 4.3 macOS job：以 `xcrun notarytool store-credentials` 與 `submit --wait` 完成公證（使用 `APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`），再以 `xcrun stapler staple` 附加公證票據
 - [ ] 4.4 確認所需 secrets 皆可取得：`MAC_CERTIFICATE_P12`、`MAC_CERTIFICATE_PASSWORD`、`KEYCHAIN_PASSWORD`、`MAC_CERTIFICATE_NAME`、`APPLE_ID`、`TEAM_ID`、`APPLE_APP_PASSWORD`
+  - 這些 secrets 已被主線的 `build_orca.yml` 使用，理論上存在；但 secrets 內容無法從程式碼確認，**須由第一次 macOS 執行的結果驗證**（若 `Import signing certificate` 步驟失敗，即為 secret 缺失或內容有誤）
 
 ## 5. 漂移偵測機制
 
-- [ ] 5.1 建立校驗值紀錄檔（建議 `.github/education-ci-parity.lock`），記錄 `build_orca.yml`、`build_deps.yml`、`build_check_cache.yml` 三個主線共用 CI 檔案的雜湊值，並附註「上次比對時主線的 commit」以利日後人工 diff
+- [ ] 5.1 建立校驗值紀錄檔（建議 `.github/education-ci-parity.lock`），記錄主線共用檔案的雜湊值，並附註「上次比對時主線的 commit」以利日後人工 diff。監控清單為 **五個**檔案：
+  - `.github/workflows/build_orca.yml`、`build_deps.yml`、`build_check_cache.yml` —— `build_education.yml` 自帶邏輯的來源
+  - **`build_release_vs2022.bat`、`build_release_macos.sh`** —— `build_resin_release_vs2022.bat` 與 `build_resin_release_macos.sh` 是這兩支的變體副本
+  - 補上後兩者的理由：階段 1-B 改採「獨立腳本」後，resin 的建置腳本變成主線腳本的**複本**而非其變體呼叫。複本的好處是主線 merge 下來永不衝突，代價是主線修了 bug（例如新增必要的 cmake 參數、修 SDK 路徑）時 resin 這邊**完全不會有任何訊號**。這正是漂移偵測存在的意義，因此監控範圍必須涵蓋它們，否則等於用「無聲的錯誤」換掉了「吵鬧的衝突」
 - [ ] 5.2 在 `build_education.yml` 中加入 parity check job：僅 checkout ＋ 計算雜湊並與紀錄檔比對，不執行任何編譯／deps／簽章
 - [ ] 5.3 將 Windows 與 macOS 兩個建置 job 設為依賴 parity check job，確保**偵測失敗時昂貴的建置不會啟動**
 - [ ] 5.4 失敗訊息需明確指出：哪個檔案變了、應該去比對什麼、以及確認後如何更新紀錄檔恢復綠燈（讓不熟悉此機制的人也能處理）
@@ -142,6 +178,12 @@
 
 ### 9.3 macOS 產出物驗收
 
+> **取得產出物**：GitHub repo → **Actions** → 左側 `build_education` → 點選該次執行 → 下方 **Artifacts** 區塊 → 下載 `PhrozenOrca-Education_Mac_universal_V<版本>-Education`（下載下來是 zip，解開後才是 `.dmg`）。
+>
+> **先看 job 有沒有全綠**：macOS job 的最後三個步驟依序是 `Import signing certificate`、`Sign app and create DMG`、`Notarize and staple`。
+> - 若 `Import signing certificate` 紅燈 → secrets 缺失或內容有誤（對應 task 4.4），此時**不會有 DMG**
+> - 若 `Notarize and staple` 紅燈但前面綠燈 → DMG 仍會上傳（`if: always()`），但它**只有簽章、沒有公證**，9.3.6 會失敗、9.3.5 應該仍會過。這個區分很有用：代表憑證沒問題，是 Apple ID／team-id／app 專用密碼那組 secret 的問題
+
 - [ ] 9.3.1 **DMG 檔名**：下載 macOS DMG artifact。
   - 預期：檔名帶有 education 識別與版本尾綴，與主線 DMG 可明確區分
 
@@ -200,6 +242,7 @@
 
 - [ ] 9.5.1 **主線共用 CI 檔案未被修改**：在 `phrozen-custom-dev` 上比對本 change 前後的 `.github/workflows/build_all.yml`、`build_check_cache.yml`、`build_deps.yml`、`build_orca.yml`、`.github/actions/pack-win-release/action.yml`、`.github/actions/pack-win-nightly/action.yml`、`build_release_vs2022.bat`、`build_release_macos.sh`。
   - 預期：以上檔案內容**完全未被修改**；主線上唯一的新增是 `.github/workflows/build_education.yml` 這一個獨立檔案
+  - **同一份清單也要在 resin 支線上檢查**：第 2 組改採獨立腳本後，`build_release_macos.sh` 在 **resin 支線上也應與主線逐位元組相同**。在 `phrozen-education-variant` 上執行 `git diff phrozen-custom-dev -- build_release_macos.sh build_release_vs2022.bat .github/workflows/build_all.yml .github/workflows/build_check_cache.yml .github/workflows/build_deps.yml .github/workflows/build_orca.yml`，預期**無任何輸出**（若有輸出，代表 resin 支線落後主線幾個 commit，須先 merge 主線再確認；這正是漂移偵測要防的情境）
 
 - [ ] 9.5.2 **主線既有建置行為不變**：在主線觸發一次既有的完整建置（`build_all`）。
   - 預期：執行成功，產出物名稱與內容與本 change 實施前完全相同，**不含任何 `-Education`／`-education` 字樣**
