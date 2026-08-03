@@ -23,6 +23,13 @@
 # 同理，本 workflow 只呼叫 build_resin_release_vs2022.bat 與
 # build_resin_release_macos.sh 這兩支 resin 專用的獨立腳本，不呼叫也不修改主線的
 # build_release_vs2022.bat / build_release_macos.sh。
+#
+# 自帶邏輯的代價（重複邏輯、主線修正不會自動惠及本檔案）由 parity_check job
+# 補償：它比對 .github/education-ci-parity.lock 記錄的校驗值，偵測本分支上
+# 那五個「應保持與主線零修改」的檔案是否已經變動（通常是合併主線帶進來的）。
+# 偵測失敗時，Windows／macOS 建置 job 不會啟動，強制人工先確認 education 側
+# 是否需要同步相同的修正。詳見該 lock 檔案開頭的說明與
+# openspec/changes/phrozen-education-cicd/design.md 決策 5。
 # =============================================================================
 
 name: Build Education
@@ -37,6 +44,7 @@ on:
     branches: ['phrozen-education-variant']
     paths:
       - '.github/workflows/build_education.yml'
+      - '.github/education-ci-parity.lock'
       - 'build_resin_release_macos.sh'
       - 'build_resin_release_vs2022.bat'
   # --- 開發期專用觸發結束 --------------------------------------------------
@@ -49,8 +57,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ===========================================================================
+  # 漂移偵測：僅 checkout + 比對校驗值，不執行任何編譯/deps/簽章。
+  # 必須排在建置 job 之前並作為其前置依賴，偵測失敗時兩個建置 job 都不會啟動
+  # （needs: parity_check 的預設行為：前置 job 失敗，後續 job 自動 skipped，
+  # 不需要額外的 if 判斷）。
+  # ===========================================================================
+  parity_check:
+    name: Parity Check (mainline drift)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # 用 git blob SHA（git rev-parse HEAD:<path>）而不是對簽出後的檔案內容算
+      # sha256：blob SHA 取自 git 物件庫，不受這個 job 之後接續的 windows-2022／
+      # macos-14 checkout 時 CRLF/LF 轉換影響，三種 runner 算出來的值保證一致。
+      # 詳見 .github/education-ci-parity.lock 開頭的說明。
+      - name: Compare against recorded parity lock
+        shell: bash
+        run: |
+          LOCK_FILE=.github/education-ci-parity.lock
+          FAILED=0
+
+          while IFS=$'\t' read -r path expected; do
+            [ -z "$path" ] && continue
+            case "$path" in \#*) continue ;; esac
+            [ -z "$expected" ] && continue
+
+            actual=$(git rev-parse "HEAD:$path")
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::漂移偵測失敗：$path 的內容已變更（本分支目前 blob=$actual，$LOCK_FILE 記錄值=$expected）。"
+              echo "::error::處理方式：比對主線後決定 education 側是否需要同步，然後依 $LOCK_FILE 開頭的更新流程重新計算並更新該行，最後更新 LAST_REVIEWED_MAINLINE_COMMIT。"
+              FAILED=1
+            fi
+          done < <(grep -e $'\t' "$LOCK_FILE")
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "::error::至少一個受監控檔案已變更，詳見上方訊息。Windows／macOS 建置作業不會啟動。"
+            exit 1
+          fi
+
+          echo "parity check 通過：五個受監控檔案皆與 $LOCK_FILE 記錄值一致。"
+
   build_windows:
     name: Build Education (Windows)
+    needs: parity_check
     # 必須釘住 windows-2022，不可用 windows-latest：後者已不再提供
     # Visual Studio 2022，CMake 的 "Visual Studio 17 2022" generator 會找不到
     # 任何 VS 實例。主線已於 8359f943aa 做過相同修正。
@@ -215,6 +267,7 @@ jobs:
   # ===========================================================================
   build_macos:
     name: Build Education (macOS)
+    needs: parity_check
     runs-on: macos-14
     env:
       date:
