@@ -44,7 +44,7 @@ update_point_raycasters_for_picking_transform()  :2397-2417
 
 cone raycaster 已經存在且已註冊，補上 transform 的成本與風險都低於重新設計命中體積。
 
-### D2. Cone transform 推導
+### D2. Cone transform 推導（實作時修正：高度不是 `width_mm`，而是 `fullwidth() - r_back_mm`）
 
 已查證單位錐的幾何約定（`TriangleMesh.cpp:1063-1087`，`its_make_cone(1.0, 1.0, PI/12)`）：
 
@@ -54,34 +54,51 @@ cone raycaster 已經存在且已註冊，補上 transform 的成本與風險都
 軸向為 +Z（底 → 尖）
 ```
 
-視覺 pinhead 的 robe 段：尖端側靠近錨點（半徑 `r_pin`），粗端側在外側 `width_mm` 處（半徑 `r_back`）。因此單位錐需：
+- **旋轉**：單位錐的 `+Z` 需映至 `-dir`（尖端朝錨點）。`Quaternion::FromTwoVectors(UnitZ, -dir)` 與 render 路徑使用的 `q = FromTwoVectors(-UnitZ, dir)` 對 Z 軸的作用完全相同（皆將 Z 映至 `-dir`），兩者僅差一個繞軸 roll，而錐體為旋轉對稱故無影響。**直接複用 render 路徑的 `q`。**
 
-- **縮放**：`(r_back, r_back, width_mm)`——底面半徑取 `r_back`，高度取 `width_mm`。
-- **旋轉**：單位錐的 `+Z` 需映至 `-dir`（尖端朝錨點）。`Quaternion::FromTwoVectors(UnitZ, -dir)` 與 render 路徑使用的 `q = FromTwoVectors(-UnitZ, dir)` 對 Z 軸的作用完全相同（皆將 Z 映至 `-dir`），兩者僅差一個繞軸 roll，而錐體為旋轉對稱故無影響。**可直接複用 render 路徑的 `q`。**
-- **平移**：尖端須落在錨點。旋轉後尖端位於「底面圓心 + (-dir) × height」，故底面圓心置於 `scaled_pos + dir × width_mm`。
+**原提案打算用 `width_mm` 當作 cone 高度與平移量，實作時查證 `pinhead()`（`SupportTreeMesher.cpp:158-229`）的實際幾何後發現這個假設是錯的**：`width_mm` 只是傳給 `pinhead()` 的「robe 名義長度」參數，不是 robe 實際占據的軸向範圍。
 
-組合形式（實作時需以實測驗證，特別是 `width_mm` 與 `z_shift` 的對應關係）：
+用 `pinhead()` 自身的座標推導實際端點（皆為精確值，非近似）：
+
+- pin 球（`s2`）整體在呼叫前先 `+= h`（`h = r_back + r_pin + width_mm`，函式內部變數），其球心落在（相對 back 球球心）局部 z = `h`；pin 球頂端（尖端）落在局部 z = `h + r_pin`。
+- `head_mesh_body()` 對整個網格套用的 `z_shift = fullwidth() - r_back_mm`（`preview=false` 分支，見 `SupportTreeMesher.hpp:69`）。減去 `z_shift` 後，錨點（`pos`，對應局部 z=0）與 pin 球頂端的相對關係為：`(h + r_pin) - z_shift = r_back + 2·r_pin + width_mm - (fullwidth() - r_back) = penetration_mm`（代入 `fullwidth() = 2·r_pin + width_mm + 2·r_back - penetration_mm` 化簡可得）。也就是說 **pin 球頂端在錨點沿 `dir` 反方向 `penetration_mm` 處**——這正是「penetration」這個欄位名稱本身的意涵（針尖沒入模型表面多深），與現有 `sphere` raycaster（半徑 `max(r_pin, r_contact)`、圓心在錨點）的涵蓋範圍高度重疊。
+- back 球（`s1`）未經额外平移，球心在局部 z=0（相對 back 球自身），減去 `z_shift` 後，其球心對應世界偏移量 `fullwidth() - r_back_mm` 沿 `dir` 方向——這正是 `Head::junction_point()` 既有定義的 `pos + (fullwidth() - r_back) · dir`（`SupportTreeBuilder.hpp:109-112`）。這是 back 球最寬處（半徑恰為 `r_back`），再往外（偏移量增至 `fullwidth()`）球面才收窄回一個點（球的另一極）。
+
+**修正後的決定**：cone 底面（半徑 `r_back`）置於 `junction_point()` 的偏移量（`fullwidth() - r_back_mm`），尖端（半徑 0）置於錨點本身（偏移量 0，與 sphere 圓心重合）。相比原提案的 `width_mm`（以預設值計僅 2mm），新高度 `fullwidth() - r_back_mm`（以預設值計約 2.5mm）涵蓋了 robe 實際占據的軸向範圍中更大的一段——原提案會在 back 球端留下明顯的漏觸區（back 球本身完全沒有另一個 sphere raycaster 補足，只能靠 cone 涵蓋），而非只是「多一點誤差」。
+
+尖端到 back 球最寬處之間、與 back 球最寬處再往外收窄到球極點之間，各留有一小段未被 cone 精確貼合的區域（前者由 sphere raycaster 補足，後者是球極點附近本來就很小的可視面積，未特別處理）——這是圓錐近似圓台、圓極端不含入計算的既有取捨（見 D3），非本次修正試圖消除的範圍。
+
+組合形式：
 
 ```
+cone_height = head.fullwidth() - head.r_back_mm
 cone_matrix = pick_matrix
-            · Translation(scaled_pos + dir · width_mm)
+            · Translation(scaled_pos + dir · cone_height)
             · Rotation(q)
-            · Scale(r_back, r_back, width_mm)
+            · Scale(r_back, r_back, cone_height)
 ```
 
-其中 `pick_matrix` 與 `scaled_pos` 沿用現行 sphere 路徑既有的定義（`:2394-2395`、`:2410`），`dir` 為經 `normal_xform` inverse-transpose 修正後正規化的 `scaled_normal`。
+其中 `pick_matrix` 與 `scaled_pos` 沿用現行 sphere 路徑既有的定義，`dir` 為經 `normal_xform` inverse-transpose 修正後正規化的 `scaled_normal`（透過 `preview_sla_head_for_point()` 產生 `head.dir`，與 render 路徑用同一份邏輯，不重覆手寫正規化/退化保護）。
 
-### D3. 圓錐近似圓台，由 sphere 補足 pin 端
+### D3. 圓錐近似圓台，兩端各由一顆 sphere 補足（實作時修正：back 端原本漏了一顆）
 
-視覺 robe 實際上是圓台（半徑自 `r_pin` 過渡至 `r_back`），而 raycaster 幾何是圓錐（自 0 過渡至 `r_back`）。差異集中在 pin 端：圓錐在該處偏窄，涵蓋不到半徑 `r_pin` 的區域。
+視覺 robe 實際上是圓台（半徑自 `r_pin` 過渡至 `r_back`），而 raycaster 幾何是圓錐（自 0 過渡至 `r_back`）。差異集中在兩端：
 
-該區域正是 sphere raycaster 涵蓋的範圍（半徑 `max(r_pin, r_contact)`，圓心在錨點）。**兩者聯集後無空隙**，且圓錐恆內含於圓台，不會產生誤觸。這是保留 sphere 而非以 cone 完全取代的原因。
+- **pin 端**：圓錐在該處偏窄，涵蓋不到半徑 `r_pin` 的區域。該區域由既有的 pin-end sphere raycaster 涵蓋（半徑 `max(r_pin, r_contact)`，圓心在錨點 `pos`）——這是本 change 修改前就存在、一直有效的既有機制。
+
+- **back 端（原設計遺漏，經使用者實測發現）**：cone 的底面（半徑 `r_back`）只能是一個**平面圓盤**，精確貼合 back 球的最寬處（赤道）；但 back 球是完整的球面，過了赤道之後球面會**彎回收窄**到自己的極點（見 D2 對 `pinhead()` 幾何的推導）。這一段彎回收窄的球殼，圓錐（直邊）完全無法涵蓋，而原設計又只在 pin 端放了一顆 sphere，back 端什麼都沒有——導致 back 球從赤道往外（即靠近模型內部/pillar 那一側）整顆完全點不到。使用者驗收 5.2 時實測到「貼在模型表面的球到中段都能點，但最外側的球點不到」，正是這個遺漏。
+
+  **修正**：新增第三個 raycaster——back-end sphere，圓心與 cone 底面同一點（`scaled_pos + cone_height · head.dir`，即 `head.junction_point()` 對應的偏移量），半徑 `r_back_mm`，與可見的 back 球完全重合（不是近似）。`m_point_raycasters` 型別由 `std::pair` 改為三欄位的 `PointRaycasterSet{pin_sphere, cone, back_sphere}`，三者以同一個 picking id 註冊，故 hover 語意不變（見 D1 註記）。
+
+**兩顆 sphere 與 cone 三者聯集後，pin 端與 back 端皆無空隙**，且圓錐恆內含於圓台，不會產生誤觸。這是保留 sphere（而非以 cone 完全取代兩端）的原因。
+
+**效能影響**：`add_raycaster_for_picking()` 重覆使用同一個共用的 `m_sphere.mesh_raycaster`（單位球面的 `MeshRaycaster`，AABB tree 只建一次，供所有點、所有 sphere raycaster 共用同一份，只是各自套不同的 `Transform3d`）——新增第三個 raycaster **不會**新建任何 mesh 或 AABB tree，只是 `SceneRaycaster` 內部 `m_gizmos` 這個 vector 多一個輕量條目（id + transform + active flag + 共用 mesh_raycaster 指標）。`SceneRaycaster::hit()` 對這個 vector 做線性掃描，逐一測試 ray-vs-transformed-sphere；每點的 raycaster 數從 2 個增加到 3 個，增加約 50% 的逐點測試量，且只在滑鼠移動觸發 hover 判定時執行一次（不是每幀、不是每個三角形），對支撐點數量在數百量級的實際使用情境而言可忽略不計。
 
 ### D4. Active 狀態與 clipping 同步
 
-`:2412` 的 `set_active(false)` 改為與 `.first` 相同的 clipping 連動規則。`render_points()`（`:651-653`）目前已對 `.first` 與 `.second` 同時設定 active 狀態，該處無需修改——它一直在正確地管理 `.second`，只是 `.second` 隨後又被 `update_point_raycasters_for_picking_transform()` 無條件關閉。
+`:2412` 的 `set_active(false)` 改為與 `.first`（現為 `pin_sphere`）相同的 clipping 連動規則。`render_points()`（`:651-653`）目前已對 `.first` 與 `.second` 同時設定 active 狀態，D3 新增的 `back_sphere` 一併納入同一段管理——該處無需另外修改邏輯，只是三個欄位都要設，原本管兩個地方現在管三個。
 
-修正後兩處規則一致：被 clipping 裁切的點，其 sphere 與 cone raycaster 皆為 inactive。
+修正後三處規則一致：被 clipping 裁切的點，其 `pin_sphere`、`cone`、`back_sphere` 三個 raycaster 皆為 inactive。
 
 ### D5. 相依於 `perf-sla-support-points-preview-render`
 
@@ -100,7 +117,7 @@ cone_matrix = pick_matrix
 
 - **[鏡像 instance 下錐體朝向反轉]** → `pick_matrix` 經 signed `get_matrix()` 保留鏡像，旋轉疊加後方向是否仍正確需實測驗證。
 
-- **[`width_mm` 與視覺 robe 長度的對應]** → `head_mesh_local()` 在 preview 模式下的軸向長度為 `width_mm - 2·r_pin - 2·r_back`（`SupportTreeMesher.hpp:53-55`），與非 preview 模式不同。cone 的高度取值須與**實際被繪製的**幾何一致，manual 點（`get_mesh_preview`）與 auto 點（`get_mesh`）可能需分別處理。這是本 change 最可能出錯的細節。
+- **[`width_mm` 與視覺 robe 長度的對應]** → 已於 D2 修正：cone 高度改用 `fullwidth() - r_back_mm`（精確值，非近似），而非原提案的 `width_mm`。
 
 - **[hover 優先順序改變]** → 兩個 raycaster 共用同一 `id = i`，命中任一皆回報同一點，`m_hover_id` 語意不變。風險低，但驗收仍須確認相鄰點重疊時的命中結果符合直覺（取最近者，由 `SceneRaycaster::hit()` 的 `is_closest` 既有邏輯處理）。
 
@@ -112,4 +129,4 @@ cone_matrix = pick_matrix
 
 ## Open Questions
 
-- Manual 點（`get_mesh_preview`，steps 45）與 auto 點（`get_mesh`，steps 24）的 robe 軸向長度公式不同（見 Risks）。實作時需確認是否以單一 cone 高度公式涵蓋兩者，或依 `manual_add` 分別計算。
+無。原提及「manual 點（`get_mesh_preview`）與 auto 點（`get_mesh`）robe 軸向長度公式不同，需分別處理」這個疑問已由 `fix-sla-support-preview-visual-parity`（2026-08-04 archive）連帶解決：該 change 將 `render_points()` 統一為所有點皆呼叫 `head_mesh_body(head, 24, /*preview=*/false)`，`get_mesh_preview()` 已整個移除，Points preview 渲染路徑不再有 `preview=true` 分支。因此本 change 的 cone 高度公式（D2）天然只需涵蓋單一情況，不需要依 `manual_add` 分別計算。

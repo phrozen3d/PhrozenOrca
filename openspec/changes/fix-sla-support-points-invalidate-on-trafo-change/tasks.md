@@ -73,6 +73,10 @@
 - [ ] 6.10 法線快取隨點集失效：變換後 cone 朝向依新表面重算，無舊法線殘留
 - [ ] 6.11 幾何快取未被誤清：變換後穩態每幀 `GLModel::init_from()` 呼叫次數仍為 0
 - [ ] 6.12 picking 與顯示一致：變換後 hover / click 的命中位置與可見錐體相符
+      **承接自 `fix-sla-support-point-cone-picking`（2026-08-04 實作）的 5.5/5.6/5.7**：該 change 完成 cone/back-sphere raycaster 後想驗這三項，但發現物件經 scale/mirror 後既有支撐點再次 apply 會變形（就是本 change 要修的缺陷本身），導致當時測到的任何 picking 落差都無法歸因於 picking 邏輯本身或是被本缺陷污染的支撐點幾何——量測結果不可靠，故移來本 change，待座標換算修好、支撐點不再變形後再驗證：
+      - [ ] 6.12a 均勻 scale 1.5 / 2.0 / 0.5 下，picking 命中範圍與可見的 pin_sphere / cone / back_sphere 三個 raycaster 一致
+      - [ ] 6.12b 非均勻 scale `(2,1,1)` 與 `(1,1,3)` 下，cone / back_sphere raycaster 軸向跟隨縮放後表面法向（`normal_xform` inverse-transpose 修正），與視覺一致
+      - [ ] 6.12c 鏡像 instance（`is_left_handed()` 為 true）下，錐體與 back 球的命中方向正確、未反轉
 - [ ] 6.13 切片輸出與變換後的 preview 一致
 
 ## 7. Follow-up（out of scope）
