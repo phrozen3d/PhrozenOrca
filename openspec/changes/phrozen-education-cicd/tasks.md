@@ -136,8 +136,10 @@
 
 ## 8. 階段 3：回歸 resin 主維護分支
 
-- [ ] 8.1 merge `phrozen-education-variant` → `phrozen-resin-dev`
-- [ ] 8.2 確認合併後 `.github/` 中的既有共用 CI 檔案（`build_orca.yml`、`build_deps.yml`、`build_check_cache.yml`、`build_all.yml`）與主線內容仍完全相同、未產生衝突
+- [x] 8.1 merge `phrozen-education-variant` → `phrozen-resin-dev`
+  - **Pass（2026-08-04）**：`git merge --no-ff`，merge commit `0b1cd3b055`；`git merge-tree` 事前 dry-run 確認零衝突，實際合併也確實零衝突
+- [x] 8.2 確認合併後 `.github/` 中的既有共用 CI 檔案（`build_orca.yml`、`build_deps.yml`、`build_check_cache.yml`、`build_all.yml`、兩個 pack composite actions、`build_release_vs2022.bat`、`build_release_macos.sh`）與主線內容仍完全相同、未產生衝突
+  - **Pass（2026-08-04 實測）**：合併後 `git diff origin/release -- <上述 8 個檔案>` 無任何輸出；`.github/education-ci-parity.lock` 記錄的 5 個檔案 blob SHA 逐一比對全部相符（無漂移），意味 `phrozen-resin-dev` 上執行 `parity_check` 也會是綠燈
 - [ ] 8.3 從 Actions UI 選 ref = `phrozen-resin-dev` 觸發一次，確認可正常建置
 
 ## 9. QA 手動驗收步驟（提交測試人員驗收用）
