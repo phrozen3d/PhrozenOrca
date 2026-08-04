@@ -87,6 +87,12 @@ class ModelMallDialog;
 class PingCodeBindDialog;
 class NetworkErrorDialog;
 
+// wxTranslations catalog domain for loading/enumerating .mo dictionaries. Deliberately NOT
+// SLIC3R_APP_KEY: the Education/Resin build variant (PHROZEN_ORCA_ENABLE_RESIN=ON) appends
+// "-Education" to SLIC3R_APP_KEY, but the compiled catalog file is always named
+// "PhrozenOrca.mo" regardless of variant (see CMakeLists.txt's mo_file rule). If this
+// constant's value ever needs to change, CMakeLists.txt's mo_file rule must change with it.
+static constexpr const char* L10N_CATALOG_DOMAIN = "PhrozenOrca";
 
 enum FileType
 {
