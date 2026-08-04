@@ -708,8 +708,9 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // Step 4.2: manage raycaster active state based on clipping (same as PrusaSlicer)
         const bool clipped = is_mesh_point_clipped(support_point.pos.cast<double>());
         if (i < m_point_raycasters.size()) {
-            m_point_raycasters[i].first->set_active(!clipped);
-            m_point_raycasters[i].second->set_active(!clipped);
+            m_point_raycasters[i].pin_sphere->set_active(!clipped);
+            m_point_raycasters[i].cone->set_active(!clipped);
+            m_point_raycasters[i].back_sphere->set_active(!clipped);
         }
         if (clipped)
             continue;
@@ -2466,9 +2467,10 @@ void GLGizmoSlaSupports::register_point_raycasters_for_picking()
 
     if (m_editing_mode && !m_editing_cache.empty()) {
         for (size_t i = 0; i < m_editing_cache.size(); ++i) {
-            m_point_raycasters.emplace_back(
+            m_point_raycasters.push_back(PointRaycasterSet{
                 m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_sphere.mesh_raycaster, Transform3d::Identity()),
-                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cone.mesh_raycaster, Transform3d::Identity()));
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cone.mesh_raycaster, Transform3d::Identity()),
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_sphere.mesh_raycaster, Transform3d::Identity())});
         }
         update_point_raycasters_for_picking_transform();
     }
@@ -2500,6 +2502,10 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const Transform3d instance_scaling_matrix_inverse = instance_scaling_matrix.inverse();
     const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
     const Transform3d pick_matrix              = instance_matrix * instance_scaling_matrix_inverse;
+    // Same non-uniform-scale correction as render_points(): the cone raycaster below
+    // is direction-dependent (unlike the radially-symmetric sphere), so its axis must
+    // follow the scaled-mesh surface normal, not the raw one.
+    const Matrix3d normal_xform = instance_scaling_matrix_inverse.linear().transpose();
 
     // Same rule as render_points(): read the Process tab live fields once, not per point.
     const PreviewTopParams top_params = read_preview_top_params_live();
@@ -2512,18 +2518,38 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
 
         const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
 
-        // head is only consulted for pick_r (the visible cone's pin / contact
-        // radius in mm). The picking sphere is radially symmetric, so head.dir
-        // does not need the non-uniform-scale correction used by render_points().
-        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry, top_params);
+        const Vec3f scaled_normal = (normal_xform * m_editing_cache[i].normal.cast<double>()).cast<float>();
+        const sla::Head head = preview_sla_head_for_point(sp, scaled_normal, use_stored_geometry, top_params);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
-        m_point_raycasters[i].second->set_active(false);
         const Transform3d sphere_matrix = pick_matrix *
             Geometry::assemble_transform(scaled_pos, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
-        m_point_raycasters[i].first->set_transform(sphere_matrix);
-        m_point_raycasters[i].first->set_active(true);
+        m_point_raycasters[i].pin_sphere->set_transform(sphere_matrix);
+        m_point_raycasters[i].pin_sphere->set_active(true);
+
+        // Cone: covers the robe from the pin end (tip, radius 0 — backed by
+        // pin_sphere above) out to the back sphere's widest point (base, radius
+        // r_back_mm) at offset fullwidth() - r_back_mm along head.dir — the same
+        // offset as head.junction_point() relative to head.pos.
+        const double cone_height = head.fullwidth() - head.r_back_mm;
+        const Vec3d back_center = scaled_pos + cone_height * head.dir;
+        const Transform3d cone_matrix = pick_matrix *
+            Geometry::translation_transform(back_center) *
+            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir)) *
+            Geometry::scale_transform(Vec3d(head.r_back_mm, head.r_back_mm, cone_height));
+        m_point_raycasters[i].cone->set_transform(cone_matrix);
+        m_point_raycasters[i].cone->set_active(true);
+
+        // Back sphere: covers the pillar-junction end. The cone's flat base sits
+        // exactly at the back sphere's widest point (its equator) — past that the
+        // visible ball curves back inward to its own tip, which a straight-sided
+        // cone cannot follow. Centred at the same point as the cone's base
+        // (back_center), radius r_back_mm, matching the visible ball exactly.
+        const Transform3d back_sphere_matrix = pick_matrix *
+            Geometry::assemble_transform(back_center, Vec3d::Zero(), head.r_back_mm * Vec3d::Ones());
+        m_point_raycasters[i].back_sphere->set_transform(back_sphere_matrix);
+        m_point_raycasters[i].back_sphere->set_active(true);
     }
 }
 
