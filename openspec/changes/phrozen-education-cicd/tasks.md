@@ -129,8 +129,10 @@
 
 ## 7. 階段 1 收尾：移除開發期觸發（須在第 6 組完成後才做）
 
-- [ ] 7.1 移除 `on:` 中開發期專用的整個 `push:` 區塊，只保留 `workflow_dispatch:`
-- [ ] 7.2 完整跑一次驗證：確認移除開發期觸發後，一般 push 不會再觸發建置，且仍可從 UI 手動觸發
+- [x] 7.1 移除 `on:` 中開發期專用的整個 `push:` 區塊，只保留 `workflow_dispatch:`
+  - **Pass（2026-08-04）**：commit `2c4f4ec497`，`on:` 只剩 `workflow_dispatch:` 一項
+- [x] 7.2 完整跑一次驗證：確認移除開發期觸發後，一般 push 不會再觸發建置，且仍可從 UI 手動觸發
+  - **Pass（2026-08-04 實測）**：commit `2c4f4ec497` 未產生任何自動執行記錄；`Run workflow` 手動觸發（ref = `phrozen-education-variant`）成功建置完成
 
 ## 8. 階段 3：回歸 resin 主維護分支
 
@@ -154,16 +156,17 @@
   - 開啟 **Actions** → `build_education`
   - 預期：**不會**出現新的執行記錄（避免改程式碼時誤觸發昂貴建置）
 
-- [ ] 9.1.3 **（階段 1 收尾後）開發期觸發已移除**：再次推送一個修改 `.github/workflows/build_education.yml` 的 commit。
+- [x] 9.1.3 **（階段 1 收尾後）開發期觸發已移除**：再次推送一個修改 `.github/workflows/build_education.yml` 的 commit。
   - 預期：**不再**自動觸發任何執行
+  - **Pass（2026-08-04 實測）**：commit `2c4f4ec497` 未觸發任何自動執行
 
 - [x] 9.1.4 **（階段 2）手動按鈕出現**：`build_education.yml` 合入 `release`（本 repo 實際的預設分支，見第 6 組開頭更正）後，開啟 **Actions** → 左側選擇 `build_education`。
   - 預期：右上角出現 **Run workflow** 按鈕（合入前不會出現）
   - **Pass（2026-08-04 實測）**：按鈕已出現，分支下拉選單需明確選擇 `phrozen-education-variant` 才能觸發
 
-- [ ] 9.1.5 **（階段 2）跨 ref 觸發正確**：點 **Run workflow** → 分支下拉選單選擇 `phrozen-education-variant` → 執行。
+- [x] 9.1.5 **（階段 2）跨 ref 觸發正確**：點 **Run workflow** → 分支下拉選單選擇 `phrozen-education-variant` → 執行。
   - 預期：執行成功，且產出物為 education 變體（依 9.2／9.3 驗證）
-  - 觸發動作本身已確認可行（見 6.4）；**待補**：該次執行的實際結果（Windows／macOS job 是否全綠、產出物是否正確）
+  - **Pass（2026-08-04 實測）**：從 `release`（預設分支）上的 `Run workflow` 選 ref = `phrozen-education-variant` 觸發，完整建置成功
 
 - [ ] 9.1.6 **（階段 2）誤選主線分支會安全失敗**：點 **Run workflow** → 分支選擇 `release` 或 `phrozen-custom-dev`（兩者皆缺少 `build_resin_release_vs2022.bat` / `build_resin_release_macos.sh`）→ 執行。
   - 預期：**快速失敗**，且 **artifact 區塊沒有任何產出物**
