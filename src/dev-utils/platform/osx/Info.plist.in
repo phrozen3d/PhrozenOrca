@@ -13,7 +13,7 @@
   <key>CFBundleShortVersionString</key>
   <string>@SLIC3R_APP_NAME@ @SLIC3R_BUILD_ID@</string>
   <key>CFBundleIdentifier</key>
-  <string>com.phrozen3d.phrozen-orca</string>
+  <string>@PHROZEN_ORCA_BUNDLE_ID@</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -26,11 +26,11 @@
   <array>
     <dict>
       <key>CFBundleURLName</key>
-      <string>phrozenorcaopen url</string>
+      <string>@PHROZEN_ORCA_URL_SCHEME_OPEN@ url</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>phrozenorcaopen</string>
-        <string>phrozenorca</string>
+        <string>@PHROZEN_ORCA_URL_SCHEME_OPEN@</string>
+        <string>@PHROZEN_ORCA_URL_SCHEME@</string>
       </array>
     </dict>
   </array>

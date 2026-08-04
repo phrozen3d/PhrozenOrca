@@ -120,9 +120,19 @@ endif (MINGW)
 
 if (NOT WIN32 AND NOT APPLE)
     # Binary name on unix like systems (Linux, Unix)
-    set_target_properties(PhrozenOrca PROPERTIES OUTPUT_NAME "phrozen-orca")
-    set(SLIC3R_APP_CMD "phrozen-orca")
+    set_target_properties(PhrozenOrca PROPERTIES OUTPUT_NAME "${PHROZEN_ORCA_EXE_BASENAME}")
+    set(SLIC3R_APP_CMD "${PHROZEN_ORCA_EXE_BASENAME}")
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/dev-utils/platform/unix/build_linux_image.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_linux_image.sh USE_SOURCE_PERMISSIONS @ONLY)
+endif ()
+
+if (APPLE AND CMAKE_MACOSX_BUNDLE)
+    # Bundle folder name (<name>.app) and the binary inside Contents/MacOS on macOS
+    # bundle builds. Driven by SLIC3R_APP_KEY (not the unix-style exe basename) so it
+    # matches Info.plist's CFBundleExecutable, which is also configured from
+    # SLIC3R_APP_KEY -- a mismatch here makes macOS unable to locate the binary and the
+    # app fails to launch. SLIC3R_APP_KEY already carries the "-Education" suffix for
+    # the resin variant, so the two variants still get distinct bundle names.
+    set_target_properties(PhrozenOrca PROPERTIES OUTPUT_NAME "${SLIC3R_APP_KEY}")
 endif ()
 
 target_link_libraries(PhrozenOrca libslic3r cereal::cereal)
@@ -174,7 +184,7 @@ if (WIN32)
     endif()
     target_compile_definitions(PhrozenOrca_app_gui PRIVATE -DSLIC3R_WRAPPER_NOCONSOLE)
     add_dependencies(PhrozenOrca_app_gui PhrozenOrca)
-    set_target_properties(PhrozenOrca_app_gui PROPERTIES OUTPUT_NAME "phrozen-orca")
+    set_target_properties(PhrozenOrca_app_gui PROPERTIES OUTPUT_NAME "${PHROZEN_ORCA_EXE_BASENAME}")
     target_link_libraries(PhrozenOrca_app_gui PRIVATE boost_headeronly)
 endif ()
 
@@ -222,7 +232,7 @@ else ()
     if (APPLE AND NOT CMAKE_MACOSX_BUNDLE)
         # On OSX, the name of the binary matches the name of the Application.
         add_custom_command(TARGET PhrozenOrca POST_BUILD
-            COMMAND ln -sf PhrozenOrca phrozen-orca
+            COMMAND ln -sf PhrozenOrca ${PHROZEN_ORCA_EXE_BASENAME}
             WORKING_DIRECTORY "$<TARGET_FILE_DIR:PhrozenOrca>"
             VERBATIM)
     else ()
@@ -239,9 +249,9 @@ else ()
     endif ()
     if (CMAKE_MACOSX_BUNDLE)
         if (CMAKE_CONFIGURATION_TYPES)
-            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/PhrozenOrca.app/Contents/Resources")
+            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${SLIC3R_APP_KEY}.app/Contents/Resources")
         else()
-            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/PhrozenOrca.app/Contents/Resources")
+            set(BIN_RESOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/${SLIC3R_APP_KEY}.app/Contents/Resources")
         endif()
         set(MACOSX_BUNDLE_ICON_FILE Icon.icns)
         set(MACOSX_BUNDLE_BUNDLE_NAME "PhrozenOrca")

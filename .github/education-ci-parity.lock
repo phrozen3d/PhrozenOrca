@@ -1,0 +1,43 @@
+# education CI 漂移偵測 —— 主線共用檔案校驗值紀錄
+#
+# 用途：見 openspec/changes/phrozen-education-cicd/design.md 決策 5。
+# build_education.yml 的 parity_check job 會在每次執行時，對下面列出的每個檔案
+# 計算「本分支當下」的 git blob SHA，與這裡記錄的值比對；不符即代表該檔案在
+# 本分支上的內容已經改變（通常是合併主線帶進來的），會讓 parity_check 失敗，
+# 之後的 Windows／macOS 建置 job 不會啟動。
+#
+# 為什麼用 git blob SHA、不是對檔案內容算 sha256：
+# blob SHA 取自 `git rev-parse HEAD:<path>`，是 git 物件庫裡的值，不受
+# runner checkout 時的 CRLF/LF 轉換影響——Windows／Linux／macOS 三種 runner
+# 算出來的值保證一致。若改用「對簽出後的檔案內容算 sha256」，同一個 commit
+# 在不同 OS 的 runner 上可能因為 core.autocrlf 造成的行尾轉換而算出不同結果，
+# 產生假陽性的漂移警報。
+#
+# 監控清單為何是這五個檔案：
+#   - build_orca.yml / build_deps.yml / build_check_cache.yml
+#     build_education.yml 自帶邏輯的抄寫來源；這三個檔案在本分支上
+#     必須與主線逐位元組相同（零修改），內容改變只可能來自合併主線。
+#   - build_release_vs2022.bat / build_release_macos.sh
+#     build_resin_release_vs2022.bat 與 build_resin_release_macos.sh
+#     這兩支 resin 專屬腳本的複製來源；同樣要求在本分支上零修改。
+#
+# 更新流程（parity_check 失敗時）：
+#   1. 錯誤訊息會列出哪個檔案的 blob SHA 對不上
+#   2. 執行 `git diff <下方記錄的主線 commit>..origin/phrozen-custom-dev -- <該檔案路徑>`
+#      查看主線實際改了什麼
+#   3. 判斷 education 側（build_education.yml、build_resin_release_vs2022.bat、
+#      build_resin_release_macos.sh）是否需要同步這個修正；需要的話先完成同步
+#   4. 執行 `git rev-parse HEAD:<path>` 取得新的 blob SHA，更新下面對應那一行
+#   5. 把 LAST_REVIEWED_MAINLINE_COMMIT 更新為目前 origin/phrozen-custom-dev 的 commit
+#      （`git rev-parse origin/phrozen-custom-dev`）
+#   6. commit 本檔案，再次觸發 education 建置，parity_check 應恢復綠燈
+#
+# 格式：每行 <相對路徑><TAB><git blob SHA>；以 # 開頭的是註解，會被忽略。
+
+LAST_REVIEWED_MAINLINE_COMMIT=dd9e7860b4f9700d440134ade73e0b6351670b37
+
+.github/workflows/build_orca.yml	d33a64725ba9f2b713be6b868a0b04d0b6ec8a3e
+.github/workflows/build_deps.yml	5f047c8f7b7248936f1876365052146bd3f2aa4c
+.github/workflows/build_check_cache.yml	70c3551362ac7bf41a829363bf998ff6b5edc78f
+build_release_vs2022.bat	8fcbefdb212889dff32a2c44091c66e9cc32e479
+build_release_macos.sh	085b5b83d66a2a79397c0f832ea7812a65dcebb2

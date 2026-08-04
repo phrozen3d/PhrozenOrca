@@ -141,6 +141,28 @@ option(PHROZEN_ORCA_TOOLS       "Build PhrozenOrca tools" OFF)
 # forgotten flag falls back to the main (FDM) build's behavior.
 option(PHROZEN_ORCA_ENABLE_RESIN "Enable resin/FDM mixed build features (currently: gates the app-update check)" OFF)
 
+# Education-variant identity suffixing. When the resin/FDM mixed build is
+# enabled, every user/OS-facing identity string (AppData folder, install
+# directory, registry keys, window title, exe basename, etc.) gets an
+# "-Education"/"-education" suffix so it never collides with the main
+# (FDM) build's identity. Overriding SLIC3R_APP_NAME/SLIC3R_APP_KEY/
+# Phrozen_VERSION/PHROZEN_ORCA_EXE_BASENAME here (single source of truth,
+# right after the flag is known) lets every downstream consumer of these
+# variables inherit the suffix automatically.
+set(PHROZEN_ORCA_EXE_BASENAME "phrozen-orca")
+set(PHROZEN_ORCA_BUNDLE_ID "com.phrozen3d.phrozen-orca")
+set(PHROZEN_ORCA_URL_SCHEME "phrozenorca")
+set(PHROZEN_ORCA_URL_SCHEME_OPEN "phrozenorcaopen")
+if (PHROZEN_ORCA_ENABLE_RESIN)
+    set(SLIC3R_APP_NAME "${SLIC3R_APP_NAME}-Education")
+    set(SLIC3R_APP_KEY "${SLIC3R_APP_KEY}-Education")
+    set(Phrozen_VERSION "${Phrozen_VERSION}-Education")
+    set(PHROZEN_ORCA_EXE_BASENAME "phrozen-orca-education")
+    set(PHROZEN_ORCA_BUNDLE_ID "com.phrozen3d.phrozen-orca-education")
+    set(PHROZEN_ORCA_URL_SCHEME "phrozenorca-education")
+    set(PHROZEN_ORCA_URL_SCHEME_OPEN "phrozenorcaopen-education")
+endif ()
+
 if (IS_CROSS_COMPILE)
     message("Detected cross compilation setup. Tests and encoding checks will be forcedly disabled!")
     set(SLIC3R_PERL_XS OFF CACHE BOOL "" FORCE)
@@ -853,7 +875,7 @@ if(SLIC3R_BUILD_TESTS)
 endif()
 
 if (NOT WIN32 AND NOT APPLE)
-    set(SLIC3R_APP_CMD "phrozen-orca")
+    set(SLIC3R_APP_CMD "${PHROZEN_ORCA_EXE_BASENAME}")
     configure_file(${LIBDIR}/dev-utils/platform/unix/build_appimage.sh.in ${CMAKE_CURRENT_BINARY_DIR}/build_appimage.sh USE_SOURCE_PERMISSIONS @ONLY)
 endif()
 
@@ -877,7 +899,7 @@ elseif (SLIC3R_FHS)
         )
     endforeach()
 elseif (CMAKE_MACOSX_BUNDLE)
-    install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/PhrozenOrca.app/Contents/resources")
+    install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/${SLIC3R_APP_KEY}.app/Contents/resources")
 else ()
     install(FILES src/dev-utils/platform/unix/PhrozenOrca.desktop DESTINATION ${CMAKE_INSTALL_PREFIX}/resources/applications)
     install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/resources")
@@ -886,29 +908,29 @@ endif ()
 install(FILES ${CMAKE_SOURCE_DIR}/LICENSE.txt DESTINATION ".")
 configure_file(${LIBDIR}/dev-utils/platform/unix/fhs.hpp.in ${LIBDIR_BIN}/dev-utils/platform/unix/fhs.hpp)
 
-set (CPACK_PACKAGE_NAME "PhrozenOrca")
+set (CPACK_PACKAGE_NAME "${SLIC3R_APP_NAME}")
 set (CPACK_PACKAGE_VENDOR "Phrozen")
 set (CPACK_PACKAGE_VERSION_MAJOR "${PHROZEN_ORCA_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${PHROZEN_ORCA_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PHROZEN_ORCA_VERSION_PATCH}")
-set (CPACK_PACKAGE_FILE_NAME "PhrozenOrca_Windows_Installer_V${Phrozen_VERSION}")
+set (CPACK_PACKAGE_FILE_NAME "${SLIC3R_APP_NAME}_Windows_Installer_V${Phrozen_VERSION}")
 set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Phrozen Orca is an open source slicer for FDM printers")
 set (CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/phrozen3d/PhrozenOrca")
 set (CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
 set (CPACK_PACKAGE_ICON "${CMAKE_SOURCE_DIR}/resources/images\\\\PhrozenOrca.ico")
 set (CPACK_NSIS_MUI_ICON "${CPACK_PACKAGE_ICON}")
 set (CPACK_NSIS_MUI_UNIICON "${CPACK_PACKAGE_ICON}")
-set (CPACK_NSIS_INSTALLED_ICON_NAME  "$INSTDIR\\\\phrozen-orca.exe")
+set (CPACK_NSIS_INSTALLED_ICON_NAME  "$INSTDIR\\\\${PHROZEN_ORCA_EXE_BASENAME}.exe")
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-    CreateShortCut \\\"$DESKTOP\\\\PhrozenOrca.lnk\\\" \\\"$INSTDIR\\\\phrozen-orca.exe\\\"
+    CreateShortCut \\\"$DESKTOP\\\\${SLIC3R_APP_NAME}.lnk\\\" \\\"$INSTDIR\\\\${PHROZEN_ORCA_EXE_BASENAME}.exe\\\"
 ")
 set (CPACK_PACKAGE_CHECKSUM SHA256)
-set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "PhrozenOrca")
+set (CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${SLIC3R_APP_NAME}")
 set (CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 set (CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
 # set (CPACK_NSIS_MODIFY_PATH "ON")
-set(CPACK_PACKAGE_EXECUTABLES "phrozen-orca;PhrozenOrca")
-set(CPACK_CREATE_DESKTOP_LINKS "phrozen-orca")
+set(CPACK_PACKAGE_EXECUTABLES "${PHROZEN_ORCA_EXE_BASENAME};${SLIC3R_APP_NAME}")
+set(CPACK_CREATE_DESKTOP_LINKS "${PHROZEN_ORCA_EXE_BASENAME}")
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE.txt) # must also include in install command
 
 set(CPACK_WIX_UPGRADE_GUID "058245e8-20e0-4a95-9ab7-1acfe17ad511")
