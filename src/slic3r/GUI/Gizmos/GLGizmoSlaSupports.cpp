@@ -636,7 +636,6 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         return;
 
     GLShaderProgram* gouraud_shader = wxGetApp().get_shader("gouraud_light");
-    GLShaderProgram* flat_shader    = wxGetApp().get_shader("flat");
     if (gouraud_shader == nullptr)
         return;
 
@@ -719,20 +718,22 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         //   manual_add → CYAN (user-placed)
         //   island     → ORANGE-ish / BLUEISH when locked (auto-generated critical)
         //   slope      → LIGHT_GRAY (auto-generated ordinary)
+        // Type-based coloring applies regardless of editing mode. Hover/selected are
+        // interaction states that only exist in editing mode; the locked-island
+        // indicator stays editing-mode-only too, since locking is only ever toggled
+        // from the editing-mode panel and has no corresponding state outside it.
         if (m_editing_mode && size_t(m_hover_id) == i)
             render_color = ColorRGBA::CYAN();
         else if (m_editing_mode && point_selected)
             render_color = ColorRGBA { 1.f, 0.3f, 0.3f, 1.f }; // REDISH
         else if (m_lock_unique_islands && support_point.is_island() && m_editing_mode)
             render_color = ColorRGBA::BLUEISH();
-        else if (m_editing_mode && support_point.type == sla::SupportPointType::manual_add)
-            render_color = ColorRGBA::CYAN();
-        else if (m_editing_mode && support_point.type == sla::SupportPointType::island)
+        else if (support_point.type == sla::SupportPointType::manual_add)
+            render_color = ColorRGBA::CYAN() * 0.75;
+        else if (support_point.type == sla::SupportPointType::island)
             render_color = ColorRGBA { 1.f, 0.6f, 0.0f, 1.f }; // orange — auto island
-        else if (m_editing_mode)
-            render_color = ColorRGBA::LIGHT_GRAY(); // slope
         else
-            render_color = ColorRGBA { 0.5f, 0.5f, 0.5f, 1.f };
+            render_color = ColorRGBA::LIGHT_GRAY(); // slope
 
         m_sphere.model.set_color(render_color);
 
@@ -761,17 +762,18 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // the set of points that should keep their own stored size instead of the live preset.
         const bool use_stored_geometry = preview_use_stored_top(support_point, point_selected);
 
-        // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
         // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
         // the local-frame body only, and placement is applied through model_matrix
         // below. Size fields (head/pillar/contact radii, width, penetration) come from
         // the support-parameter mm values and stay untouched.
         const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
-        const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
-        static constexpr size_t kManualPreviewSteps = 45;
 
         GLModel *cone_model = nullptr;
-        const HeadGeomKey key = head_geom_key(head, manual_preview);
+        // Manual and auto points share the same pinhead mesh and shading (see
+        // fix-sla-support-preview-visual-parity): the simplified flat-shaded preview
+        // used to be manual-only, a leftover from a PrusaSlicer-era distinction that
+        // no longer applies now that every point can carry its own explicit geometry.
+        const HeadGeomKey key = head_geom_key(head, /*preview=*/false);
         if (auto it = m_head_model_cache.find(key); it != m_head_model_cache.end())
             cone_model = &it->second;
         else {
@@ -780,13 +782,12 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
             if (m_head_model_cache.size() >= k_head_model_cache_limit)
                 m_head_model_cache.clear();
 
-            const indexed_triangle_set top_its = sla::head_mesh_body(
-                head, manual_preview ? kManualPreviewSteps : 24, manual_preview);
+            const indexed_triangle_set top_its = sla::head_mesh_body(head, 24, /*preview=*/false);
             if (top_its.vertices.empty())
                 continue;
 
             GLModel &model = m_head_model_cache[key];
-            model.init_from(top_its, manual_preview);
+            model.init_from(top_its, /*smooth_normals=*/false);
             cone_model = &model;
         }
 
@@ -803,10 +804,11 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
             Geometry::translation_transform(instance_scaling_matrix * support_point.pos.cast<double>()) *
             Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir));
 
-        // Manual preview: flat shader (uniform color, no directional shading).
-        use_shader(manual_preview ? flat_shader : gouraud_shader);
+        // All points are lit (gouraud_light): manual points used to render flat-shaded,
+        // a leftover from when they used a simplified, unlit preview mesh.
+        use_shader(gouraud_shader);
         active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-        if (active_shader != flat_shader) {
+        {
             // Must be derived from the model matrix actually used above — it now
             // carries the placement rotation, unlike instance_matrix_no_scale.
             const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
