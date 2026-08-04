@@ -1,3 +1,13 @@
+## 整體狀態（2026-08-04）
+
+> **CI 管線本體（第 1～8 組）已全數實作並驗收通過**，涵蓋 Windows／macOS 雙平台建置、漂移偵測、以及三種觸發 ref（`phrozen-education-variant`、從 `release` 跨 ref、`phrozen-resin-dev`）皆已個別實測成功。核心交付物已完成。
+>
+> **尚未完成、非阻塞性的收尾項目**（不影響 CI 管線本身已可用）：
+> - **9.1.6**（誤選主線分支應安全失敗）：安全性補測，非阻塞，隨時可補做
+> - **9.3.1～9.3.8**（macOS 終端使用者體感驗收：bundle identifier、簽章、公證、Gatekeeper、使用者資料夾隔離、雙版本並存）：**待實際 Mac 硬體**才能執行終端機指令驗證，CI 全綠不等於這些通過
+> - **9.5.2**（主線 `build_all` 產出物不含 education 字樣）：本 change 的 PR 已經觸發過一次真正的主線 `build_all`（見 6.3），但尚未逐項確認其產出物命名結果
+> - **9.5.3**（主線排程建置 `windows_nightly_dev`／`macos_weekly_dev` 不受影響）：屬於時間遞延項目，需等下次排程實際執行後才能確認，非本次可一次驗完
+
 ## 1. 階段 1-A：Windows job（先做，成本最低）
 
 > **階段 1-A 已完成並驗收通過（2026-07-31）**。Windows 建置全數過關，安裝檔產出正確，第二次執行確認快取命中並跳過 deps 建置。
@@ -140,7 +150,10 @@
   - **Pass（2026-08-04）**：`git merge --no-ff`，merge commit `0b1cd3b055`；`git merge-tree` 事前 dry-run 確認零衝突，實際合併也確實零衝突
 - [x] 8.2 確認合併後 `.github/` 中的既有共用 CI 檔案（`build_orca.yml`、`build_deps.yml`、`build_check_cache.yml`、`build_all.yml`、兩個 pack composite actions、`build_release_vs2022.bat`、`build_release_macos.sh`）與主線內容仍完全相同、未產生衝突
   - **Pass（2026-08-04 實測）**：合併後 `git diff origin/release -- <上述 8 個檔案>` 無任何輸出；`.github/education-ci-parity.lock` 記錄的 5 個檔案 blob SHA 逐一比對全部相符（無漂移），意味 `phrozen-resin-dev` 上執行 `parity_check` 也會是綠燈
-- [ ] 8.3 從 Actions UI 選 ref = `phrozen-resin-dev` 觸發一次，確認可正常建置
+- [x] 8.3 從 Actions UI 選 ref = `phrozen-resin-dev` 觸發一次，確認可正常建置
+  - **Pass（2026-08-04 實測）**：`Run workflow` 選 ref = `phrozen-resin-dev` 執行成功，Windows 與 macOS 兩個變體皆正確建出
+
+> **第 8 組（回歸 resin 主維護分支）已完成並驗收通過（2026-08-04）**。至此三種觸發 ref（`phrozen-education-variant`／從 `release` 跨 ref／`phrozen-resin-dev`）皆已個別實測成功，CI 管線本身的實作與整合驗證全數完成。
 
 ## 9. QA 手動驗收步驟（提交測試人員驗收用）
 
@@ -154,9 +167,7 @@
   - **Pass**（2026-07-31 實測，多次推送皆正確觸發）
   - 附帶確認：此時 Actions 左側欄**會**出現 `Build Education` 項目，但右上角**沒有** `Run workflow` 按鈕 —— 證實左側欄看「是否曾有執行紀錄」、按鈕看「檔案是否在預設分支」，兩者機制不同，階段 2 無法省略
 
-- [ ] 9.1.2 **（階段 1）paths 過濾生效**：對 `phrozen-education-variant` 分支推送一個**只修改 C++ 原始碼**（例如 `src/slic3r/GUI/` 底下任一檔案）的 commit。
-  - 開啟 **Actions** → `build_education`
-  - 預期：**不會**出現新的執行記錄（避免改程式碼時誤觸發昂貴建置）
+- [x] 9.1.2 ~~**（階段 1）paths 過濾生效**~~ → **N/A（已過時，2026-08-04）**：第 7 組已將開發期 `push:` 觸發整段移除，`build_education.yml` 現在只剩 `workflow_dispatch:`，不存在任何 `paths:` 過濾邏輯可測。此項原本測的是開發期觸發的 paths 過濾是否正確生效，該機制本身已隨開發期結束一併移除，不再適用
 
 - [x] 9.1.3 **（階段 1 收尾後）開發期觸發已移除**：再次推送一個修改 `.github/workflows/build_education.yml` 的 commit。
   - 預期：**不再**自動觸發任何執行
@@ -174,8 +185,9 @@
   - 預期：**快速失敗**，且 **artifact 區塊沒有任何產出物**
   - 重點確認：不可產出任何「看似 education 實為主線」的成品
 
-- [ ] 9.1.7 **（階段 3）從 resin-dev 觸發正常**：merge 回 `phrozen-resin-dev` 後，**Run workflow** 選擇 `phrozen-resin-dev` → 執行。
+- [x] 9.1.7 **（階段 3）從 resin-dev 觸發正常**：merge 回 `phrozen-resin-dev` 後，**Run workflow** 選擇 `phrozen-resin-dev` → 執行。
   - 預期：執行成功，產出物與 9.1.5 一致
+  - **Pass（2026-08-04 實測）**：見 8.3
 
 ### 9.2 Windows 產出物驗收
 
@@ -278,17 +290,20 @@
 
 ### 9.5 主線不受影響的回歸驗收
 
-- [ ] 9.5.1 **主線共用 CI 檔案未被修改**：在 `phrozen-custom-dev` 上比對本 change 前後的 `.github/workflows/build_all.yml`、`build_check_cache.yml`、`build_deps.yml`、`build_orca.yml`、`.github/actions/pack-win-release/action.yml`、`.github/actions/pack-win-nightly/action.yml`、`build_release_vs2022.bat`、`build_release_macos.sh`。
+- [x] 9.5.1 **主線共用 CI 檔案未被修改**：在 `phrozen-custom-dev` 上比對本 change 前後的 `.github/workflows/build_all.yml`、`build_check_cache.yml`、`build_deps.yml`、`build_orca.yml`、`.github/actions/pack-win-release/action.yml`、`.github/actions/pack-win-nightly/action.yml`、`build_release_vs2022.bat`、`build_release_macos.sh`。
   - 預期：以上檔案內容**完全未被修改**；主線上唯一的新增是 `.github/workflows/build_education.yml` 這一個獨立檔案
   - **同一份清單也要在 resin 支線上檢查**：第 2 組改採獨立腳本後，`build_release_macos.sh` 在 **resin 支線上也應與主線逐位元組相同**。在 `phrozen-education-variant` 上執行 `git diff phrozen-custom-dev -- build_release_macos.sh build_release_vs2022.bat .github/workflows/build_all.yml .github/workflows/build_check_cache.yml .github/workflows/build_deps.yml .github/workflows/build_orca.yml`，預期**無任何輸出**（若有輸出，代表 resin 支線落後主線幾個 commit，須先 merge 主線再確認；這正是漂移偵測要防的情境）
+  - **Pass（2026-08-04 實測）**：`git diff origin/phrozen-custom-dev -- <上述 8 個檔案>`（在合併完成後的 `phrozen-resin-dev` 上執行）無任何輸出；另確認 `phrozen-custom-dev` 上**沒有** `build_education.yml`（`git ls-tree` 無輸出），符合「主線唯一新增是 release 上那一個獨立檔案，`phrozen-custom-dev` 完全未動」的預期
 
 - [ ] 9.5.2 **主線既有建置行為不變**：在主線觸發一次既有的完整建置（`build_all`）。
   - 預期：執行成功，產出物名稱與內容與本 change 實施前完全相同，**不含任何 `-Education`／`-education` 字樣**
 
 - [ ] 9.5.3 **主線排程建置不受影響**：確認 `windows_nightly_dev`（每日）與 `macos_weekly_dev`（每週五）的排程執行仍正常，且建置的仍是 `phrozen-custom-dev` 的內容
 
-- [ ] 9.5.4 **主線不會自動觸發 education 建置**：對 `phrozen-custom-dev` 推送任意變更。
+- [x] 9.5.4 **主線不會自動觸發 education 建置**：對 `phrozen-custom-dev` 推送任意變更。
   - 預期：`build_education` **不會**出現任何自動執行記錄
+  - **Pass（結構性保證，2026-08-04 確認）**：`build_education.yml` 在 `release` 上的 `on:` 現在**只有** `workflow_dispatch:`（第 7 組已移除全部 push 觸發），且 `phrozen-custom-dev` 上根本沒有這個檔案。兩個事實任一個成立都足以保證此項恆真，不需要每次推送實測；已由 9.1.3 的實測與本項的靜態檢查共同覆蓋
 
-- [ ] 9.5.5 **（階段 3 後）merge 無衝突**：檢視 `phrozen-education-variant` → `phrozen-resin-dev` 的合併結果。
+- [x] 9.5.5 **（階段 3 後）merge 無衝突**：檢視 `phrozen-education-variant` → `phrozen-resin-dev` 的合併結果。
   - 預期：`.github/` 中的既有共用 CI 檔案未產生任何衝突，且合併後其內容與主線仍完全相同
+  - **Pass（2026-08-04 實測，見 8.2）**：merge commit `0b1cd3b055` 零衝突；合併後共用 CI 檔案與 `release` 逐位元組相同，`education-ci-parity.lock` 五個監控項全數相符
