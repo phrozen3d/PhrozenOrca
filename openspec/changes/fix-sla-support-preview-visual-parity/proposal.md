@@ -39,7 +39,7 @@ else render_color = {0.5f, 0.5f, 0.5f, 1.f};   // 非編輯模式：type 資訊�
 
 - **形狀統一**：manual 點改用 `pinhead()`（與 auto 點相同），移除 `pinhead_preview()` 簡化版的呼叫。
 - **光影統一**：manual 點改用 `gouraud_shader`（與 auto 點相同），移除 `flat_shader` 呼叫。
-- **移除死碼**：查證確認 `pinhead_preview()` / `get_mesh_preview()` 全專案僅有 `render_points()` 這一個呼叫端（無切片管線或其他 GUI 依賴）。移除呼叫後兩者成為無呼叫者的死碼，一併移除函式定義，不保留。
+- **移除死碼**：`get_mesh_preview()`（`SupportTreeMesher.hpp`）查證確認全專案僅有 `render_points()` 這一個呼叫端，移除呼叫後成為無呼叫者的死碼，一併移除。`pinhead_preview()` **不移除**——實作時發現它被 `head_mesh_body()` 的 `preview=true` 分支內部呼叫，兩者是同一條呼叫鏈而非各自獨立的死碼；`head_mesh_body()` 同時服務切片管線的 `get_mesh()`，收斂其雙分支簽章是更大範圍的重構，不在本 change 範圍內（詳見 design.md D5）。
 - **顏色跨模式生效**：`manual_add` / `island` / `slope` 三種顏色分流移出 `m_editing_mode` 限定，非編輯模式（Points 檢視）也依 `support_point.type` 顯示對應顏色。孤島鎖定提示（`BLUEISH`，牽涉 `m_lock_unique_islands`）**維持**只在編輯模式生效——鎖定操作本身只在編輯模式下有意義，不隨本 change 變動。
 
 ### Non-goals

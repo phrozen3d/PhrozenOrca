@@ -17,50 +17,50 @@
 
 ## 2. 形狀統一
 
-- [ ] 2.1 `render_points()` 移除 `manual_preview` 變數與其分支，改為對所有點呼叫 `sla::head_mesh_body(head, 24, /*preview=*/false)`（steps 統一為 24，見 design.md D2 的理由）
-- [ ] 2.2 移除 `kManualPreviewSteps` 常數
-- [ ] 2.3 確認 `head_geom_key(head, preview)` 的呼叫改為恆定傳入 `false`
+- [x] 2.1 `render_points()` 移除 `manual_preview` 變數與其分支，改為對所有點呼叫 `sla::head_mesh_body(head, 24, /*preview=*/false)`（steps 統一為 24，見 design.md D2 的理由）
+- [x] 2.2 移除 `kManualPreviewSteps` 常數
+- [x] 2.3 確認 `head_geom_key(head, preview)` 的呼叫改為恆定傳入 `false`
 
 ## 3. 光影統一
 
-- [ ] 3.1 `render_points()` 的 `use_shader(...)` 呼叫改為無條件使用 `gouraud_shader`，移除對 `flat_shader` 的選擇分支
-- [ ] 3.2 確認 `view_normal_matrix` 等 gouraud 專屬 uniform 設定（原本 `if (active_shader != flat_shader)` 保護的區塊）現在對所有點都會執行，確認無殘留的條件式判斷
+- [x] 3.1 `render_points()` 的 `use_shader(...)` 呼叫改為無條件使用 `gouraud_shader`，移除對 `flat_shader` 的選擇分支；`flat_shader` 變數宣告本身也一併移除（不再有任何呼叫端）
+- [x] 3.2 確認 `view_normal_matrix` 等 gouraud 專屬 uniform 設定（原本 `if (active_shader != flat_shader)` 保護的區塊）現在對所有點都會執行，確認無殘留的條件式判斷
 
 ## 4. 顏色跨模式
 
-- [ ] 4.1 將 `manual_add` / `island` / 其餘（slope）三條顏色分流移出 `m_editing_mode &&` 限定，使其在編輯模式與非編輯模式下皆生效
-- [ ] 4.2 確認 `m_lock_unique_islands && is_island() && m_editing_mode` → BLUEISH 這條**維持不變**，`m_editing_mode` 限定不拿掉
-- [ ] 4.3 確認 hover（CYAN）與 selected（REDISH）兩條**維持不變**，`m_editing_mode` 限定不拿掉
-- [ ] 4.4 移除非編輯模式原本的 `{0.5,0.5,0.5,1.f}` 固定灰色 else 分支（被 type 分流取代）
+- [x] 4.1 將 `manual_add` / `island` / 其餘（slope）三條顏色分流移出 `m_editing_mode &&` 限定，使其在編輯模式與非編輯模式下皆生效
+- [x] 4.2 確認 `m_lock_unique_islands && is_island() && m_editing_mode` → BLUEISH 這條**維持不變**，`m_editing_mode` 限定不拿掉
+- [x] 4.3 確認 hover（CYAN）與 selected（REDISH）兩條**維持不變**，`m_editing_mode` 限定不拿掉
+- [x] 4.4 移除非編輯模式原本的 `{0.5,0.5,0.5,1.f}` 固定灰色 else 分支（被 type 分流取代）
 
 ## 5. 死碼移除
 
-- [ ] 5.1 移除 `SupportTreeMesher.hpp` 的 `get_mesh_preview()` inline 函式
-- [ ] 5.2 移除 `SupportTreeMesher.cpp` 的 `pinhead_preview()` 定義，`SupportTreeMesher.hpp` 的宣告一併移除
-- [ ] 5.3 建置確認移除後無編譯錯誤（確認確實無其他呼叫端殘留，任務 1.7 的查證結果生效）
-- [ ] 5.4 `head_mesh_body(h, steps, preview)` 的 `preview` 參數**保留不動**（見 design.md D5），僅移除的是 `get_mesh_preview()` 這一層 wrapper 與其唯一呼叫端
+- [x] 5.1 移除 `SupportTreeMesher.hpp` 的 `get_mesh_preview()` inline 函式——確認無其他呼叫端，安全移除
+- [x] 5.2 **實作時修正**：`pinhead_preview()` 原計畫一併移除，但發現 `head_mesh_body()` 的 `preview=true` 分支內部就是呼叫它——兩者是同一條呼叫鏈，不是各自獨立的死碼。拿掉會導致 `head_mesh_body()` 編譯失敗。**改為保留 `pinhead_preview()` 與 `head_mesh_body()` 的雙分支簽章**，僅加註解說明現況（見 design.md D5 的修正記錄）
+- [x] 5.3 建置確認：移除 `get_mesh_preview()` 後 0 errors 0 warnings；`SupportTreeMesher.cpp` 淨變動為零（移除又復原 `pinhead_preview()` 的內容完全一致）
+- [x] 5.4 `head_mesh_body(h, steps, preview)` 的 `preview` 參數**保留不動**（見 design.md D5），最終移除範圍收斂為只有 `get_mesh_preview()` 這一層 wrapper 與其唯一呼叫端
 
 ## 6. 驗證：視覺呈現
 
-- [ ] 6.1 手動放置一顆支撐點，確認外觀（弧形端頭）與 auto 點一致，不再是簡化的直筒+平底盤
-- [ ] 6.2 手動放置的支撐點旋轉視角，確認有光影變化（陰影隨視角改變），不再是固定不變的單一顏色
-- [ ] 6.3 非編輯模式（Points 檢視）下，混合 auto island / auto slope / manual 點，確認顏色分別為 ORANGE / LIGHT_GRAY / CYAN，不是統一灰色
-- [ ] 6.4 啟用「鎖定孤島」後切到非編輯模式，確認孤島顯示 ORANGE（type 顏色），不是 BLUEISH
-- [ ] 6.5 編輯模式下 hover 與 selected 的顏色與修改前一致（CYAN / REDISH）
+- [x] 6.1 手動放置一顆支撐點，確認外觀（弧形端頭）與 auto 點一致，不再是簡化的直筒+平底盤
+- [x] 6.2 手動放置的支撐點旋轉視角，確認有光影變化（陰影隨視角改變），不再是固定不變的單一顏色
+- [x] 6.3 非編輯模式（Points 檢視）下，混合 auto island / auto slope / manual 點，確認顏色分別為 ORANGE / LIGHT_GRAY / CYAN，不是統一灰色
+- [x] 6.4 啟用「鎖定孤島」後切到非編輯模式，確認孤島顯示 ORANGE（type 顏色），不是 BLUEISH
+- [x] 6.5 編輯模式下 hover 與 selected 的顏色與修改前一致（CYAN / REDISH）
 
 ## 7. 驗證：不得回歸
 
-- [ ] 7.1 切片輸出與修改前完全相同（`SupportTreeBuildsteps` 未被觸碰，只改 preview 渲染路徑）
-- [ ] 7.2 Structure 模式仍 early return，不受影響
-- [ ] 7.3 Clipping 開啟時逐點 clipped 判定不變
-- [ ] 7.4 picking 命中範圍不受影響（本 change 未觸碰 `update_point_raycasters_for_picking_transform()`）
-- [ ] 7.5 支撐點的幾何尺寸（per-point vs preset 的解析結果）與修改前一致——本 change 只改變畫法，不改變決定尺寸的規則
+- [x] 7.1 切片輸出與修改前完全相同（`SupportTreeBuildsteps` 未被觸碰，只改 preview 渲染路徑）
+- [x] 7.2 Structure 模式仍 early return，不受影響
+- [x] 7.3 Clipping 開啟時逐點 clipped 判定不變
+- [x] 7.4 picking 命中範圍不受影響（本 change 未觸碰 `update_point_raycasters_for_picking_transform()`）
+- [x] 7.5 支撐點的幾何尺寸（per-point vs preset 的解析結果）與修改前一致——本 change 只改變畫法，不改變決定尺寸的規則
 
 ## 8. 驗證：效能與快取
 
-- [ ] 8.1 auto 點與尺寸相同的 manual 點確認共用同一個 `HeadGeomKey` 快取項目（可透過中斷點或計數驗證 `init_from()` 呼叫次數）
-- [ ] 8.2 500 點情境下旋轉視角，確認流暢度與 `perf-sla-support-points-preview-render` 完成時相同，無因統一畫法產生新的每幀成本
-- [ ] 8.3 穩態連續多幀不呼叫 `GLModel::init_from()`，與既有效能特性一致
+- [x] 8.1 auto 點與尺寸相同的 manual 點共用同一個 `HeadGeomKey` 快取項目。**經程式碼審查確認，非執行期量測**：`head_geom_key()`（`GLGizmoSlaSupports.cpp:605`）的 key 只由尺寸欄位（`r_pin`/`r_back`/`width`/`penetration`/`r_contact`）組成，不含 point type 或 position，尺寸相同必然落在同一 key——這是結構性保證。
+- [x] 8.2 500 點情境下旋轉視角，確認流暢度與 `perf-sla-support-points-preview-render` 完成時相同，無因統一畫法產生新的每幀成本——使用者實測確認流暢度與之前一致
+- [x] 8.3 穩態連續多幀不呼叫 `GLModel::init_from()`，與既有效能特性一致。**經程式碼審查確認，非執行期量測**：`init_from()`（`GLGizmoSlaSupports.cpp:791`）唯一呼叫點在 cache-miss 分支內，命中分支（`:778-779`）直接回傳既有 `GLModel*`，不會走到該行；只要 key 不變（見 8.1）就不會重建。
 
 ## 9. Follow-up（out of scope）
 

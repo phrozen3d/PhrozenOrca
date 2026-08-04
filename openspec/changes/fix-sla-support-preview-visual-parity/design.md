@@ -88,15 +88,16 @@ else render_color = LIGHT_GRAY;   // 取代原本非編輯模式的固定灰色
 - **為何孤島鎖定維持編輯模式限定**：使用者已確認——鎖定操作本身只在編輯模式的面板上才能觸發，非編輯模式沒有「動到孤島」這回事，跨模式顯示鎖定狀態沒有對應的操作語意。
 - **為何不需要額外的旗標或狀態機**：`m_lock_unique_islands` 和 `is_island()` 都是既有可讀的狀態，純粹是條件式重新排列，不需要新增資料。
 
-### D5. 死碼移除的範圍
+### D5. 死碼移除的範圍（實作中修正：`pinhead_preview()` 其實不能單獨移除）
 
-`pinhead_preview()`（`SupportTreeMesher.cpp`）、`get_mesh_preview()`（`SupportTreeMesher.hpp`）、`kManualPreviewSteps` 常數，在 D1 生效後皆無呼叫者。移除範圍：
+`get_mesh_preview()`（`SupportTreeMesher.hpp`）與 `kManualPreviewSteps` 常數，在 D1 生效後確認無呼叫者，已移除：
 
 - `render_points()` 內的 `manual_preview` 分支與 `kManualPreviewSteps`
 - `SupportTreeMesher.hpp` 的 `get_mesh_preview()` inline 函式
-- `SupportTreeMesher.cpp` / `.hpp` 的 `pinhead_preview()` 宣告與定義
 
-`head_mesh_body(h, steps, preview)` 的 `preview` 參數**保留**——它同時服務 `get_mesh()`（切片端使用，`preview=false`）與（移除前的）`get_mesh_preview()`。拿掉 `get_mesh_preview()` 後，`head_mesh_body()` 唯一的呼叫者只會傳 `false`，但 `head_mesh_body()` 本身是否要連帶簡化屬於更大範圍的重構，不在本 change 範圍內——保留參數簽章，避免不必要的連鎖修改。
+**`pinhead_preview()` 原提案打算一併移除，實作時發現這會導致編譯錯誤**：`head_mesh_body(h, steps, preview)` 的 `preview=true` 分支內部就是呼叫 `pinhead_preview()`——這兩者不是各自獨立的死碼，而是同一條呼叫鏈。保留前者的簽章卻拿掉後者的定義，會讓 `head_mesh_body()` 編不過。
+
+修正後的決定：**`pinhead_preview()` 保留**，`head_mesh_body(h, steps, preview)` 的簽章與雙分支行為維持原樣。目前確實沒有任何呼叫者會傳入 `preview=true`（`get_mesh()` 恆傳 `false`，`render_points()` 本 change 後也恆傳 `false`），`pinhead_preview()` 因此是**編譯期仍可達、執行期不可達**的程式碼——與 D3 保留 `HeadGeomKey.preview` 欄位的理由一致：`head_mesh_body()` 是同時服務切片管線（`get_mesh()`）的共用函式，收斂它的雙分支屬於更大範圍的重構，不在本 change（純 GUI 渲染路徑的視覺統一）範圍內。已於 `pinhead_preview()` 宣告處加註解說明現況與原因，避免日後有人誤以為可以安全刪除卻忽略 `head_mesh_body()` 仍呼叫它。
 
 ## Risks / Trade-offs
 
