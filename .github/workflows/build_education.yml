@@ -35,19 +35,7 @@
 name: Build Education
 
 on:
-  workflow_dispatch: # 正式觸發方式（純手動）
-
-  # --- 開發期專用觸發，階段 1 結束前整段移除 -------------------------------
-  # 讓 CI 開發可在 phrozen-education-variant 分支上迭代，完全不需要動主線。
-  # paths 過濾確保修改 C++ 程式碼時不會誤觸發昂貴的建置。
-  push:
-    branches: ['phrozen-education-variant']
-    paths:
-      - '.github/workflows/build_education.yml'
-      - '.github/education-ci-parity.lock'
-      - 'build_resin_release_macos.sh'
-      - 'build_resin_release_vs2022.bat'
-  # --- 開發期專用觸發結束 --------------------------------------------------
+  workflow_dispatch: # 唯一觸發方式（純手動）。開發期用的 push 觸發已於階段 1 收尾移除，見 openspec/changes/phrozen-education-cicd/tasks.md 第 7 組。
 
 permissions:
   contents: read

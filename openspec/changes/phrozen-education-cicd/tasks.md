@@ -118,10 +118,14 @@
 - [x] 6.1 開 PR 將 `build_education.yml` **單獨**合入 `release`（不夾帶任何其他檔案）
   - 分支 `ci/add-build-education-workflow` 已從 `origin/release` HEAD（`c53bb94c2f`）建立，僅新增這一個檔案，內容與 `phrozen-education-variant` 上的版本逐位元組相同，已 push 至 origin
   - PR 尚未實際建立（環境無 `gh` CLI），已準備好可直接點擊的 compare 連結與預先寫好的標題/說明，交由使用者於 GitHub 網頁完成建立動作
-- [ ] 6.2 PR 描述須寫明三件事：①這是 resin/education 專用；②主線永遠不會自動觸發它；③存在目的是讓 Actions 頁面出現手動觸發按鈕，**請勿刪除**
+- [x] 6.2 PR 描述須寫明三件事：①這是 resin/education 專用；②主線永遠不會自動觸發它；③存在目的是讓 Actions 頁面出現手動觸發按鈕，**請勿刪除**
+  - **Pass（2026-08-04）**：使用預先準備好的 PR 說明（quick_pull 連結預填），三點皆已包含在「這個 PR 會觸發一次完整的 build_all」與「為什麼要合入這一個檔案」兩段
 - [x] 6.3 ~~確認此 PR 未觸發完整建置~~ → **結論已反轉**：此 PR **會**觸發一次完整 `build_all` 執行（見本組開頭更正說明），非「不會觸發」。已確認這是結構性、無法迴避的一次性代價，且已取得使用者同意接受
-- [ ] 6.4 合入後確認 `Run workflow` 按鈕已出現，且從 UI 選 ref = `phrozen-education-variant` 可正常觸發
-- [ ] 6.5 合入後確認：主線不再修改此檔案，之後由 resin 支線自由演進
+  - **Pass（2026-08-04 實測）**：PR 合入 `release` 後確認觸發了完整 `build_all`，與預期一致
+- [x] 6.4 合入後確認 `Run workflow` 按鈕已出現，且從 UI 選 ref = `phrozen-education-variant` 可正常觸發
+  - **Pass（2026-08-04 實測）**：合入 `release` 後 Actions 左側 `Build Education` 右上角出現 `Run workflow` 按鈕；分支下拉選單需明確選擇 `phrozen-education-variant` 才能觸發（選其他分支的行為對應 9.1.6，待補測）。實際建置結果（產出物是否正確）另見 9.1.5，待該次執行跑完後確認
+- [x] 6.5 合入後確認：主線不再修改此檔案，之後由 resin 支線自由演進
+  - **初步確認（2026-08-04）**：merge commit 之後 `release` 上未再有任何 commit 觸碰 `build_education.yml`；此為持續性約束（design.md 決策 1），非一次性檢查項，後續合併主線時應留意此檔案不應被主線的變更捲入
 
 ## 7. 階段 1 收尾：移除開發期觸發（須在第 6 組完成後才做）
 
@@ -153,11 +157,13 @@
 - [ ] 9.1.3 **（階段 1 收尾後）開發期觸發已移除**：再次推送一個修改 `.github/workflows/build_education.yml` 的 commit。
   - 預期：**不再**自動觸發任何執行
 
-- [ ] 9.1.4 **（階段 2）手動按鈕出現**：`build_education.yml` 合入 `release`（本 repo 實際的預設分支，見第 6 組開頭更正）後，開啟 **Actions** → 左側選擇 `build_education`。
+- [x] 9.1.4 **（階段 2）手動按鈕出現**：`build_education.yml` 合入 `release`（本 repo 實際的預設分支，見第 6 組開頭更正）後，開啟 **Actions** → 左側選擇 `build_education`。
   - 預期：右上角出現 **Run workflow** 按鈕（合入前不會出現）
+  - **Pass（2026-08-04 實測）**：按鈕已出現，分支下拉選單需明確選擇 `phrozen-education-variant` 才能觸發
 
 - [ ] 9.1.5 **（階段 2）跨 ref 觸發正確**：點 **Run workflow** → 分支下拉選單選擇 `phrozen-education-variant` → 執行。
   - 預期：執行成功，且產出物為 education 變體（依 9.2／9.3 驗證）
+  - 觸發動作本身已確認可行（見 6.4）；**待補**：該次執行的實際結果（Windows／macOS job 是否全綠、產出物是否正確）
 
 - [ ] 9.1.6 **（階段 2）誤選主線分支會安全失敗**：點 **Run workflow** → 分支選擇 `release` 或 `phrozen-custom-dev`（兩者皆缺少 `build_resin_release_vs2022.bat` / `build_resin_release_macos.sh`）→ 執行。
   - 預期：**快速失敗**，且 **artifact 區塊沒有任何產出物**
