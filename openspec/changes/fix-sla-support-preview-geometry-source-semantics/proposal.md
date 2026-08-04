@@ -29,6 +29,7 @@ return sp.type == manual_add && sp.has_explicit_geometry();
 1. **選取會改變外型。** 選中一顆尚無 explicit geometry 的點時，`point_selected` 使來源由 preset 切換為 stored，錐體外型當場改變。使用者無法判斷哪一個才是「這顆點真正的樣子」。
 2. **live 參數只即時影響 auto 點。** 修改 Process tab 的 Top 欄位時，畫面上跟著變的只有 auto 生成的點；已放置的手動點維持建立當下的外型，之後怎麼改都不動。
 3. **非編輯模式下手動點全部退回 preset**，與切片端不一致（此項已由 `fix-sla-support-preview-stored-geometry-in-auto-mode` 單獨處理）。
+4. **`head_back_radius_mm`（Lower Diameter）未設定時，preview 退回 `pillar_radius`（Pillar Diameter 凍結值），切片端卻退回即時 preset。** 新放置的手動點若未經選取，調整「Lower Diameter」完全不影響其外觀，只有「Pillar Diameter」有效——但這條 `pillar_radius` fallback 只存在於 preview 端（`preview_sla_head_for_point()`），切片端的 `point_head_back_radius_mm()` 沒有這層分支（見 design.md D2b）。preview 與實際切出來的支撐頭尺寸可能不同，且沒有任何提示。
 
 第 1、2 項單獨看都可以解釋成刻意設計——選取時顯示該點的實際幾何、per-point 值優先於 preset——但兩者疊在一起，加上第 3 項，使得同一顆點在「選取 / 未選取 / 切到自動模式」三種狀態下可能顯示三種不同的尺寸。**這不是使用者能推理出來的行為。**
 

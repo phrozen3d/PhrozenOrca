@@ -116,6 +116,29 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
 
 **這正是 Q2 逐欄位方案能順手解決的問題**：若 `preview_sla_head_for_point()` 改成直接呼叫 `point_*()` 助手（跟切片端一樣，只看欄位 `>= 0`，不看 `type`），這個 bug 自動消失——不需要另外決定「該不該把 auto 點編輯後的 type 轉成 manual_add」，因為判斷邏輯根本不再問這個問題。反之，若 Q2 最終選擇維持現行「整顆點二選一、依 type 判斷」的方案，則**必須額外決定**是否要在 `apply_process_top_option()` 裡把 type 轉換成 `manual_add`，這會是本 change 的第三個決策點，而不只是 Q1/Q2/Q3。
 
+### D2b. 第二個具體案例佐證：`head_back_radius_mm` 的 preview fallback 走了一條切片端沒有的路
+
+於驗收 `fix-sla-support-point-cone-picking` 期間，使用者實測發現：新放置的手動點若未經選取，調整 Process tab 的「Lower Diameter」（`support_head_back_diameter`）完全不影響該點外觀，只有「Pillar Diameter」（`support_pillar_diameter`）有效——即使兩者是不同的欄位。
+
+根因鏈：
+
+1. `freeze_process_top_into_point()`（`GLGizmoSlaSupports.cpp:1823`）建立手動點時，`sp.head_back_radius_mm` **故意**留白為 `SUPPORT_POINT_USE_PRESET`（`:1833-1836`，註解明寫「讓 Pillar Diameter 可以預設驅動 back/base radius」），但 `sp.pillar_radius` 被凍結成建立當下的 Pillar Diameter 值。
+2. `has_explicit_geometry()`（`SupportPoint.hpp:110`）判斷「這顆點是否有 explicit geometry」時，`pillar_radius > 0.f` 這一條**單獨**就成立（凍結後恆為正），使 `use_stored_point` 立刻變 true——即使 `head_back_radius_mm` 根本沒被設定過。
+3. `preview_sla_head_for_point()`（`:259-267`）在 `use_stored_point == true` 時算 back radius：`head_back_radius_mm >= 0 ? head_back_radius_mm : (pillar_radius > 0 ? pillar_radius : live_lower_r)`——**多了一層 `pillar_radius` fallback，這層在切片端不存在**。
+
+對照切片端的 `point_head_back_radius_mm()`（`SupportPoint.hpp:156-159`）：
+
+```cpp
+inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
+{
+    return sp.head_back_radius_mm >= 0.f ? sp.head_back_radius_mm : float(preset_mm);
+}
+```
+
+**沒有 `pillar_radius` 分支**——`head_back_radius_mm` 未設定時直接退回 `preset_mm`（切片當下的即時 preset 值）。這代表：對一顆 `head_back_radius_mm` 未設定的手動點，**preview 顯示的尺寸來自建立當下凍結的 Pillar Diameter，實際切出來的支撐頭尺寸卻來自切片當下的 Lower Diameter preset**——兩者可以是完全不同的數字，preview 與實際列印結果從此分歧，且沒有任何提示。這與 D2a 是同一種病灶（preview 為了處理選取/建立時機而長出切片端沒有的分支），只是發生在不同欄位。
+
+**這也是 Q2 逐欄位方案能順手解決的另一個案例**：若 `preview_sla_head_for_point()` 直接呼叫 `point_head_back_radius_mm()`，這條多出來的 `pillar_radius` fallback 分支就不存在了，preview 自動與切片一致。反之，若最終不採逐欄位方案，這個 `pillar_radius` fallback 是否要保留（讓 Pillar Diameter 繼續能預設驅動 back radius，只是要確保 preview 與切片用同一套規則），會是額外要決定的事。
+
 ### D3. 與相鄰 change 的實施順序
 
 `fix-sla-support-preview-stored-geometry-in-auto-mode` 處理真值表最後一列，根因與修法已確定，可獨立實施。
@@ -148,7 +171,7 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
 ## Open Questions
 
 - **Q1：選取是否應改變幾何來源？** 傾向「否」，待確認。
-- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a 提供了具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」這個第三決策點。
+- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a、D2b 各提供了一個具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」（D2a）與「`pillar_radius` fallback 該不該保留」（D2b）兩個決策點。
 - **Q3：live 參數編輯的預期對象是否需要更明確的 UI 途徑？** 若結論為「行為正確但不明顯」，另案處理。
 - **auto 生成的點其 `sp.head_front_radius` 是否恆等於 preset 值？** 決定 D2 方案對 auto 點顯示的影響範圍。
 - **若 Q2 最終不採逐欄位方案：`apply_process_top_option()` 編輯 auto 點時，`sp.type` 該不該轉換成 `manual_add`？** 見 D2a。僅在 Q2 選擇維持現行「整顆點依 type 判斷」時才需要回答；若採逐欄位方案則此問題自動消失。

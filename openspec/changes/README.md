@@ -16,6 +16,7 @@ fix-sla-support-points-invalidate-on-trafo-change   ← 建議前置已滿足（
 
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
 fix-sla-support-top-params-live-read-isolation ← 無前置，可立即進行
+fix-sla-support-point-picking-live-refresh   ← 無前置，可立即進行
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
 phrozen-build-variant-resin-split            ← 獨立，placeholder
 ```
@@ -44,6 +45,7 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 | Change | 狀態 | 備註 |
 |---|---|---|
 | `fix-sla-support-top-params-live-read-isolation` | 無前置 | 選定支撐點編輯 Top 參數時，其他 auto 點的 preview 外觀被連動污染（同一次 explore 討論發現）。根因是 live 讀值機制不知道 widget 目前被借用來顯示選中點的值。與 `fix-sla-support-preview-geometry-source-semantics` 是不同軸線（那邊決定「這顆點該用哪組參數」，這裡是「讀其他點的值時有沒有被污染」）。**可立即進行** |
+| `fix-sla-support-point-picking-live-refresh` | 無前置 | 驗收 `fix-sla-support-point-cone-picking` 期間發現：調整 Process tab 的 Upper/Lower Diameter 時，未選取的 auto 點視覺錐體每幀即時變化，但 picking raycaster 只在少數離散事件才重算，導致可點範圍跟不上視覺變化。建立在已 archive 的 cone-picking 之上，只改呼叫時機、不改幾何公式。與 `fix-sla-support-top-params-live-read-isolation`（讀到錯的值）、`fix-sla-support-preview-geometry-source-semantics`（手動點建立當下凍結幾何）是同一主題下三個不同軸線，互不阻擋。**可立即進行** |
 | `fix-sla-undo-redo` | 接近完成 | 範圍為 GLGizmoHollow / GLGizmoDrill，與支撐點群組無交集。<br>⚠️ 其 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，該前提已被 `fix-sla-support-points-undo-snapshot` 推翻，需於後者實施時更正（見其 tasks 6.7） |
 | `phrozen-build-variant-resin-split` | placeholder | 尚無 tasks，待專門的 exploration pass |
 
