@@ -33,7 +33,7 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 - `fix-sla-support-top-config-enum-set`（選中支撐點編輯 Top 欄位並失焦即終止應用程式的 crash；2026-08-03 archive，45/45）
 - `fix-sla-support-preview-stored-geometry-in-auto-mode`（非編輯模式下手動點不套用 per-point 幾何；2026-08-03 archive，23/23）——`fix-sla-support-preview-geometry-source-semantics` 與 `fix-sla-support-points-invalidate-on-trafo-change` 的建議前置皆已滿足
 - `fix-sla-support-preview-visual-parity`（manual 點與 auto 點在 preview 上的形狀／光影／顏色統一；2026-08-04 archive，34/34，與支撐點群組其他 change 獨立無交集）
-- `fix-sla-support-point-cone-picking`（Points preview 的 cone/back-sphere raycaster 從未接上，實際只有 pin 端一顆小球能點；2026-08-04 archive，31/31。實作時發現兩處與提案不符：cone 高度應為 `fullwidth()-r_back_mm` 而非 `width_mm`，且 back 球赤道以外需另加一顆 `back_sphere` raycaster 才能涵蓋，皆已修正並記錄於其 design.md）
+- `fix-sla-support-point-cone-picking`（Points preview 的 cone/back-sphere raycaster 從未接上，實際只有 pin 端一顆小球能點；2026-08-04 archive，31/31。實作時發現兩處與提案不符：cone 高度應為 `fullwidth()-r_back_mm` 而非 `width_mm`，且 back 球赤道以外需另加一顆 `back_sphere` raycaster 才能涵蓋，皆已修正並記錄於其 design.md）⚠️ 其 `pin_sphere` 球心定位有一個未被驗收發現的既有缺陷（直接用錨點而非真正球心），由 `fix-sla-support-point-picking-live-refresh` 於驗收期間發現並修正（見其 design.md D3），未回頭修改本 change 的歸檔內容
 
 ### 硬前置 vs 建議前置
 
