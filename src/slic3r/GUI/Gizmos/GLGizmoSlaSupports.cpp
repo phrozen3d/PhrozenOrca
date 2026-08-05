@@ -594,6 +594,18 @@ void GLGizmoSlaSupports::on_render()
     render_volumes(); // Step 4.2: show the SLA mesh via GLGizmoSlaBase
     render_points(selection); // Step 4.2: removed 'false' picking param
 
+    // Keep picking in sync with the live Top-parameter values render_points() just
+    // used: render_points() re-reads the Process tab every frame (no caching), but
+    // update_point_raycasters_for_picking_transform() previously only ran from a
+    // handful of discrete events (entering editing mode, point drag, data_changed()).
+    // Editing a Top field with no point selected/dragged left the pickable volume
+    // stuck at the old geometry while the visible cone kept growing/moving — see
+    // fix-sla-support-point-picking-live-refresh. The function itself already
+    // no-ops when m_point_raycasters is empty (only populated in editing mode); the
+    // explicit guard here just makes the per-frame cost visible at the call site.
+    if (m_editing_mode)
+        update_point_raycasters_for_picking_transform();
+
     m_selection_rectangle.render(m_parent);
     m_c->object_clipper()->render_cut();
     if (are_sla_supports_shown()) // Step 4.2: conditional on m_show_sla_supports (via GLGizmoSlaBase)
@@ -2516,6 +2528,14 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         if (m_editing_cache[i].normal == Vec3f::Zero())
             m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
 
+        // This function now runs every frame (see fix-sla-support-point-picking-live-
+        // refresh), in the same frame as render_points(). Both functions used to agree
+        // on active state only because render_points() ran every frame and this one
+        // ran rarely — whichever runs last in a given frame now silently overrides the
+        // other's clipping decision unless this function makes its own. A clipped
+        // point's raycasters must stay inactive regardless of call order.
+        const bool clipped = is_mesh_point_clipped(sp.pos.cast<double>());
+
         const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
 
         const Vec3f scaled_normal = (normal_xform * m_editing_cache[i].normal.cast<double>()).cast<float>();
@@ -2523,10 +2543,19 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
+        // Pin/contact sphere is concentric with the rendered pin ball, not with the
+        // anchor: head_mesh_body() places it at local z = penetration_mm - r_pin_mm
+        // (its final z-shift is fullwidth() - r_back_mm, same derivation used for the
+        // cone/back_sphere below), which is world offset (r_pin_mm - penetration_mm)
+        // along head.dir. Previously centred at scaled_pos directly (offset 0) —
+        // imperceptible at small radii, but visibly off (false-early hover on one
+        // side, missed hover on the other) once Contact Diameter grows the sphere
+        // (found during manual verification).
+        const Vec3d pin_center = scaled_pos + (head.r_pin_mm - head.penetration_mm) * head.dir;
         const Transform3d sphere_matrix = pick_matrix *
-            Geometry::assemble_transform(scaled_pos, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
+            Geometry::assemble_transform(pin_center, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
         m_point_raycasters[i].pin_sphere->set_transform(sphere_matrix);
-        m_point_raycasters[i].pin_sphere->set_active(true);
+        m_point_raycasters[i].pin_sphere->set_active(!clipped);
 
         // Cone: covers the robe from the pin end (tip, radius 0 — backed by
         // pin_sphere above) out to the back sphere's widest point (base, radius
@@ -2539,7 +2568,7 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
             Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir)) *
             Geometry::scale_transform(Vec3d(head.r_back_mm, head.r_back_mm, cone_height));
         m_point_raycasters[i].cone->set_transform(cone_matrix);
-        m_point_raycasters[i].cone->set_active(true);
+        m_point_raycasters[i].cone->set_active(!clipped);
 
         // Back sphere: covers the pillar-junction end. The cone's flat base sits
         // exactly at the back sphere's widest point (its equator) — past that the
@@ -2549,7 +2578,7 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         const Transform3d back_sphere_matrix = pick_matrix *
             Geometry::assemble_transform(back_center, Vec3d::Zero(), head.r_back_mm * Vec3d::Ones());
         m_point_raycasters[i].back_sphere->set_transform(back_sphere_matrix);
-        m_point_raycasters[i].back_sphere->set_active(true);
+        m_point_raycasters[i].back_sphere->set_active(!clipped);
     }
 }
 
