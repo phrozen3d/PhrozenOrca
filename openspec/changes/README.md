@@ -15,6 +15,7 @@ fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足（見
 fix-sla-support-points-invalidate-on-trafo-change   ← 建議前置已滿足（見下方註記）
 
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
+fix-sla-support-top-field-restore-race       ← 無前置，可立即進行
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
 phrozen-build-variant-resin-split            ← 獨立，placeholder
 ```
@@ -44,6 +45,7 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | Change | 狀態 | 備註 |
 |---|---|---|
+| `fix-sla-support-top-field-restore-race` | 無前置 | `fix-sla-support-top-params-live-read-isolation`（已 archive）的直接延伸：取消選取瞬間到 `end_support_point_top_field_display()`（透過 `CallAfter` 延後執行）真正還原 widget 之間有一段時序空窗，讀值守門邏輯（`has_selected_support_points()`）在此空窗誤判「沒有選取」而讀到 widget 尚未還原的借用值，導致其他未選取點閃現。修法是守門條件疊加 `TabSLAPrint::m_support_point_top_field_active`（更精確的「widget 是否仍借用中」訊號）。與仍在決策中的 `fix-sla-support-preview-geometry-source-semantics` 不同軸線，不需等其 Q1/Q2/Q3 落地。**可立即進行** |
 | `fix-sla-undo-redo` | 接近完成 | 範圍為 GLGizmoHollow / GLGizmoDrill，與支撐點群組無交集。<br>⚠️ 其 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，該前提已被 `fix-sla-support-points-undo-snapshot` 推翻，需於後者實施時更正（見其 tasks 6.7） |
 | `phrozen-build-variant-resin-split` | placeholder | 尚無 tasks，待專門的 exploration pass |
 
