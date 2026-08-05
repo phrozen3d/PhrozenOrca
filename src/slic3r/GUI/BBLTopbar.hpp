@@ -49,8 +49,10 @@ public:
     void SetMaximizedSize();
     void SetWindowSize();
 
-    void EnableUndoRedoItems();
-    void DisableUndoRedoItems();
+    // Reflects the actual undo/redo stack state on the toolbar buttons
+    // (does not hardcode enabled/disabled - queries the real can_undo/can_redo state).
+    void UpdateUndoRedoState(bool can_undo, bool can_redo);
+    void EnableCalibrationTool(bool enable);
 
     void SaveNormalRect();
 

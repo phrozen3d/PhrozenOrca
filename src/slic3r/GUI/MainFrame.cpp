@@ -1044,12 +1044,11 @@ void MainFrame::init_tabpanel() {
             //monitor
         }
 #ifndef __APPLE__
-        if (sel == tp3DEditor) {
-            m_topbar->EnableUndoRedoItems();
-        }
-        else {
-            m_topbar->DisableUndoRedoItems();
-        }
+        // Calibration tool availability is still purely tab-gated (unrelated to undo/redo).
+        m_topbar->EnableCalibrationTool(sel == tp3DEditor);
+        // Undo/redo buttons now reflect the real stack state instead of being
+        // hardcoded enabled whenever the 3D editor tab is active.
+        sync_undo_redo_toolbar_state();
 #endif
 
         if (panel)
@@ -3939,6 +3938,13 @@ void MainFrame::update_ui_from_settings()
         tab->update_ui_from_settings();
 }
 
+void MainFrame::sync_undo_redo_toolbar_state()
+{
+    // m_topbar is only constructed on non-Apple builds (see the constructor);
+    // the null check keeps this safe to call unconditionally from anywhere.
+    if (m_topbar && m_plater)
+        m_topbar->UpdateUndoRedoState(m_plater->can_undo(), m_plater->can_redo());
+}
 
 void MainFrame::show_sync_dialog()
 {
