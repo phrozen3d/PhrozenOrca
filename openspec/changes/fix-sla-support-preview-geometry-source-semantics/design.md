@@ -116,6 +116,8 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
 
 **這正是 Q2 逐欄位方案能順手解決的問題**：若 `preview_sla_head_for_point()` 改成直接呼叫 `point_*()` 助手（跟切片端一樣，只看欄位 `>= 0`，不看 `type`），這個 bug 自動消失——不需要另外決定「該不該把 auto 點編輯後的 type 轉成 manual_add」，因為判斷邏輯根本不再問這個問題。反之，若 Q2 最終選擇維持現行「整顆點二選一、依 type 判斷」的方案，則**必須額外決定**是否要在 `apply_process_top_option()` 裡把 type 轉換成 `manual_add`，這會是本 change 的第三個決策點，而不只是 Q1/Q2/Q3。
 
+**第二次確認（驗收 `fix-sla-support-top-params-live-read-isolation` 期間）**：使用者選中一顆 auto 點，切換 `support_contact_type`（None ↔ Sphere），選取期間顯示正確；取消選取後畫面又變回球體外觀。追查後是同一條根因鏈，只是這次由 `support_contact_type` 觸發而非 `head_front_diameter`：`apply_process_top_option()` 的 `support_contact_type` 分支同樣只寫 `sp.contact_sphere_radius`（切到 Sphere 寫入正值、切到 None 寫入 `0.f`），同樣不碰 `sp.type`；取消選取後 `has_explicit_geometry()` 卡在 `type == manual_add`，退回 live preset 的 contact type 顯示。這不是本次驗收的 change（`fix-sla-support-top-params-live-read-isolation`，只處理「widget 讀值是否被其他點的顯示污染」）造成的回歸，而是 D2a 這個既有 bug 透過另一個欄位再次被驗證到——`apply_process_top_option()` 裡所有會寫入 per-point 欄位的分支（`support_contact_type`、`support_head_front_diameter`、`support_head_back_diameter`、`support_head_penetration`、`support_pillar_diameter`、`support_segment_length`）都共用同一個 `sp.type` 不轉換的問題，不是單一欄位的個案。
+
 ### D2b. 第二個具體案例佐證：`head_back_radius_mm` 的 preview fallback 走了一條切片端沒有的路
 
 於驗收 `fix-sla-support-point-cone-picking` 期間，使用者實測發現：新放置的手動點若未經選取，調整 Process tab 的「Lower Diameter」（`support_head_back_diameter`）完全不影響該點外觀，只有「Pillar Diameter」（`support_pillar_diameter`）有效——即使兩者是不同的欄位。
@@ -138,6 +140,17 @@ inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
 **沒有 `pillar_radius` 分支**——`head_back_radius_mm` 未設定時直接退回 `preset_mm`（切片當下的即時 preset 值）。這代表：對一顆 `head_back_radius_mm` 未設定的手動點，**preview 顯示的尺寸來自建立當下凍結的 Pillar Diameter，實際切出來的支撐頭尺寸卻來自切片當下的 Lower Diameter preset**——兩者可以是完全不同的數字，preview 與實際列印結果從此分歧，且沒有任何提示。這與 D2a 是同一種病灶（preview 為了處理選取/建立時機而長出切片端沒有的分支），只是發生在不同欄位。
 
 **這也是 Q2 逐欄位方案能順手解決的另一個案例**：若 `preview_sla_head_for_point()` 直接呼叫 `point_head_back_radius_mm()`，這條多出來的 `pillar_radius` fallback 分支就不存在了，preview 自動與切片一致。反之，若最終不採逐欄位方案，這個 `pillar_radius` fallback 是否要保留（讓 Pillar Diameter 繼續能預設驅動 back radius，只是要確保 preview 與切片用同一套規則），會是額外要決定的事。
+
+### D2c. 第三個具體案例佐證：想讓「調參數預覽下一顆點」不要連動到既有 auto 點，本質上就是在要求 Q2
+
+於驗收 `fix-sla-support-point-picking-live-refresh` 期間，使用者提出一個使用情境：進入 Manual Editing 模式後，想先在 Process tab 調整參數、讓接下來手動點下去的點有不同外觀，但目前這樣做會讓**既有、未選取的 auto 點**也跟著變形——因為 `preview_use_stored_top()` 對未選取的 auto 點恆為 `false`，`preview_sla_head_for_point()` 因此無條件忽略 `sp.head_front_radius`（這個欄位其實一直存在、由產生演算法寫入），改用即時讀到的 `live_upper_r`。
+
+**這個訴求與 Q2 是同一件事，不是新的第五個維度**：切片端無條件使用 `sp.head_front_radius`（見 Context），若 preview 改採 Q2 的逐欄位方案，未選取的 auto 點會自然「凍結」在它產生當下的 `sp.head_front_radius`，不再被 Process tab 的即時編輯帶動；而被選取、正在編輯的點則透過 `apply_process_top_option()` 直接寫回 `sp.head_front_radius`，preview 仍會即時反映——**兩個各自成立的既有機制組合起來，剛好就是使用者要的行為**，不需要另外發明一套「凍結／解凍」的新機制。
+
+**額外影響（Q2 決策時需一併確認）**：
+
+- 目前使用者能透過「調參數觀察 auto 點跟著變」間接預覽下一顆手動點會長什麼樣；採用逐欄位方案後 auto 點不再跟著動，這個非正式的預覽管道會消失。是否需要另外提供「下一顆點的預覽」機制，若需要，屬於另一個獨立的 UI 功能，不在本 change 範圍內。
+- task 1.4 待查的事實（auto 生成的 `sp.head_front_radius` 是否恆等於 preset 值）現在多了一層意義：它同時決定「未選取 auto 點凍結後，畫面上看到的是什麼」——若恆等於 preset，凍結後看到的就是「產生當下 Process tab 的值」，符合直覺；若生成演算法會依 island 大小調整，凍結後每顆點尺寸可能略有差異，需要在驗收時確認這是預期行為而非回歸。
 
 ### D3. 與相鄰 change 的實施順序
 
@@ -171,7 +184,7 @@ inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
 ## Open Questions
 
 - **Q1：選取是否應改變幾何來源？** 傾向「否」，待確認。
-- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a、D2b 各提供了一個具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」（D2a）與「`pillar_radius` fallback 該不該保留」（D2b）兩個決策點。
+- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a、D2b、D2c 各提供了一個具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」（D2a）、「`pillar_radius` fallback 該不該保留」（D2b）、「未選取 auto 點該如何避免被 live 參數連動」（D2c，且此需求若不採逐欄位方案幾乎沒有低成本的替代解法）三個決策點。
 - **Q3：live 參數編輯的預期對象是否需要更明確的 UI 途徑？** 若結論為「行為正確但不明顯」，另案處理。
 - **auto 生成的點其 `sp.head_front_radius` 是否恆等於 preset 值？** 決定 D2 方案對 auto 點顯示的影響範圍。
 - **若 Q2 最終不採逐欄位方案：`apply_process_top_option()` 編輯 auto 點時，`sp.type` 該不該轉換成 `manual_add`？** 見 D2a。僅在 Q2 選擇維持現行「整顆點依 type 判斷」時才需要回答；若採逐欄位方案則此問題自動消失。

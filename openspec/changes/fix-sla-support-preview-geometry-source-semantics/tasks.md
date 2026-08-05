@@ -16,6 +16,7 @@
 - [ ] 1.7 **Q3 決策**：live 參數編輯的作用對象是否需要更明確的 UI 途徑？若結論為「行為正確但不明顯」，另案處理，不納入本 change
 - [x] 1.7a **具體案例佐證**（見 design.md D2a）：已確認編輯 auto 點的 Top 參數後，`sp.type` 不會轉換成 `manual_add`，導致取消選取後 preview 悄悄放棄剛編輯的值（`has_explicit_geometry()` 卡在 `type == manual_add` 這個條件），但切片端不檢查 type、仍會採用該值——preview 與切片自此分歧且無提示。此為 Q2 選逐欄位方案可自動解決的具體案例
 - [x] 1.7b **第二個具體案例佐證**（見 design.md D2b）：於驗收 `fix-sla-support-point-cone-picking` 期間發現，新放置手動點的 `head_back_radius_mm` 故意留白、由 `pillar_radius` fallback 驅動（`preview_sla_head_for_point()`），但切片端的 `point_head_back_radius_mm()` 沒有這層 fallback、未設定時直接退回即時 preset——調整「Lower Diameter」對這類點的 preview 完全不生效（只有「Pillar Diameter」有效），且 preview 尺寸與實際切片尺寸可能不同，無提示。同為 Q2 逐欄位方案可自動解決的具體案例
+- [x] 1.7c **第三個具體案例佐證**（見 design.md D2c）：於驗收 `fix-sla-support-point-picking-live-refresh` 期間，使用者提出「進入 Manual Editing 後想先調參數預覽下一顆手動點的外觀，但這樣會連動到既有未選取的 auto 點」——本質上就是 Q2：切片端無條件用 `sp.head_front_radius`，採逐欄位方案後未選取 auto 點會自然凍結在產生當下的值，選中點仍可透過 `apply_process_top_option()` 即時編輯，剛好同時滿足「不連動」與「選中仍可編輯」兩個要求，不需要另外發明凍結機制
 - [ ] 1.8 **產出書面真值表**並回填至 design.md，逐格標註與切片端的對應關係。未完成前不進入第 2 節
 - [ ] 1.8a 若 Q2 最終**不採**逐欄位方案：決定 `apply_process_top_option()` 編輯 auto 點時是否要把 `sp.type` 轉換成 `manual_add`（見 design.md D2a 與 Open Questions）
 

@@ -52,23 +52,32 @@ bool has_selected_support_points() const { return m_editing_mode && !m_selection
 
 ### D1. 用既有的 `has_selected_support_points()` 當守門條件，不新造判斷
 
+實作時把守門邏輯寫成「跳過 widget 讀值區塊、直接落入函式尾端既有的 fallback」，而不是在守門分支內另外重寫一份 fallback：
+
 ```cpp
 static float process_top_float_live(const char *key, float fallback)
 {
-    if (GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance()) {
-        if (gizmo->has_selected_support_points()) {
-            const DynamicPrintConfig &cfg = sla_process_config();
-            if (cfg.has(key))
-                return float(cfg.opt_float(key));
-            return fallback;
-        }
+    const bool widget_borrowed_by_selection = [] {
+        GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
+        return gizmo && gizmo->has_selected_support_points();
+    }();
+
+    if (!widget_borrowed_by_selection) {
+        // ...原本的 widget 讀值路徑，維持不變
     }
-    // ...原本的 widget 讀值路徑，維持不變
+
+    // 函式尾端既有的 sla_process_config() fallback，欄位不存在時本來就會走到這裡；
+    // 有選取時直接跳過 widget 讀值、同樣落到這裡，不重寫第二份 fallback。
+    const DynamicPrintConfig &cfg = sla_process_config();
+    if (cfg.has(key))
+        return float(cfg.opt_float(key));
+    return fallback;
 }
 ```
 
 - **為何不新增一個獨立的旗標**：`has_selected_support_points()` 已經是全檔案唯一、經過驗證的「Top widget 現在是否被借用」判斷式，`OptionsGroup.cpp` 與 `Tab.cpp` 的對應邏輯都用它。用同一個條件確保「widget 何時被借用」與「widget 借用時讀值該去哪」永遠同步，不會出現兩套判斷各自維護、逐漸漂移的風險。
 - **為何不直接讓 `begin_support_point_top_field_display()` 順便設一個「正在借用」旗標給讀值端查**：`has_selected_support_points()` 已經能精確推導出「借用中」這個狀態（`m_editing_mode && !m_selection_empty`，恰好就是觸發 `begin_support_point_top_field_display()` 的條件），額外造一個旗標是重複資訊，徒增兩處要同步維護的心智負擔。
+- **為何不在守門分支內另外重寫 fallback（與最初的草稿不同）**：兩個函式尾端本來就各自有一份寫好、且已在「欄位不存在」情況下驗證過的 fallback 邏輯。「被選取」只是另一個該跳去 fallback 的情境，不是需要獨立處理的新邏輯分支——讓守門分支單純「不進 widget 讀值區塊」，自然落入既有 fallback，比複製一份幾乎相同的程式碼更不容易出現兩份 fallback 日後各自修改、悄悄長歪的風險。
 
 ### D2. 等價性論證：選中點自身的 preview 不受影響
 
