@@ -101,16 +101,28 @@ GLGizmoSlaSupports *GLGizmoSlaSupports::active_instance()
 
 static bool process_contact_type_is_sphere()
 {
-    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
-    if (tab) {
-        Page *page = nullptr;
-        if (Field *field = tab->get_field("support_contact_type", &page)) {
-            const boost::any val = field->get_value();
-            if (!val.empty()) {
-                try {
-                    if (val.type() == typeid(int))
-                        return boost::any_cast<int>(val) == int(spSphere);
-                } catch (const std::exception &) {
+    // While a support point is selected, the Top widgets are borrowed to display that
+    // point's own value (begin_support_point_top_field_display(), Tab.cpp) — reading
+    // them here would leak the selected point's value onto every other point's preview
+    // (see fix-sla-support-top-params-live-read-isolation). Skip straight to the preset
+    // fallback below, same as when the field itself can't be found.
+    const bool widget_borrowed_by_selection = [] {
+        GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
+        return gizmo && gizmo->has_selected_support_points();
+    }();
+
+    if (!widget_borrowed_by_selection) {
+        TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+        if (tab) {
+            Page *page = nullptr;
+            if (Field *field = tab->get_field("support_contact_type", &page)) {
+                const boost::any val = field->get_value();
+                if (!val.empty()) {
+                    try {
+                        if (val.type() == typeid(int))
+                            return boost::any_cast<int>(val) == int(spSphere);
+                    } catch (const std::exception &) {
+                    }
                 }
             }
         }
@@ -129,24 +141,34 @@ static bool process_contact_type_is_sphere()
 // Read the latest value from Process tab fields (works even before focus leaves TextCtrl).
 static float process_top_float_live(const char *key, float fallback)
 {
-    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
-    if (tab) {
-        Page *page = nullptr;
-        Field *field = tab->get_field(key, &page);
-        if (field) {
-            boost::any val = field->get_value();
-            if (!val.empty()) {
-                try {
-                    if (val.type() == typeid(double))
-                        return float(boost::any_cast<double>(val));
-                    if (val.type() == typeid(int))
-                        return float(boost::any_cast<int>(val));
-                    if (val.type() == typeid(wxString)) {
-                        double parsed = 0.;
-                        if (boost::any_cast<wxString>(val).ToDouble(&parsed))
-                            return float(parsed);
+    // Same rationale as process_contact_type_is_sphere() above: a selected support
+    // point borrows these widgets to display its own value, so reading them here
+    // would leak that value onto every other point's preview.
+    const bool widget_borrowed_by_selection = [] {
+        GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
+        return gizmo && gizmo->has_selected_support_points();
+    }();
+
+    if (!widget_borrowed_by_selection) {
+        TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+        if (tab) {
+            Page *page = nullptr;
+            Field *field = tab->get_field(key, &page);
+            if (field) {
+                boost::any val = field->get_value();
+                if (!val.empty()) {
+                    try {
+                        if (val.type() == typeid(double))
+                            return float(boost::any_cast<double>(val));
+                        if (val.type() == typeid(int))
+                            return float(boost::any_cast<int>(val));
+                        if (val.type() == typeid(wxString)) {
+                            double parsed = 0.;
+                            if (boost::any_cast<wxString>(val).ToDouble(&parsed))
+                                return float(parsed);
+                        }
+                    } catch (const std::exception &) {
                     }
-                } catch (const std::exception &) {
                 }
             }
         }
