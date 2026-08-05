@@ -4836,7 +4836,7 @@ msgid "Slice plate"
 msgstr "スライス"
 
 msgid "Export PRZ file"
-msgstr ""
+msgstr "PRZをエクスポート"
 
 msgid "Export G-code file"
 msgstr "G-codeをエクスポート"
