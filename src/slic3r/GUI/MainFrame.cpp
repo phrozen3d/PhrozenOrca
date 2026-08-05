@@ -1090,6 +1090,12 @@ void MainFrame::init_tabpanel() {
 
     wxGetApp().plater_ = m_plater;
 
+    // wxAuiToolBar tools default to enabled=true when added (see BBLTopbar::Init,
+    // AddTool(wxID_UNDO/wxID_REDO, ...)). Explicitly sync to the real (currently
+    // empty) undo/redo stack now, instead of leaving that bootstrap "enabled"
+    // state in place until the first tab switch or snapshot happens to fire.
+    sync_undo_redo_toolbar_state();
+
     create_preset_tabs();
 
         //BBS add pages
@@ -3942,8 +3948,12 @@ void MainFrame::sync_undo_redo_toolbar_state()
 {
     // m_topbar is only constructed on non-Apple builds (see the constructor);
     // the null check keeps this safe to call unconditionally from anywhere.
-    if (m_topbar && m_plater)
-        m_topbar->UpdateUndoRedoState(m_plater->can_undo(), m_plater->can_redo());
+    if (m_topbar && m_plater) {
+        bool can_undo = m_plater->can_undo();
+        bool can_redo = m_plater->can_redo();
+        BOOST_LOG_TRIVIAL(debug) << "sync_undo_redo_toolbar_state: can_undo=" << can_undo << " can_redo=" << can_redo;
+        m_topbar->UpdateUndoRedoState(can_undo, can_redo);
+    }
 }
 
 void MainFrame::show_sync_dialog()
