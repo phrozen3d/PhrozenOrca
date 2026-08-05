@@ -294,6 +294,9 @@ public:
     void        show_log_window();
 
     void        update_ui_from_settings();
+    // Sync the topbar's undo/redo tool enabled state with the real undo/redo
+    // stack (Plater::can_undo/can_redo) instead of the previous hardcoded true/false.
+    void        sync_undo_redo_toolbar_state();
     //BBS
     void        show_sync_dialog();
     void        update_side_preset_ui();

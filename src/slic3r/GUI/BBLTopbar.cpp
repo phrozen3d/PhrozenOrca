@@ -364,19 +364,16 @@ void BBLTopbar::OnRedo(wxAuiToolBarEvent& event)
     plater->redo();
 }
 
-void BBLTopbar::EnableUndoRedoItems()
+void BBLTopbar::UpdateUndoRedoState(bool can_undo, bool can_redo)
 {
-    this->EnableTool(m_undo_item->GetId(), true);
-    this->EnableTool(m_redo_item->GetId(), true);
-    this->EnableTool(m_calib_item->GetId(), true);
+    this->EnableTool(m_undo_item->GetId(), can_undo);
+    this->EnableTool(m_redo_item->GetId(), can_redo);
     Refresh();
 }
 
-void BBLTopbar::DisableUndoRedoItems()
+void BBLTopbar::EnableCalibrationTool(bool enable)
 {
-    this->EnableTool(m_undo_item->GetId(), false);
-    this->EnableTool(m_redo_item->GetId(), false);
-    this->EnableTool(m_calib_item->GetId(), false);
+    this->EnableTool(m_calib_item->GetId(), enable);
     Refresh();
 }
 

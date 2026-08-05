@@ -9154,6 +9154,8 @@ void Plater::priv::enter_gizmos_stack()
         // Not localized on purpose, the text will never be shown to the user.
         this->take_snapshot(std::string("Gizmos-Initial"));
     }
+    if (wxGetApp().mainframe)
+        wxGetApp().mainframe->sync_undo_redo_toolbar_state();
 }
 
 bool Plater::priv::leave_gizmos_stack()
@@ -9166,6 +9168,8 @@ bool Plater::priv::leave_gizmos_stack()
         m_undo_redo_stack_active->clear();
         m_undo_redo_stack_active = &m_undo_redo_stack_main;
     }
+    if (wxGetApp().mainframe)
+        wxGetApp().mainframe->sync_undo_redo_toolbar_state();
     return changed;
 }
 
@@ -9249,6 +9253,8 @@ void Plater::priv::take_snapshot(const std::string& snapshot_name, const UndoRed
     // Save the last active preset name of a particular printer technology.
     ((this->printer_technology == ptFFF) ? m_last_fff_printer_profile_name : m_last_sla_printer_profile_name) = wxGetApp().preset_bundle->printers.get_selected_preset_name();
     BOOST_LOG_TRIVIAL(info) << "Undo / Redo snapshot taken: " << snapshot_name << ", Undo / Redo stack memory: " << Slic3r::format_memsize_MB(this->undo_redo_stack().memsize()) << log_memory_info();
+    if (wxGetApp().mainframe)
+        wxGetApp().mainframe->sync_undo_redo_toolbar_state();
 }
 
 void Plater::priv::undo()
@@ -9454,6 +9460,8 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
 
     dirty_state.update_from_undo_redo_stack(m_undo_redo_stack_main.project_modified());
     update_title_dirty_status();
+    if (wxGetApp().mainframe)
+        wxGetApp().mainframe->sync_undo_redo_toolbar_state();
 }
 
 void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot& snapshot, bool /* temp_snapshot_was_taken */)
