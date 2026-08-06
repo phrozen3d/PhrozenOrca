@@ -11,8 +11,7 @@
 ## 相依圖
 
 ```
-fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足，語意定義已完成，可進實作（見下方註記）
-fix-sla-support-auto-points-top-field-freeze        ← 與上者平行、互不阻擋、檔案不重疊，可同時進行
+fix-sla-support-auto-points-top-field-freeze ← 無前置，可進行（原與 geometry-source-semantics 平行，後者已完成）
 
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
@@ -25,11 +24,11 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | 順序 | Change | 前置 | 說明 |
 |---|---|---|---|
-| 1 | `fix-sla-support-preview-geometry-source-semantics` | **硬**：`fix-sla-support-top-config-enum-set`（已於 2026-08-03 archive，硬前置已滿足） | 語意定義（tasks 第 1 節）已完成，Q1/Q2/Q3 皆已定案（見其 design.md D4/D5/D6），可進入實作（tasks 第 2 節） |
-| 1b | `fix-sla-support-auto-points-top-field-freeze` | 無（與上者平行，檔案不重疊，可同時進行） | 於上者第一階段驗證期間發現：auto 生成點只有 `head_front_radius` 於生成當下凍結，其餘四個 Top 欄位持續追蹤即時 preset，根因在切片端生成邏輯（`SupportPointGenerator.cpp`），另立此 change 處理，見其 proposal.md 與 `fix-sla-support-preview-geometry-source-semantics` design.md D5 |
+| 1 | `fix-sla-support-auto-points-top-field-freeze` | 無 | 四份 artifact（proposal/design/specs/tasks）已就緒，尚未開始實作。修 auto 生成點只有 `head_front_radius` 凍結、其餘四個 Top 欄位持續追蹤即時 preset 的落差（根因在 `SupportPointGenerator.cpp`），見其 proposal.md 與 `fix-sla-support-preview-geometry-source-semantics` design.md D5 |
 | 2 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
 
 已完成：
+- `fix-sla-support-preview-geometry-source-semantics`（Points preview 幾何來源判定散亂：選取會改變外型、live 參數只影響部分點、手動點 Lower Diameter 靠 `pillar_radius` fallback 卻與切片端不一致；2026-08-06，tasks 第 1-6 節共約 40 項全數通過，僅 6.3／6.6 各留一項需 debug build／舊版對照的精確驗證，記於其 tasks.md 第 8 節，不阻擋結案。改為逐欄位仲裁、直接沿用切片端 `point_*()` helper，preview／picking／切片三處共用同一套解析；新增多選顯示/編輯語意（最後選取點為準，編輯同步套用全部選取點）。實作期間額外發現並修復一個回歸：單獨點擊選取繞過 `select_point()`，導致新增的多選錨點追蹤失效，已修正。與 `fix-sla-support-auto-points-top-field-freeze` 的邊界見其 design.md D5——後者修 auto 點生成端尚未凍結的四個欄位，是平行、非阻擋的獨立範圍）
 - `fix-sla-support-top-config-enum-set`（選中支撐點編輯 Top 欄位並失焦即終止應用程式的 crash；2026-08-03 archive，45/45）
 - `fix-sla-support-preview-stored-geometry-in-auto-mode`（非編輯模式下手動點不套用 per-point 幾何；2026-08-03 archive，23/23）——`fix-sla-support-preview-geometry-source-semantics` 與 `fix-sla-support-points-invalidate-on-trafo-change` 的建議前置皆已滿足
 - `fix-sla-support-preview-visual-parity`（manual 點與 auto 點在 preview 上的形狀／光影／顏色統一；2026-08-04 archive，34/34，與支撐點群組其他 change 獨立無交集）

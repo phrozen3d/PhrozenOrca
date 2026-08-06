@@ -40,10 +40,12 @@ return sp.type == manual_add && sp.has_explicit_geometry();
 
 ## What Changes
 
-- **第一階段（語意定義，無程式碼變更）**：產出 preview 幾何來源的完整真值表，涵蓋編輯模式、點類型、是否有 explicit geometry、是否被選取四個維度，並與切片端的規則逐格比對。
+- **第一階段（語意定義，無程式碼變更，已完成）**：產出 preview 幾何來源的完整真值表，涵蓋編輯模式、點類型、是否有 explicit geometry、是否被選取四個維度，並與切片端的規則逐格比對。結論見 design.md D4。
 - **第二階段（實作）**：依定義好的語意調整 `preview_use_stored_top()` 與 `render_points()` 的判定，使 preview 在所有狀態下都可預測，且與切片結果一致。
-- 若定義的結果是「選取不應改變幾何來源」，則移除 `preview_use_stored_top()` 的 `point_selected` 早退；若定義的結果是「選取時應顯示該點的實際幾何」，則需要另一種方式讓使用者在未選取時也能分辨。
-- 釐清 live 參數編輯的預期對象：只影響尚無 explicit geometry 的點（現況），或應提供「套用至選中點 / 套用至全部」的明確途徑。
+- 選取不應改變幾何來源（Q1 已定案為「否」）：移除 `preview_use_stored_top()` 的 `point_selected` 早退，選取只影響顏色。
+- 仲裁粒度改為逐欄位，直接沿用切片端 `point_*()` 助手（Q2 已定案為「是」），preview／picking／切片三處共用同一套解析。
+- live 參數編輯的作用對象維持現況（只影響尚無 explicit geometry 的欄位），不額外提供 UI 途徑；多選支撐點時的顯示／編輯語意另行定案，見 design.md D6。
+- 手動點放置時，`freeze_process_top_into_point()` 移除 `head_back_radius_mm` 的 `pillar_radius` fallback，改為建立當下直接凍結全部 Top 欄位（見 design.md D2b、D5）。
 
 ### Non-goals
 
@@ -62,6 +64,14 @@ return sp.type == manual_add && sp.has_explicit_geometry();
 
 兩者互不衝突但相鄰，**建議先實施該 change**：它會消除「切到自動模式尺寸就變」這個變因，使本 change 第一階段的觀察更乾淨。
 
+### 與 `fix-sla-support-auto-points-top-field-freeze` 的邊界（Change B，建議新增）
+
+第一階段查證發現（design.md D4）：auto 生成點只有 `head_front_radius`（Upper Diameter）在生成當下寫入具體值，其餘四個 Top 欄位（`head_back_radius_mm`／`head_width_mm`／`head_penetration_mm`／`contact_sphere_radius`）維持 `SUPPORT_POINT_USE_PRESET`，會持續追蹤即時 preset 直到重新生成——這是**切片端真實會發生的行為**，不是 preview 顯示問題。
+
+修正這個落差（讓 auto 生成時凍結全部欄位）的根因在 `SupportPointGenerator.cpp`，屬於切片端資料生成邏輯，不在本 change「只改 GUI 顯示」的檔案範圍內。**建議另立 `fix-sla-support-auto-points-top-field-freeze`（Change B）處理**，與本 change 平行、互不阻擋、檔案不重疊。詳細邊界與拆分理由見 design.md D5。
+
+本 change 完成後，preview 會誠實顯示這個不對稱行為（Upper Diameter 凍結、其餘四個追蹤即時 preset），驗收時不得視為本 change 的回歸，見 tasks.md 6.1。
+
 ## Capabilities
 
 ### New Capabilities
@@ -75,9 +85,13 @@ return sp.type == manual_add && sp.has_explicit_geometry();
 ## Impact
 
 - **Primary**：`src/slic3r/GUI/Gizmos/GLGizmoSlaSupports.cpp`
-  - `preview_use_stored_top()`（`:213`）— `point_selected` 早退的去留
-  - `render_points()`（`:750`）— `use_stored_geometry` 的判定
+  - `preview_use_stored_top()`（`:251`）— 移除，`point_selected` 早退不再需要
+  - `preview_sla_head_for_point()`（`:287`）— 改為逐欄位呼叫 `point_*()` 助手
+  - `render_points()`（`:750`）— `use_stored_geometry` 判定移除，改用逐欄位解析
   - `update_point_raycasters_for_picking_transform()` — picking 半徑須與顯示同步
+  - `freeze_process_top_into_point()`（`:1823`）— 移除 `head_back_radius_mm` 的 `pillar_radius` fallback，改為建立當下直接凍結
+  - `apply_process_top_option()` — 改為套用到全部已選取的點（多選同步），見 design.md D6
 - **Reference（僅比對，預期零修改）**：`src/libslic3r/SLA/SupportTreeBuildsteps.cpp:693`、`src/libslic3r/SLA/SupportPoint.hpp:126-164` — 切片端的規則為對齊基準
+- **不修改**：`src/libslic3r/SLA/SupportPointGenerator.cpp`（auto 生成邏輯）——見上方「與 Change B 的邊界」
 - 不影響切片輸出、檔案格式或 profile
 - 無 public API 變更

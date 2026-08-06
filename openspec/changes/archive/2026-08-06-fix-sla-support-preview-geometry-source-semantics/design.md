@@ -38,10 +38,12 @@ const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_uppe
 
 **Goals:**
 
-- 產出一份**完整且書面化**的 preview 幾何來源真值表，涵蓋四個維度。
+- 產出一份**完整且書面化**的 preview 幾何來源真值表，涵蓋四個維度（已完成，見 D4）。
 - 同一顆支撐點在任何 UI 狀態下顯示的尺寸可預測——特別是選取／取消選取不應無故改變外型。
 - preview 顯示的尺寸與該點實際會被切片產生的尺寸一致。
 - picking 半徑與顯示同步。
+- 手動點放置時全部 Top 欄位（含 Lower Diameter）於建立當下即凍結，不依賴 `pillar_radius` 等切片端沒有的 fallback（見 D2b、D5）。
+- 多選支撐點時，面板顯示最後一個選取點的值；編輯任一欄位同步套用到全部已選取的點（見 D6）。
 
 **Non-Goals:**
 
@@ -49,6 +51,7 @@ const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_uppe
 - 不改變 `has_explicit_geometry()` 的定義。
 - 不改變選取／hover／拖曳的互動行為。
 - 不重新設計 Top 欄位 UI（除非第一階段結論明確要求）。
+- **不修改 auto 生成流程**（`SupportPointGenerator.cpp`）——auto 點只有 `head_front_radius` 在生成當下凍結、其餘四個欄位持續追蹤即時 preset 的落差，另立 `fix-sla-support-auto-points-top-field-freeze`（Change B）處理，見 D5。
 
 ## Decisions
 
@@ -167,6 +170,67 @@ inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
 
 `fix-sla-support-top-config-enum-set` 是**硬前置條件**：crash 未修好前，選中點編輯 Top 欄位會使應用程式終止，無法完成本 change 第一階段所需的觀察。
 
+### D4. 定案後的完整真值表（回應 task 1.8）
+
+第一階段結論：Q1＝選取不影響幾何，Q2＝逐欄位、與切片端共用解析。合併後，preview 的幾何來源判定規則收斂成單一規則，不再有「編輯模式」「選取狀態」「點類型」這幾個維度：
+
+```
+resolved(field) =
+    該欄位有自身設定值（sentinel 判斷同 point_*() helper，contact_sphere_radius >= 0 視為已設定）
+        ? 該點自身儲存值
+        : 即時 Process tab Top 欄位值（每幀讀取）
+```
+
+`head_front_radius`（Upper Diameter）是唯一例外：該欄位沒有 `SUPPORT_POINT_USE_PRESET` sentinel 設計，每一顆點永遠存著具體值（auto 生成時由生成器寫入、手動點由 `freeze_process_top_into_point()` 寫入、選取編輯時由 `apply_process_top_option()` 覆寫），因此其 resolved 值**恆為該點自身的 `head_front_radius`**，面板對它完全沒有直接影響力（除非透過上述三個會實際寫入該欄位的動作）。
+
+逐欄位真值表：
+
+| 欄位 | 該點是否有自身設定值 | 幾何來源 |
+|---|---|---|
+| Upper Diameter (`head_front_radius`) | — （無 sentinel，恆有值） | 恆為該點自身值 |
+| Lower Diameter (`head_back_radius_mm`) | 是（`>= 0`） | 該點自身值 |
+| Lower Diameter | 否（`< 0`） | 即時 preset |
+| Segment Length (`head_width_mm`) | 是 | 該點自身值 |
+| Segment Length | 否 | 即時 preset |
+| Penetration (`head_penetration_mm`) | 是 | 該點自身值 |
+| Penetration | 否 | 即時 preset |
+| Contact Sphere (`contact_sphere_radius`) | 是 | 該點自身值 |
+| Contact Sphere | 否 | 即時 preset |
+
+與切片端 `SupportTreeBuildsteps.cpp:693` 的逐欄位規則完全相同，preview／picking／切片三處共用同一套判定。選取狀態只影響顏色，不出現在此表中。
+
+**這張表描述的是「解析規則」本身，不是「欄位何時被寫入具體值」**——後者取決於各觸發點：
+
+| 觸發點 | 會寫入具體值的欄位 |
+|---|---|
+| auto 生成（`SupportPointGenerator.cpp`，現況） | 僅 `head_front_radius`；其餘四個欄位維持 sentinel，**本 change 不修改此觸發點**，見 D5 |
+| 手動點放置（`freeze_process_top_into_point()`，本 change 修復後） | 全部欄位 |
+| 選取編輯（`apply_process_top_option()`，本 change 擴充後） | 使用者實際修改的欄位，套用到全部已選取的點 |
+
+這代表本 change 生效後，**auto 點只有 Upper Diameter 一個欄位免受面板牽動**，其餘四個欄位仍會持續追蹤即時 preset，直到 auto 生成觸發點也被修復（Change B）。這不是本 change 的 bug，而是如實反映現有資料層級的落差——見 D5。
+
+### D5. 與 `fix-sla-support-auto-points-top-field-freeze`（Change B）的邊界
+
+D4 揭露的落差──auto 生成點只有 `head_front_radius` 在生成當下凍結，其餘四個欄位持續追蹤即時 preset──根因在 `SupportPointGenerator.cpp` 只對這一個欄位寫入具體值，而非 preview／picking 的判定邏輯問題。修正這個根因需要讓生成器對每一顆 auto 點寫入全部 Top 欄位的具體值，這是**切片端資料生成的行為變更**，不是 GUI 顯示邏輯的變更，因此不落在本 change 鎖定的 `GLGizmoSlaSupports.cpp` 範圍內。
+
+拆分理由：
+
+- **檔案完全不重疊**：本 change 動 `GLGizmoSlaSupports.cpp`；Change B 動 `SupportPointGenerator.cpp`（可能連動 `SLAPrintSteps.cpp` 讀取 preset 值傳給生成器的部分）。兩者互不依賴，可平行進行、獨立驗收、獨立 revert。
+- **本 change 的價值不因此打折**：本 change 的核心承諾是「preview 忠實反映當下實際會被切出來的結果」，這個承諾在缺少 Change B 的情況下依然完整成立——只是「當下實際會被切出來的結果」本身（對 auto 點而言）目前就是「Upper Diameter 凍結、其餘四個欄位追蹤即時 preset」這個不對稱狀態。preview 誠實顯示這個不對稱，本身就是正確行為。
+- **先做本 change 有額外好處**：現行 `preview_use_stored_top()` 對未選取 auto 點一律回傳 `use_stored_geometry = false`，五個欄位全部顯示成追蹤即時 preset——這個「整齊劃一」的錯誤掩蓋了 Upper Diameter 其實早就凍結的事實。本 change上線後，Upper Diameter 開始正確顯示凍結，其餘四個欄位維持追蹤，兩者的落差第一次在 UI 上變得可觀察、可驗收，讓 Change B 的問題重現與驗收更容易。
+
+**驗收邊界**：本 change 驗收 auto 點時，只能要求 Upper Diameter 欄位「調面板不影響已生成的點」；其餘四個欄位維持追蹤即時 preset 是**預期行為，不是回歸**（見 tasks.md 6.1）。手動點不受此邊界限制——手動點的全部五個欄位都在本 change 範圍內凍結（`freeze_process_top_into_point()` 的修復不依賴 Change B）。
+
+### D6. 多選編輯語意（Q3 決策的延伸）
+
+原提案的 Q3 只問「live 參數編輯的作用對象是否需要更明確的 UI 途徑」，範圍是單點。討論過程中額外定案了多選情境的具體規則，補充如下：
+
+- **顯示**：多選時面板顯示**最後一個選取點**的值（清單順序中最後被加入選取集合的點），不是任意一顆、不是平均值。
+- **編輯**：面板編輯任一 Top 欄位時，即時同步寫入**全部已選取的點**的對應欄位——不只是顯示中的錨點。這與單選時「編輯即寫入該點」是同一條規則的自然延伸（`n=1` 時行為不變）。
+- **切換錨點**：多選狀態下若選取集合的「最後一個」改變（例如以 shift 擴增/縮減選取範圍），面板顯示切換為新錨點的值，但先前已套用到其他點的編輯不會被覆蓋或還原。
+
+實作影響：`apply_process_top_option()` 需要從「寫入單一選取點」改為「迴圈寫入 `m_editing_cache` 中所有 `selected == true` 的項目」；面板顯示邏輯（讀取哪個點的值來顯示）維持讀取「最後一個選取點」不變。
+
 ## Risks / Trade-offs
 
 - **[未定語意就實作，改完仍不可預測]** → 本 change 最主要的風險。緩解：D1 明列三個待答問題與各自的選項傾向，tasks 第 1 節為獨立的定義階段，須產出書面真值表才進入實作。
@@ -185,10 +249,10 @@ inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
 
 回退策略：第一階段無程式碼變更；第二階段的修改集中於 `preview_sla_head_for_point()` 與 `preview_use_stored_top()`，可獨立 revert。
 
-## Open Questions
+## Open Questions（已全數定案，保留紀錄）
 
-- **Q1：選取是否應改變幾何來源？** 傾向「否」，待確認。
-- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** 傾向「是」，且 D2a、D2b、D2c 各提供了一個具體案例佐證——不採用逐欄位方案的話，需要額外處理「auto 點編輯後 type 該不該轉換」（D2a）、「`pillar_radius` fallback 該不該保留」（D2b）、「未選取 auto 點該如何避免被 live 參數連動」（D2c，且此需求若不採逐欄位方案幾乎沒有低成本的替代解法）三個決策點。
-- **Q3：live 參數編輯的預期對象是否需要更明確的 UI 途徑？** 若結論為「行為正確但不明顯」，另案處理。
-- **auto 生成的點其 `sp.head_front_radius` 是否恆等於 preset 值？** 決定 D2 方案對 auto 點顯示的影響範圍。
-- **若 Q2 最終不採逐欄位方案：`apply_process_top_option()` 編輯 auto 點時，`sp.type` 該不該轉換成 `manual_add`？** 見 D2a。僅在 Q2 選擇維持現行「整顆點依 type 判斷」時才需要回答；若採逐欄位方案則此問題自動消失。
+- **Q1：選取是否應改變幾何來源？** ✅ **否**。移除 `preview_use_stored_top()` 的 `point_selected` 早退，選取只影響顏色。
+- **Q2：仲裁粒度改為逐欄位、與切片端共用解析？** ✅ **是**。D2a、D2b、D2c 三個具體案例（auto 點編輯後 type 不轉換、`pillar_radius` fallback、未選取 auto 點被連動）全部靠這個決定一次解決，不需要逐一處理。
+- **Q3：live 參數編輯的預期對象是否需要更明確的 UI 途徑？** ✅ 維持現況（欄位未設定值才受面板牽動），不額外做 UI 提示，另案處理。多選情境的顯示／編輯語意已定案，見 D6。
+- **auto 生成的點其 `sp.head_front_radius` 是否恆等於 preset 值？** ✅ **不是恆等於，是生成當下的快照**（見 D4、tasks 1.4）。生成器只對這一個欄位寫入具體值，其餘四個欄位維持追蹤即時 preset，本 change 不處理這個落差，另立 Change B（見 D5）。
+- **若 Q2 最終不採逐欄位方案：`apply_process_top_option()` 編輯 auto 點時，`sp.type` 該不該轉換成 `manual_add`？** ✅ 已不適用——Q2 採逐欄位方案，此問題自動消失。

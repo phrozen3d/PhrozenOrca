@@ -56,19 +56,21 @@ Points preview 的幾何參數來源判定 SHALL 有一份涵蓋全部輸入維�
 
 仲裁 SHALL 為逐欄位：每個欄位各自判斷該點是否已設定實值，SHALL NOT 因某一欄位被設定過就使該點的**全部**欄位改用儲存值。
 
-#### Scenario: 只設定過部分欄位的手動點
+#### Scenario: 只設定過部分欄位的支撐點
 
-- **GIVEN** 一顆 `manual_add` 點，只有 `head_width_mm` 被設定過實值，其餘欄位維持 `SUPPORT_POINT_USE_PRESET`
+- **GIVEN** 一顆支撐點，只有 `head_width_mm` 被設定過實值，其餘可設定欄位（`head_back_radius_mm`／`head_penetration_mm`／`contact_sphere_radius`）維持 `SUPPORT_POINT_USE_PRESET`。此狀態不限點類型——auto 生成點天生即符合（見下方 Note）
 - **WHEN** 渲染其 preview 錐體
 - **THEN** 錐體長度採用該點的 `head_width_mm`
-- **AND** 頭部直徑等其餘尺寸採用 live preset 值
+- **AND** Lower Diameter／Penetration／Contact Sphere 等其餘**有 sentinel 的**欄位採用 live preset 值
 - **AND** 與該點切片產生的支撐幾何一致
 
-#### Scenario: 完全未設定 per-point 幾何的點
+Note：`head_front_radius`（Upper Diameter）沒有 `SUPPORT_POINT_USE_PRESET` sentinel，任何點（auto 或 manual）一旦存在就恆有具體值，SHALL NOT 被本規則誤讀為「可能採用 live preset」。
 
-- **GIVEN** 一顆所有 per-point 幾何欄位皆為 `SUPPORT_POINT_USE_PRESET` 的支撐點
+#### Scenario: 僅 head_front_radius 有值、其餘欄位皆未設定的點
+
+- **GIVEN** 一顆支撐點，除 `head_front_radius`（無 sentinel，恆有值）外，其餘可設定欄位皆為 `SUPPORT_POINT_USE_PRESET`——即剛生成、尚未經選取編輯的 auto 點
 - **WHEN** 渲染其 preview 錐體
-- **THEN** 全部尺寸採用 live preset 值
+- **THEN** 除 `head_front_radius` 外的全部尺寸採用 live preset 值
 - **AND** 與該點切片產生的支撐幾何一致
 
 #### Scenario: 編輯模式與非編輯模式結果相同
@@ -96,6 +98,34 @@ Points preview 的幾何參數來源判定 SHALL 有一份涵蓋全部輸入維�
 - **WHEN** 使用者修改 `support_head_front_diameter` 並觸發重繪
 - **THEN** 該點的錐體直徑跟著改變（該欄位未設定實值）
 - **AND** 該點的錐體長度不變（該欄位已設定實值）
+
+### Requirement: 手動點放置時全部 Top 欄位須於建立當下凍結
+
+支撐點在手動放置的當下，SHALL 把全部 Top 欄位（Upper Diameter、Lower Diameter、Segment Length、Penetration、Contact Sphere）寫入建立當下的面板即時值，SHALL NOT 依賴其他欄位（如 Pillar Diameter）作為未設定欄位的替代來源。
+
+#### Scenario: 新建手動點的 Lower Diameter 凍結
+
+- **GIVEN** 手動編輯模式，面板 Lower Diameter 目前顯示某個值
+- **WHEN** 使用者在模型表面點擊建立一顆新的手動點
+- **THEN** 該點的 Lower Diameter 於建立當下即凍結為該面板值
+- **AND** 之後調整面板的 Lower Diameter 或 Pillar Diameter，該點的錐體外型與切片結果都不改變
+
+### Requirement: 多選支撐點時的顯示與編輯語意
+
+多選多顆支撐點時，Top 欄位面板 SHALL 顯示**最後一個被選取的點**的值。編輯任一 Top 欄位時，SHALL 同步套用到**全部已選取的點**，SHALL NOT 只套用到顯示中的錨點。
+
+#### Scenario: 多選顯示錨點值
+
+- **GIVEN** 使用者依序選取兩顆以上尺寸不同的支撐點
+- **WHEN** 檢視 Top 欄位面板
+- **THEN** 面板顯示的是最後一個被選取的點的值
+
+#### Scenario: 多選編輯同步套用全部選取點
+
+- **GIVEN** 多顆支撐點處於選取狀態
+- **WHEN** 使用者編輯面板上的任一 Top 欄位
+- **THEN** 全部已選取的點同步套用該值並立即改變外型
+- **AND** 未選取的點不受影響
 
 ### Requirement: picking 與顯示的幾何來源一致
 
