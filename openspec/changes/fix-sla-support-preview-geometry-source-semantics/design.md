@@ -143,6 +143,8 @@ inline float point_head_back_radius_mm(const SupportPoint &sp, double preset_mm)
 
 **這也是 Q2 逐欄位方案能順手解決的另一個案例**：若 `preview_sla_head_for_point()` 直接呼叫 `point_head_back_radius_mm()`，這條多出來的 `pillar_radius` fallback 分支就不存在了，preview 自動與切片一致。反之，若最終不採逐欄位方案，這個 `pillar_radius` fallback 是否要保留（讓 Pillar Diameter 繼續能預設驅動 back radius，只是要確保 preview 與切片用同一套規則），會是額外要決定的事。
 
+**第二次確認**：使用者從另一個角度重現同一個根因——在 Process tab 先調整 Lower Diameter，**再點擊產生新的手動點**，新點不會反映剛調的值（只有 Upper Diameter 會即時反映），且切到其他點再切回來也不會「保持」（因為 `head_back_radius_mm` 從頭到尾沒被寫入過，沒有可保持的值）。追查 `freeze_process_top_into_point()`（`GLGizmoSlaSupports.cpp:1823`）確認：`head_front_radius`、`pillar_radius` 等欄位在建立當下都會即時凍結 Process tab 的值，唯獨 `head_back_radius_mm` 被跳過（`:1833-1836` 的故意留白）。與原始案例（「新放置的手動點若未經選取，調 Lower Diameter 完全不影響外觀」）是同一行程式碼、同一根因，只是重現路徑從「先建立、後調整」換成「先調整、後建立」。
+
 ### D2c. 第三個具體案例佐證：想讓「調參數預覽下一顆點」不要連動到既有 auto 點，本質上就是在要求 Q2
 
 於驗收 `fix-sla-support-point-picking-live-refresh` 期間，使用者提出一個使用情境：進入 Manual Editing 模式後，想先在 Process tab 調整參數、讓接下來手動點下去的點有不同外觀，但目前這樣做會讓**既有、未選取的 auto 點**也跟著變形——因為 `preview_use_stored_top()` 對未選取的 auto 點恆為 `false`，`preview_sla_head_for_point()` 因此無條件忽略 `sp.head_front_radius`（這個欄位其實一直存在、由產生演算法寫入），改用即時讀到的 `live_upper_r`。
