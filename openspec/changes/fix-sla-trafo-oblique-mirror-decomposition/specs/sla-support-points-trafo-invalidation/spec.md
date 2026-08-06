@@ -1,5 +1,7 @@
 # sla-support-points-trafo-invalidation
 
+> **⚠️ 過時 / 僅供參考**：本檔案是原 `fix-sla-support-points-invalidate-on-trafo-change`（現已改名為 `fix-sla-trafo-oblique-mirror-decomposition` 並暫緩）在假設根因為「前端快取失效時機」時寫的 capability spec。後續診斷確認真正根因在 `sla_trafo()` 本身的矩陣分解邏輯（見上層 design.md D1），不是這裡描述的快取失效問題。本檔案從未合併進主 spec，恢復處理本 change 時需要重寫，不能直接沿用下方內容。
+
 ## Overview
 
 本 capability 規範：當使用者對物件執行變換後，SLA Support gizmo 前端持有的支撐點快取（`m_normal_cache` 及其一一對應的衍生狀態）何時必須失效、何時必須保留。

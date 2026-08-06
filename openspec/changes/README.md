@@ -11,21 +11,23 @@
 ## 相依圖
 
 ```
-fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足（見下方註記）
-fix-sla-support-points-invalidate-on-trafo-change   ← 建議前置已滿足（見下方註記）
+fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足，語意定義已完成，可進實作（見下方註記）
+fix-sla-support-auto-points-top-field-freeze        ← 與上者平行、互不阻擋、檔案不重疊，可同時進行
 
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
 phrozen-build-variant-resin-split            ← 獨立，placeholder
 ```
 
+**暫緩（不在本分支範圍）**：`fix-sla-trafo-oblique-mirror-decomposition`（原名 `fix-sla-support-points-invalidate-on-trafo-change`）——診斷確認根因在核心引擎 `SLAPrint::sla_trafo()` 本身，非 GUI 前端問題，已超出本分支範圍，待合併回 `resin-dev` 主分支後另外評估。見下方「暫緩項目」。
+
 ## SLA 支撐點群組（有順序約束）
 
 | 順序 | Change | 前置 | 說明 |
 |---|---|---|---|
-| 1 | `fix-sla-support-preview-geometry-source-semantics` | **硬**：`fix-sla-support-top-config-enum-set`（已於 2026-08-03 archive，硬前置已滿足） | crash 已修好，per-point 編輯路徑可正常測試 |
-| 2 | `fix-sla-support-points-invalidate-on-trafo-change` | 無（建議前置已滿足） | 第 1 節為診斷階段。tasks 6.12a/6.12b/6.12c 承接自 `fix-sla-support-point-cone-picking`（均勻/非均勻 scale、鏡像 instance 下 picking 一致性），待本 change 座標換算修好後補測 |
-| 3 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
+| 1 | `fix-sla-support-preview-geometry-source-semantics` | **硬**：`fix-sla-support-top-config-enum-set`（已於 2026-08-03 archive，硬前置已滿足） | 語意定義（tasks 第 1 節）已完成，Q1/Q2/Q3 皆已定案（見其 design.md D4/D5/D6），可進入實作（tasks 第 2 節） |
+| 1b | `fix-sla-support-auto-points-top-field-freeze` | 無（與上者平行，檔案不重疊，可同時進行） | 於上者第一階段驗證期間發現：auto 生成點只有 `head_front_radius` 於生成當下凍結，其餘四個 Top 欄位持續追蹤即時 preset，根因在切片端生成邏輯（`SupportPointGenerator.cpp`），另立此 change 處理，見其 proposal.md 與 `fix-sla-support-preview-geometry-source-semantics` design.md D5 |
+| 2 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
 
 已完成：
 - `fix-sla-support-top-config-enum-set`（選中支撐點編輯 Top 欄位並失焦即終止應用程式的 crash；2026-08-03 archive，45/45）
@@ -52,7 +54,11 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | Change | 待決 | 決定什麼 |
 |---|---|---|
-| `fix-sla-support-points-invalidate-on-trafo-change` | tasks 1.1、1.9~1.12 的診斷結果 | 症狀屬候選 A（快取未重載）、B（trafo 換算不對稱）或 C（兩者） |
 | `fix-sla-support-points-undo-snapshot` | tasks 1.5 的語意決策 | S1 結果導向 / S2 設定導向 / S3 不可還原 |
 | `fix-sla-support-points-undo-snapshot` | tasks 1.3 的量測 | 寫入 `mo->sla_support_points` 是否必然中斷背景運算，決定 S1 是否可行 |
-| `fix-sla-support-preview-geometry-source-semantics` | tasks 1.4~1.7 | 選取是否應改變幾何來源、仲裁粒度是否改為逐欄位 |
+
+## 暫緩項目（不在本分支處理，待合併回 resin-dev 後評估）
+
+| Change | 診斷狀態 | 暫緩原因 |
+|---|---|---|
+| `fix-sla-trafo-oblique-mirror-decomposition`（原名 `fix-sla-support-points-invalidate-on-trafo-change`） | **診斷已完成**：根因為 `SLAPrint::sla_trafo()`（`SLAPrint.cpp:235-269`）矩陣分解-重組邏輯，在非軸對齊旋轉 + 奇數次鏡射時因 Eigen `computeRotationScaling()` 產生的 skew 未被檢測而算錯，與旋轉軸/鏡射軸皆無關，只取決於是否同時滿足這兩個條件（見其 design.md D1） | 根因在核心引擎程式碼（`SLAPrint.cpp`），不是 GUI 前端問題；且可能影響實際切片輸出、不只是 preview（尚待實測確認嚴重度，見其 proposal.md），修正風險與測試範圍比本分支其餘 GUI 修正大，不適合混在一起處理。`fix-sla-support-point-cone-picking` 的 6.12a/6.12b/6.12c 隨此一併暫緩 |
