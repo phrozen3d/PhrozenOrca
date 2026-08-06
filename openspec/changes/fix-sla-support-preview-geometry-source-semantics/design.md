@@ -118,6 +118,8 @@ static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selec
 
 **第二次確認（驗收 `fix-sla-support-top-params-live-read-isolation` 期間）**：使用者選中一顆 auto 點，切換 `support_contact_type`（None ↔ Sphere），選取期間顯示正確；取消選取後畫面又變回球體外觀。追查後是同一條根因鏈，只是這次由 `support_contact_type` 觸發而非 `head_front_diameter`：`apply_process_top_option()` 的 `support_contact_type` 分支同樣只寫 `sp.contact_sphere_radius`（切到 Sphere 寫入正值、切到 None 寫入 `0.f`），同樣不碰 `sp.type`；取消選取後 `has_explicit_geometry()` 卡在 `type == manual_add`，退回 live preset 的 contact type 顯示。這不是本次驗收的 change（`fix-sla-support-top-params-live-read-isolation`，只處理「widget 讀值是否被其他點的顯示污染」）造成的回歸，而是 D2a 這個既有 bug 透過另一個欄位再次被驗證到——`apply_process_top_option()` 裡所有會寫入 per-point 欄位的分支（`support_contact_type`、`support_head_front_diameter`、`support_head_back_diameter`、`support_head_penetration`、`support_pillar_diameter`、`support_segment_length`）都共用同一個 `sp.type` 不轉換的問題，不是單一欄位的個案。
 
+**第三次確認（驗收 `fix-sla-support-top-field-restore-race` 期間）**：使用者選中一顆 auto 點編輯 `support_head_front_diameter`（本 D2a 最初舉的例子），取消選取後**該點自己**（不是其他點）跳回未編輯的外觀，且顏色沒有變成手動編輯後該有的樣子。與 3.1 的驗收目標（其他未選取的點是否被連動）是兩回事——3.1 本身通過（其他點全程未受影響，代表 `fix-sla-support-top-field-restore-race` 的修正有效），使用者觀察到的這個現象是 D2a 本尊的第三次重現，再次確認不是任何一次 read-isolation 相關修正的回歸。
+
 ### D2b. 第二個具體案例佐證：`head_back_radius_mm` 的 preview fallback 走了一條切片端沒有的路
 
 於驗收 `fix-sla-support-point-cone-picking` 期間，使用者實測發現：新放置的手動點若未經選取，調整 Process tab 的「Lower Diameter」（`support_head_back_diameter`）完全不影響該點外觀，只有「Pillar Diameter」（`support_pillar_diameter`）有效——即使兩者是不同的欄位。
