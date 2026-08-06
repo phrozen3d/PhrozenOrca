@@ -15,7 +15,6 @@ fix-sla-support-preview-geometry-source-semantics   ← 硬前置已滿足（見
 fix-sla-support-points-invalidate-on-trafo-change   ← 建議前置已滿足（見下方註記）
 
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
-fix-sla-support-top-field-restore-race       ← 無前置，可立即進行
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
 phrozen-build-variant-resin-split            ← 獨立，placeholder
 ```
@@ -35,6 +34,7 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 - `fix-sla-support-point-cone-picking`（Points preview 的 cone/back-sphere raycaster 從未接上，實際只有 pin 端一顆小球能點；2026-08-04 archive，31/31。實作時發現兩處與提案不符：cone 高度應為 `fullwidth()-r_back_mm` 而非 `width_mm`，且 back 球赤道以外需另加一顆 `back_sphere` raycaster 才能涵蓋，皆已修正並記錄於其 design.md）⚠️ 其 `pin_sphere` 球心定位有一個未被驗收發現的既有缺陷（直接用錨點而非真正球心），由 `fix-sla-support-point-picking-live-refresh` 於驗收期間發現並修正
 - `fix-sla-support-point-picking-live-refresh`（picking raycaster 只在離散事件才重算，Process tab Top 欄位即時編輯時視覺與可點範圍脫節，改成比照 render_points() 每幀刷新；2026-08-04 archive，24/24。實作時額外發現並修正兩個問題：`pin_sphere` 球心一直沒對準真正的 pin/contact 球心（`fix-sla-support-point-cone-picking` 遺留的既有缺陷）；每幀呼叫本身會覆寫 `render_points()` 剛設定的 clipping inactive 狀態，改為函式自行判斷 clipping，不依賴呼叫順序）
 - `fix-sla-support-top-params-live-read-isolation`（選定支撐點編輯 Top 參數時，其他 auto 點的 preview 外觀被連動污染；2026-08-04 archive，19/19。根因是 live 讀值機制不知道 widget 目前被借用來顯示選中點的值，修法是有選取時跳過 widget 讀值、落到既有的 preset fallback。驗收期間再度確認 `fix-sla-support-preview-geometry-source-semantics` D2a 的既有問題（auto 點編輯後 type 不轉換，取消選取後跳回 preset），透過 `support_contact_type` 欄位驗證，已記入該 change）
+- `fix-sla-support-top-field-restore-race`（取消選取瞬間到 widget 真正還原之間有時序空窗，`has_selected_support_points()` 守門邏輯在此空窗誤判「沒有選取」而讀到尚未還原的借用值，導致其他未選取點閃現；2026-08-04 archive，21/21。修法是守門條件疊加更精確的 `TabSLAPrint::is_support_point_top_field_active()`，兩者取 OR、不是替換。驗收期間第三度確認 D2a（這次透過 `support_head_front_diameter`，被編輯的 auto 點自己取消選取後跳回未編輯外觀），已記入該 change）
 
 ### 硬前置 vs 建議前置
 
@@ -45,7 +45,6 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | Change | 狀態 | 備註 |
 |---|---|---|
-| `fix-sla-support-top-field-restore-race` | 無前置 | `fix-sla-support-top-params-live-read-isolation`（已 archive）的直接延伸：取消選取瞬間到 `end_support_point_top_field_display()`（透過 `CallAfter` 延後執行）真正還原 widget 之間有一段時序空窗，讀值守門邏輯（`has_selected_support_points()`）在此空窗誤判「沒有選取」而讀到 widget 尚未還原的借用值，導致其他未選取點閃現。修法是守門條件疊加 `TabSLAPrint::m_support_point_top_field_active`（更精確的「widget 是否仍借用中」訊號）。與仍在決策中的 `fix-sla-support-preview-geometry-source-semantics` 不同軸線，不需等其 Q1/Q2/Q3 落地。**可立即進行** |
 | `fix-sla-undo-redo` | 接近完成 | 範圍為 GLGizmoHollow / GLGizmoDrill，與支撐點群組無交集。<br>⚠️ 其 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，該前提已被 `fix-sla-support-points-undo-snapshot` 推翻，需於後者實施時更正（見其 tasks 6.7） |
 | `phrozen-build-variant-resin-split` | placeholder | 尚無 tasks，待專門的 exploration pass |
 
