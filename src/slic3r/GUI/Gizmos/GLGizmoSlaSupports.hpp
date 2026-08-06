@@ -205,6 +205,13 @@ private:
         AllPoints = -2,
         NoPoints,
     };
+    // Anchor for the Top panel display when multiple points are selected: index into
+    // m_editing_cache of the most-recently-selected point (fix-sla-support-preview-
+    // geometry-source-semantics D6). NoPoints when nothing is selected. Kept in sync by
+    // select_point()/unselect_point(); editing a Top field still applies to every
+    // selected point (apply_process_top_option()), only the *displayed* value follows
+    // this anchor.
+    int m_last_selected_index = NoPoints;
     void select_point(int i);
     void unselect_point(int i);
     void editing_mode_apply_changes();

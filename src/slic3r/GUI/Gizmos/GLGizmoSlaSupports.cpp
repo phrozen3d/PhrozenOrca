@@ -247,14 +247,6 @@ static float default_contact_sphere_radius_mm()
     return clamp_support_diameter_mm(process_top_float_live("support_contact_diameter", 0.8f)) * 0.5f;
 }
 
-// Match slice: manual points use per-point TOP stored at placement/edit; live Process Top is only for the next new point.
-static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selected)
-{
-    if (point_selected)
-        return true;
-    return sp.type == sla::SupportPointType::manual_add && sp.has_explicit_geometry();
-}
-
 // One snapshot of the Process → Support → Top live field values.
 // Reading a field goes through Tab::get_field(), a linear scan over every Process
 // page, plus a native text-control read — far too expensive to repeat per support
@@ -265,7 +257,6 @@ struct PreviewTopParams
 {
     float  seg_len_mm        = 2.f;
     float  penetration_mm    = 0.4f;
-    double upper_r_mm        = 0.2;
     double lower_r_mm        = 0.5;
     float  contact_sphere_r_mm = 0.4f;
     bool   contact_sphere    = false;
@@ -276,47 +267,35 @@ static PreviewTopParams read_preview_top_params_live()
     PreviewTopParams p;
     p.seg_len_mm          = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
     p.penetration_mm      = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
-    p.upper_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
+    // Upper Diameter (head_front_radius) has no preset fallback to read here — every point
+    // always carries a concrete value, see preview_sla_head_for_point().
     p.lower_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
     p.contact_sphere_r_mm = default_contact_sphere_radius_mm();
     p.contact_sphere      = process_contact_type_is_sphere();
     return p;
 }
 
-// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
-static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point,
+// Same TOP parameter resolution as SupportTreeBuildsteps (SupportTreeBuildsteps.cpp:693):
+// every field is resolved independently via the point_*() helpers (per-point value if
+// set, otherwise the live preset) — no notion of "editing mode" or "selection" here,
+// matching slicing exactly (fix-sla-support-preview-geometry-source-semantics D4/D2).
+static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal,
                                             const PreviewTopParams &top)
 {
-    const float live_seg     = top.seg_len_mm;
-    const float live_pen     = top.penetration_mm;
-    const double live_upper_r = top.upper_r_mm;
-    const double live_lower_r = top.lower_r_mm;
-    const bool   preset_sphere = top.contact_sphere;
+    // head_front_radius has no SUPPORT_POINT_USE_PRESET sentinel — every point always
+    // carries a concrete value (written at auto-generation, manual placement, or
+    // selected-point edit), so slicing — and this preview — always reads it unconditionally.
+    const double pin_r = double(sp.head_front_radius);
 
-    const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_upper_r;
-
-    double back_r = live_lower_r;
-    if (use_stored_point) {
-        if (sp.head_back_radius_mm >= 0.f)
-            back_r = double(sp.head_back_radius_mm);
-        else if (sp.pillar_radius > 0.f)
-            back_r = double(sp.pillar_radius);
-    }
-
-    const double width_mm = use_stored_point
-        ? double(clamp_segment_length_mm(sla::point_head_width_mm(sp, live_seg)))
-        : double(live_seg);
+    const double back_r  = double(sla::point_head_back_radius_mm(sp, top.lower_r_mm));
+    const double width_mm = double(clamp_segment_length_mm(sla::point_head_width_mm(sp, top.seg_len_mm)));
 
     double contact_r = 0.;
-    if (use_stored_point) {
-        if (sla::point_uses_contact_sphere(sp, preset_sphere))
-            contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
-    } else if (preset_sphere) {
-        contact_r = double(top.contact_sphere_r_mm);
-    }
+    if (sla::point_uses_contact_sphere(sp, top.contact_sphere))
+        contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
 
     const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
-        sp, live_pen, float(pin_r), float(contact_r)));
+        sp, top.penetration_mm, pin_r, contact_r));
 
     Vec3d dir = normal.cast<double>();
     if (dir.squaredNorm() < EPSILON)
@@ -514,6 +493,12 @@ bool GLGizmoSlaSupports::on_mouse(const wxMouseEvent &mouse_event)
             for (size_t j = 0; j < m_editing_cache.size(); ++j)
                 m_editing_cache[j].selected = (j == size_t(m_hover_id));
             m_selection_empty = false;
+            // This bypasses select_point() (drag-start needs the synchronous, single-call
+            // selection below), so the Top panel display anchor must be set explicitly here
+            // too — otherwise a plain click-to-select never updates the panel (D6 regression
+            // found during manual verification: single click didn't refresh, shift-multi-select
+            // did because that path goes through select_point()).
+            m_last_selected_index = int(m_hover_id);
             const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
             if (pr > 0.f)
                 m_new_point_pillar_diameter = pr * 2.f;
@@ -805,18 +790,14 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // Scaled-mesh surface normal direction for orienting the cone axis.
         const Vec3f scaled_normal = (normal_xform * raw_normal.cast<double>()).cast<float>();
 
-        // Same rule as the slicing pipeline (SupportTreeBuildsteps consumes sp.head_front_radius
-        // and the point_*() helpers unconditionally, with no notion of "editing mode"). Must
-        // NOT be gated on m_editing_mode: point_selected is already forced to false outside
-        // editing mode, so this degrades to "manual_add with explicit geometry" there — exactly
-        // the set of points that should keep their own stored size instead of the live preset.
-        const bool use_stored_geometry = preview_use_stored_top(support_point, point_selected);
-
         // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
         // the local-frame body only, and placement is applied through model_matrix
         // below. Size fields (head/pillar/contact radii, width, penetration) come from
-        // the support-parameter mm values and stay untouched.
-        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
+        // the support-parameter mm values and stay untouched. Selection state (point_selected,
+        // above) affects only render_color — it must not reach the geometry resolution below
+        // (fix-sla-support-preview-geometry-source-semantics Q1: selecting a point must not
+        // change its cone size).
+        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, top_params);
 
         GLModel *cone_model = nullptr;
         // Manual and auto points share the same pinhead mesh and shading (see
@@ -1879,10 +1860,16 @@ void GLGizmoSlaSupports::freeze_process_top_into_point(sla::SupportPoint &sp) co
     sp.base_radius_mm = clamp_support_diameter_mm(
         process_top_float_live("support_base_diameter", 2.0f)) * 0.5f;
     sp.support_bracing_angle_deg = process_top_float_live("angle_between_top_and_middle", 45.0f);
-    // Make lower diameter (head_back_radius_mm) opt-in so that Pillar Diameter
-    // (sp.pillar_radius) can drive the back/base radius by default.
-    // Users can still override by editing "Lower Diameter" after selecting a point.
-    sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
+    // Freeze Lower Diameter at placement time just like every other Top field. It used
+    // to be left as SUPPORT_POINT_USE_PRESET so Pillar Diameter (sp.pillar_radius) could
+    // drive it by default, but that fallback only existed in preview
+    // (preview_sla_head_for_point()) — slicing (point_head_back_radius_mm()) has no such
+    // branch and falls straight back to the live preset. A point's Lower Diameter would
+    // silently diverge between what preview showed and what actually got sliced (see
+    // fix-sla-support-preview-geometry-source-semantics D2b). Users can still override by
+    // editing "Lower Diameter" after selecting the point.
+    sp.head_back_radius_mm = clamp_support_diameter_mm(
+        process_top_float_live("support_head_back_diameter", 1.0f)) * 0.5f;
     if (process_contact_type_is_sphere()) {
         float r = default_contact_sphere_radius_mm();
         if (r < k_min_support_size_mm)
@@ -1904,12 +1891,13 @@ bool GLGizmoSlaSupports::is_sla_support_top_option(const std::string &opt_key)
 DynamicPrintConfig GLGizmoSlaSupports::support_top_config_from_selection() const
 {
     DynamicPrintConfig cfg = sla_process_config();
-    for (const CacheEntry &ce : m_editing_cache) {
-        if (ce.selected) {
-            support_top_apply_point(ce.support_point, cfg);
-            break;
-        }
-    }
+    // Multi-select shows the last-selected point's values, not just the first match in
+    // cache order (fix-sla-support-preview-geometry-source-semantics D6). Editing a field
+    // still applies to every selected point (apply_process_top_option()) — only the
+    // *displayed* value follows this anchor.
+    if (m_last_selected_index >= 0 && m_last_selected_index < (int) m_editing_cache.size()
+        && m_editing_cache[m_last_selected_index].selected)
+        support_top_apply_point(m_editing_cache[m_last_selected_index].support_point, cfg);
     return cfg;
 }
 
@@ -1938,11 +1926,14 @@ bool GLGizmoSlaSupports::apply_process_top_option(const std::string &opt_key, co
         } else if (opt_key == "support_head_back_diameter") {
             sp.head_back_radius_mm = clamp_support_diameter_mm(float(boost::any_cast<double>(value))) * 0.5f;
         } else if (opt_key == "support_pillar_diameter") {
-            // Pillar diameter controls sp.pillar_radius (radius = diameter/2).
-            // Also clear explicit lower diameter override so the geometry follows the pillar diameter
-            // by default.
+            // Pillar diameter controls sp.pillar_radius (radius = diameter/2) only.
+            // Used to also clear sp.head_back_radius_mm back to SUPPORT_POINT_USE_PRESET so
+            // Pillar Diameter could drive Lower Diameter by default — that cross-field
+            // coupling only ever existed in preview (the pillar_radius fallback removed by
+            // fix-sla-support-preview-geometry-source-semantics D2b/2.7) and never had a
+            // slicing equivalent, so editing Pillar Diameter here must not touch Lower
+            // Diameter at all — they are independent fields (see tasks.md 4.7).
             sp.pillar_radius = float(boost::any_cast<double>(value)) * 0.5f;
-            sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
             m_new_point_pillar_diameter = float(boost::any_cast<double>(value));
         } else if (opt_key == "support_segment_length") {
             sp.head_width_mm = clamp_segment_length_mm(float(boost::any_cast<double>(value)));
@@ -2084,6 +2075,9 @@ void GLGizmoSlaSupports::on_start_dragging()
     for (size_t j = 0; j < m_editing_cache.size(); ++j)
         m_editing_cache[j].selected = (j == size_t(m_hover_id));
     m_selection_empty = false;
+    // Same reason as the on_mouse() drag-start path above: this bypasses select_point(), so
+    // the Top panel display anchor (D6) must be set explicitly.
+    m_last_selected_index = int(m_hover_id);
     const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
     if (pr > 0.f)
         m_new_point_pillar_diameter = pr * 2.f;
@@ -2148,6 +2142,11 @@ void GLGizmoSlaSupports::select_point(int i)
         for (auto& point_and_selection : m_editing_cache)
             point_and_selection.selected = ( i == AllPoints );
         m_selection_empty = (i == NoPoints);
+        // Anchor the Top panel display on the last point in cache order (D6): there is no
+        // per-point "selected at" ordering for a bulk select-all, so the last index is the
+        // most defensible single choice, consistent with the fallback in unselect_point().
+        m_last_selected_index = (i == AllPoints && !m_editing_cache.empty())
+            ? int(m_editing_cache.size()) - 1 : NoPoints;
 
         if (i == AllPoints && !m_editing_cache.empty()) {
             const float pr = m_editing_cache[0].support_point.pillar_radius;
@@ -2162,6 +2161,9 @@ void GLGizmoSlaSupports::select_point(int i)
             return;
         m_editing_cache[i].selected = true;
         m_selection_empty = false;
+        // This point becomes the Top panel display anchor (fix-sla-support-preview-
+        // geometry-source-semantics D6: multi-select shows the last-selected point).
+        m_last_selected_index = i;
         const float pr = m_editing_cache[i].support_point.pillar_radius;
         if (pr > 0.f)
             m_new_point_pillar_diameter = pr * 2.f;
@@ -2186,6 +2188,19 @@ void GLGizmoSlaSupports::unselect_point(int i)
         if (ce.selected) {
             m_selection_empty = false;
             break;
+        }
+    }
+    if (i == m_last_selected_index) {
+        // The display anchor was just deselected — fall back to the last remaining
+        // selected point in cache order (same convention as the AllPoints branch in
+        // select_point(); there is no "next most recently selected" history to restore
+        // exactly, see D6).
+        m_last_selected_index = NoPoints;
+        for (int idx = int(m_editing_cache.size()) - 1; idx >= 0; --idx) {
+            if (m_editing_cache[idx].selected) {
+                m_last_selected_index = idx;
+                break;
+            }
         }
     }
     notify_process_tab_selection_changed();
@@ -2573,10 +2588,8 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         // point's raycasters must stay inactive regardless of call order.
         const bool clipped = is_mesh_point_clipped(sp.pos.cast<double>());
 
-        const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
-
         const Vec3f scaled_normal = (normal_xform * m_editing_cache[i].normal.cast<double>()).cast<float>();
-        const sla::Head head = preview_sla_head_for_point(sp, scaled_normal, use_stored_geometry, top_params);
+        const sla::Head head = preview_sla_head_for_point(sp, scaled_normal, top_params);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
