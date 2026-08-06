@@ -101,18 +101,30 @@ GLGizmoSlaSupports *GLGizmoSlaSupports::active_instance()
 
 static bool process_contact_type_is_sphere()
 {
+    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+
     // While a support point is selected, the Top widgets are borrowed to display that
     // point's own value (begin_support_point_top_field_display(), Tab.cpp) — reading
     // them here would leak the selected point's value onto every other point's preview
     // (see fix-sla-support-top-params-live-read-isolation). Skip straight to the preset
     // fallback below, same as when the field itself can't be found.
-    const bool widget_borrowed_by_selection = [] {
+    //
+    // has_selected_support_points() alone isn't enough: it flips synchronously on
+    // (de)selection, but the widget restore/borrow itself is deferred via CallAfter
+    // (notify_process_tab_selection_changed()) to avoid re-entering wx from gizmo mouse
+    // handlers. On deselect there is a window where selection is already gone but the
+    // widget still shows the just-deselected point's value — is_support_point_top_field_active()
+    // tracks that window precisely (see fix-sla-support-top-field-restore-race D2). OR,
+    // not replace: has_selected_support_points() alone still matters right after selecting,
+    // before begin_...() has caught the widget up.
+    const bool widget_borrowed_by_selection = [tab] {
         GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
-        return gizmo && gizmo->has_selected_support_points();
+        if (gizmo && gizmo->has_selected_support_points())
+            return true;
+        return tab && tab->is_support_point_top_field_active();
     }();
 
     if (!widget_borrowed_by_selection) {
-        TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
         if (tab) {
             Page *page = nullptr;
             if (Field *field = tab->get_field("support_contact_type", &page)) {
@@ -141,16 +153,19 @@ static bool process_contact_type_is_sphere()
 // Read the latest value from Process tab fields (works even before focus leaves TextCtrl).
 static float process_top_float_live(const char *key, float fallback)
 {
-    // Same rationale as process_contact_type_is_sphere() above: a selected support
-    // point borrows these widgets to display its own value, so reading them here
-    // would leak that value onto every other point's preview.
-    const bool widget_borrowed_by_selection = [] {
+    TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
+
+    // Same rationale as process_contact_type_is_sphere() above, including the OR against
+    // is_support_point_top_field_active() for the deselect-restore race (see
+    // fix-sla-support-top-field-restore-race D2).
+    const bool widget_borrowed_by_selection = [tab] {
         GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
-        return gizmo && gizmo->has_selected_support_points();
+        if (gizmo && gizmo->has_selected_support_points())
+            return true;
+        return tab && tab->is_support_point_top_field_active();
     }();
 
     if (!widget_borrowed_by_selection) {
-        TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
         if (tab) {
             Page *page = nullptr;
             Field *field = tab->get_field(key, &page);

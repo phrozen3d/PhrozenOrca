@@ -688,6 +688,7 @@ public:
     bool          m_support_top_ui_sync_pending    = false;
 
     bool        is_support_point_top_field_update() const { return m_support_point_top_field_update; }
+    bool        is_support_point_top_field_active() const { return m_support_point_top_field_active; }
     bool        should_skip_preset_ui_refresh() const;
 
     void        apply_support_point_top_fields(const DynamicPrintConfig *point_cfg);
