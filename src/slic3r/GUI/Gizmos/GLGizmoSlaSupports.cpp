@@ -450,7 +450,6 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
         disable_editing_mode();
         reload_cache();
         m_old_mo_id = mo->id();
-        m_auto_baseline_initialized = false;
     }
 
     // If we triggered autogeneration before, check backend and fetch results if they are there
@@ -1279,12 +1278,6 @@ static bool sp_draw_custom_slider(const char* id, float& v,
 // ─────────────────────────────────────────────────────────────────────────────
 void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo)
 {
-    // Existing auto-generated points: treat current UI as already applied until user changes preset/density.
-    if (!m_auto_baseline_initialized && mo && !m_normal_cache.empty()) {
-        mark_auto_settings_applied(mo);
-        m_auto_baseline_initialized = true;
-    }
-
     const float scale       = m_parent.get_scale();
     const float gap         = 8.f * scale;
     const float value_box_w = m_imgui->scaled(4.f);
@@ -1529,10 +1522,15 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         m_imgui->disabled_end();
 
         ImGui::SameLine();
-        m_imgui->disabled_begin(!auto_settings_need_apply(mo));
+        // Always enabled: Apply/Auto-generate is idempotent (deterministic seed) and the
+        // confirmation dialog in auto_generate() is the actual safety net against losing
+        // manually-edited points, not this button's enabled state. A dirty-tracking gate
+        // here used to compare live Top-field values against a captured baseline, but that
+        // mechanism needed to stay in exact sync with wx Field commit timing to be
+        // reliable and proved fragile in practice — simpler and more robust to just let
+        // the click always force a fresh regeneration.
         if (ImGui::Button((_u8L("Apply") + "##sp_auto_apply").c_str(), ImVec2(btn_apply_w, 0.f)))
             auto_generate();
-        m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(); // ItemSpacing
 
@@ -1542,50 +1540,6 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     m_imgui->end();
     ImGui::PopStyleVar(); // WindowPadding (y=0 override)
     ImGuiWrapper::pop_toolbar_style();
-}
-
-
-bool GLGizmoSlaSupports::auto_settings_need_apply(const ModelObject* mo) const
-{
-    if (m_normal_cache.empty())
-        return true;
-
-    const char* density_key = "support_points_density_relative";
-    const auto  opts        = get_config_options({density_key});
-    const int   density     = (opts.empty() || !mo)
-        ? 100
-        : static_cast<const ConfigOptionInt*>(opts[0])->value;
-
-    const char* angle_key = "support_critical_angle";
-    const auto  angle_opts = get_config_options({angle_key});
-    const float critical_angle = (angle_opts.empty() || !mo)
-        ? 0.f
-        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
-
-    if (m_new_point_weight != m_applied_auto_weight)
-        return true;
-    if (density != m_applied_auto_density)
-        return true;
-    if (std::abs(critical_angle - m_applied_auto_critical_angle) > 1e-3f)
-        return true;
-    return false;
-}
-
-void GLGizmoSlaSupports::mark_auto_settings_applied(const ModelObject* mo)
-{
-    m_applied_auto_weight = m_new_point_weight;
-
-    const char* density_key = "support_points_density_relative";
-    const auto  opts        = get_config_options({density_key});
-    m_applied_auto_density  = (opts.empty() || !mo)
-        ? 100
-        : static_cast<const ConfigOptionInt*>(opts[0])->value;
-
-    const char* angle_key = "support_critical_angle";
-    const auto  angle_opts = get_config_options({angle_key});
-    m_applied_auto_critical_angle = (angle_opts.empty() || !mo)
-        ? 0.f
-        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
 }
 
 
@@ -2009,7 +1963,6 @@ void GLGizmoSlaSupports::on_set_state()
 
     if (m_state == On && m_old_state != On) { // the gizmo was just turned on
 
-        m_auto_baseline_initialized = false;
         // Set default head diameter from config.
         const DynamicPrintConfig& cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
         const auto *opt_hfd = cfg.option<ConfigOptionFloat>("support_head_front_diameter");
@@ -2337,7 +2290,6 @@ void GLGizmoSlaSupports::apply_remove_all()
     // Callers handle the snapshot; this function only syncs data and clears the mesh.
     m_normal_cache.clear();
     m_normal_cache_normals.clear();
-    m_auto_baseline_initialized = false;
     ModelObject* mo = m_c->selection_info()->model_object();
     mo->sla_points_status = sla::PointsStatus::UserModified;
     mo->sla_support_points.clear();
@@ -2428,8 +2380,18 @@ void GLGizmoSlaSupports::activate_structure_view()
 
 void GLGizmoSlaSupports::auto_generate()
 {
-    //wxMessageDialog dlg(GUI::wxGetApp().plater(), 
-    MessageDialog dlg(GUI::wxGetApp().plater(), 
+    // Flush whatever is currently typed into the Top fields, even if the control hasn't
+    // lost focus/committed yet — same defensive pattern already used before placing a new
+    // manual point (:922). Relying solely on each field's own wx kill-focus/on_value_change
+    // chain to have already written the value into the preset proved unreliable in
+    // practice (see fix-sla-support-auto-points-top-field-freeze D10): editing one Top
+    // field then immediately clicking Apply could regenerate using a stale value for that
+    // field. This makes Apply itself the authoritative sync point, independent of whether
+    // the field-level commit machinery fired correctly for this particular edit.
+    flush_process_top_fields_to_config();
+
+    //wxMessageDialog dlg(GUI::wxGetApp().plater(),
+    MessageDialog dlg(GUI::wxGetApp().plater(),
                         _L("Autogeneration will erase all manually edited points.") + "\n\n" +
                         _L("Are you sure you want to do it?") + "\n",
                         _L("Warning"), wxICON_WARNING | wxYES | wxNO);
@@ -2440,8 +2402,14 @@ void GLGizmoSlaSupports::auto_generate()
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Autogenerate support points");
         sync_generate_support_for_object(mo, true);
         mo->sla_points_status = sla::PointsStatus::Generating;
-        mark_auto_settings_applied(mo);
-        m_auto_baseline_initialized = true;
+        // Force slaposSupportPoints to actually recompute. Top-field edits deliberately
+        // don't auto-invalidate this step (fix-sla-support-auto-points-top-field-freeze —
+        // that's what keeps already-generated auto points frozen against passive reslice
+        // triggers), so without this, a second Auto-generate click with only Top fields
+        // changed since the last Apply would find the step already "done" and skip
+        // straight through, silently leaving the old frozen points in place.
+        if (const SLAPrint *print = m_parent.sla_print())
+            print->invalidate_support_points_for_object(mo->id());
         // Auto Apply: regenerate support points (includes Support Angle filtering at slaposSupportPoints).
         reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
     }

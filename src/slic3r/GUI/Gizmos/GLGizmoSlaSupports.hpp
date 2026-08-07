@@ -230,14 +230,6 @@ private:
     void sync_new_point_params_from_config();
     void freeze_process_top_into_point(sla::SupportPoint &sp) const;
 
-    // Auto Support: Apply enabled when weight/density differ from last auto_generate (or no points yet).
-    sla::SupportWeight m_applied_auto_weight = sla::SupportWeight::Medium;
-    int                m_applied_auto_density = 100;
-    float              m_applied_auto_critical_angle = 0.f;
-    bool               m_auto_baseline_initialized = false;
-    bool auto_settings_need_apply(const ModelObject* mo) const;
-    void mark_auto_settings_applied(const ModelObject* mo);
-
     // New Support UI panels — rendered below the legacy panel as a preview skeleton.
     void render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);
     void render_manual_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);

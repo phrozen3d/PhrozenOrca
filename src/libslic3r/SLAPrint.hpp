@@ -544,6 +544,24 @@ public:
             [object_id](const SLAPrintObject* obj) { return obj->model_object()->id() == object_id; });
         return (it == m_objects.end()) ? nullptr : *it;
     }
+    // Force slaposSupportPoints (and its dependent steps) to be recomputed for the given
+    // object on the next reslice, regardless of whether any tracked config option
+    // actually changed. Top-field edits (Upper/Lower Diameter, Segment Length,
+    // Penetration, Contact Sphere) deliberately do NOT auto-invalidate this step — see
+    // fix-sla-support-auto-points-top-field-freeze — so passive reslice triggers (e.g.
+    // switching to Structure view) don't silently regenerate already-frozen auto points.
+    // This is the explicit escape hatch for the GUI's "Auto-generate" button, which does
+    // need to force a fresh regeneration using the now-current preset values even when
+    // only Top fields (not density/weight/critical angle) changed since the last Apply.
+    // const on SLAPrint itself (this doesn't touch m_objects, the vector, only calls a
+    // mutating method through one of the SLAPrintObject* it already holds) — matches
+    // GLCanvas3D::sla_print() returning const SLAPrint*, the only accessor the GUI has.
+    bool invalidate_support_points_for_object(ObjectID object_id) const {
+        for (SLAPrintObject *obj : m_objects)
+            if (obj->model_object()->id() == object_id)
+                return obj->invalidate_step(slaposSupportPoints);
+        return false;
+    }
     const SLAPrintObject* get_object(ObjectID object_id) const {
         auto it = std::find_if(m_objects.begin(), m_objects.end(),
             [object_id](const SLAPrintObject *obj) { return obj->id() == object_id; });
