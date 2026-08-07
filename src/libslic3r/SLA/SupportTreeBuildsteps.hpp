@@ -328,19 +328,12 @@ class SupportTreeBuildsteps {
     bool create_ground_pillar(const Vec3d &jp,
                               const Vec3d &sourcedir,
                               double       radius,
-                              long         head_id = SupportTreeNode::ID_UNSET,
-                              bool         allow_widening = true);
+                              long         head_id = SupportTreeNode::ID_UNSET);
 
     void add_pillar_base(long pid)
     {
         m_builder.add_pillar_base(pid, m_cfg.base_height_mm, m_cfg.base_radius_mm);
     }
-
-    std::optional<DiffBridge> search_widening_path(const Vec3d &jp,
-                                                   const Vec3d &dir,
-                                                   double       radius,
-                                                   double       new_radius,
-                                                   double       point_slope);
 
 public:
     SupportTreeBuildsteps(SupportTreeBuilder & builder, const SupportableMesh &sm);
