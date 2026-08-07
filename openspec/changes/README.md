@@ -11,8 +11,6 @@
 ## 相依圖
 
 ```
-fix-sla-support-auto-points-top-field-freeze ← 無前置，可進行（原與 geometry-source-semantics 平行，後者已完成）
-
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
 phrozen-build-variant-resin-split            ← 獨立，placeholder
@@ -24,10 +22,10 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 
 | 順序 | Change | 前置 | 說明 |
 |---|---|---|---|
-| 1 | `fix-sla-support-auto-points-top-field-freeze` | 無 | 四份 artifact（proposal/design/specs/tasks）已就緒，尚未開始實作。修 auto 生成點只有 `head_front_radius` 凍結、其餘四個 Top 欄位持續追蹤即時 preset 的落差（根因在 `SupportPointGenerator.cpp`），見其 proposal.md 與 `fix-sla-support-preview-geometry-source-semantics` design.md D5 |
-| 2 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
+| 1 | `fix-sla-support-points-undo-snapshot` | 無 | 第 1 節為契約定義階段。**其 task 1.8（30 秒）會決定本 change 的範圍是否縮小**，建議最先執行該項 |
 
 已完成：
+- `fix-sla-support-auto-points-top-field-freeze`（Auto 生成點只有 `head_front_radius` 於生成當下凍結，其餘四個 Top 欄位持續追蹤即時 preset，與切片端另外兩個既有 bug 疊加，導致凍結行為不完整或不可預期；2026-08-07 archive，58/58。生成器改為凍結全部五個 Top 欄位；驗收期間連環發現並修復四個既有問題：①`SupportTreeBuildsteps::filter()` 的 `back_r` 解析繞過共用 helper，只在手動點才讀自身欄位；②柱體「加粗回即時 preset」的結構安全機制（2022 年即存在）被本 change 意外喚醒、只對 auto 點生效，整個機制連同 `allow_widening` 參數一併移除；③Auto 模式 Apply 按鈕的 dirty-tracking 先是漏追蹤 Top 欄位、後又因 wx 事件時序問題而偵測不準，決定整個機制移除、按鈕改為恆為可按；④`auto_generate()` 沒有主動同步面板當下值，依序編輯多欄位只有部分生效，比照既有「放置手動點」路徑補上 `flush_process_top_fields_to_config()`。與 `fix-sla-support-preview-geometry-source-semantics` 的邊界見雙方 design.md D5。額外記錄一個確認為既有、與本 change 無關的純視覺問題——Process tab「已修改」提示偶爾延遲顯示，根因追溯到 2026-06-16 的既有 UI 刷新機制——列入其 tasks.md Follow-up，未處理）
 - `fix-sla-support-preview-geometry-source-semantics`（Points preview 幾何來源判定散亂：選取會改變外型、live 參數只影響部分點、手動點 Lower Diameter 靠 `pillar_radius` fallback 卻與切片端不一致；2026-08-06，tasks 第 1-6 節共約 40 項全數通過，僅 6.3／6.6 各留一項需 debug build／舊版對照的精確驗證，記於其 tasks.md 第 8 節，不阻擋結案。改為逐欄位仲裁、直接沿用切片端 `point_*()` helper，preview／picking／切片三處共用同一套解析；新增多選顯示/編輯語意（最後選取點為準，編輯同步套用全部選取點）。實作期間額外發現並修復一個回歸：單獨點擊選取繞過 `select_point()`，導致新增的多選錨點追蹤失效，已修正。與 `fix-sla-support-auto-points-top-field-freeze` 的邊界見其 design.md D5——後者修 auto 點生成端尚未凍結的四個欄位，是平行、非阻擋的獨立範圍）
 - `fix-sla-support-top-config-enum-set`（選中支撐點編輯 Top 欄位並失焦即終止應用程式的 crash；2026-08-03 archive，45/45）
 - `fix-sla-support-preview-stored-geometry-in-auto-mode`（非編輯模式下手動點不套用 per-point 幾何；2026-08-03 archive，23/23）——`fix-sla-support-preview-geometry-source-semantics` 與 `fix-sla-support-points-invalidate-on-trafo-change` 的建議前置皆已滿足
