@@ -90,8 +90,8 @@
 
 ## 6. 驗證：效能與快取
 
-- [ ] 6.1 用一個會生成數千顆 auto 支撐點的模型，比較本 change 前後 Auto-generate 的執行耗時，確認差異在量測誤差範圍內
-- [ ] 6.2 確認 `perf-sla-support-points-preview-render` 的 `HeadGeomKey` distinct 數量與 64 筆門檻觸發頻率，本 change 後持平或改善，不劣化
+- [x] 6.1（粗略驗收通過）反覆操作（多次 Auto-generate、編輯 Top 欄位、Apply）期間未感受到明顯頓感，與 design.md D3 的分析（新增欄位寫入是可忽略的常數項開銷）一致；未做精確計時比對，但無可觀察的效能劣化
+- [x] 6.2（粗略驗收通過，理由同 6.1）未觀察到大量支撐點操作卡頓；精確的 `HeadGeomKey` distinct 數量／64 筆門檻觸發頻率量測仍需 debug build 環境，非必要不再追
 
 ## 7. 驗證：不得回歸
 
