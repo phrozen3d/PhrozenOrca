@@ -892,6 +892,16 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
         // Density config value is in percents.
         config.density_relative = float(cfg.support_points_density_relative / 100.f);
         config.head_diameter    = float(cfg.support_head_front_diameter);
+        // Snapshot the remaining Top fields at Auto-generate time too, so every point
+        // this run produces gets all five fields frozen, not just head_diameter (see
+        // fix-sla-support-auto-points-top-field-freeze). Read once here, outside the
+        // generation loop below — SupportPointGenerator.cpp copies these verbatim into
+        // each point it creates.
+        config.head_back_radius_mm   = float(cfg.support_head_back_diameter) * 0.5f;
+        config.head_width_mm         = float(cfg.support_segment_length);
+        config.head_penetration_mm   = float(cfg.support_head_penetration);
+        config.contact_sphere_radius = (cfg.support_contact_type == ContactType::spSphere)
+            ? float(cfg.support_contact_diameter) * 0.5f : 0.f;
         config.island_configuration = sla::SampleConfigFactory::apply_density(
             sla::SampleConfigFactory::create(config.head_diameter),
             config.density_relative);

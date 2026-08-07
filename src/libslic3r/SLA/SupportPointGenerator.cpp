@@ -232,12 +232,19 @@ void support_part_overhangs(
 
     for (const Point &p : part.samples) {
         if (!near_points.exist_true_in_radius(p, maximal_radius, is_supported)) {
+            // Freeze the remaining Top fields at generation time too, not just
+            // head_front_radius (fix-sla-support-auto-points-top-field-freeze).
+            SupportPoint sp{
+                Vec3f{unscale<float>(p.x()), unscale<float>(p.y()), part_z},
+                /* head_front_radius */ config.head_diameter / 2,
+                SupportPointType::slope
+            };
+            sp.head_back_radius_mm   = config.head_back_radius_mm;
+            sp.head_width_mm         = config.head_width_mm;
+            sp.head_penetration_mm   = config.head_penetration_mm;
+            sp.contact_sphere_radius = config.contact_sphere_radius;
             near_points.add(LayerSupportPoint{
-                SupportPoint{
-                    Vec3f{unscale<float>(p.x()), unscale<float>(p.y()), part_z},
-                    /* head_front_radius */ config.head_diameter / 2,
-                    SupportPointType::slope
-                },
+                std::move(sp),
                 /* position_on_layer */ p,
                 /* radius_curve_index */ 0,
                 /* current_radius */ static_cast<coord_t>(scale_(config.support_curve.front().x()))
@@ -255,21 +262,29 @@ void support_island(
     const SupportPointGeneratorConfig &cfg
 ) {
     SupportIslandPoints samples = uniform_support_island(*part.shape, permanent, cfg.island_configuration);
-    for (const SupportIslandPointPtr &sample : samples)
-        near_points.add(LayerSupportPoint{
-            SupportPoint{
-                Vec3f{
-                    unscale<float>(sample->point.x()),
-                    unscale<float>(sample->point.y()),
-                    part_z
-                },
-                /* head_front_radius */ cfg.head_diameter / 2,
-                SupportPointType::island
+    for (const SupportIslandPointPtr &sample : samples) {
+        // Freeze the remaining Top fields at generation time too, not just
+        // head_front_radius (fix-sla-support-auto-points-top-field-freeze).
+        SupportPoint sp{
+            Vec3f{
+                unscale<float>(sample->point.x()),
+                unscale<float>(sample->point.y()),
+                part_z
             },
+            /* head_front_radius */ cfg.head_diameter / 2,
+            SupportPointType::island
+        };
+        sp.head_back_radius_mm   = cfg.head_back_radius_mm;
+        sp.head_width_mm         = cfg.head_width_mm;
+        sp.head_penetration_mm   = cfg.head_penetration_mm;
+        sp.contact_sphere_radius = cfg.contact_sphere_radius;
+        near_points.add(LayerSupportPoint{
+            std::move(sp),
             /* position_on_layer */ sample->point,
             /* radius_curve_index */ 0,
             /* current_radius */ static_cast<coord_t>(scale_(cfg.support_curve.front().x()))
         });
+    }
 }
 
 // Support peninsula (partial overhang) using edge-constrained sampling.
@@ -283,21 +298,29 @@ void support_peninsulas(
     for (const Peninsula &peninsula : peninsulas) {
         SupportIslandPoints peninsula_supports =
             uniform_support_peninsula(peninsula, permanent, cfg.island_configuration);
-        for (const SupportIslandPointPtr &support : peninsula_supports)
-            near_points.add(LayerSupportPoint{
-                SupportPoint{
-                    Vec3f{
-                        unscale<float>(support->point.x()),
-                        unscale<float>(support->point.y()),
-                        part_z
-                    },
-                    /* head_front_radius */ cfg.head_diameter / 2,
-                    SupportPointType::island
+        for (const SupportIslandPointPtr &support : peninsula_supports) {
+            // Freeze the remaining Top fields at generation time too, not just
+            // head_front_radius (fix-sla-support-auto-points-top-field-freeze).
+            SupportPoint sp{
+                Vec3f{
+                    unscale<float>(support->point.x()),
+                    unscale<float>(support->point.y()),
+                    part_z
                 },
+                /* head_front_radius */ cfg.head_diameter / 2,
+                SupportPointType::island
+            };
+            sp.head_back_radius_mm   = cfg.head_back_radius_mm;
+            sp.head_width_mm         = cfg.head_width_mm;
+            sp.head_penetration_mm   = cfg.head_penetration_mm;
+            sp.contact_sphere_radius = cfg.contact_sphere_radius;
+            near_points.add(LayerSupportPoint{
+                std::move(sp),
                 /* position_on_layer */ support->point,
                 /* radius_curve_index */ 0,
                 /* current_radius */ static_cast<coord_t>(scale_(cfg.support_curve.front().x()))
             });
+        }
     }
 }
 
