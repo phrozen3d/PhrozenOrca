@@ -59,6 +59,12 @@ Transform3d SLAPrint::sla_trafo(const ModelObject &model_object) const
 
 **測試 4**：複合旋轉（X、Y 各 80°，不鏡射）→ 非均勻縮放（Z 軸）→ 重新 Apply → Points 模式下位置大致正常（X 軸有輕微但不明顯的拉伸）。但切到 Structure 模式，**整個支撐樹底板沒有貼平在列印平面上**。這個情境沒有鏡射（`is_left_handed()` 為 false），不完全符合上述規律，可能是 `Pad.cpp` 底板生成邏輯在複合旋轉＋非均勻縮放下的另一個、獨立於本 change 主症狀的問題，待之後處理本 change 時一併確認是否為同一根因。
 
+**測試 5（於 `fix-sla-support-auto-points-top-field-freeze` 驗收期間補充觀察，尚未深入診斷，記錄供恢復處理時參考）**：
+
+- Auto-generate 一次、Apply 之後，若對物件做 rotate，Points 模式下畫面上的支撐點消失；但直接切到 slice/preview 頁面（觸發完整切片流程），會看到支撐**自動重新長出來**。這與測試 1 觀察到的「`sla_trafo_differs` 正確觸發 `invalidate_all_steps()`」一致——代表**背景/切片流程本身有正確重新計算**，问题（如果有）應該只在 GUI 端某個顯示或狀態同步環節，不是切片邏輯本身沒重算。
+- 使用者觀察到：rotate 後再按 Apply（在 Manual/Auto 支撐編輯情境下）「有時候」會跳出「將會移除所有點」的警告，「有時候」不會，行為不一致。懷疑跟 rotate 後 GUI 前端（`m_normal_cache`／`mo->sla_support_points`）與剛剛失效的後端資料是否同步有關——**尚未查證，只是使用者提出的假說，記錄供之後排查方向參考**，須實際追 rotate 後這幾個資料結構（`mo->sla_support_points`、`m_normal_cache`、`po->m_supportdata`）各自的實際狀態（是否真的清空／是否只是顯示層清空但底層仍有舊資料）才能確認。
+- 使用者提出的產品方向提問：rotate（哪些軸？）／scale 這類會改變物件外形或方向的操作，是否都應該跳出警告並**真的**清除支撐點資料，確保前後端資料一致？——這是合理的方向，但精確的觸發條件不應該是「任何 rotate」：測試 3 已確認純旋轉（含任一軸、不鏡射）不觸發本 change 的主症狀（無 skew），所以不是所有 rotate 都代表資料需要作廢；真正該對齊的判斷基準應該是 `SLAPrint.cpp` 現有的 `sla_trafo_differs` 邏輯本身（哪些 transform 變化會讓它判定「不同」），而不是另外發明一套「rotate/scale 就清空」的規則——後者可能與既有機制不一致，衍生出新的落差。恢復處理本 change 時，警告提示與資料清除的時機應該對齊 `sla_trafo_differs`，不是獨立設計。
+
 ## 影響範圍評估（尚未驗證，恢復處理時第一步）
 
 `sla_trafo()` 不只是前端 preview 在用，也是**後端實際切片**定位模型、計算支撐幾何的依據（`SLAPrint.cpp:642`）。如果這個矩陣本身算錯，理論上代表「任意角度旋轉 + 鏡射」的物件，**實際切出來的支撐位置/方向也可能是錯的**，不只是 preview 畫面的問題。
