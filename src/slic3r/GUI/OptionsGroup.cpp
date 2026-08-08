@@ -690,9 +690,17 @@ void ConfigOptionsGroup::on_change_OG(const t_config_option_key& opt_id, const b
 		        if (GLGizmoSlaSupports::is_sla_support_top_option(opt_key)) {
 		            if (GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance()) {
 		                if (gizmo->has_selected_support_points()) {
+		                    // apply_process_top_option() has already committed the edit to the
+		                    // selected point by this line. The field-refresh projection below is
+		                    // best-effort display feedback — if it throws, the edit itself must
+		                    // not be lost and the viewport must still be marked dirty.
 		                    gizmo->apply_process_top_option(opt_key, value);
-		                    sla_tab->begin_support_point_top_field_display(
-		                        gizmo->support_top_config_from_selection());
+		                    try {
+		                        sla_tab->begin_support_point_top_field_display(
+		                            gizmo->support_top_config_from_selection());
+		                    } catch (const std::exception &ex) {
+		                        BOOST_LOG_TRIVIAL(error) << "OptionsGroup::on_change_OG: per-point Top field refresh failed: " << ex.what();
+		                    }
 		                    if (Plater *plater = wxGetApp().plater()) {
 		                        if (GLCanvas3D *canvas = plater->get_view3D_canvas3D())
 		                            canvas->set_as_dirty();

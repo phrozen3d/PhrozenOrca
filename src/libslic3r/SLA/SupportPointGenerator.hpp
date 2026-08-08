@@ -36,6 +36,18 @@ struct SupportPointGeneratorConfig {
     // Size of the support point interface (head) [in mm]
     float head_diameter = 0.4f;
 
+    // Remaining Top-field preset snapshot, taken at Auto-generate time and written
+    // verbatim into every generated island/slope point (see fix-sla-support-auto-
+    // points-top-field-freeze). Without these, only head_diameter above was frozen at
+    // generation — the other four Top fields kept falling back to whatever the *live*
+    // preset was at slice time, silently diverging from what the user saw when they
+    // pressed Auto-generate. Units and semantics mirror the corresponding SupportPoint
+    // fields (SupportPoint.hpp) exactly, so the values here can be copied straight in.
+    float head_back_radius_mm   = 0.f; // Lower Diameter / 2, mm
+    float head_width_mm         = 0.f; // Segment Length, mm
+    float head_penetration_mm   = 0.f; // Contact depth, mm
+    float contact_sphere_radius = 0.f; // Contact sphere radius, mm; 0 = no sphere (Contact Type != Sphere)
+
     // Maximum distance to the nearest support point, defined as a curve.
     // X axis = XY distance on layer [mm], Y axis = Z height difference [mm].
     std::vector<Vec2f> support_curve = create_default_support_curve();

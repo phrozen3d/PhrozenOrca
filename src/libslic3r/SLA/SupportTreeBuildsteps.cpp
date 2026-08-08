@@ -471,8 +471,7 @@ bool SupportTreeBuildsteps::connect_to_nearpillar(const Head &head,
 bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
                                                  const Vec3d &sourcedir,
                                                  double       radius,
-                                                 long         head_id,
-                                                 bool         allow_widening)
+                                                 long         head_id)
 {
     Vec3d  jp           = hjp, endp = jp, dir = sourcedir;
     long   pillar_id    = SupportTreeNode::ID_UNSET;
@@ -519,16 +518,20 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
 
     // Force base for manually-placed support points regardless of pillar radius.
     // Case A: pillar directly from head (head_id >= 0) — look up support point type.
-    // Case B: bridge path via connect_to_ground (head_id = ID_UNSET) — infer manual from
-    //         allow_widening=false, which is only set for Light/Medium manual points.
+    // Case B: headless/synthetic junction from a bridge chain (head_id = ID_UNSET), no
+    // support point to look up. Used to infer manual from allow_widening == false — that
+    // signal no longer exists (fix-sla-support-auto-points-top-field-freeze D6 made
+    // every create_ground_pillar() call pass false, auto and manual alike), and
+    // conflating the two would now misclassify auto-descended headless junctions as
+    // manual. Conservatively assume not manual instead: no worse than before for a
+    // genuinely manual bridge chain (a Case A junction earlier on the same chain still
+    // gets the base), and no longer over-applies to auto points.
     if (!can_add_base) {
         bool is_manual = false;
         if (head_id >= 0) {
             long sp_id = m_builder.head(head_id).id;
             is_manual = sp_id >= 0 && size_t(sp_id) < m_support_pts.size() &&
                         m_support_pts[size_t(sp_id)].type == SupportPointType::manual_add;
-        } else {
-            is_manual = !allow_widening;
         }
         if (is_manual) {
             can_add_base = true;
@@ -546,24 +549,14 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
         }
     }
 
-    // We are dealing with a mini pillar that's potentially too long.
-    // Skip widening when allow_widening=false (e.g. user-requested Light support).
-    if (allow_widening && radius < m_cfg.head_back_radius_mm && jp.z() - gndlvl > 20 * radius)
-    {
-        std::optional<DiffBridge> diffbr =
-            search_widening_path(jp, dir, radius, m_cfg.head_back_radius_mm, point_slope);
-
-        if (diffbr && diffbr->endp.z() > jp_gnd) {
-            auto &br = m_builder.add_diffbridge(*diffbr);
-            if (head_id >= 0) m_builder.head(head_id).bridge_id = br.id;
-            endp = diffbr->endp;
-            radius = diffbr->end_r;
-            m_builder.add_junction(endp, radius);
-            non_head = true;
-            dir = diffbr->get_dir();
-            eval_limits();
-        } else return false;
-    }
+    // Pillars are never widened back toward the live-preset back radius anymore — every
+    // point's own resolved r_back_mm (auto or manual) is a deliberate, frozen value (see
+    // fix-sla-support-auto-points-top-field-freeze D5/D6); the widening path that used to
+    // live here (gated on an allow_widening parameter) silently overrode that. Removed
+    // rather than left dead: it was BambuStudio-inherited code (2022-07-15) originally
+    // meant to reinforce deliberately-thin *manual* pillars, but the same override applied
+    // just as readily to a temporarily-thin *frozen* auto pillar, which is exactly the
+    // behavior this change exists to prevent.
 
     if (m_cfg.object_elevation_mm < EPSILON)
     {
@@ -619,51 +612,6 @@ bool SupportTreeBuildsteps::create_ground_pillar(const Vec3d &hjp,
                                       unsigned(pillar_id));
 
     return true;
-}
-
-std::optional<DiffBridge> SupportTreeBuildsteps::search_widening_path(
-    const Vec3d &jp, const Vec3d &dir, double radius, double new_radius, double point_slope)
-{
-    double w = radius + 2 * m_cfg.head_back_radius_mm;
-    double stopval = w + jp.z() - m_builder.ground_level;
-    Optimizer<AlgNLoptSubplex> solver(get_criteria(m_cfg).stop_score(stopval));
-
-    auto [polar, azimuth] = dir_to_spheric(dir);
-
-    double fallback_ratio = radius / m_cfg.head_back_radius_mm;
-
-    auto oresult = solver.to_max().optimize(
-        [this, jp, radius, new_radius](const opt::Input<3> &input) {
-            auto &[plr, azm, t] = input;
-
-            auto   d   = spheric_to_dir(plr, azm).normalized();
-            double ret = pinhead_mesh_intersect(jp, d, radius, new_radius, t)
-                             .distance();
-            double down = bridge_mesh_distance(jp + t * d, d, new_radius);
-
-            if (ret > t && std::isinf(down))
-                ret += jp.z() - m_builder.ground_level;
-
-            return ret;
-        },
-        initvals({polar, azimuth, w}), // start with what we have
-        bounds({
-            {PI - point_slope, PI}, // Must not exceed the slope limit
-            {-PI, PI}, // azimuth can be a full search
-            {radius + m_cfg.head_back_radius_mm,
-                  fallback_ratio * m_cfg.max_bridge_length_mm}
-        }));
-
-    if (oresult.score >= stopval) {
-        polar       = std::get<0>(oresult.optimum);
-        azimuth     = std::get<1>(oresult.optimum);
-        double t    = std::get<2>(oresult.optimum);
-        Vec3d  endp = jp + t * spheric_to_dir(polar, azimuth);
-
-        return DiffBridge(jp, endp, radius, m_cfg.head_back_radius_mm);
-    }
-
-    return {};
 }
 
 void SupportTreeBuildsteps::filter()
@@ -809,13 +757,14 @@ void SupportTreeBuildsteps::filter()
                   [this, &filterfn, &filtered_indices] (size_t i) {
                       unsigned fidx = filtered_indices[i];
                       const auto &sp = m_support_pts[fidx];
-                      double back_r = m_cfg.head_back_radius_mm;
-                      if (sp.type == sla::SupportPointType::manual_add) {
-                          if (sp.head_back_radius_mm >= 0.f)
-                              back_r = double(sp.head_back_radius_mm);
-                          else if (sp.pillar_radius > 0.f)
-                              back_r = double(sp.pillar_radius);
-                      }
+                      // Same per-field resolution as head_width_mm/contact_sphere_radius
+                      // below (point_*() helper: per-point value if set, else the live
+                      // preset) — no notion of "point type" here. Used to be gated on
+                      // sp.type == manual_add with a pillar_radius fallback, which meant
+                      // auto points' own head_back_radius_mm was never read regardless of
+                      // whether the generator had frozen it (see fix-sla-support-auto-
+                      // points-top-field-freeze D5).
+                      double back_r = point_head_back_radius_mm(sp, m_cfg.head_back_radius_mm);
                       double point_slope = m_cfg.top_middle_slope;
                       if (sp.type == sla::SupportPointType::manual_add &&
                           sp.support_bracing_angle_deg >= 0.f)
@@ -932,21 +881,11 @@ void SupportTreeBuildsteps::routing_to_ground()
 
         Head &h = m_builder.head(hid);
 
-        // Disable widening for manual points whose pillar_radius is explicitly
-        // smaller than the global back radius — widening would override the
-        // user's chosen Light/Medium size.
-        bool widen = true;
-        {
-            const long sp_id = h.id;
-            if (sp_id >= 0 && size_t(sp_id) < m_support_pts.size()) {
-                const auto &sp = m_support_pts[size_t(sp_id)];
-                if (sp.type == sla::SupportPointType::manual_add &&
-                    sp.pillar_radius > 0.f &&
-                    double(sp.pillar_radius) < m_cfg.head_back_radius_mm)
-                    widen = false;
-            }
-        }
-        if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id, widen)) {
+        // create_ground_pillar() no longer widens pillars back toward the live-preset
+        // back radius (removed entirely — see fix-sla-support-auto-points-top-field-
+        // freeze D5/D6): every point's own r_back_mm (auto or manual) is a deliberate,
+        // frozen value, and silently padding it back out defeated that.
+        if (!create_ground_pillar(h.junction_point(), h.dir, h.r_back_mm, h.id)) {
             BOOST_LOG_TRIVIAL(warning)
                 << "Pillar cannot be created for support point id: " << hid;
             m_iheads_onmodel.emplace_back(h.id);
@@ -981,8 +920,7 @@ void SupportTreeBuildsteps::routing_to_ground()
                     (!connect_to_nearpillar(sidehead, centerpillarID) &&
                      !search_pillar_and_connect(sidehead))) {
                     Vec3d pstart = sidehead.junction_point();
-                    bool sw = true;
-                    create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id, sw);
+                    create_ground_pillar(pstart, sidehead.dir, sidehead.r_back_mm, sidehead.id);
                 }
             }
         }
@@ -996,20 +934,15 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     double t = bridge_mesh_distance(hjp, dir, head.r_back_mm);
     double d = 0, tdown = 0;
 
-    // For manual points whose pillar_radius is smaller than the global back
-    // radius, do not scale the bridge length down — they need the same reach
-    // as the global setting to find a valid downward path.
-    bool is_manual_small = false;
-    if (head.id >= 0 && size_t(head.id) < m_support_pts.size()) {
-        const auto &sp = m_support_pts[size_t(head.id)];
-        if (sp.type == sla::SupportPointType::manual_add &&
-            sp.pillar_radius > 0.f &&
-            double(sp.pillar_radius) < m_cfg.head_back_radius_mm)
-            is_manual_small = true;
-    }
+    // A point's own resolved back radius (auto or manual, see fix-sla-support-auto-
+    // points-top-field-freeze D5/D6) can now legitimately be smaller than the live
+    // preset for any point type, not just manual — don't scale the bridge search
+    // distance down in that case, it needs the same reach as the global setting would
+    // give to find a valid downward path. Used to be gated on sp.type == manual_add.
+    bool r_smaller_than_live = r < m_cfg.head_back_radius_mm;
 
-    t = std::min(t, is_manual_small ? m_cfg.max_bridge_length_mm
-                                    : m_cfg.max_bridge_length_mm * r / m_cfg.head_back_radius_mm);
+    t = std::min(t, r_smaller_than_live ? m_cfg.max_bridge_length_mm
+                                        : m_cfg.max_bridge_length_mm * r / m_cfg.head_back_radius_mm);
 
     while (d < t && !std::isinf(tdown = bridge_mesh_distance(hjp + d * dir, DOWN, r)))
         d += r;
@@ -1019,9 +952,7 @@ bool SupportTreeBuildsteps::connect_to_ground(Head &head, const Vec3d &dir)
     Vec3d endp = hjp + d * dir;
     bool ret = false;
 
-    // Don't widen the pillar for manual points with an explicit smaller radius.
-    bool widen_ctg = !is_manual_small;
-    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, head.id, widen_ctg))) {
+    if ((ret = create_ground_pillar(endp, dir, head.r_back_mm, head.id))) {
         m_builder.add_bridge(head.id, endp);
         m_builder.add_junction(endp, head.r_back_mm);
     }

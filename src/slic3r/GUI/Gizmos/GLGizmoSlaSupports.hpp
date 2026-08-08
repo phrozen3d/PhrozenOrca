@@ -169,7 +169,21 @@ private:
     static constexpr size_t k_head_model_cache_limit = 64;
     std::map<HeadGeomKey, GLModel> m_head_model_cache;
     // Step 4.2: removed GLModel m_cylinder (drain holes are GLGizmoHollow's responsibility)
-    std::vector<std::pair<std::shared_ptr<SceneRaycasterItem>, std::shared_ptr<SceneRaycasterItem>>> m_point_raycasters;
+    // Three raycasters per point, all registered under the same picking id so a hit on
+    // any of them reports the same point (see fix-sla-support-point-cone-picking):
+    //   - pin_sphere: covers the pin end (radius max(r_pin, r_contact), centred at pos)
+    //   - cone:       covers the robe (frustum-approximating cone from the pin end to
+    //                 the back sphere's widest point)
+    //   - back_sphere: covers the back/pillar-junction end (radius r_back_mm, centred
+    //                 at head.junction_point()) — the cone's flat base cannot follow
+    //                 the back sphere's curvature past its widest point, so without
+    //                 this the outer half of the back ball is unclickable.
+    struct PointRaycasterSet {
+        std::shared_ptr<SceneRaycasterItem> pin_sphere;
+        std::shared_ptr<SceneRaycasterItem> cone;
+        std::shared_ptr<SceneRaycasterItem> back_sphere;
+    };
+    std::vector<PointRaycasterSet> m_point_raycasters;
 
     // This map holds all translated description texts, so they can be easily referenced during layout calculations
     // etc. When language changes, GUI is recreated and this class constructed again, so the change takes effect.
@@ -191,6 +205,13 @@ private:
         AllPoints = -2,
         NoPoints,
     };
+    // Anchor for the Top panel display when multiple points are selected: index into
+    // m_editing_cache of the most-recently-selected point (fix-sla-support-preview-
+    // geometry-source-semantics D6). NoPoints when nothing is selected. Kept in sync by
+    // select_point()/unselect_point(); editing a Top field still applies to every
+    // selected point (apply_process_top_option()), only the *displayed* value follows
+    // this anchor.
+    int m_last_selected_index = NoPoints;
     void select_point(int i);
     void unselect_point(int i);
     void editing_mode_apply_changes();
@@ -208,14 +229,6 @@ private:
     void apply_weight_preset(sla::SupportWeight w);
     void sync_new_point_params_from_config();
     void freeze_process_top_into_point(sla::SupportPoint &sp) const;
-
-    // Auto Support: Apply enabled when weight/density differ from last auto_generate (or no points yet).
-    sla::SupportWeight m_applied_auto_weight = sla::SupportWeight::Medium;
-    int                m_applied_auto_density = 100;
-    float              m_applied_auto_critical_angle = 0.f;
-    bool               m_auto_baseline_initialized = false;
-    bool auto_settings_need_apply(const ModelObject* mo) const;
-    void mark_auto_settings_applied(const ModelObject* mo);
 
     // New Support UI panels — rendered below the legacy panel as a preview skeleton.
     void render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo);

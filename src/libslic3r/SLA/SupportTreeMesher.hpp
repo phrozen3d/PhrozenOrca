@@ -35,7 +35,12 @@ indexed_triangle_set pinhead(double r_pin,
                              double length,
                              size_t steps = 45);
 
-// Simplified pinhead for manual-support editor preview (no back-sphere bulge).
+// No caller currently passes preview=true to head_mesh_body() (the GUI's
+// per-point preview and the slicing pipeline's get_mesh() both request the
+// full pinhead() shape — see fix-sla-support-preview-visual-parity). Kept
+// because collapsing head_mesh_body()'s preview branch is a separate,
+// broader refactor of a function get_mesh() (slicing pipeline) also calls;
+// out of scope for a GUI-only visual-parity change.
 indexed_triangle_set pinhead_preview(double r_pin,
                                      double r_back,
                                      double length,
@@ -99,11 +104,6 @@ inline indexed_triangle_set head_mesh_local(const Head &h, size_t steps, bool pr
 inline indexed_triangle_set get_mesh(const Head &h, size_t steps)
 {
     return head_mesh_local(h, steps, /*preview=*/false);
-}
-
-inline indexed_triangle_set get_mesh_preview(const Head &h, size_t steps)
-{
-    return head_mesh_local(h, steps, /*preview=*/true);
 }
 
 inline indexed_triangle_set get_mesh(const Pillar &p, size_t steps)

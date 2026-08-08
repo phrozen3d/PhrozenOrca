@@ -108,19 +108,282 @@ The visible diameter and length of each Points-preview cone — head / pillar / 
 
 ### Requirement: Points-preview picking is consistent with the rendered cone
 
-The picking sphere registered through `update_point_raycasters_for_picking_transform()` SHALL match the rendered cone in both world position and world radius: the sphere centre at `instance_scaling_matrix * sp.pos`, the picking transform excluding positive instance scale (mirror preserved), and the sphere radius equal to `max(head.r_pin_mm, head.r_contact_mm)` in mm regardless of instance scale.
+The pickable volume of a Points-preview support point SHALL be the union of its three registered raycasters — `pin_sphere` covering the pin / contact sphere, `cone` covering the robe segment, and `back_sphere` covering the pillar-junction end — and SHALL cover the entire visible pinhead.
+
+`pin_sphere` SHALL be centred at the pin/contact sphere's actual rendered centre — `instance_scaling_matrix * sp.pos + (head.r_pin_mm - head.penetration_mm) * head.dir`, not at the anchor itself — with radius `max(head.r_pin_mm, head.r_contact_mm)` in mm regardless of instance scale. (`head_mesh_body()` places the pin/contact sphere at local `z = penetration_mm - r_pin_mm`, not at the anchor's local origin; centring the raycaster at the anchor directly is a mismatch that grows more visible as Contact Diameter increases the sphere's radius.)
+
+`cone` SHALL be transformed so the unit cone (`its_make_cone(1.0, 1.0, …)`, base circle at the origin in the `z = 0` plane, apex at `+Z·h`) aligns with the rendered robe: apex at the anchor, base of radius `head.r_back_mm` at offset `head.fullwidth() - head.r_back_mm` along the surface normal used to orient the rendered cone. It SHALL NOT remain at `Transform3d::Identity()`, and it SHALL NOT be permanently inactive.
+
+`back_sphere` SHALL be centred at the same point as `cone`'s base (offset `head.fullwidth() - head.r_back_mm` along the surface normal) with radius `head.r_back_mm` in mm, matching the visible back sphere exactly — `cone`'s flat base cannot follow the back sphere's curvature past its widest point, so without `back_sphere` the outer half of the back ball is unhoverable.
+
+All three raycasters SHALL use the same picking transform convention as the render path — positive instance scale excluded, mirror preserved — and SHALL be registered under the same raycaster id so a hit on any of them reports the same `m_hover_id`.
+
+All three raycasters SHALL follow the same clipping-driven active-state rule: when a point is clipped, none of them is active. This rule SHALL hold regardless of how many times per frame, or in what order relative to `render_points()`, the raycaster transforms are recomputed.
+
+The pickable volume SHALL NOT extend beyond the visible pinhead: `cone` is inscribed within the rendered frustum (which widens from `r_pin` to `r_back`), and `back_sphere` coincides with the rendered back sphere, so empty space adjacent to the rendered geometry SHALL NOT register a hit.
+
+#### Scenario: Hover on the exposed cone body
+
+- **GIVEN** support points have been generated and are visible in Points view
+- **WHEN** the user hovers over the robe segment of a pinhead, away from its top sphere
+- **THEN** the gizmo reports a hover-id matching that point
+- **AND** clicking there selects that point
+
+#### Scenario: Hover on the back sphere
+
+- **GIVEN** support points have been generated and are visible in Points view
+- **WHEN** the user hovers over the back sphere — the end of the pinhead beyond `cone`'s base, where the visible ball curves back inward toward its own tip
+- **THEN** the gizmo reports a hover-id matching that point
+
+#### Scenario: Hover on an enlarged contact sphere
+
+- **GIVEN** Manual Editing mode with a support point whose Contact Diameter is set well above the pin diameter, so `pin_sphere`'s radius is driven by `head.r_contact_mm`
+- **WHEN** the user hovers anywhere on the visible contact sphere's surface, including the side furthest from the back sphere
+- **THEN** the gizmo reports a hover-id matching that point
+- **AND** hovering just outside that same surface does not report a hit
 
 #### Scenario: Hover under uniform scale
 
 - **GIVEN** an instance with uniform scale 1.5 in Manual Editing mode
 - **WHEN** the user hovers over the visible cone for a support point
 - **THEN** the gizmo reports a hover-id matching that point
-- **AND** there is no hover gap or false hit-test region between the cone and the picking sphere
+- **AND** every part of the visible pinhead — top sphere, robe, back sphere — is hoverable
 
 #### Scenario: Hover under non-uniform scale
 
 - **GIVEN** an instance with non-uniform scale in Manual Editing mode
 - **WHEN** the user hovers over the visible cone for a support point
-- **THEN** the picking sphere centre coincides with the visible cone's anchor
-- **AND** the sphere radius matches the cone's head / contact radius in mm
+- **THEN** the `pin_sphere` centre coincides with the visible pin/contact sphere's actual centre (not the anchor)
+- **AND** the `cone` and `back_sphere` axis/position follow the same scaled-mesh surface normal that orients the rendered cone
+- **AND** there is no hover gap along the length of the visible pinhead
+
+#### Scenario: No false hits beside the cone
+
+- **GIVEN** a support point rendered in Points view
+- **WHEN** the user hovers just outside the silhouette of the visible pinhead
+- **THEN** no hover-id is reported for that point
+
+#### Scenario: Mirrored instance
+
+- **GIVEN** an instance with a mirror transform so `vol->is_left_handed()` is true
+- **WHEN** the user hovers over the robe segment of a pinhead
+- **THEN** the point is hovered
+- **AND** the cone raycaster is not flipped away from the visible geometry
+
+#### Scenario: Clipped point disables all raycasters
+
+- **GIVEN** the object clipper is active and a support point is clipped
+- **WHEN** the user hovers at that point's former location
+- **THEN** none of `pin_sphere`, `cone`, or `back_sphere` reports a hit
+
+### Requirement: Picking raycaster transforms stay live during Manual Editing
+
+While `m_editing_mode` is true, `update_point_raycasters_for_picking_transform()` SHALL be invoked every render frame (alongside `render_points()`), not only from discrete trigger events (entering editing mode, raycaster registration, point drag, `data_changed()`). The pickable volume of every support point SHALL track the same live Process-tab Top parameter values used by the rendered cone in that same frame. `update_point_raycasters_for_picking_transform()` SHALL derive each raycaster's active state from `is_mesh_point_clipped()` itself rather than relying on `render_points()` having run in a particular order within the same frame.
+
+#### Scenario: Adjusting Upper Diameter grows the pickable pin sphere immediately
+
+- **GIVEN** Manual Editing mode with an auto-generated support point that has no explicit per-point geometry
+- **WHEN** the user increases "Upper Diameter" in the Process tab, without selecting the point or dragging it
+- **THEN** the rendered pin sphere grows on the next frame
+- **AND** the pickable `pin_sphere` raycaster radius grows to match on that same frame — hovering at the new visible edge reports a hit
+
+#### Scenario: Adjusting Lower Diameter moves the pickable back sphere immediately
+
+- **GIVEN** Manual Editing mode with an auto-generated support point that has no explicit per-point geometry
+- **WHEN** the user increases "Lower Diameter" in the Process tab, without selecting the point or dragging it
+- **THEN** the rendered back sphere grows and moves further from the anchor on the next frame
+- **AND** the pickable `back_sphere` raycaster's position and radius track the new geometry on that same frame — there is no stale hit-test region left behind at the old, smaller position
+
+#### Scenario: No dead zone accumulates from repeated live edits
+
+- **GIVEN** Manual Editing mode with several unselected auto-generated points visible
+- **WHEN** the user repeatedly adjusts Top parameters (Upper Diameter, Lower Diameter, Segment Length) back and forth without ever selecting or dragging a point
+- **THEN** at every point in time, hovering over the currently visible pinhead reports a hit
+- **AND** hovering just outside the currently visible pinhead does not report a hit (no leftover pickable region from an earlier parameter value)
+
+#### Scenario: Dragging a point still works after a live parameter edit
+
+- **GIVEN** Manual Editing mode with a support point whose Top parameters were just live-edited while unselected
+- **WHEN** the user hovers, selects, and drags that point
+- **THEN** hover, selection, and drag behave exactly as before this change — the added per-frame refresh does not interfere with the drag's own transform updates
+
+#### Scenario: A clipped point never intercepts hover meant for another point
+
+- **GIVEN** the object clipper hides an upper support point, exposing a lower point whose on-screen footprint overlaps where the hidden point used to be
+- **WHEN** the user hovers over that overlapping region, in Manual Editing mode with `update_point_raycasters_for_picking_transform()` running every frame
+- **THEN** the now-visible lower point is hovered
+- **AND** the hidden upper point's `pin_sphere`/`cone`/`back_sphere` do not intercept the hit, in any frame, regardless of the order `render_points()` and `update_point_raycasters_for_picking_transform()` ran in that frame
+
+### Requirement: Preview cone geometry parameters match the slicing pipeline
+
+The per-point geometry parameters used to build a Points-preview cone SHALL be resolved with the same rule the slicing pipeline uses, and SHALL NOT depend on whether the gizmo is in editing mode.
+
+For every support point, each of head front radius, head back radius, head width, head penetration, and contact sphere radius SHALL be taken from the point's own stored value when that value is set (`>= 0`, i.e. not `SUPPORT_POINT_USE_PRESET`), and SHALL fall back to the live SLA print preset value otherwise — the rule implemented by the shared `point_*()` helpers in `SupportPoint.hpp` and consumed unconditionally by `SupportTreeBuildsteps`.
+
+Points whose `type` is not `manual_add`, and `manual_add` points with no explicit geometry, SHALL continue to resolve entirely from the preset.
+
+#### Scenario: Manual points keep their size after leaving editing mode
+
+- **GIVEN** the user has placed three `manual_add` support points in Manual editing mode with different `support_head_front_diameter` values
+- **WHEN** the user leaves editing mode and views the same points in Points view
+- **THEN** each cone keeps the head diameter it was created with
+- **AND** the three cones remain visibly different in size
+
+#### Scenario: Preview matches sliced support geometry
+
+- **GIVEN** a model with `manual_add` support points carrying explicit per-point geometry
+- **AND** the SLA print preset's Top values differ from those per-point values
+- **WHEN** the object is sliced and the resulting support tree is compared against the non-editing Points preview
+- **THEN** each preview cone's head diameter, head width, penetration and contact sphere radius match the generated support geometry for the same point
+
+#### Scenario: Auto-generated points are unaffected
+
+- **GIVEN** support points produced by auto-generation, whose per-point geometry fields are all `SUPPORT_POINT_USE_PRESET`
+- **WHEN** the gizmo renders them in Points view
+- **THEN** every cone resolves its geometry from the live preset values
+- **AND** the rendered size is identical to the behaviour before this change
+
+#### Scenario: Editing mode behaviour is unchanged
+
+- **GIVEN** Manual editing mode with a mix of auto and `manual_add` points
+- **WHEN** the gizmo renders the points
+- **THEN** each cone's geometry is identical to the behaviour before this change
+- **AND** a selected point still resolves from its own stored geometry
+
+#### Scenario: Live preset edits still drive points without explicit geometry
+
+- **GIVEN** Points view with auto-generated points and one `manual_add` point that has explicit geometry
+- **WHEN** the user changes `support_head_front_diameter` in the SLA print preset and the view is redrawn
+- **THEN** the auto points' cone diameter follows the new preset value
+- **AND** the `manual_add` point's cone diameter stays at its stored value
+
+### Requirement: Picking stays consistent with the resolved preview geometry
+
+The picking sphere radius for a support point SHALL be derived from the same resolved geometry as the rendered cone, so that changing the geometry resolution rule does not open a gap between what is visible and what can be hit.
+
+#### Scenario: Hover on a manual point with explicit geometry
+
+- **GIVEN** Manual editing mode with a `manual_add` point whose stored head front radius differs from the preset value
+- **WHEN** the user hovers over the visible cone for that point
+- **THEN** the gizmo reports a hover-id matching that point
+- **AND** the picking sphere radius matches the rendered cone's head / contact radius in mm
+
+### Requirement: Preview cone shape and shading do not depend on support point type
+
+The mesh construction function and shader used to render a Points-preview cone SHALL be the same regardless of `support_point.type`. Manual (`manual_add`) points and auto-generated (`island` / `slope`) points SHALL use the same pinhead mesh construction (`pinhead()`) and the same lit shader (`gouraud_light`).
+
+`render_points()` SHALL NOT select a different mesh-building function or a different shader based on whether a point is `manual_add`.
+
+#### Scenario: Manual point uses the same mesh shape as auto points
+
+- **GIVEN** a `manual_add` support point and an auto-generated support point with identical size parameters
+- **WHEN** both are rendered in Points preview
+- **THEN** both cones have the same geometry (rounded back-sphere tip via the tangent-circle robe), not the simplified flat-disc shape
+
+#### Scenario: Manual point is lit like auto points
+
+- **GIVEN** a `manual_add` support point rendered in Points preview
+- **WHEN** the user rotates the camera around it
+- **THEN** the cone's shading changes with view angle (directional lighting), the same as an auto-generated point
+- **AND** the cone is NOT rendered with a flat, view-independent uniform color
+
+#### Scenario: Slicing output is unaffected
+
+- **GIVEN** any support point, manual or auto-generated
+- **WHEN** the object is sliced
+- **THEN** the generated support geometry is identical to the behavior before this change
+- **AND** this requirement governs only the Points-preview rendering path, not `SupportTreeBuildsteps`
+
+### Requirement: Support point type coloring applies regardless of editing mode
+
+The color differentiation by `support_point.type` (`manual_add` → CYAN, `island` → ORANGE, other → LIGHT_GRAY) SHALL apply whether or not `m_editing_mode` is true. Non-editing mode (Points view) SHALL NOT collapse all points to a single uniform color.
+
+Interaction-driven colors (hover → CYAN, selected → REDISH) SHALL remain gated on `m_editing_mode`, since hover and selection have no meaning outside editing mode.
+
+The locked-island indicator (BLUEISH, gated on `m_lock_unique_islands`) SHALL remain gated on `m_editing_mode` — locking is an editing-mode-only operation and has no corresponding state to display outside editing mode.
+
+#### Scenario: Points view shows type-differentiated colors
+
+- **GIVEN** Points view (non-editing mode) with a mix of auto-generated island points, auto-generated slope points, and manual points
+- **WHEN** the gizmo renders them
+- **THEN** manual points are CYAN, island points are ORANGE, slope points are LIGHT_GRAY
+- **AND** the points are NOT all rendered in the same uniform gray
+
+#### Scenario: Locked-island indicator stays editing-mode-only
+
+- **GIVEN** `m_lock_unique_islands` is enabled and an island point exists
+- **WHEN** the gizmo renders in Points view (non-editing mode)
+- **THEN** the island point is rendered ORANGE (the type-based color), not BLUEISH
+- **AND** BLUEISH is only used when `m_editing_mode` is true
+
+#### Scenario: Hover and selection colors unaffected
+
+- **GIVEN** Manual editing mode with a hovered point and a separately selected point
+- **WHEN** the gizmo renders them
+- **THEN** the hovered point is CYAN and the selected point is REDISH, matching the behavior before this change
+
+### Requirement: Preview geometry cache is unaffected by shape/shading unification
+
+The per-point geometry cache (`m_head_model_cache`, keyed by `HeadGeomKey`) SHALL continue to avoid rebuilding `GLModel` instances every frame after this change. Points with identical size parameters SHALL share a cache entry regardless of `support_point.type`.
+
+#### Scenario: Auto and manual points with matching size share one cache entry
+
+- **GIVEN** an auto-generated point and a manual point with identical head/pillar/contact dimensions
+- **WHEN** both are rendered in the same frame
+- **THEN** they resolve to the same `HeadGeomKey` cache entry
+- **AND** `GLModel::init_from()` is called at most once for that entry, not once per point
+
+#### Scenario: Steady-state frame cost is unchanged
+
+- **GIVEN** a scene with several hundred support points already rendered once (cache warmed)
+- **WHEN** the camera is rotated across further frames with no parameter changes
+- **THEN** `GLModel::init_from()` is called 0 times per frame, matching the behavior established by `perf-sla-support-points-preview-render`
+
+### Requirement: Live Top parameter reads are isolated from the per-point display borrow
+
+While the Process → Support → Top fields are displaying a selected support point's own stored values — whether because a point is currently selected (`GLGizmoSlaSupports::has_selected_support_points() == true`) or because the display has not yet been restored to the live preset after the point was deselected (`TabSLAPrint::is_support_point_top_field_active() == true`) — the live-parameter read helpers used to resolve OTHER points' preview geometry (`process_top_float_live()`, `process_contact_type_is_sphere()`) SHALL NOT read the widgets' currently-displayed text. They SHALL instead read the actual live SLA print preset value (`sla_process_config()`).
+
+The two conditions SHALL be combined with logical OR, not one replacing the other: `has_selected_support_points()` covers the window right after selecting a point, before `begin_support_point_top_field_display()` has updated the widgets to that point's values; `is_support_point_top_field_active()` covers the window right after deselecting, before the deferred `end_support_point_top_field_display()` (scheduled via `wxTheApp->CallAfter()` in `notify_process_tab_selection_changed()`) has restored the widgets to the live preset text.
+
+When neither condition holds — no point selected and the widgets are not mid-restore — these helpers SHALL continue to read the widgets' currently-displayed text, preserving the existing live-typing behavior (values reflect edits before the field loses focus).
+
+#### Scenario: Selecting and editing a manual point does not perturb auto points
+
+- **GIVEN** Points view with several auto-generated points and one `manual_add` point with explicit geometry
+- **WHEN** the user selects the `manual_add` point and edits its `support_head_front_diameter` in the Top fields
+- **THEN** the auto-generated points' preview cone diameters remain unchanged for the entire duration the point stays selected
+- **AND** they do NOT visually shift to match the value currently displayed for the selected point
+
+#### Scenario: Selecting and editing an auto-generated point does not perturb other auto points
+
+- **GIVEN** Points view with multiple auto-generated points, none with explicit geometry
+- **WHEN** the user selects one auto-generated point and edits its `support_head_front_diameter`
+- **THEN** the OTHER auto-generated points' preview cone diameters remain unchanged
+- **AND** only the selected point's own preview reflects the edit (via its own stored geometry, independent of this requirement)
+
+#### Scenario: Contact type selection while a point is selected does not perturb other points
+
+- **GIVEN** Points view with auto-generated points and a selected manual point
+- **WHEN** the user changes the selected point's `support_contact_type` between None and Sphere
+- **THEN** the other auto-generated points' contact-sphere rendering is unaffected for the duration of the selection
+
+#### Scenario: Live-typing feedback is preserved when nothing is selected
+
+- **GIVEN** Points view with auto-generated points, no support point currently selected
+- **WHEN** the user edits `support_head_front_diameter` in the Process tab and the view redraws before the field loses focus
+- **THEN** the auto-generated points' preview cone diameters follow the newly typed value on the next redraw
+- **AND** this live-typing behavior is unchanged from before this change
+
+#### Scenario: Deselecting does not cause a one-frame flash of the just-edited point's values
+
+- **GIVEN** the user has selected an auto-generated point, edited its `support_head_front_diameter` or `support_contact_type`, and other auto-generated points are visible with different values
+- **WHEN** the user deselects the point (e.g. by clicking elsewhere in the viewport, which clears the selection synchronously while the Top field restore is deferred to the next event-loop idle tick)
+- **THEN** the other auto-generated points' preview does NOT flash to the just-deselected point's values on any frame, including the frame(s) rendered before the deferred restore has run
+- **AND** once the restore has run, the other points continue to reflect the actual live preset value with no visible transition
+
+#### Scenario: Switching the selected point does not leak the previous point's displayed value
+
+- **GIVEN** two support points, A and B, both without explicit geometry
+- **WHEN** the user selects A, then immediately selects B (switching selection without an intervening deselected state)
+- **THEN** at no point do the other, unselected auto-generated points' preview reflect A's or B's per-point displayed values — they continue to track the live preset throughout the switch
 

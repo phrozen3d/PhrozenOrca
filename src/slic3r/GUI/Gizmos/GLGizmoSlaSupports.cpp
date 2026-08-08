@@ -102,15 +102,39 @@ GLGizmoSlaSupports *GLGizmoSlaSupports::active_instance()
 static bool process_contact_type_is_sphere()
 {
     TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
-    if (tab) {
-        Page *page = nullptr;
-        if (Field *field = tab->get_field("support_contact_type", &page)) {
-            const boost::any val = field->get_value();
-            if (!val.empty()) {
-                try {
-                    if (val.type() == typeid(int))
-                        return boost::any_cast<int>(val) == int(spSphere);
-                } catch (const std::exception &) {
+
+    // While a support point is selected, the Top widgets are borrowed to display that
+    // point's own value (begin_support_point_top_field_display(), Tab.cpp) — reading
+    // them here would leak the selected point's value onto every other point's preview
+    // (see fix-sla-support-top-params-live-read-isolation). Skip straight to the preset
+    // fallback below, same as when the field itself can't be found.
+    //
+    // has_selected_support_points() alone isn't enough: it flips synchronously on
+    // (de)selection, but the widget restore/borrow itself is deferred via CallAfter
+    // (notify_process_tab_selection_changed()) to avoid re-entering wx from gizmo mouse
+    // handlers. On deselect there is a window where selection is already gone but the
+    // widget still shows the just-deselected point's value — is_support_point_top_field_active()
+    // tracks that window precisely (see fix-sla-support-top-field-restore-race D2). OR,
+    // not replace: has_selected_support_points() alone still matters right after selecting,
+    // before begin_...() has caught the widget up.
+    const bool widget_borrowed_by_selection = [tab] {
+        GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
+        if (gizmo && gizmo->has_selected_support_points())
+            return true;
+        return tab && tab->is_support_point_top_field_active();
+    }();
+
+    if (!widget_borrowed_by_selection) {
+        if (tab) {
+            Page *page = nullptr;
+            if (Field *field = tab->get_field("support_contact_type", &page)) {
+                const boost::any val = field->get_value();
+                if (!val.empty()) {
+                    try {
+                        if (val.type() == typeid(int))
+                            return boost::any_cast<int>(val) == int(spSphere);
+                    } catch (const std::exception &) {
+                    }
                 }
             }
         }
@@ -130,23 +154,36 @@ static bool process_contact_type_is_sphere()
 static float process_top_float_live(const char *key, float fallback)
 {
     TabSLAPrint *tab = dynamic_cast<TabSLAPrint *>(wxGetApp().get_tab(Preset::TYPE_SLA_PRINT));
-    if (tab) {
-        Page *page = nullptr;
-        Field *field = tab->get_field(key, &page);
-        if (field) {
-            boost::any val = field->get_value();
-            if (!val.empty()) {
-                try {
-                    if (val.type() == typeid(double))
-                        return float(boost::any_cast<double>(val));
-                    if (val.type() == typeid(int))
-                        return float(boost::any_cast<int>(val));
-                    if (val.type() == typeid(wxString)) {
-                        double parsed = 0.;
-                        if (boost::any_cast<wxString>(val).ToDouble(&parsed))
-                            return float(parsed);
+
+    // Same rationale as process_contact_type_is_sphere() above, including the OR against
+    // is_support_point_top_field_active() for the deselect-restore race (see
+    // fix-sla-support-top-field-restore-race D2).
+    const bool widget_borrowed_by_selection = [tab] {
+        GLGizmoSlaSupports *gizmo = GLGizmoSlaSupports::active_instance();
+        if (gizmo && gizmo->has_selected_support_points())
+            return true;
+        return tab && tab->is_support_point_top_field_active();
+    }();
+
+    if (!widget_borrowed_by_selection) {
+        if (tab) {
+            Page *page = nullptr;
+            Field *field = tab->get_field(key, &page);
+            if (field) {
+                boost::any val = field->get_value();
+                if (!val.empty()) {
+                    try {
+                        if (val.type() == typeid(double))
+                            return float(boost::any_cast<double>(val));
+                        if (val.type() == typeid(int))
+                            return float(boost::any_cast<int>(val));
+                        if (val.type() == typeid(wxString)) {
+                            double parsed = 0.;
+                            if (boost::any_cast<wxString>(val).ToDouble(&parsed))
+                                return float(parsed);
+                        }
+                    } catch (const std::exception &) {
                     }
-                } catch (const std::exception &) {
                 }
             }
         }
@@ -210,14 +247,6 @@ static float default_contact_sphere_radius_mm()
     return clamp_support_diameter_mm(process_top_float_live("support_contact_diameter", 0.8f)) * 0.5f;
 }
 
-// Match slice: manual points use per-point TOP stored at placement/edit; live Process Top is only for the next new point.
-static bool preview_use_stored_top(const sla::SupportPoint &sp, bool point_selected)
-{
-    if (point_selected)
-        return true;
-    return sp.type == sla::SupportPointType::manual_add && sp.has_explicit_geometry();
-}
-
 // One snapshot of the Process → Support → Top live field values.
 // Reading a field goes through Tab::get_field(), a linear scan over every Process
 // page, plus a native text-control read — far too expensive to repeat per support
@@ -228,7 +257,6 @@ struct PreviewTopParams
 {
     float  seg_len_mm        = 2.f;
     float  penetration_mm    = 0.4f;
-    double upper_r_mm        = 0.2;
     double lower_r_mm        = 0.5;
     float  contact_sphere_r_mm = 0.4f;
     bool   contact_sphere    = false;
@@ -239,47 +267,35 @@ static PreviewTopParams read_preview_top_params_live()
     PreviewTopParams p;
     p.seg_len_mm          = clamp_segment_length_mm(process_top_float_live("support_segment_length", 2.f));
     p.penetration_mm      = clamp_contact_depth(process_top_float_live("support_head_penetration", 0.4f));
-    p.upper_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_front_diameter", 0.4f)) * 0.5f);
+    // Upper Diameter (head_front_radius) has no preset fallback to read here — every point
+    // always carries a concrete value, see preview_sla_head_for_point().
     p.lower_r_mm          = double(clamp_support_diameter_mm(process_top_float_live("support_head_back_diameter", 1.f)) * 0.5f);
     p.contact_sphere_r_mm = default_contact_sphere_radius_mm();
     p.contact_sphere      = process_contact_type_is_sphere();
     return p;
 }
 
-// Same TOP parameter resolution as SupportTreeBuildsteps (manual_add back radius, mesh penetration, contact sphere).
-static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal, bool use_stored_point,
+// Same TOP parameter resolution as SupportTreeBuildsteps (SupportTreeBuildsteps.cpp:693):
+// every field is resolved independently via the point_*() helpers (per-point value if
+// set, otherwise the live preset) — no notion of "editing mode" or "selection" here,
+// matching slicing exactly (fix-sla-support-preview-geometry-source-semantics D4/D2).
+static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal,
                                             const PreviewTopParams &top)
 {
-    const float live_seg     = top.seg_len_mm;
-    const float live_pen     = top.penetration_mm;
-    const double live_upper_r = top.upper_r_mm;
-    const double live_lower_r = top.lower_r_mm;
-    const bool   preset_sphere = top.contact_sphere;
+    // head_front_radius has no SUPPORT_POINT_USE_PRESET sentinel — every point always
+    // carries a concrete value (written at auto-generation, manual placement, or
+    // selected-point edit), so slicing — and this preview — always reads it unconditionally.
+    const double pin_r = double(sp.head_front_radius);
 
-    const double pin_r = use_stored_point ? double(sp.head_front_radius) : live_upper_r;
-
-    double back_r = live_lower_r;
-    if (use_stored_point) {
-        if (sp.head_back_radius_mm >= 0.f)
-            back_r = double(sp.head_back_radius_mm);
-        else if (sp.pillar_radius > 0.f)
-            back_r = double(sp.pillar_radius);
-    }
-
-    const double width_mm = use_stored_point
-        ? double(clamp_segment_length_mm(sla::point_head_width_mm(sp, live_seg)))
-        : double(live_seg);
+    const double back_r  = double(sla::point_head_back_radius_mm(sp, top.lower_r_mm));
+    const double width_mm = double(clamp_segment_length_mm(sla::point_head_width_mm(sp, top.seg_len_mm)));
 
     double contact_r = 0.;
-    if (use_stored_point) {
-        if (sla::point_uses_contact_sphere(sp, preset_sphere))
-            contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
-    } else if (preset_sphere) {
-        contact_r = double(top.contact_sphere_r_mm);
-    }
+    if (sla::point_uses_contact_sphere(sp, top.contact_sphere))
+        contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
 
     const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
-        sp, live_pen, float(pin_r), float(contact_r)));
+        sp, top.penetration_mm, pin_r, contact_r));
 
     Vec3d dir = normal.cast<double>();
     if (dir.squaredNorm() < EPSILON)
@@ -299,7 +315,11 @@ static void support_top_apply_point(const sla::SupportPoint &sp, DynamicPrintCon
     const bool preset_sphere = process_contact_type_is_sphere();
     const bool use_sphere    = sla::point_uses_contact_sphere(sp, preset_sphere);
 
-    cfg.set("support_contact_type", use_sphere ? spSphere : spNone2);
+    // support_contact_type is coEnum: ConfigBase::set(key, int) has no case for it and
+    // throws BadOptionTypeException on the implicit enum->int promotion. Write it through
+    // the typed enum path instead.
+    cfg.set_key_value("support_contact_type",
+                      new ConfigOptionEnum<ContactType>(use_sphere ? spSphere : spNone2));
 
     float contact_d = 0.8f;
     if (sp.contact_sphere_radius > float(EPSILON))
@@ -430,7 +450,6 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
         disable_editing_mode();
         reload_cache();
         m_old_mo_id = mo->id();
-        m_auto_baseline_initialized = false;
     }
 
     // If we triggered autogeneration before, check backend and fetch results if they are there
@@ -473,6 +492,12 @@ bool GLGizmoSlaSupports::on_mouse(const wxMouseEvent &mouse_event)
             for (size_t j = 0; j < m_editing_cache.size(); ++j)
                 m_editing_cache[j].selected = (j == size_t(m_hover_id));
             m_selection_empty = false;
+            // This bypasses select_point() (drag-start needs the synchronous, single-call
+            // selection below), so the Top panel display anchor must be set explicitly here
+            // too — otherwise a plain click-to-select never updates the panel (D6 regression
+            // found during manual verification: single click didn't refresh, shift-multi-select
+            // did because that path goes through select_point()).
+            m_last_selected_index = int(m_hover_id);
             const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
             if (pr > 0.f)
                 m_new_point_pillar_diameter = pr * 2.f;
@@ -590,6 +615,18 @@ void GLGizmoSlaSupports::on_render()
     render_volumes(); // Step 4.2: show the SLA mesh via GLGizmoSlaBase
     render_points(selection); // Step 4.2: removed 'false' picking param
 
+    // Keep picking in sync with the live Top-parameter values render_points() just
+    // used: render_points() re-reads the Process tab every frame (no caching), but
+    // update_point_raycasters_for_picking_transform() previously only ran from a
+    // handful of discrete events (entering editing mode, point drag, data_changed()).
+    // Editing a Top field with no point selected/dragged left the pickable volume
+    // stuck at the old geometry while the visible cone kept growing/moving — see
+    // fix-sla-support-point-picking-live-refresh. The function itself already
+    // no-ops when m_point_raycasters is empty (only populated in editing mode); the
+    // explicit guard here just makes the per-frame cost visible at the call site.
+    if (m_editing_mode)
+        update_point_raycasters_for_picking_transform();
+
     m_selection_rectangle.render(m_parent);
     m_c->object_clipper()->render_cut();
     if (are_sla_supports_shown()) // Step 4.2: conditional on m_show_sla_supports (via GLGizmoSlaBase)
@@ -632,7 +669,6 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         return;
 
     GLShaderProgram* gouraud_shader = wxGetApp().get_shader("gouraud_light");
-    GLShaderProgram* flat_shader    = wxGetApp().get_shader("flat");
     if (gouraud_shader == nullptr)
         return;
 
@@ -705,8 +741,9 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // Step 4.2: manage raycaster active state based on clipping (same as PrusaSlicer)
         const bool clipped = is_mesh_point_clipped(support_point.pos.cast<double>());
         if (i < m_point_raycasters.size()) {
-            m_point_raycasters[i].first->set_active(!clipped);
-            m_point_raycasters[i].second->set_active(!clipped);
+            m_point_raycasters[i].pin_sphere->set_active(!clipped);
+            m_point_raycasters[i].cone->set_active(!clipped);
+            m_point_raycasters[i].back_sphere->set_active(!clipped);
         }
         if (clipped)
             continue;
@@ -715,20 +752,22 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         //   manual_add → CYAN (user-placed)
         //   island     → ORANGE-ish / BLUEISH when locked (auto-generated critical)
         //   slope      → LIGHT_GRAY (auto-generated ordinary)
+        // Type-based coloring applies regardless of editing mode. Hover/selected are
+        // interaction states that only exist in editing mode; the locked-island
+        // indicator stays editing-mode-only too, since locking is only ever toggled
+        // from the editing-mode panel and has no corresponding state outside it.
         if (m_editing_mode && size_t(m_hover_id) == i)
             render_color = ColorRGBA::CYAN();
         else if (m_editing_mode && point_selected)
             render_color = ColorRGBA { 1.f, 0.3f, 0.3f, 1.f }; // REDISH
         else if (m_lock_unique_islands && support_point.is_island() && m_editing_mode)
             render_color = ColorRGBA::BLUEISH();
-        else if (m_editing_mode && support_point.type == sla::SupportPointType::manual_add)
-            render_color = ColorRGBA::CYAN();
-        else if (m_editing_mode && support_point.type == sla::SupportPointType::island)
+        else if (support_point.type == sla::SupportPointType::manual_add)
+            render_color = ColorRGBA::CYAN() * 0.75;
+        else if (support_point.type == sla::SupportPointType::island)
             render_color = ColorRGBA { 1.f, 0.6f, 0.0f, 1.f }; // orange — auto island
-        else if (m_editing_mode)
-            render_color = ColorRGBA::LIGHT_GRAY(); // slope
         else
-            render_color = ColorRGBA { 0.5f, 0.5f, 0.5f, 1.f };
+            render_color = ColorRGBA::LIGHT_GRAY(); // slope
 
         m_sphere.model.set_color(render_color);
 
@@ -750,19 +789,21 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // Scaled-mesh surface normal direction for orienting the cone axis.
         const Vec3f scaled_normal = (normal_xform * raw_normal.cast<double>()).cast<float>();
 
-        const bool use_stored_geometry = m_editing_mode && preview_use_stored_top(support_point, point_selected);
-
-        // Manual points: simplified preview (no back-sphere bulge). Auto points: full pinhead mesh.
         // head.pos / head.dir are NOT baked into the mesh here: the cached model holds
         // the local-frame body only, and placement is applied through model_matrix
         // below. Size fields (head/pillar/contact radii, width, penetration) come from
-        // the support-parameter mm values and stay untouched.
-        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, use_stored_geometry, top_params);
-        const bool manual_preview = support_point.type == sla::SupportPointType::manual_add;
-        static constexpr size_t kManualPreviewSteps = 45;
+        // the support-parameter mm values and stay untouched. Selection state (point_selected,
+        // above) affects only render_color — it must not reach the geometry resolution below
+        // (fix-sla-support-preview-geometry-source-semantics Q1: selecting a point must not
+        // change its cone size).
+        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, top_params);
 
         GLModel *cone_model = nullptr;
-        const HeadGeomKey key = head_geom_key(head, manual_preview);
+        // Manual and auto points share the same pinhead mesh and shading (see
+        // fix-sla-support-preview-visual-parity): the simplified flat-shaded preview
+        // used to be manual-only, a leftover from a PrusaSlicer-era distinction that
+        // no longer applies now that every point can carry its own explicit geometry.
+        const HeadGeomKey key = head_geom_key(head, /*preview=*/false);
         if (auto it = m_head_model_cache.find(key); it != m_head_model_cache.end())
             cone_model = &it->second;
         else {
@@ -771,13 +812,12 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
             if (m_head_model_cache.size() >= k_head_model_cache_limit)
                 m_head_model_cache.clear();
 
-            const indexed_triangle_set top_its = sla::head_mesh_body(
-                head, manual_preview ? kManualPreviewSteps : 24, manual_preview);
+            const indexed_triangle_set top_its = sla::head_mesh_body(head, 24, /*preview=*/false);
             if (top_its.vertices.empty())
                 continue;
 
             GLModel &model = m_head_model_cache[key];
-            model.init_from(top_its, manual_preview);
+            model.init_from(top_its, /*smooth_normals=*/false);
             cone_model = &model;
         }
 
@@ -794,10 +834,11 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
             Geometry::translation_transform(instance_scaling_matrix * support_point.pos.cast<double>()) *
             Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir));
 
-        // Manual preview: flat shader (uniform color, no directional shading).
-        use_shader(manual_preview ? flat_shader : gouraud_shader);
+        // All points are lit (gouraud_light): manual points used to render flat-shaded,
+        // a leftover from when they used a simplified, unlit preview mesh.
+        use_shader(gouraud_shader);
         active_shader->set_uniform("view_model_matrix", view_matrix * model_matrix);
-        if (active_shader != flat_shader) {
+        {
             // Must be derived from the model matrix actually used above — it now
             // carries the placement rotation, unlike instance_matrix_no_scale.
             const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
@@ -1237,12 +1278,6 @@ static bool sp_draw_custom_slider(const char* id, float& v,
 // ─────────────────────────────────────────────────────────────────────────────
 void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legacy_panel_h, ModelObject* mo)
 {
-    // Existing auto-generated points: treat current UI as already applied until user changes preset/density.
-    if (!m_auto_baseline_initialized && mo && !m_normal_cache.empty()) {
-        mark_auto_settings_applied(mo);
-        m_auto_baseline_initialized = true;
-    }
-
     const float scale       = m_parent.get_scale();
     const float gap         = 8.f * scale;
     const float value_box_w = m_imgui->scaled(4.f);
@@ -1487,10 +1522,15 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
         m_imgui->disabled_end();
 
         ImGui::SameLine();
-        m_imgui->disabled_begin(!auto_settings_need_apply(mo));
+        // Always enabled: Apply/Auto-generate is idempotent (deterministic seed) and the
+        // confirmation dialog in auto_generate() is the actual safety net against losing
+        // manually-edited points, not this button's enabled state. A dirty-tracking gate
+        // here used to compare live Top-field values against a captured baseline, but that
+        // mechanism needed to stay in exact sync with wx Field commit timing to be
+        // reliable and proved fragile in practice — simpler and more robust to just let
+        // the click always force a fresh regeneration.
         if (ImGui::Button((_u8L("Apply") + "##sp_auto_apply").c_str(), ImVec2(btn_apply_w, 0.f)))
             auto_generate();
-        m_imgui->disabled_end();
     }
     ImGui::PopStyleVar(); // ItemSpacing
 
@@ -1500,50 +1540,6 @@ void GLGizmoSlaSupports::render_auto_support_panel(float x, float y, float legac
     m_imgui->end();
     ImGui::PopStyleVar(); // WindowPadding (y=0 override)
     ImGuiWrapper::pop_toolbar_style();
-}
-
-
-bool GLGizmoSlaSupports::auto_settings_need_apply(const ModelObject* mo) const
-{
-    if (m_normal_cache.empty())
-        return true;
-
-    const char* density_key = "support_points_density_relative";
-    const auto  opts        = get_config_options({density_key});
-    const int   density     = (opts.empty() || !mo)
-        ? 100
-        : static_cast<const ConfigOptionInt*>(opts[0])->value;
-
-    const char* angle_key = "support_critical_angle";
-    const auto  angle_opts = get_config_options({angle_key});
-    const float critical_angle = (angle_opts.empty() || !mo)
-        ? 0.f
-        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
-
-    if (m_new_point_weight != m_applied_auto_weight)
-        return true;
-    if (density != m_applied_auto_density)
-        return true;
-    if (std::abs(critical_angle - m_applied_auto_critical_angle) > 1e-3f)
-        return true;
-    return false;
-}
-
-void GLGizmoSlaSupports::mark_auto_settings_applied(const ModelObject* mo)
-{
-    m_applied_auto_weight = m_new_point_weight;
-
-    const char* density_key = "support_points_density_relative";
-    const auto  opts        = get_config_options({density_key});
-    m_applied_auto_density  = (opts.empty() || !mo)
-        ? 100
-        : static_cast<const ConfigOptionInt*>(opts[0])->value;
-
-    const char* angle_key = "support_critical_angle";
-    const auto  angle_opts = get_config_options({angle_key});
-    m_applied_auto_critical_angle = (angle_opts.empty() || !mo)
-        ? 0.f
-        : static_cast<float>(static_cast<const ConfigOptionFloat*>(angle_opts[0])->value);
 }
 
 
@@ -1818,10 +1814,16 @@ void GLGizmoSlaSupports::freeze_process_top_into_point(sla::SupportPoint &sp) co
     sp.base_radius_mm = clamp_support_diameter_mm(
         process_top_float_live("support_base_diameter", 2.0f)) * 0.5f;
     sp.support_bracing_angle_deg = process_top_float_live("angle_between_top_and_middle", 45.0f);
-    // Make lower diameter (head_back_radius_mm) opt-in so that Pillar Diameter
-    // (sp.pillar_radius) can drive the back/base radius by default.
-    // Users can still override by editing "Lower Diameter" after selecting a point.
-    sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
+    // Freeze Lower Diameter at placement time just like every other Top field. It used
+    // to be left as SUPPORT_POINT_USE_PRESET so Pillar Diameter (sp.pillar_radius) could
+    // drive it by default, but that fallback only existed in preview
+    // (preview_sla_head_for_point()) — slicing (point_head_back_radius_mm()) has no such
+    // branch and falls straight back to the live preset. A point's Lower Diameter would
+    // silently diverge between what preview showed and what actually got sliced (see
+    // fix-sla-support-preview-geometry-source-semantics D2b). Users can still override by
+    // editing "Lower Diameter" after selecting the point.
+    sp.head_back_radius_mm = clamp_support_diameter_mm(
+        process_top_float_live("support_head_back_diameter", 1.0f)) * 0.5f;
     if (process_contact_type_is_sphere()) {
         float r = default_contact_sphere_radius_mm();
         if (r < k_min_support_size_mm)
@@ -1843,12 +1845,13 @@ bool GLGizmoSlaSupports::is_sla_support_top_option(const std::string &opt_key)
 DynamicPrintConfig GLGizmoSlaSupports::support_top_config_from_selection() const
 {
     DynamicPrintConfig cfg = sla_process_config();
-    for (const CacheEntry &ce : m_editing_cache) {
-        if (ce.selected) {
-            support_top_apply_point(ce.support_point, cfg);
-            break;
-        }
-    }
+    // Multi-select shows the last-selected point's values, not just the first match in
+    // cache order (fix-sla-support-preview-geometry-source-semantics D6). Editing a field
+    // still applies to every selected point (apply_process_top_option()) — only the
+    // *displayed* value follows this anchor.
+    if (m_last_selected_index >= 0 && m_last_selected_index < (int) m_editing_cache.size()
+        && m_editing_cache[m_last_selected_index].selected)
+        support_top_apply_point(m_editing_cache[m_last_selected_index].support_point, cfg);
     return cfg;
 }
 
@@ -1877,11 +1880,14 @@ bool GLGizmoSlaSupports::apply_process_top_option(const std::string &opt_key, co
         } else if (opt_key == "support_head_back_diameter") {
             sp.head_back_radius_mm = clamp_support_diameter_mm(float(boost::any_cast<double>(value))) * 0.5f;
         } else if (opt_key == "support_pillar_diameter") {
-            // Pillar diameter controls sp.pillar_radius (radius = diameter/2).
-            // Also clear explicit lower diameter override so the geometry follows the pillar diameter
-            // by default.
+            // Pillar diameter controls sp.pillar_radius (radius = diameter/2) only.
+            // Used to also clear sp.head_back_radius_mm back to SUPPORT_POINT_USE_PRESET so
+            // Pillar Diameter could drive Lower Diameter by default — that cross-field
+            // coupling only ever existed in preview (the pillar_radius fallback removed by
+            // fix-sla-support-preview-geometry-source-semantics D2b/2.7) and never had a
+            // slicing equivalent, so editing Pillar Diameter here must not touch Lower
+            // Diameter at all — they are independent fields (see tasks.md 4.7).
             sp.pillar_radius = float(boost::any_cast<double>(value)) * 0.5f;
-            sp.head_back_radius_mm = sla::SUPPORT_POINT_USE_PRESET;
             m_new_point_pillar_diameter = float(boost::any_cast<double>(value));
         } else if (opt_key == "support_segment_length") {
             sp.head_width_mm = clamp_segment_length_mm(float(boost::any_cast<double>(value)));
@@ -1957,7 +1963,6 @@ void GLGizmoSlaSupports::on_set_state()
 
     if (m_state == On && m_old_state != On) { // the gizmo was just turned on
 
-        m_auto_baseline_initialized = false;
         // Set default head diameter from config.
         const DynamicPrintConfig& cfg = wxGetApp().preset_bundle->sla_prints.get_edited_preset().config;
         const auto *opt_hfd = cfg.option<ConfigOptionFloat>("support_head_front_diameter");
@@ -2023,6 +2028,9 @@ void GLGizmoSlaSupports::on_start_dragging()
     for (size_t j = 0; j < m_editing_cache.size(); ++j)
         m_editing_cache[j].selected = (j == size_t(m_hover_id));
     m_selection_empty = false;
+    // Same reason as the on_mouse() drag-start path above: this bypasses select_point(), so
+    // the Top panel display anchor (D6) must be set explicitly.
+    m_last_selected_index = int(m_hover_id);
     const float pr = m_editing_cache[m_hover_id].support_point.pillar_radius;
     if (pr > 0.f)
         m_new_point_pillar_diameter = pr * 2.f;
@@ -2087,6 +2095,11 @@ void GLGizmoSlaSupports::select_point(int i)
         for (auto& point_and_selection : m_editing_cache)
             point_and_selection.selected = ( i == AllPoints );
         m_selection_empty = (i == NoPoints);
+        // Anchor the Top panel display on the last point in cache order (D6): there is no
+        // per-point "selected at" ordering for a bulk select-all, so the last index is the
+        // most defensible single choice, consistent with the fallback in unselect_point().
+        m_last_selected_index = (i == AllPoints && !m_editing_cache.empty())
+            ? int(m_editing_cache.size()) - 1 : NoPoints;
 
         if (i == AllPoints && !m_editing_cache.empty()) {
             const float pr = m_editing_cache[0].support_point.pillar_radius;
@@ -2101,6 +2114,9 @@ void GLGizmoSlaSupports::select_point(int i)
             return;
         m_editing_cache[i].selected = true;
         m_selection_empty = false;
+        // This point becomes the Top panel display anchor (fix-sla-support-preview-
+        // geometry-source-semantics D6: multi-select shows the last-selected point).
+        m_last_selected_index = i;
         const float pr = m_editing_cache[i].support_point.pillar_radius;
         if (pr > 0.f)
             m_new_point_pillar_diameter = pr * 2.f;
@@ -2125,6 +2141,19 @@ void GLGizmoSlaSupports::unselect_point(int i)
         if (ce.selected) {
             m_selection_empty = false;
             break;
+        }
+    }
+    if (i == m_last_selected_index) {
+        // The display anchor was just deselected — fall back to the last remaining
+        // selected point in cache order (same convention as the AllPoints branch in
+        // select_point(); there is no "next most recently selected" history to restore
+        // exactly, see D6).
+        m_last_selected_index = NoPoints;
+        for (int idx = int(m_editing_cache.size()) - 1; idx >= 0; --idx) {
+            if (m_editing_cache[idx].selected) {
+                m_last_selected_index = idx;
+                break;
+            }
         }
     }
     notify_process_tab_selection_changed();
@@ -2261,7 +2290,6 @@ void GLGizmoSlaSupports::apply_remove_all()
     // Callers handle the snapshot; this function only syncs data and clears the mesh.
     m_normal_cache.clear();
     m_normal_cache_normals.clear();
-    m_auto_baseline_initialized = false;
     ModelObject* mo = m_c->selection_info()->model_object();
     mo->sla_points_status = sla::PointsStatus::UserModified;
     mo->sla_support_points.clear();
@@ -2352,8 +2380,18 @@ void GLGizmoSlaSupports::activate_structure_view()
 
 void GLGizmoSlaSupports::auto_generate()
 {
-    //wxMessageDialog dlg(GUI::wxGetApp().plater(), 
-    MessageDialog dlg(GUI::wxGetApp().plater(), 
+    // Flush whatever is currently typed into the Top fields, even if the control hasn't
+    // lost focus/committed yet — same defensive pattern already used before placing a new
+    // manual point (:922). Relying solely on each field's own wx kill-focus/on_value_change
+    // chain to have already written the value into the preset proved unreliable in
+    // practice (see fix-sla-support-auto-points-top-field-freeze D10): editing one Top
+    // field then immediately clicking Apply could regenerate using a stale value for that
+    // field. This makes Apply itself the authoritative sync point, independent of whether
+    // the field-level commit machinery fired correctly for this particular edit.
+    flush_process_top_fields_to_config();
+
+    //wxMessageDialog dlg(GUI::wxGetApp().plater(),
+    MessageDialog dlg(GUI::wxGetApp().plater(),
                         _L("Autogeneration will erase all manually edited points.") + "\n\n" +
                         _L("Are you sure you want to do it?") + "\n",
                         _L("Warning"), wxICON_WARNING | wxYES | wxNO);
@@ -2364,8 +2402,14 @@ void GLGizmoSlaSupports::auto_generate()
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Autogenerate support points");
         sync_generate_support_for_object(mo, true);
         mo->sla_points_status = sla::PointsStatus::Generating;
-        mark_auto_settings_applied(mo);
-        m_auto_baseline_initialized = true;
+        // Force slaposSupportPoints to actually recompute. Top-field edits deliberately
+        // don't auto-invalidate this step (fix-sla-support-auto-points-top-field-freeze —
+        // that's what keeps already-generated auto points frozen against passive reslice
+        // triggers), so without this, a second Auto-generate click with only Top fields
+        // changed since the last Apply would find the step already "done" and skip
+        // straight through, silently leaving the old frozen points in place.
+        if (const SLAPrint *print = m_parent.sla_print())
+            print->invalidate_support_points_for_object(mo->id());
         // Auto Apply: regenerate support points (includes Support Angle filtering at slaposSupportPoints).
         reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints);
     }
@@ -2455,9 +2499,10 @@ void GLGizmoSlaSupports::register_point_raycasters_for_picking()
 
     if (m_editing_mode && !m_editing_cache.empty()) {
         for (size_t i = 0; i < m_editing_cache.size(); ++i) {
-            m_point_raycasters.emplace_back(
+            m_point_raycasters.push_back(PointRaycasterSet{
                 m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_sphere.mesh_raycaster, Transform3d::Identity()),
-                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cone.mesh_raycaster, Transform3d::Identity()));
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_cone.mesh_raycaster, Transform3d::Identity()),
+                m_parent.add_raycaster_for_picking(SceneRaycaster::EType::Gizmo, i, *m_sphere.mesh_raycaster, Transform3d::Identity())});
         }
         update_point_raycasters_for_picking_transform();
     }
@@ -2489,6 +2534,10 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     const Transform3d instance_scaling_matrix_inverse = instance_scaling_matrix.inverse();
     const Transform3d instance_matrix          = Geometry::assemble_transform(m_c->selection_info()->get_sla_shift() * Vec3d::UnitZ()) * vol->get_instance_transformation().get_matrix();
     const Transform3d pick_matrix              = instance_matrix * instance_scaling_matrix_inverse;
+    // Same non-uniform-scale correction as render_points(): the cone raycaster below
+    // is direction-dependent (unlike the radially-symmetric sphere), so its axis must
+    // follow the scaled-mesh surface normal, not the raw one.
+    const Matrix3d normal_xform = instance_scaling_matrix_inverse.linear().transpose();
 
     // Same rule as render_points(): read the Process tab live fields once, not per point.
     const PreviewTopParams top_params = read_preview_top_params_live();
@@ -2499,20 +2548,55 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         if (m_editing_cache[i].normal == Vec3f::Zero())
             m_c->raycaster()->raycaster()->get_closest_point(m_editing_cache[i].support_point.pos, &m_editing_cache[i].normal);
 
-        const bool use_stored_geometry = preview_use_stored_top(sp, m_editing_cache[i].selected);
+        // This function now runs every frame (see fix-sla-support-point-picking-live-
+        // refresh), in the same frame as render_points(). Both functions used to agree
+        // on active state only because render_points() ran every frame and this one
+        // ran rarely — whichever runs last in a given frame now silently overrides the
+        // other's clipping decision unless this function makes its own. A clipped
+        // point's raycasters must stay inactive regardless of call order.
+        const bool clipped = is_mesh_point_clipped(sp.pos.cast<double>());
 
-        // head is only consulted for pick_r (the visible cone's pin / contact
-        // radius in mm). The picking sphere is radially symmetric, so head.dir
-        // does not need the non-uniform-scale correction used by render_points().
-        const sla::Head head = preview_sla_head_for_point(sp, m_editing_cache[i].normal, use_stored_geometry, top_params);
+        const Vec3f scaled_normal = (normal_xform * m_editing_cache[i].normal.cast<double>()).cast<float>();
+        const sla::Head head = preview_sla_head_for_point(sp, scaled_normal, top_params);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 
-        m_point_raycasters[i].second->set_active(false);
+        // Pin/contact sphere is concentric with the rendered pin ball, not with the
+        // anchor: head_mesh_body() places it at local z = penetration_mm - r_pin_mm
+        // (its final z-shift is fullwidth() - r_back_mm, same derivation used for the
+        // cone/back_sphere below), which is world offset (r_pin_mm - penetration_mm)
+        // along head.dir. Previously centred at scaled_pos directly (offset 0) —
+        // imperceptible at small radii, but visibly off (false-early hover on one
+        // side, missed hover on the other) once Contact Diameter grows the sphere
+        // (found during manual verification).
+        const Vec3d pin_center = scaled_pos + (head.r_pin_mm - head.penetration_mm) * head.dir;
         const Transform3d sphere_matrix = pick_matrix *
-            Geometry::assemble_transform(scaled_pos, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
-        m_point_raycasters[i].first->set_transform(sphere_matrix);
-        m_point_raycasters[i].first->set_active(true);
+            Geometry::assemble_transform(pin_center, Vec3d::Zero(), pick_r * RenderPointScale * Vec3d::Ones());
+        m_point_raycasters[i].pin_sphere->set_transform(sphere_matrix);
+        m_point_raycasters[i].pin_sphere->set_active(!clipped);
+
+        // Cone: covers the robe from the pin end (tip, radius 0 — backed by
+        // pin_sphere above) out to the back sphere's widest point (base, radius
+        // r_back_mm) at offset fullwidth() - r_back_mm along head.dir — the same
+        // offset as head.junction_point() relative to head.pos.
+        const double cone_height = head.fullwidth() - head.r_back_mm;
+        const Vec3d back_center = scaled_pos + cone_height * head.dir;
+        const Transform3d cone_matrix = pick_matrix *
+            Geometry::translation_transform(back_center) *
+            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir)) *
+            Geometry::scale_transform(Vec3d(head.r_back_mm, head.r_back_mm, cone_height));
+        m_point_raycasters[i].cone->set_transform(cone_matrix);
+        m_point_raycasters[i].cone->set_active(!clipped);
+
+        // Back sphere: covers the pillar-junction end. The cone's flat base sits
+        // exactly at the back sphere's widest point (its equator) — past that the
+        // visible ball curves back inward to its own tip, which a straight-sided
+        // cone cannot follow. Centred at the same point as the cone's base
+        // (back_center), radius r_back_mm, matching the visible ball exactly.
+        const Transform3d back_sphere_matrix = pick_matrix *
+            Geometry::assemble_transform(back_center, Vec3d::Zero(), head.r_back_mm * Vec3d::Ones());
+        m_point_raycasters[i].back_sphere->set_transform(back_sphere_matrix);
+        m_point_raycasters[i].back_sphere->set_active(!clipped);
     }
 }
 
