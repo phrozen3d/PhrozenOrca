@@ -13,7 +13,6 @@
 ```
 fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1.8 決定）
 fix-sla-undo-redo                            ← 獨立（Hollow / Drill）
-phrozen-build-variant-resin-split            ← 獨立，placeholder
 ```
 
 **暫緩（不在本分支範圍）**：`fix-sla-trafo-oblique-mirror-decomposition`（原名 `fix-sla-support-points-invalidate-on-trafo-change`）——診斷確認根因在核心引擎 `SLAPrint::sla_trafo()` 本身，非 GUI 前端問題，已超出本分支範圍，待合併回 `resin-dev` 主分支後另外評估。見下方「暫緩項目」。
@@ -45,7 +44,6 @@ phrozen-build-variant-resin-split            ← 獨立，placeholder
 | Change | 狀態 | 備註 |
 |---|---|---|
 | `fix-sla-undo-redo` | 接近完成 | 範圍為 GLGizmoHollow / GLGizmoDrill，與支撐點群組無交集。<br>⚠️ 其 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，該前提已被 `fix-sla-support-points-undo-snapshot` 推翻，需於後者實施時更正（見其 tasks 6.7） |
-| `phrozen-build-variant-resin-split` | placeholder | 尚無 tasks，待專門的 exploration pass |
 
 ## 待決事項（阻擋對應 change 進入實作）
 
