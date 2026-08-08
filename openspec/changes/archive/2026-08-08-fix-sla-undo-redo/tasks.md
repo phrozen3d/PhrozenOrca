@@ -4,6 +4,12 @@
 > ⚠️ 本 change 的 proposal 與 design 記載「不修改 GLGizmoSlaSupports（已正確實作）」，
 > 該前提已被 `fix-sla-support-points-undo-snapshot` 推翻（auto 生成的支撐點從未寫入
 > `mo->sla_support_points`，因此不在 undo 快照內）。實施該 change 時需一併更正。
+>
+> ⚠️ **結案盤點（2026-08-08）**：本 change 分兩批落地，命運不同——GLGizmoHollow 半部
+> （第 3 節）`2026-05-07` 落地後至今仍是現行程式碼，有效；GLGizmoDrill 半部（第 4-7 節）
+> 雖然也曾落地，但 6 天後即被另一 change（`drill-apply-only-undo`，commit `0f302f003`）
+> 整個取代為 `m_working_holes` pending-apply 模型，現行程式碼中已不存在。第 8 節（自動化
+> 回歸）驗證的前提是已作廢的 Drill 設計，結案時不再要求執行；詳見 proposal.md「結案說明」。
 
 ## 0. Build 環境前置修正（首次啟用測試時執行）
 
@@ -54,13 +60,13 @@ Get-Content build_log.txt | Select-Object -Last 10
 - [x] 3.3 修改 `GLGizmoHollow.cpp::on_load`：移除假值，改為 `ar(m_pending_offset, m_pending_quality, m_pending_closing_d, m_enable_hollowing)`，結尾加上 `m_pending_owner = nullptr`
 - [x] 3.4 靜態 review：on_save 與 on_load 欄位型別與順序完全一致（不依賴自動化測試）
 
-## 4. GLGizmoDrill — 新增成員變數
+## 4. GLGizmoDrill — 新增成員變數 ⚠️ 已作廢，見上方結案盤點
 
 - [x] 4.1 在 `GLGizmoDrill.hpp` 新增 `float m_radius_before_change = 0.f`
 - [x] 4.2 在 `GLGizmoDrill.hpp` 新增 `float m_height_before_change = 0.f`
 - [x] 4.3 在 `GLGizmoDrill.hpp` 新增 `sla::DrainHoles m_holes_before_change`（型別與 `mo->sla_drain_holes` 一致）
 
-## 5. GLGizmoDrill — 實作 begin_size_change / apply_size_change
+## 5. GLGizmoDrill — 實作 begin_size_change / apply_size_change ⚠️ 已作廢，見上方結案盤點
 
 - [x] 5.1 在 `GLGizmoDrill.hpp` 宣告 `begin_size_change(float old_radius, float old_height)` 和 `apply_size_change(const std::string& snapshot_name)`
 - [x] 5.2 在 `GLGizmoDrill.cpp` 實作 `begin_size_change`：若 `m_radius_before_change == 0.f && m_height_before_change == 0.f`，儲存舊值並複製所有洞至 `m_holes_before_change`
@@ -68,37 +74,37 @@ Get-Content build_log.txt | Select-Object -Last 10
   - 若無暫存值則直接返回
   - 備份新值 → 還原 `mo->sla_drain_holes` 為 `m_holes_before_change` → `TakeSnapshot` → 重套新值至選取洞 → `set_as_dirty()` → 清除暫存
 
-## 6. GLGizmoDrill — 接入 Diameter slider 與 InputFloat
+## 6. GLGizmoDrill — 接入 Diameter slider 與 InputFloat ⚠️ 已作廢，見上方結案盤點
 
 - [x] 6.1 在 diameter slider 首次啟動時呼叫 `begin_size_change(pre_radius, m_new_hole_height)`（pre_radius 在 slider 回傳前取樣）
 - [x] 6.2 在 diameter slider 的 `IsItemDeactivated()` 呼叫 `apply_size_change("Change hole radius")`
 - [x] 6.3 在 diameter InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
 - [x] 6.4 在 diameter InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole radius")`
 
-## 7. GLGizmoDrill — 接入 Depth slider 與 InputFloat
+## 7. GLGizmoDrill — 接入 Depth slider 與 InputFloat ⚠️ 已作廢，見上方結案盤點
 
 - [x] 7.1 在 depth slider 首次啟動時呼叫 `begin_size_change(m_new_hole_radius, pre_height)`（pre_height 在 slider 回傳前取樣）
 - [x] 7.2 在 depth slider 的 `IsItemDeactivated()` 呼叫 `apply_size_change("Change hole depth")`
 - [x] 7.3 在 depth InputFloat 的 `IsItemActivated()` 呼叫 `begin_size_change(m_new_hole_radius, m_new_hole_height)`
 - [x] 7.4 在 depth InputFloat 的 `IsItemDeactivatedAfterEdit()` 分支套用新值後呼叫 `apply_size_change("Change hole depth")`
 
-## 8. 自動化測試回歸確認
+## 8. 自動化測試回歸確認 ⚠️ 結案時不再要求執行，見下方說明
 
-**PowerShell 執行指令（含繁體中文亂碼處理）：**
+**PowerShell 執行指令（含繁體中文亂碼處理，保留供歷史對照）：**
 ```powershell
 $env:VSLANG = "1033"
 cmake --build . --target libslic3r_tests --config RelWithDebInfo 2>&1 | Out-File -Encoding utf8 regression_log.txt
 .\tests\libslic3r\RelWithDebInfo\libslic3r_tests.exe "[SLA][UndoRedo][L1]" --order rand
 ```
 
-- [ ] 8.1 執行上述指令，確認 Layer 1 的 3 個測試在實作後仍全數通過（3 test cases，16 assertions）
-- [ ] 8.2 確認 `libslic3r_tests.exe` 輸出包含 `[SLA][UndoRedo][L1]` tag 的測試名稱
+- [~] 8.1 ~~執行上述指令，確認 Layer 1 的 3 個測試在實作後仍全數通過（3 test cases，16 assertions）~~ 不再要求：這是驗證「Drill begin/apply 設計落地後未破壞 Layer 1 序列化測試」，但該設計本身已作廢（見上方結案盤點），驗證對象不存在。Layer 1 測試本身（第 1 節）在 1.5 已於當時通過，且測的是 `sla::DrainHoles` 的 cereal round-trip，與 UI 端用哪種 undo 機制無關，不受 Drill 設計作廢影響。
+- [~] 8.2 ~~確認 `libslic3r_tests.exe` 輸出包含 `[SLA][UndoRedo][L1]` tag 的測試名稱~~ 同上，不再要求
 
 ## 9. 手動行為驗證
 
 - [x] 9.1 在 Hollow gizmo 中按 Hollow 兩次，undo 兩次，確認 hollowing 參數正確還原
 - [x] 9.2 在 Hollow gizmo 中按 Hollow 後離開至 prepare，執行 undo，確認 config 還原且 SLA 重算
-- [x] 9.3 在 Drill gizmo 中調整 diameter slider，放開後 undo，確認所有選取洞的 radius 還原
-- [x] 9.4 在 Drill gizmo 中連續修改 diameter 和 depth，undo 兩次，確認各自獨立還原
+- [x] 9.3 在 Drill gizmo 中調整 diameter slider，放開後 undo，確認所有選取洞的 radius 還原 ⚠️ 驗證的是已作廢的 begin/apply 設計，現行 `m_working_holes` 模型下的等價行為由 `drill-apply-only-undo` 自己的驗收覆蓋
+- [x] 9.4 在 Drill gizmo 中連續修改 diameter 和 depth，undo 兩次，確認各自獨立還原 ⚠️ 同上
 - [x] 9.5 確認 add/delete/move 洞的 undo 行為未受影響
 - [x] 9.6 在 SlaSupports gizmo 執行 undo/redo，確認現有功能未退化

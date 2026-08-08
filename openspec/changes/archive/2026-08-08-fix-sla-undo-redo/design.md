@@ -46,7 +46,11 @@ PhrozenOrca 的 undo/redo 系統以 `UndoRedo::Stack`（`src/slic3r/Utils/UndoRe
 
 ---
 
-### 決策 2：GLGizmoDrill 採用 BrimEars 的 begin/apply 三步驟模式
+### 決策 2：GLGizmoDrill 採用 BrimEars 的 begin/apply 三步驟模式 — ⚠️ 已作廢（2026-08-08 補述）
+
+**現況**：本決策當初有落地（commit `2da76fa12`，2026-05-07），但 6 天後即被獨立 change 的 commit `0f302f003`（`fix: apply-only undo boundary for Drill holes`，2026-05-13，對應已 archive 的 `drill-apply-only-undo`）整個取代為 `m_working_holes` pending-apply 模型。目前程式碼中已不存在 `begin_size_change`/`apply_size_change`，本決策僅保留作歷史紀錄，不代表現行架構。Drill 的 undo/redo 現況與後續演進見 `drill-apply-only-undo`（已 archive）與 `resin-mode-scoped-undo-redo`（進行中，`phrozen-resin-dev-scoped-undo-redo` 分支）。
+
+以下為原始決策內容（保留供歷史對照）：
 
 **選擇**：新增 `begin_size_change(old_radius, old_height)` 和 `apply_size_change(snapshot_name)` 方法，追蹤 `m_holes_before_change`（整批洞的舊值）。
 
