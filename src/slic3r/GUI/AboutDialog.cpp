@@ -247,7 +247,10 @@ AboutDialog::AboutDialog()
         // _build_string_font.SetStyle(wxFONTSTYLE_ITALIC);
 
         vesizer->Add(0, 0, 1, wxEXPAND, FromDIP(5));
-        auto          version_string = std::string(Phrozen_VERSION); // _L("Orca Slicer ") + " " + std::string(Phrozen_VERSION);
+        // Sourced from GUI_App::format_display_version() (not the raw Phrozen_VERSION
+        // macro) so this label and the splash screen always show the same string,
+        // including any future test/RC build tagging appended there.
+        auto          version_string = GUI_App::format_display_version();
         wxStaticText* version = new wxStaticText(this, wxID_ANY, version_string.c_str(), wxDefaultPosition, wxDefaultSize);
         wxStaticText* credits_string = new wxStaticText(this, wxID_ANY, wxString::Format("Build %s", std::string(GIT_COMMIT_HASH)), wxDefaultPosition, wxDefaultSize);
         credits_string->SetFont(_build_string_font);

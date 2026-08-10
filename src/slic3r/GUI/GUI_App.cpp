@@ -4729,6 +4729,13 @@ void GUI_App::no_new_version()
 }
 
 std::string GUI_App::version_display = "";
+// Test/RC build tagging: this is the single source of truth for the version
+// text shown on the splash screen and the About dialog (AboutDialog.cpp
+// reads it too). To label a throwaway test build as e.g. "1.2.1 rc3", run
+// `PhrozenOrca/scripts/mark_rc/mark_rc_build.ps1 -Rc 3` on a disposable branch that
+// is never merged back into resin/mainline (git tag the commit instead if
+// you want a permanent record, then discard the branch). Do not hand-edit
+// this function on a branch you intend to merge.
 std::string GUI_App::format_display_version()
 {
     if (!version_display.empty()) return version_display;
