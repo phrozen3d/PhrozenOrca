@@ -9,6 +9,8 @@
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "slic3r/GUI/NotificationManager.hpp"
 
+#include <boost/log/trivial.hpp>
+
 #include "slic3r/GUI/Gizmos/GLGizmoMove.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoScale.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmoRotate.hpp"
@@ -1441,11 +1443,15 @@ bool GLGizmosManager::activate_gizmo(EType type)
 
         old_gizmo.unregister_raycasters_for_picking();
 
-        if (!m_serializing && old_gizmo.wants_enter_leave_snapshots())
+        if (!m_serializing && old_gizmo.wants_enter_leave_snapshots()) {
+            // TEMP DIAGNOSTIC (7.1 investigation): Mechanism A leave marker (main stack).
+            BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Mechanism A LeavingGizmoWithAction: "
+                                      << old_gizmo.get_gizmo_leaving_text();
             Plater::TakeSnapshot
                 snapshot(wxGetApp().plater(),
                          old_gizmo.get_gizmo_leaving_text(),
                          UndoRedo::SnapshotType::LeavingGizmoWithAction);
+        }
     }
 
     if (type == Undefined) { 
@@ -1458,10 +1464,14 @@ bool GLGizmosManager::activate_gizmo(EType type)
     GLGizmoBase& new_gizmo = *m_gizmos[type];
     if (!new_gizmo.is_activable()) return false;
 
-    if (!m_serializing && new_gizmo.wants_enter_leave_snapshots())
+    if (!m_serializing && new_gizmo.wants_enter_leave_snapshots()) {
+        // TEMP DIAGNOSTIC (7.1 investigation): Mechanism A enter marker (main stack).
+        BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Mechanism A EnteringGizmo: "
+                                  << new_gizmo.get_gizmo_entering_text();
         Plater::TakeSnapshot snapshot(wxGetApp().plater(),
                                       new_gizmo.get_gizmo_entering_text(),
                                       UndoRedo::SnapshotType::EnteringGizmo);
+    }
 
     m_current = type;
     new_gizmo.set_state(GLGizmoBase::On);

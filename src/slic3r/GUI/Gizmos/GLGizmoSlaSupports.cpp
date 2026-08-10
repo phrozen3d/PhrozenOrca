@@ -10,6 +10,8 @@
 
 #include <GL/glew.h>
 
+#include <boost/log/trivial.hpp>
+
 #include <wx/msgdlg.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
@@ -2197,22 +2199,22 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     for (const CacheEntry& ce : m_editing_cache)
         m_normal_cache.push_back(ce.support_point);
 
-    // resin-mode-scoped-undo-stack / Decision A (commit-and-keep-editing): collapse the
-    // in-progress sub-stack session into one main-stack snapshot. This is safe because the
-    // unsaved_changes() guard above guarantees a real edit happened, and every point
-    // add/move/delete already takes its own sub-stack snapshot (see e.g. "Add support point"),
-    // so leave_mode_undo_stack()'s structural changed-check is guaranteed true here.
-    leave_mode_undo_stack();
+    // Commit-while-staying-in-editing: record this as an ordinary in-place checkpoint on
+    // whichever stack is currently active (the gizmos sub-stack, since we're still inside
+    // Manual editing) — same pattern as GLGizmoHollow's "Hollow" / GLGizmoDrill's "Apply
+    // drain holes" Apply-button snapshots. Deliberately NOT leave_mode_undo_stack() +
+    // enter_mode_undo_stack(): this session hasn't left the mode, so the sub-stack must not
+    // be torn down and rebuilt — every point add/move/delete before AND after this Apply
+    // stays on one continuous, individually-undoable sub-stack. The whole session (spanning
+    // any number of in-mode Applies) still collapses to exactly one main-stack snapshot,
+    // but only when the mode is actually left (see disable_editing_mode()).
+    Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
 
     ModelObject* mo_apply = m_c->selection_info()->model_object();
     mo_apply->sla_points_status = sla::PointsStatus::UserModified;
     mo_apply->sla_support_points.clear();
     mo_apply->sla_support_points = m_normal_cache;
     sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
-
-    // Re-open a fresh sub-stack baseline so further point edits remain individually
-    // undoable in-session, bounded by this just-committed state.
-    enter_mode_undo_stack();
 
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
