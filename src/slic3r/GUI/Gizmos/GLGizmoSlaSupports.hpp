@@ -104,6 +104,17 @@ public:
     // after a main-stack undo/redo while this gizmo is active but not in editing mode.
     void reload_cache();
 
+    // Called by GLGizmosManager::update_after_undo_redo() (not in editing mode) after a
+    // main-stack undo/redo restores this object's config/points. Reloads the display cache
+    // and unconditionally re-syncs the SLA backend (support points / pad) to the just-restored
+    // state — e.g. undoing an Auto "Apply" reverts generate_support in the Model correctly,
+    // but the already-computed pad/tree mesh is backend-only state that undo/redo never
+    // touches, so without this it keeps rendering stale. Deliberately not gated behind
+    // SnapshotData::RECALCULATE_SLA_SUPPORTS (that flag reflects whether backend supports
+    // existed right before the action being undone, not whether the restored state actually
+    // needs a resync — e.g. it's unset on a first-ever Auto Apply on a fresh object).
+    void resync_after_undo_redo();
+
     // Sync dialog before Slice: Yes=apply, No=discard, Cancel=abort. Returns true to continue slicing.
     bool resolve_unsaved_manual_edits_before_slice();
     // Leave manual editing before app close: resolve uncommitted edits, then exit editing mode.

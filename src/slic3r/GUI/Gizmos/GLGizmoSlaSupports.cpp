@@ -2344,6 +2344,20 @@ void GLGizmoSlaSupports::reload_cache()
 }
 
 
+void GLGizmoSlaSupports::resync_after_undo_redo()
+{
+    reload_cache();
+    if (!m_c->selection_info())
+        return;
+    const ModelObject *mo = m_c->selection_info()->model_object();
+    if (!mo)
+        return;
+    if (const SLAPrint *print = m_parent.sla_print())
+        print->invalidate_support_points_for_object(mo->id());
+    reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints, true);
+}
+
+
 bool GLGizmoSlaSupports::has_backend_supports() const
 {
     const ModelObject* mo = m_c->selection_info()->model_object();
