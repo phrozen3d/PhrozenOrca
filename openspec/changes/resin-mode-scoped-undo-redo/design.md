@@ -2,7 +2,7 @@
 
 The codebase already contains two undo/redo mechanisms:
 
-- **Mechanism A** — `wants_enter_leave_snapshots()` + `GLGizmosManager::activate_gizmo`: inserts `EnteringGizmo` / `GizmoAction` / `LeavingGizmo*` markers on a single main stack, with `reduce_noisy_snapshots()` merging consecutive same-named `GizmoAction`s. Used by FDM painting gizmos.
+- **Mechanism A** — `wants_enter_leave_snapshots()` + `GLGizmosManager::activate_gizmo`: inserts `EnteringGizmo` / `GizmoAction` / `LeavingGizmo*` markers on a single main stack, with `reduce_noisy_snapshots()` merging consecutive same-named `GizmoAction`s. **Correction (2026-08-09, Decision G): this was originally written here as "used by FDM painting gizmos" — that's wrong. `GLGizmoSlaSupports` also set `wants_enter_leave_snapshots()` true for its whole-panel open/close, independently of Mechanism B below.** That gap in this document's own context section is what let the Section 7 "Auto-mode undo escapes the panel" bug go undiagnosed for as long as it did — the fix attempt assumed Mechanism A was FDM-only and therefore out of scope, when Support was actually using both mechanisms at once. See Decision G, which removes Support from Mechanism A entirely rather than reconciling the two.
 - **Mechanism B** — `Plater::enter_gizmos_stack()` / `leave_gizmos_stack()`: two physical stacks (`m_undo_redo_stack_main` + `m_undo_redo_stack_gizmos`) with an active pointer `m_undo_redo_stack_active`. Entering pushes a `"Gizmos-Initial"` baseline onto the gizmos stack; leaving clears it and switches back to main. This is the genuine scoped sub-stack.
 
 Mechanism B already satisfies the desired "enter mode → scoped sub-stack, bounded undo/redo, collapse-to-one on leave" behavior. It is used today by **SlaSupports** (`switch_to_editing_mode` / `disable_editing_mode` / `commit_manual_edits_keep_editing`) and by the FDM-only **BrimEars** (`on_set_state`). **Hollow and Drill do not use it at all** (`wants_enter_leave_snapshots()` is the base default `false`); each Apply takes a flat snapshot directly on main.
@@ -81,7 +81,40 @@ Three layers, chosen over "prevention" because they cover all structural entry p
 
 To implement the choke point reliably, enumerate and check off the structural entry points (containment applied at each, or provably covered by the shared choke): `Plater::remove_selected`, `Plater::priv::delete_object_from_model`, `Plater::priv::delete_all_objects_from_model`, `Plater::priv::remove_curr_plate_all`, `ObjectList::remove` (`wxID_DELETE`), instance removal / decrease-instances, New/Open/import project, reload-from-disk / replace-with-mesh. The audit table lives in tasks.md.
 
+**Superseded by Decision G** — this whole choke-point audit protected the sub-stack from being stranded by a structural mutation. With no sub-stack, there is nothing to strand; the entry points listed here are no longer touched. Kept here only as a record of what was audited.
+
+---
+
+### Decision G — Pivot: abandon the scoped sub-stack, single main stack for all three modes (2026-08-09)
+
+**Context**: Decisions A-E above were fully implemented, code-reviewed, and built successfully. Section 7 manual verification then surfaced three interlocking bugs, in order:
+
+1. `enter_gizmos_stack()`'s `"Gizmos-Initial"` baseline snapshot defaults to `SnapshotType::Action` (project-modifying). `leave_gizmos_stack()`'s "did anything happen?" check (`has_undo_snapshot()`) scans everything before the current position for a project-modifying entry — and the baseline itself always satisfies that scan. Result: `leave_mode_undo_stack()` recorded a spurious main-stack snapshot on **every** leave, even a pure no-op session. This bug was always latent (every pre-existing `leave_gizmos_stack()` caller discarded the return value and decided some other way) — Decision A's `leave_mode_undo_stack()` was the first caller to actually consult it.
+2. `GLGizmoSlaSupports::commit_manual_edits_keep_editing()` (in-mode Apply, stays in editing) implemented "collapse to main" via leave → snapshot → apply → re-enter (per its own comment, proven equivalent to the prior raw calls). This tore down and rebuilt the sub-stack on every in-mode Apply, discarding the individual point-edit history from before that Apply and leaving the undo/redo toolbar in a broken state.
+3. Fixing "Auto-view undo silently escapes the panel and consumes an unrelated earlier main-stack operation" (root cause: Mechanism A's `EnteringGizmo` marker isn't `snapshot_modifies_project()`, so `undo()` walks straight through it — see the Context correction above, this was never actually caused by Decisions A-E) by adding a hard stop at that boundary immediately created a **new** bug: after undo restores an older snapshot that happens to have the gizmo open (a completely normal, expected side effect of snapshotting UI state alongside data), the hard stop then refused to let the user undo any further — they were stuck.
+
+**Root cause common to all three**: the two-physical-stack "scoped sub-stack" pattern (Mechanism B) was designed for and validated against `GLGizmoBrimEars` (FDM-only), and its invariants don't hold cleanly once you also try to reconcile it with Mechanism A on the same gizmo (Support), or with a "stay in the mode, keep committing" workflow (in-mode Apply) that the original PrusaSlicer design for Manual Apply already pushed against (see Decision A's own rationale for why an RAII scope didn't fit). Each individual fix was locally correct and still broke something else, because the state space (which stack is active, whether a baseline counts, whether the "currently active" gizmo got there by direct user action or by undo restoring history) kept growing.
+
+**Decision**: abandon Decisions A-E's scoped sub-stack entirely. All three modes go back to a single main stack:
+
+- Hollow/Drill: remove the `enter_mode_undo_stack()`/`leave_mode_undo_stack()` calls from `on_set_state()`. Their Apply-button `TakeSnapshot` calls are untouched — they were always plain calls, now unambiguously always on main.
+- SlaSupports: remove `switch_to_editing_mode()`'s/`disable_editing_mode()`'s stack calls; remove `wants_enter_leave_snapshots()` (Mechanism A) entirely — the whole-panel open/close no longer wraps in `EnteringGizmo`/`LeavingGizmo` markers at all. `commit_manual_edits_keep_editing()` keeps its already-fixed in-place `TakeSnapshot("Support points edit")` (no leave/re-enter dance) — this was independently correct regardless of which stack architecture surrounds it.
+- The shared `GLGizmoBase::enter_mode_undo_stack()`/`leave_mode_undo_stack()` methods (Decision A) are deleted — dead code once nothing calls them.
+- The structural-mutation choke point (Decision E.1/E.2, the entry-point audit) is dropped — nothing to protect. The null-guard fallback (Decision E.3: a gizmo self-closes when its focused ModelObject vanishes) is **kept** — it's orthogonal to stack architecture and remains good defensive coding regardless.
+- `Plater::priv::leave_gizmos_stack()`'s baseline-timestamp fix (bug 1 above) is **kept** even though Support/Hollow/Drill no longer call it — `GLGizmoBrimEars` (FDM, out of scope for this change) still uses the raw `enter_gizmos_stack()`/`leave_gizmos_stack()` directly, and the fix is strictly more correct for it too (though BrimEars currently discards the return value, so it's latent there, not yet manifesting as an observed bug).
+
+**Accepted trade-off**: every point add/move/delete and every Apply becomes its own permanent, individually-undoable main-stack entry — nothing collapses, whether in-mode or on leave. Undo/redo may open or close a mode's panel as a side effect of restoring a snapshot that was taken while it was open/closed; this is now treated as ordinary, expected undo/redo behavior (identical in kind to how undoing any other UI-state-carrying snapshot works), not a special case requiring a boundary.
+
+**Why this is judged more stable, not less**: every bug in this list originates from the "two stacks + one active pointer" state machine itself — which stack is active, whether a baseline snapshot counts as a real change, whether leaving needs to rebuild the sub-stack, whether the "currently active" gizmo got there by live interaction or by time-travel. A single stack has none of that state to get wrong. The residual risk explicitly accepted in Decision E's own "Risks" entry (SlaSupports delete-with-unsaved-edits-and-async-confirm — "snapshot may land on wrong stack") is now moot by construction, since there is only one stack for a snapshot to land on.
+
+Two independent, small fixes came out of the same testing round and are **not** reverted by this pivot (they're orthogonal to stack architecture):
+
+- `GLGizmoSlaSupports::resync_after_undo_redo()` — undo/redo restoring `generate_support`/points correctly reverts the Model-level config, but the already-computed pad/support-tree mesh is backend-only state (`SLAPrintObject`) that undo/redo never touches, so it kept rendering stale. Now every undo/redo landing on Support (outside editing mode) unconditionally reloads the display cache and re-syncs the SLA backend to match, instead of relying on the unreliable `SnapshotData::RECALCULATE_SLA_SUPPORTS` flag (set based on state at snapshot-*taking* time, not at restore time — e.g. unset on a first-ever Auto Apply on a fresh object).
+- Leaving the Support panel now unconditionally forces `m_show_support_structure = true; show_sla_supports(true);`. Previously, `show_sla_supports()`'s restore-on-leave only ran inside the Manual-editing-mode branch of `disable_editing_mode()` — a pure Auto-view session that last had "Points" selected (which itself calls `show_sla_supports(false)`) never touched that flag on close, so a successfully-generated support structure could remain invisible in the normal 3D view after closing the panel, with no way to visually confirm it had generated at all.
+
 ## Risks / Trade-offs
+
+**The following entries describe Decisions A-E (the abandoned scoped sub-stack) and are kept for historical record — see Decision G above for the current design.**
 
 - **[Refactoring working SlaSupports into the shared mechanism risks regressing its Manual Apply undo behavior]** → The shared `leave` must support the commit-and-re-enter flow (leave → snapshot → apply → re-enter). Cover with the existing `sla-supports-apply-undo-stack` scenarios as a regression gate before and after refactor.
 - **[Missed structural entry point strands a snapshot or dangles a pointer]** → The gizmo null-guard fallback (Decision E.3) is the entry-point-agnostic safety net; the choke point (E.1) is the primary fix, the audit table the coverage record.
@@ -91,4 +124,9 @@ To implement the choke point reliably, enumerate and check off the structural en
 
 ## Open Questions
 
-- Should the containment choke live in a single helper invoked at each structural entry, or be centralized behind the main-stack `TakeSnapshot` path (assert-and-collapse when a sub-stack is active while taking a structural snapshot)? Both satisfy the invariant; the latter is harder to bypass but touches a hotter path. To be settled during implementation of the choke point.
+- ~~Should the containment choke live in a single helper invoked at each structural entry, or be centralized behind the main-stack `TakeSnapshot` path...~~ Moot after Decision G — there is no containment choke anymore.
+
+No open questions for the current (Decision G) design. Residual, accepted-as-is items:
+
+- Undo history is verbose (every point add/move/delete and every Apply is its own permanent main-stack entry, never collapsed). Accepted trade-off, see Decision G.
+- A mode's panel may open or close as a side effect of undo/redo restoring a snapshot taken while it was open/closed. Accepted as expected behavior, see Decision G.

@@ -2,13 +2,15 @@
 
 > In-mode step granularity = per-Apply (定義 X). Pending UI edits (Hollow sliders, Drill Add/Delete/Move/Size) stay pending and do NOT snapshot. This change extends the landed apply-only models, it does not replace them.
 
+> ⚠️ **2026-08-09 pivot (Decision G, see design.md)**: Sections 1-5 and 8.2 below describe the scoped sub-stack mechanism (Decisions A-E) — it was fully implemented and code-reviewed, but Section 7 manual verification surfaced three interlocking bugs rooted in the mechanism itself, and it was abandoned in favor of a single main stack for all three modes. Sections 1-5/8.2 are kept `[x]` as an honest historical record (the work was genuinely done, then reverted), not because they describe current behavior. **Section 9 is the actual final implementation.** Section 7's matrix has been replaced with one appropriate for the single-stack design; the original 10-item scoped-stack matrix is preserved below it for reference only.
+
 ## 0. Preconditions (verify landed basis)
 
 - [x] 0.1 Confirm `drill-apply-only-undo` is landed/archived (grep `m_working_holes` + `data_changed(is_serializing=true)` rebuild present in `GLGizmoDrill.cpp`)
 - [x] 0.2 Confirm Hollow real `on_save/on_load` serialization + `m_pending_owner = nullptr` reset present in `GLGizmoHollow.cpp`
 - [x] 0.3 Re-verify current baseline: SlaSupports uses Mechanism B; Hollow/Drill Apply takes a flat snapshot on main (to be re-routed to the sub-stack)
 
-## 1. Shared enter/leave mechanism (Decision A/B)
+## 1. Shared enter/leave mechanism (Decision A/B) ⚠️ SUPERSEDED — reverted by Decision G, see Section 9
 
 - [x] 1.1 Add `enter_mode_undo_stack()` / `leave_mode_undo_stack()` to `GLGizmoBase` wrapping `Plater::enter_gizmos_stack()` / `leave_gizmos_stack()`
 - [x] 1.2 In `leave_mode_undo_stack()`, use the structural `changed` result (Decision C) to record **at most one** main snapshot; skip entirely on no-op
@@ -16,7 +18,7 @@
 - [x] 1.4 Add a per-gizmo virtual for the leave-time main snapshot name (Decision B), defaulting via the existing `get_action_snapshot_name()`/`get_gizmo_leaving_text()` family
 - [x] 1.5 Make enter/leave idempotent (Decision E.2): `leave` is a no-op when already on main; `enter` collapses an existing session before anchoring a fresh baseline
 
-## 2. Hollow → scoped sub-stack (Decision D)
+## 2. Hollow → scoped sub-stack (Decision D) ⚠️ SUPERSEDED — reverted by Decision G, see Section 9
 
 - [x] 2.1 Override `on_set_state` in `GLGizmoHollow`: On → `enter_mode_undo_stack()`; Off → `leave_mode_undo_stack()`
 - [x] 2.2 Provide the Hollow leave snapshot name (`"Hollow"`) via the virtual from 1.4
@@ -24,7 +26,7 @@
 - [x] 2.4 Verify Hollow `on_load` re-inits pending parameters from restored config after in-mode undo
 - [x] 2.5 Add fallback null-guard (Decision E.3) in Hollow data-refresh/render/leave for vanished ModelObject
 
-## 3. Drill → scoped sub-stack (Decision D)
+## 3. Drill → scoped sub-stack (Decision D) ⚠️ SUPERSEDED — reverted by Decision G, see Section 9
 
 - [x] 3.1 Override `on_set_state` in `GLGizmoDrill`: On → `enter_mode_undo_stack()`; Off → `leave_mode_undo_stack()`
 - [x] 3.2 Provide the Drill leave snapshot name (`"Apply drain holes"`) via the virtual from 1.4
@@ -33,14 +35,14 @@
 - [x] 3.5 Confirm `drill-apply-only-undo` scenarios still hold after re-routing Apply to the sub-stack (MODIFIED delta)
 - [x] 3.6 Add fallback null-guard (Decision E.3) in Drill data-refresh/render/leave for vanished ModelObject; also hardened a pre-existing OOB index bug in Drill/Hollow `on_render()` (`objects[get_object_idx()]` with no bounds check)
 
-## 4. SlaSupports unification (Decision D)
+## 4. SlaSupports unification (Decision D) ⚠️ SUPERSEDED — reverted by Decision G, see Section 9
 
 - [x] 4.1 Refactor `switch_to_editing_mode` to call `enter_mode_undo_stack()`. `disable_editing_mode` intentionally KEPT calling raw `leave_gizmos_stack()` (documented in-code): `editing_mode_apply_changes()` calls it first then takes its own explicit main snapshot, so routing it through `leave_mode_undo_stack()` would double-snapshot a single Apply
 - [x] 4.2 Refactor `commit_manual_edits_keep_editing` to use `leave_mode_undo_stack()`/`enter_mode_undo_stack()`, preserving leave → snapshot → apply → re-enter; proven equivalent to the prior raw calls because the `unsaved_changes()` guard + per-edit snapshotting (Add/Delete/Move support point) guarantee the structural `changed` check agrees
 - [x] 4.3 Add fallback null-guard (Decision E.3) in SlaSupports `data_changed`/`on_render` for vanished ModelObject; also hardened the same OOB `objects[get_object_idx()]` bug found in Hollow/Drill
 - [x] 4.4 Regression-gate against `sla-supports-apply-undo-stack` scenarios — verified by code-level equivalence analysis (no test harness reaches this GUI path); flagged for Layer 2 manual re-verification before merge
 
-## 5. Structural-mutation containment (Decision E.1) + entry-point audit
+## 5. Structural-mutation containment (Decision E.1) + entry-point audit ⚠️ SUPERSEDED — no sub-stack to protect, see Section 9. Decision E.3 (null-guard) is the one piece of this section that survives, unchanged.
 
 - [x] 5.1 At structural-mutation entry, force-collapse an active sub-stack via `GLGizmosManager::reset_all_states()` (existing idempotent idiom, already used elsewhere in the codebase) BEFORE the mutation's snapshot is taken
 - [x] 5.2 `Plater::remove_selected` — choke added before `TakeSnapshot("Delete Selected Objects")`
@@ -63,9 +65,9 @@
 
 - [x] All 12 changed GUI-layer files (6 `.cpp` + `GLGizmoBase.hpp`/`GLGizmoDrill.hpp`/`GLGizmoHollow.hpp`/`GLGizmoSlaSupports.hpp`/`Plater.hpp`) confirmed to compile clean under the real MSVC toolchain: `build-resin-dbginfo/src/RelWithDebInfo/phrozen-orca.exe` built successfully at 2026-07-29 00:15, after all source edits (last edit 2026-07-28 23:44). This supersedes the earlier brace/paren-balance heuristic check as the authoritative compile verification.
 
-## 7. Tests — Layer 2 (manual matrix, GUI)
+## 7. [SUPERSEDED, kept for reference only] Original Layer-2 matrix for the scoped sub-stack
 
-> **NOT RUN in this session.** This requires a built, running GUI to click through — no build/ directory exists in this checkout, and this environment has no way to drive the live 3D app. All 10 items below are unchecked and need a human (or a `/verify`-style run against a built binary) before merge. Pay particular attention to 7.9: the choke point relies on `GLGizmosManager::reset_all_states()`, but SlaSupports' `on_set_state(Off)` can refuse a synchronous close and instead pop an async "save changes?" confirm dialog when there are unsaved Manual-edit points and the object is still activable at choke time — in that one case the delete snapshot may still land on the SlaSupports sub-stack rather than main (the null-guard prevents a crash, but does not guarantee correct snapshot placement in this specific interaction). This is a known, documented residual gap (see design.md), not a regression from this change — the async-confirm UX itself is pre-existing.
+> This matrix targeted Decisions A-E and was never run (no build available at the time). Decision G abandoned the mechanism it tests, so it will never be run as written. Kept verbatim for historical traceability. **Section 9 below is the matrix that was actually executed.**
 
 - [ ] 7.1 For each of the 3 modes: enter → sub-stack baseline anchored
 - [ ] 7.2 Pending UI edits (Hollow sliders / Drill add-move-size before Apply) create no in-mode step
@@ -78,28 +80,38 @@
 - [ ] 7.9 Structural mutation while in mode: delete focused object (Delete key, toolbar, and `wxID_DELETE`), delete-all, plate-clear, load project — no crash, snapshot on main. Also specifically test: delete the focused object while SlaSupports has unsaved Manual-edit points (known residual gap above)
 - [ ] 7.10 Direct mode→mode switch (Support ↔ Hollow ↔ Drill) collapses each session cleanly, no edit bleed
 
-## 8. Wrap-up
+## 8. Decision G — single-stack implementation (what was actually shipped)
 
-- [x] 8.1 Confirmed by code review: non-mode undo/redo machinery (`Plater::priv::undo/redo/undo_redo_to`, `UndoRedo::Stack`, FDM gizmos, Mechanism A) was not modified; the choke point (`reset_all_states()`) is idempotent and a no-op when no resin mode is open, so non-mode operations are structurally unaffected. Empirical confirmation still pending via Layer 2 (7.x).
-- [x] 8.2 Structural-mutation entry-point audit — final coverage status:
+- [x] 8.1 `GLGizmoHollow`/`GLGizmoDrill::on_set_state()` — remove `enter_mode_undo_stack()`/`leave_mode_undo_stack()` calls; Apply-time `TakeSnapshot` left untouched, now unambiguously always on main
+- [x] 8.2 `GLGizmoSlaSupports::switch_to_editing_mode()`/`disable_editing_mode()` — remove sub-stack enter/leave calls
+- [x] 8.3 `GLGizmoSlaSupports` — remove `wants_enter_leave_snapshots()`/`get_gizmo_entering_text()`/`get_gizmo_leaving_text()` overrides (Mechanism A no longer wraps the whole panel)
+- [x] 8.4 `commit_manual_edits_keep_editing()` keeps the already-fixed in-place `TakeSnapshot("Support points edit")` (no leave/re-enter) — unaffected by this pivot, was independently correct
+- [x] 8.5 Delete now-dead `GLGizmoBase::enter_mode_undo_stack()`/`leave_mode_undo_stack()` and the `get_mode_leave_snapshot_name()` virtual + its overrides in `GLGizmoDrill.hpp`/`GLGizmoHollow.hpp`
+- [x] 8.6 Keep the Decision E.3 null-guard fallback (vanished-ModelObject self-close) in all three gizmos, unchanged — orthogonal to stack architecture
+- [x] 8.7 Keep `Plater::priv::leave_gizmos_stack()`'s baseline-timestamp fix — `GLGizmoBrimEars` still uses the raw API directly and the fix is correct for it too
+- [x] 8.8 New: `GLGizmoSlaSupports::resync_after_undo_redo()` — unconditional `reload_cache()` + SLA backend invalidate/reslice on every undo/redo landing on Support outside editing mode, replacing the unreliable `RECALCULATE_SLA_SUPPORTS`-flag-gated call in `GLGizmosManager::update_after_undo_redo()`
+- [x] 8.9 New: `on_set_state(Off)`'s real-shutdown branch unconditionally forces `m_show_support_structure = true; show_sla_supports(true);` so a successfully-generated support structure is never left invisible after closing the panel, regardless of which sub-view (Points/Structure) was last selected
+- [x] 8.10 Full rebuild (`PhrozenOrca_app_gui.vcxproj`, RelWithDebInfo) after each step — all compile clean, no errors (warnings only, pre-existing)
+- [x] 8.11 Diagnostic `[undo-diag]` logging added during the investigation (GLGizmoBase.cpp, GLGizmosManager.cpp, Plater.cpp) removed once root causes were confirmed and fixed
 
-  | Entry point | Coverage |
-  |---|---|
-  | `Plater::remove_selected` | Choke added |
-  | `Plater::priv::remove` | Choke added |
-  | `Plater::priv::delete_object_from_model` | Choke added |
-  | `Plater::priv::delete_all_objects_from_model` | Choke added |
-  | `Plater::priv::remove_curr_plate_all` | Choke added |
-  | `ObjectList::remove` (`wxID_DELETE`) | Choke added |
-  | Instance / layer removal | Covered transitively — routes through `ObjectList::remove` |
-  | `decrease_instances()` | N/A — dead code (`#if 0`), not reachable |
-  | New project (`new_project`) | Covered transitively via fixed `Plater::priv::reset()` |
-  | Open/Load project (`load_project`) | Covered transitively via fixed `Plater::priv::reset()` |
-  | `Plater::priv::reset()` itself | Fixed directly — choke was missing entirely; also fixed ordering (choke now precedes the `ProjectSeparator` snapshot) |
-  | `reload_from_disk()` | Choke added (had no gate at all) |
-  | `replace_with_stl()` | No change needed — already refuses to run while any gizmo is open (`check_gizmos_closed_except`), verified pre-existing safe |
-  | Residual: SlaSupports delete-with-unsaved-edits async-confirm | NOT fully covered — documented known gap (see §7 note); mitigated by null-guard (no crash) but snapshot may land on wrong stack in this one interaction |
+## 9. Tests — Layer 2 (manual matrix, GUI, single-stack design)
 
-- [x] 8.3 Accepted residuals, noted as follow-up candidates (not fixed in this change):
-  - Decision C: editing a value and reverting it to the exact baseline value before leaving records a redundant (content-identical) main-stack snapshot, because the no-op check is structural (timestamp-based), not content-diff-based.
-  - SlaSupports delete-with-unsaved-Manual-edits-and-async-confirm interaction (see §7 note and audit table above) — would need either a UX decision (force-discard vs. block-delete-until-resolved) or making the delete path await the async dialog's resolution; both are out of scope for this change.
+> Replaces Section 7. Scoped-sub-stack concepts (baseline anchoring, in-mode-vs-main boundary, collapse-to-one-on-leave, no-op-skip-on-leave) no longer apply — there is one stack, and every committed action is its own permanent step on it.
+
+- [ ] 9.1 Each Apply/add/delete/move in all 3 modes is individually undoable and redoable, in the order performed, exactly like any other main-stack operation
+- [ ] 9.2 Support Manual mode: add a point, Apply (stay in mode), add another point — Ctrl+Z once only undoes the second point; the first point and the first Apply remain intact (regression check for the leave+re-enter bug this pivot fixes)
+- [ ] 9.3 Undo/redo that lands on a snapshot taken while a mode's panel was open/closed correctly opens/closes that panel as a side effect, with no crash and no getting "stuck" (regression check for the hard-boundary bug this pivot fixes)
+- [ ] 9.4 Repeated undo past the point where any mode was ever opened does not crash and does not get stuck — it just keeps walking through ordinary main-stack history
+- [ ] 9.5 `resync_after_undo_redo()`: Support Auto Apply → switch to Structure view → leave mode → undo — the pad/support-tree mesh updates to match (cleared or regenerated), does not stay stale
+- [ ] 9.6 Leaving the Support panel always leaves the actual support structure visible in the normal 3D view, regardless of whether Points or Structure sub-view was last selected inside the panel
+- [ ] 9.7 Structural mutation while a mode is open (delete focused object via Delete key / toolbar / `wxID_DELETE`, delete-all, plate-clear, load project) — no crash; the gizmo self-closes via the null-guard fallback
+- [ ] 9.8 Direct mode→mode switch (Support ↔ Hollow ↔ Drill) — no crash, each mode's own history remains on the single main stack in the order performed
+- [ ] 9.9 `GLGizmoBrimEars` (FDM, unaffected by this change) still works — its own enter/leave-gizmos-stack Apply flow is unchanged, sanity-check only
+
+## 10. Wrap-up
+
+- [x] 10.1 Confirmed by code review: non-mode undo/redo machinery (`Plater::priv::undo/redo/undo_redo_to`, `UndoRedo::Stack`, FDM gizmos, Mechanism A for FDM painting gizmos) not modified by the Decision G pivot.
+- [x] 10.2 Structural-mutation entry-point audit (Section 5) — superseded, not needed under single-stack. The one requirement it partially covered that still matters — a gizmo not crashing when its focused object vanishes — is fully covered by the retained Decision E.3 null-guard, verified per-gizmo in Section 9.7.
+- [x] 10.3 Accepted residuals carried forward from the abandoned design, still relevant:
+  - Undo history is intentionally verbose under single-stack (Decision G accepted trade-off) — not a residual bug, a deliberate choice.
+- [ ] 10.4 Once Section 9 passes, archive this change; sync `resin-mode-single-stack-undo-redo` and the trimmed `resin-mode-structural-mutation-safety` into the main specs; do **not** sync the abandoned `resin-mode-scoped-undo-stack` spec (already removed from `specs/`).
