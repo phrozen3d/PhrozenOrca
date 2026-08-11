@@ -3132,9 +3132,9 @@ private:
     Slic3r::UndoRedo::Stack 	m_undo_redo_stack_main;
     Slic3r::UndoRedo::Stack 	m_undo_redo_stack_gizmos;
     Slic3r::UndoRedo::Stack    *m_undo_redo_stack_active = &m_undo_redo_stack_main;
-    // resin-mode-scoped-undo-stack: active_snapshot_time() of the gizmos stack right after
-    // enter_gizmos_stack() took its "Gizmos-Initial" baseline. leave_gizmos_stack() compares
-    // against this instead of has_undo_snapshot() — see the comment there for why.
+    // active_snapshot_time() of the gizmos stack right after enter_gizmos_stack() took its
+    // "Gizmos-Initial" baseline. leave_gizmos_stack() compares against this instead of
+    // has_undo_snapshot() — see the comment there for why.
     size_t                      m_gizmos_stack_baseline_time = 0;
     int                         m_prevent_snapshots = 0;     /* Used for avoid of excess "snapshoting".
                                                               * Like for "delete selected" or "set numbers of copies"
@@ -9187,8 +9187,8 @@ void Plater::priv::enter_gizmos_stack()
         // Take the initial snapshot of the gizmos.
         // Not localized on purpose, the text will never be shown to the user.
         this->take_snapshot(std::string("Gizmos-Initial"));
-        // resin-mode-scoped-undo-stack: remember where the baseline landed. leave_gizmos_stack()
-        // needs this — see the comment there.
+        // Remember where the baseline landed. leave_gizmos_stack() needs this — see the
+        // comment there.
         m_gizmos_stack_baseline_time = m_undo_redo_stack_gizmos.active_snapshot_time();
     }
     if (wxGetApp().mainframe)
@@ -9201,20 +9201,16 @@ bool Plater::priv::leave_gizmos_stack()
     assert(m_undo_redo_stack_active == &m_undo_redo_stack_gizmos);
     if (m_undo_redo_stack_active == &m_undo_redo_stack_gizmos) {
         assert(! m_undo_redo_stack_active->empty());
-        // resin-mode-scoped-undo-stack: NOT has_undo_snapshot(). That scans every snapshot
-        // strictly before the active position for one with a "project modifying" SnapshotType
-        // (Action/GizmoAction/ProjectSeparator) — and the "Gizmos-Initial" baseline snapshot
-        // itself is taken with the default type Action (see enter_gizmos_stack() above), so it
-        // always falls inside that "before active" range and always counts as a match. That
-        // makes has_undo_snapshot() unconditionally true right after entering, before the user
-        // has done anything — every leave_mode_undo_stack() call would record a spurious
-        // main-stack snapshot even for a pure no-op session. (This was always latent: every
-        // pre-existing caller of leave_gizmos_stack() discarded its return value and decided
-        // whether to snapshot some other way — e.g. GLGizmoSlaSupports::unsaved_changes() — so
-        // nothing ever actually consulted it until this change's leave_mode_undo_stack() did.)
-        // Comparing active_snapshot_time() against the baseline captured at enter time is
-        // exactly "did anything real happen since baseline, and is it still not fully undone" —
-        // undoing back to the baseline restores active_snapshot_time() to that same value.
+        // NOT has_undo_snapshot(). That scans every snapshot strictly before the active
+        // position for one with a "project modifying" SnapshotType (Action/GizmoAction/
+        // ProjectSeparator) — and the "Gizmos-Initial" baseline snapshot itself is taken with
+        // the default type Action (see enter_gizmos_stack() above), so it always falls inside
+        // that "before active" range and always counts as a match. That makes
+        // has_undo_snapshot() unconditionally true right after entering, before the caller has
+        // done anything with the sub-stack. Comparing active_snapshot_time() against the
+        // baseline captured at enter time is exactly "did anything real happen since baseline,
+        // and is it still not fully undone" — undoing back to the baseline restores
+        // active_snapshot_time() to that same value.
         changed = (m_undo_redo_stack_gizmos.active_snapshot_time() != m_gizmos_stack_baseline_time);
         m_undo_redo_stack_active->clear();
         m_undo_redo_stack_active = &m_undo_redo_stack_main;
@@ -9312,36 +9308,20 @@ void Plater::priv::undo()
 {
     const std::vector<UndoRedo::Snapshot> &snapshots = this->undo_redo_stack().snapshots();
     auto it_current = std::lower_bound(snapshots.begin(), snapshots.end(), UndoRedo::Snapshot(this->undo_redo_stack().active_snapshot_time()));
-    // TEMP DIAGNOSTIC (7.1 investigation): which stack is active, and its snapshot list.
-    {
-        std::string names;
-        for (const auto &s : snapshots)
-            names += (names.empty() ? "" : " | ") + s.name + "#" + std::to_string(int(s.snapshot_data.snapshot_type));
-        BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Plater::priv::undo() called. active_stack="
-                                  << (this->m_undo_redo_stack_active == &this->m_undo_redo_stack_gizmos ? "GIZMOS" : "MAIN")
-                                  << " active_time=" << this->undo_redo_stack().active_snapshot_time()
-                                  << " snapshots=[" << names << "]";
-    }
     // BBS: undo-redo until modify record — boundary-safe form.
     // The original `while (--it_current != begin() && !snapshot_modifies_project(*it_current))`
     // pre-decrements before checking the boundary: UB when it_current == begin() on entry
     // (e.g. gizmo editing stack holds only the baseline snapshot after Manual Apply).
     // This loop checks the boundary AFTER each decrement so begin() is never decremented past.
-    if (it_current == snapshots.begin()) {
-        BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Plater::priv::undo(): no-op, already at stack begin()";
+    if (it_current == snapshots.begin())
         return;
-    }
     while (true) {
         --it_current;
-        if (it_current == snapshots.begin()) {
-            BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Plater::priv::undo(): no-op, hit baseline snapshot";
+        if (it_current == snapshots.begin())
             return;  // hit the baseline snapshot — nothing to undo to
-        }
         if (snapshot_modifies_project(*it_current))
             break;   // found a project-modifying snapshot
     }
-    BOOST_LOG_TRIVIAL(debug) << "[undo-diag] Plater::priv::undo(): jumping to snapshot \"" << it_current->name
-                              << "\" type=" << int(it_current->snapshot_data.snapshot_type);
     if (it_current == snapshots.begin()) return;
     if (get_current_canvas3D()->get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
         if (it_current->snapshot_data.snapshot_type != UndoRedo::SnapshotType::GizmoAction &&

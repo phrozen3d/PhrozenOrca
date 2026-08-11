@@ -91,10 +91,6 @@ protected:
     void on_save(cereal::BinaryOutputArchive& ar) const override;
 
 public:
-    // Scoped mode undo/redo (resin-mode-scoped-undo-stack): name for the single main-stack
-    // snapshot recorded when the Hollow session collapses on leave.
-    std::string get_mode_leave_snapshot_name() const override { return "Hollow"; }
-
     // Note: on_get_requirements() is NOT overridden here.
     // Step 4.3: Inherited from GLGizmoSlaBase which provides:
     //   SelectionInfo | InstancesHider | Raycaster | ObjectClipper | SupportsClipper

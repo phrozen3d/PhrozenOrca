@@ -7,8 +7,6 @@
 #include "slic3r/GUI/Plater.hpp"
 #include "slic3r/GUI/GUI_Colors.hpp"
 
-#include <boost/log/trivial.hpp>
-
 // TODO: Display tooltips quicker on Linux
 
 namespace Slic3r {
@@ -308,46 +306,6 @@ GLGizmoBase::GLGizmoBase(GLCanvas3D &parent, const std::string &icon_filename, u
 std::string GLGizmoBase::get_action_snapshot_name() const
 {
     return "Gizmo action";
-}
-
-void GLGizmoBase::enter_mode_undo_stack()
-{
-    Plater* plater = wxGetApp().plater();
-    // TEMP DIAGNOSTIC (7.1 investigation): identify caller + pre-existing stack state.
-    BOOST_LOG_TRIVIAL(debug) << "[undo-diag] enter_mode_undo_stack: gizmo=" << typeid(*this).name()
-                              << " leave_name=" << get_mode_leave_snapshot_name()
-                              << " already_active=" << plater->is_gizmos_stack_active();
-    if (plater->is_gizmos_stack_active())
-        // Idempotent: a session is already open (e.g. direct mode->mode switch without an
-        // intervening Off transition) — collapse it before anchoring a fresh baseline so the
-        // two sessions' edits are never mixed into a single sub-stack.
-        leave_mode_undo_stack();
-    plater->enter_gizmos_stack();
-}
-
-void GLGizmoBase::leave_mode_undo_stack()
-{
-    Plater* plater = wxGetApp().plater();
-    if (!plater->is_gizmos_stack_active()) {
-        // Idempotent: nothing to leave, e.g. called redundantly or after a structural mutation
-        // already force-collapsed this session.
-        BOOST_LOG_TRIVIAL(debug) << "[undo-diag] leave_mode_undo_stack: gizmo=" << typeid(*this).name()
-                                  << " leave_name=" << get_mode_leave_snapshot_name()
-                                  << " -> no-op, stack not active";
-        return;
-    }
-    // leave_gizmos_stack() switches the active stack back to main and reports whether the
-    // sub-stack held any undoable snapshot relative to its baseline (structural "changed?").
-    // Order matters: switch to main FIRST, then snapshot, so the collapsed result lands on the
-    // main stack rather than the (now-cleared) sub-stack.
-    bool changed = plater->leave_gizmos_stack();
-    // TEMP DIAGNOSTIC (7.1 investigation): whether this leave records a collapsed main snapshot.
-    BOOST_LOG_TRIVIAL(debug) << "[undo-diag] leave_mode_undo_stack: gizmo=" << typeid(*this).name()
-                              << " leave_name=" << get_mode_leave_snapshot_name()
-                              << " changed=" << changed
-                              << (changed ? " -> RECORDING main snapshot" : " -> no-op, nothing recorded");
-    if (changed)
-        Plater::TakeSnapshot snapshot(plater, get_mode_leave_snapshot_name());
 }
 
 void GLGizmoBase::set_icon_filename(const std::string &filename) {

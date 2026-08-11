@@ -182,10 +182,6 @@ public:
     virtual std::string get_gizmo_entering_text() const { assert(false); return ""; }
     virtual std::string get_gizmo_leaving_text() const { assert(false); return ""; }
     virtual std::string get_action_snapshot_name() const;
-    // Name of the single main-stack snapshot recorded when a scoped mode undo/redo
-    // session (see enter_mode_undo_stack / leave_mode_undo_stack) collapses on leave.
-    // Defaults to get_action_snapshot_name(); override to give a mode-specific name.
-    virtual std::string get_mode_leave_snapshot_name() const { return get_action_snapshot_name(); }
     void set_common_data_pool(CommonGizmosDataPool* ptr) { m_c = ptr; }
 
     virtual bool apply_clipping_plane() { return true; }
@@ -232,21 +228,6 @@ public:
     virtual bool is_selection_rectangle_dragging() const { return false; }
 
 protected:
-    // Shared scoped mode undo/redo sub-stack entry points (Mechanism B / Plater::enter_gizmos_stack).
-    // A "mode" here is Generate support / Hollow / Drill: entering opens a secondary undo/redo
-    // stack anchored at a baseline; in-mode undo/redo is bounded to that sub-stack; leaving
-    // collapses the whole session into at most one snapshot on the main stack (named via
-    // get_mode_leave_snapshot_name()), or none at all if the session was a no-op relative to
-    // the baseline. See openspec/changes/resin-mode-scoped-undo-redo (capability
-    // resin-mode-scoped-undo-stack) for the full requirements this implements.
-    //
-    // Explicit methods rather than an RAII scope: SlaSupports needs to leave, snapshot, and
-    // re-enter mid-session (commit-and-keep-editing), which does not fit a ctor/dtor lifetime.
-    // Both methods are idempotent: enter collapses an already-active session before opening a
-    // fresh one; leave is a no-op if the main stack is already active.
-    void enter_mode_undo_stack();
-    void leave_mode_undo_stack();
-
     float last_input_window_width = 0;
     virtual bool on_init() = 0;
     virtual void on_load(cereal::BinaryInputArchive& ar) {}

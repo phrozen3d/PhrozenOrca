@@ -109,11 +109,6 @@ protected:
     bool on_is_selectable() const override;
     void on_load(cereal::BinaryInputArchive& ar) override;
     void on_save(cereal::BinaryOutputArchive& ar) const override;
-
-public:
-    // Scoped mode undo/redo (resin-mode-scoped-undo-stack): name for the single main-stack
-    // snapshot recorded when the Drill session collapses on leave.
-    std::string get_mode_leave_snapshot_name() const override { return "Apply drain holes"; }
 };
 
 

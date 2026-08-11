@@ -450,9 +450,8 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
 
     if (m_state == On && !mo) {
         // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
-        // by a structural mutation that was not routed through the containment choke point).
-        // Self-close rather than silently stalling with a dangling reference; disable_editing_mode()
-        // (invoked via on_set_state(Off)) discards any uncommitted sub-stack session safely.
+        // while this gizmo was open). Self-close rather than silently stalling with a dangling
+        // reference.
         m_parent.get_gizmos_manager().reset_all_states();
         return;
     }
@@ -2030,6 +2029,16 @@ void GLGizmoSlaSupports::on_set_state()
                 m_c->selection_info()->set_use_config_elevation(false);
             m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
             m_c->instances_hider()->set_hide_full_scene(false);
+            // Always leave with the actual generated support structure visible, regardless of
+            // which sub-view (Points / Structure) was last selected inside the gizmo.
+            // disable_editing_mode() only restores visibility per m_show_support_structure when
+            // leaving Manual editing (m_editing_mode was true) — a pure Auto-view session that
+            // last had "Points" selected never touches m_show_sla_supports at all, so a
+            // successfully-applied support structure could stay invisible in the normal 3D view
+            // after closing the panel with no way to tell it was actually generated. Force both
+            // flags here, unconditionally, on every real close.
+            m_show_support_structure = true;
+            show_sla_supports(true);
         }
     }
     m_old_state = m_state;
@@ -2199,15 +2208,10 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     for (const CacheEntry& ce : m_editing_cache)
         m_normal_cache.push_back(ce.support_point);
 
-    // Commit-while-staying-in-editing: record this as an ordinary in-place checkpoint on
-    // whichever stack is currently active (the gizmos sub-stack, since we're still inside
-    // Manual editing) — same pattern as GLGizmoHollow's "Hollow" / GLGizmoDrill's "Apply
-    // drain holes" Apply-button snapshots. Deliberately NOT leave_mode_undo_stack() +
-    // enter_mode_undo_stack(): this session hasn't left the mode, so the sub-stack must not
-    // be torn down and rebuilt — every point add/move/delete before AND after this Apply
-    // stays on one continuous, individually-undoable sub-stack. The whole session (spanning
-    // any number of in-mode Applies) still collapses to exactly one main-stack snapshot,
-    // but only when the mode is actually left (see disable_editing_mode()).
+    // Single-stack undo/redo: record this as an ordinary main-stack checkpoint, same pattern
+    // as GLGizmoHollow's "Hollow" / GLGizmoDrill's "Apply drain holes" Apply-button snapshots.
+    // Every point add/move/delete and every in-mode Apply is its own individually-undoable
+    // main-stack step — nothing gets collapsed, in-mode or on leave.
     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
 
     ModelObject* mo_apply = m_c->selection_info()->model_object();
@@ -2285,7 +2289,7 @@ void GLGizmoSlaSupports::editing_mode_apply_changes()
 {
     // If there are no changes, don't touch the front-end. The data in the cache could have been
     // taken from the backend and copying them to ModelObject would needlessly invalidate them.
-    disable_editing_mode(); // this leaves the editing mode undo/redo stack and must be done before the snapshot is taken
+    disable_editing_mode();
 
     if (unsaved_changes()) {
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
@@ -2458,8 +2462,6 @@ void GLGizmoSlaSupports::auto_generate()
 
 void GLGizmoSlaSupports::switch_to_editing_mode()
 {
-    // resin-mode-scoped-undo-stack: entering Manual editing anchors a scoped undo/redo baseline.
-    enter_mode_undo_stack();
     m_editing_mode = true;
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
@@ -2480,16 +2482,9 @@ void GLGizmoSlaSupports::disable_editing_mode()
         m_editing_mode = false;
         notify_process_tab_selection_changed();
         unregister_point_raycasters_for_picking();
-        // Intentionally the raw leave_gizmos_stack() call, NOT the shared leave_mode_undo_stack():
-        // callers of disable_editing_mode() are responsible for their own main-stack snapshot.
-        // editing_mode_apply_changes() calls disable_editing_mode() first (per its comment, "this
-        // leaves the editing mode undo/redo stack and must be done before the snapshot is taken")
-        // and then takes its own explicit "Support points edit" snapshot afterwards; if this used
-        // leave_mode_undo_stack() instead, that would record a second, duplicate main-stack
-        // snapshot for a single Apply. The other caller (on_set_state's Off branch, reached only
-        // when there are no unsaved changes or the object has vanished) correctly wants a pure
-        // discard with no snapshot at all, which the raw call already provides.
-        wxGetApp().plater()->leave_gizmos_stack();
+        // Single-stack undo/redo: no sub-stack to leave. Every point add/move/delete and every
+        // "Support points edit" commit already landed directly on the main stack as its own
+        // step; there is nothing to collapse here.
         show_sla_supports(m_show_support_structure); // Step 4.2: restore support structure visibility
         m_parent.set_as_dirty();
     }
