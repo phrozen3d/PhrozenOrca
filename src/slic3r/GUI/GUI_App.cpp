@@ -4740,7 +4740,7 @@ std::string GUI_App::format_display_version()
 {
     if (!version_display.empty()) return version_display;
 
-    version_display = Phrozen_VERSION;
+    version_display = std::string(Phrozen_VERSION) + " rc4";
     return version_display;
 }
 

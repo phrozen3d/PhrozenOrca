@@ -30,7 +30,7 @@ REM              number retags directly, no need to UNDO first.
 REM ============================================================================
 
 set RC_ACTION=TAG
-set RC_NUMBER=3
+set RC_NUMBER=4
 
 REM ---------------------------------------------------------------------------
 REM No need to edit anything below this line.
