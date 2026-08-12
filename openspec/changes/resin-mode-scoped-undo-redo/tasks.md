@@ -98,15 +98,21 @@
 
 > Replaces Section 7. Scoped-sub-stack concepts (baseline anchoring, in-mode-vs-main boundary, collapse-to-one-on-leave, no-op-skip-on-leave) no longer apply — there is one stack, and every committed action is its own permanent step on it.
 
+> **2026-08-12**: Support-specific items (9.2, 9.5, 9.6) confirmed passing by user testing. Hollow/Drill found to still have problems — under investigation, not yet fixed. Cross-mode items (9.1, 9.3, 9.4, 9.7, 9.8) left unchecked until Hollow/Drill's issues are resolved and re-verified together.
+
 - [ ] 9.1 Each Apply/add/delete/move in all 3 modes is individually undoable and redoable, in the order performed, exactly like any other main-stack operation
-- [ ] 9.2 Support Manual mode: add a point, Apply (stay in mode), add another point — Ctrl+Z once only undoes the second point; the first point and the first Apply remain intact (regression check for the leave+re-enter bug this pivot fixes)
+- [x] 9.2 Support Manual mode: add a point, Apply (stay in mode), add another point — Ctrl+Z once only undoes the second point; the first point and the first Apply remain intact (regression check for the leave+re-enter bug this pivot fixes) — **confirmed passing**
 - [ ] 9.3 Undo/redo that lands on a snapshot taken while a mode's panel was open/closed correctly opens/closes that panel as a side effect, with no crash and no getting "stuck" (regression check for the hard-boundary bug this pivot fixes)
 - [ ] 9.4 Repeated undo past the point where any mode was ever opened does not crash and does not get stuck — it just keeps walking through ordinary main-stack history
-- [ ] 9.5 `resync_after_undo_redo()`: Support Auto Apply → switch to Structure view → leave mode → undo — the pad/support-tree mesh updates to match (cleared or regenerated), does not stay stale
-- [ ] 9.6 Leaving the Support panel always leaves the actual support structure visible in the normal 3D view, regardless of whether Points or Structure sub-view was last selected inside the panel
+- [x] 9.5 `resync_after_undo_redo()`: Support Auto Apply → switch to Structure view → leave mode → undo — the pad/support-tree mesh updates to match (cleared or regenerated), does not stay stale — **confirmed passing**
+- [x] 9.6 Leaving the Support panel always leaves the actual support structure visible in the normal 3D view, regardless of whether Points or Structure sub-view was last selected inside the panel — **confirmed passing**
 - [ ] 9.7 Structural mutation while a mode is open (delete focused object via Delete key / toolbar / `wxID_DELETE`, delete-all, plate-clear, load project) — no crash; the gizmo self-closes via the null-guard fallback
 - [ ] 9.8 Direct mode→mode switch (Support ↔ Hollow ↔ Drill) — no crash, each mode's own history remains on the single main stack in the order performed
 - [ ] 9.9 `GLGizmoBrimEars` (FDM, unaffected by this change) still works — its own enter/leave-gizmos-stack Apply flow is unchanged, sanity-check only
+
+### 9a. Hollow/Drill regressions found during 2026-08-12 testing
+
+> Support mode passed; Hollow/Drill did not. Details being reported by user — filled in below as they're diagnosed.
 
 ## 10. Wrap-up
 
