@@ -133,10 +133,17 @@ InteriorPtr generate_interior(const TriangleMesh &   mesh,
         // flip normals back...
         swap_normals(interior->mesh);
 
-        // simplify mesh lossless
-        float loss_less_max_error = 2*std::numeric_limits<float>::epsilon();
-        its_quadric_edge_collapse(interior->mesh, 0U, &loss_less_max_error);
-
+        // Lossless its_quadric_edge_collapse() simplification pass removed here:
+        // on a marching-cubes mesh from a fine voxel grid (voxel_scale up to 8x at
+        // quality=1.0), it can take a very long time — QuadricEdgeCollapse::
+        // create_no_volume()'s nested per-edge-candidate loop scales with vertex
+        // valence, and a large mesh means a large number of candidate edges to
+        // walk, each checking throw_on_cancel() only every 16 outer iterations, so
+        // a single expensive candidate can make Cancel unresponsive for a long time
+        // too. Current upstream PrusaSlicer's generate_interior() (rewritten since
+        // this fork's base) no longer runs this pass at all — it uses grid_to_mesh()'s
+        // output directly. Compactify/merge-vertices kept: unlike the collapse pass,
+        // those are cheap and still useful cleanup of the raw marching-cubes mesh.
         its_compactify_vertices(interior->mesh);
         its_merge_vertices(interior->mesh);
 
