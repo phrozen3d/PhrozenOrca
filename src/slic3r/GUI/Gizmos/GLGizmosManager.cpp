@@ -1151,6 +1151,12 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
                     m_parent.set_as_dirty();
                 }
             }
+            // Both branches below ultimately request slaposDrillHoles (GLGizmoHollow's
+            // resync_after_undo_redo() targets it too, not slaposHollowing alone — see its
+            // comment: the displayed/printed mesh is gated on slaposDrillHoles being done,
+            // even when there are no drain holes at all). Calling both when both conditions
+            // hold is redundant but harmless — reslice_until_step() is a no-op once the
+            // target step is already done.
             if (hollow_enabled) {
                 static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
                 m_parent.set_as_dirty();
