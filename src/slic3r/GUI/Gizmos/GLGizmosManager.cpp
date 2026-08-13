@@ -1,4 +1,5 @@
 #include "libslic3r/libslic3r.h"
+#include <algorithm>
 #include "GLGizmosManager.hpp"
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/3DScene.hpp"
@@ -1119,10 +1120,27 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
     // a snapshot captured after the user had already left the mode), and NOT gated on whether
     // this gizmo's own data is present (missed the opposite case: undo/redo restoring a state
     // with NO hollow/drill/support data, where the backend still needs to be told to discard
-    // whatever it was showing before — see the "regressed further" note in GLGizmoSlaSupports::
-    // resync_after_undo_redo()'s comment). Each gizmo's resync_after_undo_redo() is responsible
-    // for correctly handling both "there is data" and "there isn't" on its own. Guarded by
-    // m_parent.sla_print() so this is a no-op for FDM projects.
+    // whatever it was showing before — see GLGizmoSlaSupports::resync_after_undo_redo()'s
+    // comment). Each gizmo's resync_after_undo_redo() is responsible for correctly handling
+    // both "there is data" and "there isn't" on its own. Guarded by m_parent.sla_print() so
+    // this is a no-op for FDM projects.
+    //
+    // Regression fix #3 (2026-08-13): the three gizmos' resync_after_undo_redo() methods used
+    // to each independently call reslice_until_step(), which force-restarts the single shared
+    // background process. Because this fork's Plater::priv::background_processing_enabled()
+    // is always false (SUPPORT_BACKGROUND_PROCESSING is never defined), every one of those
+    // three calls also capped the recompute at its own requested step via task.to_object_step
+    // — and since they're all deferred through wxGetApp().CallAfter() and fire back-to-back,
+    // whichever was queued LAST (Drill's, called last here, targeting slaposDrillHoles — a step
+    // earlier in the pipeline than Support's slaposSupportPoints/slaposPad) silently won the
+    // race and capped the pipeline short of ever reaching supports/pad, no matter what Support
+    // actually needed. See GLGizmoSlaSupports::resync_after_undo_redo()'s comment for the full
+    // trace (confirmed via temporary diagnostic logging).
+    // Fix: each resync_after_undo_redo() now only does its own local cache/config sync and
+    // *returns* the SLAPrintObjectStep it needs recomputed, without touching the background
+    // process itself. Here, the three returned steps are combined and exactly one
+    // reslice_until_step() call is issued for the deepest (numerically largest) of them, so
+    // there is only ever a single background-process restart per undo/redo.
     if (m_parent.sla_print()) {
         const Selection& selection = m_parent.get_selection();
         const int object_idx = selection.get_object_idx();
@@ -1131,28 +1149,32 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
             && object_idx < (int)plater->model().objects.size()
             && plater->model().objects[object_idx] != nullptr) {
             GLGizmoSlaSupports* sla_gizmo = dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get());
+            // slaposAssembly (0) as the "no requirement from Support" sentinel: Support is
+            // skipped below whenever it's the actively-editing gizmo (see the comment at that
+            // check), and slaposAssembly is guaranteed to never be the deepest of the three
+            // once Hollow/Drill's slaposDrillHoles is folded in via std::max() below.
+            SLAPrintObjectStep combined_target = slaposAssembly;
             // Guard against editing mode: in-session undo uses the gizmo stack and
             // m_editing_cache is restored via serialization — do not overwrite it with
             // normal_cache here. Only meaningful when Support is actually the active gizmo;
             // is_in_editing_mode() is false otherwise.
             if (!sla_gizmo->is_in_editing_mode()) {
-                sla_gizmo->resync_after_undo_redo();
+                combined_target = sla_gizmo->resync_after_undo_redo();
                 // Plater::priv::update_after_undo_redo() calls this->update() BEFORE calling
                 // gizmos_manager.update_after_undo_redo(), so the canvas repaint triggered by
                 // update() uses the stale m_normal_cache. Mark the canvas dirty again so the
                 // next paint cycle uses the freshly reloaded cache.
                 m_parent.set_as_dirty();
             }
-            // Both ultimately request slaposDrillHoles (GLGizmoHollow's resync_after_undo_redo()
-            // targets it too, not slaposHollowing alone — the displayed/printed mesh is gated
-            // on slaposDrillHoles being done, even with no drain holes at all). drill_holes()'s
-            // own "nothing to do" branch already resets m_hollowing_data and regenerates the
-            // preview, so — unlike Support's separate pad/tree GLVolumes — no extra explicit
-            // clear is needed here for the "no hollow/drain data" case. Calling both is
-            // redundant but harmless: reslice_until_step() no-ops once the step is done.
-            static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
-            static_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->resync_after_undo_redo();
+            const SLAPrintObjectStep hollow_target = static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
+            const SLAPrintObjectStep drill_target = static_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->resync_after_undo_redo();
+            combined_target = std::max({combined_target, hollow_target, drill_target});
             m_parent.set_as_dirty();
+
+            // Any GLGizmoSlaBase instance works here — reslice_until_step() ultimately just
+            // schedules Plater::reslice_SLA_until_step() for the currently selected object via
+            // m_parent.get_selection(), independent of which gizmo instance issues the call.
+            sla_gizmo->reslice_until_step(combined_target, true);
         }
     }
 }

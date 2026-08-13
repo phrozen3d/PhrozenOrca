@@ -46,7 +46,13 @@ public:
     // whether Hollow-relevant config actually changed, wiping this cache. Pending parameter
     // refresh already happens via the existing on_load()/data_changed(is_serializing=true)
     // path; this only needs to force the backend to recompute.
-    void resync_after_undo_redo();
+    //
+    // Returns the SLAPrintObjectStep needed (slaposDrillHoles) instead of calling
+    // reslice_until_step() itself — see GLGizmoSlaSupports::resync_after_undo_redo()'s comment
+    // and GLGizmosManager::update_after_undo_redo() for why the three resin gizmos' requested
+    // steps are combined into a single reslice_until_step() call rather than three independent
+    // (and mutually cancelling) ones.
+    SLAPrintObjectStep resync_after_undo_redo();
     bool is_selection_rectangle_dragging() const override {
         return m_selection_rectangle.is_dragging();
     }

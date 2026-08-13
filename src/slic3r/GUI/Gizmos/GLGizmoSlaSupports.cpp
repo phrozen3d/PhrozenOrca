@@ -2348,7 +2348,7 @@ void GLGizmoSlaSupports::reload_cache()
 }
 
 
-void GLGizmoSlaSupports::resync_after_undo_redo()
+SLAPrintObjectStep GLGizmoSlaSupports::resync_after_undo_redo()
 {
     // reload_cache() and invalidate_support_points_for_object() are best-effort: they rely on
     // m_c->selection_info(), which is only populated while this gizmo is the currently active
@@ -2380,16 +2380,57 @@ void GLGizmoSlaSupports::resync_after_undo_redo()
     // discard the still-rendered pad/support-tree volumes from before the undo, leaving them
     // stuck on screen despite the points themselves correctly disappearing. Mirrors the
     // existing empty-branch in commit_manual_edits_keep_editing().
+    //
+    // Decision K regression fix #2: the empty branch used to early-return after only calling
+    // sync_generate_support_for_object() + clear_support_volumes(). Neither of those actually
+    // reaches the backend:
+    //  - sync_generate_support_for_object() just mutates ModelObject::config in memory.
+    //  - clear_support_volumes() only touches GLGizmoSlaBase::m_volumes, this gizmo's OWN
+    //    private mesh cache used while its panel is rendering. Once the user has left the
+    //    mode (the exact "leave mode -> undo" repro), nothing reads m_volumes anymore — the
+    //    pad/support-tree actually still on screen are GLCanvas3D's own scene volumes, loaded
+    //    by _load_sla_shells() purely from SLAPrintObject::is_step_done(slaposSupportTree /
+    //    slaposPad), and the model's Z elevation (SLAPrintObject::get_current_elevation()) is
+    //    likewise driven by those same is_step_done() flags. Never calling reslice_until_step()
+    //    means SLAPrint::apply() is never invoked, so the backend's cached config keeps
+    //    thinking generate_support is still true and none of the stale steps get invalidated:
+    //    the pad visibly lingers *and* the model stays elevated as if supports still existed.
+    //    Worse, because the backend's cached config never actually got updated to false, the
+    //    next redo's apply() sees no diff from its own (stale) perspective and skips
+    //    recomputation too - which was also breaking "redo does not regrow the support tree".
+    // Regression fix #3 (found via temporary diagnostic logging, 2026-08-13): calling
+    // reslice_until_step() directly from here turned out to be the wrong shape of fix, even
+    // though it looked correct in isolation. GLGizmosManager::update_after_undo_redo() calls
+    // this method AND GLGizmoHollow's AND GLGizmoDrill's unconditionally on every undo/redo;
+    // each one used to independently call reslice_until_step() -> Plater::reslice_SLA_until_step()
+    // -> restart_background_process(FORCE_RESTART), which unconditionally stops whatever the
+    // shared background process is currently doing and starts a fresh one. All three calls are
+    // deferred via wxGetApp().CallAfter() and fire back-to-back in the same idle-event batch, so
+    // each one cancelled the previous one's still-running computation before it could finish.
+    // Worse: since this fork never defines SUPPORT_BACKGROUND_PROCESSING,
+    // Plater::priv::background_processing_enabled() is always false, so EVERY one of those three
+    // calls also set task.to_object_step = its own requested step, capping how far the pipeline
+    // was allowed to run. GLGizmosManager calls Support -> Hollow -> Drill in that order, and
+    // Hollow/Drill's target (slaposDrillHoles) sits earlier in the pipeline than Support's
+    // (slaposSupportPoints/slaposPad) -- so the LAST one queued (Drill's) won the race every
+    // time and permanently capped the recompute short of ever reaching supports/pad, regardless
+    // of what Support's own resync actually wanted. This is why undo/redo affecting supports
+    // kept failing even after the reslice_until_step() call was correctly reached.
+    // Fix: this method no longer calls reslice_until_step() itself. It only performs the local
+    // config/cache sync and returns the step it needs recomputed; GLGizmosManager combines this
+    // with Hollow's/Drill's own returned step and issues exactly one reslice_until_step() call
+    // for the deepest of the three, so there is only ever one restart per undo/redo.
     const bool has_support_data = mo && (!mo->sla_support_points.empty()
         || [mo]() { const auto *opt = mo->config.get().option<ConfigOptionBool>("generate_support"); return opt && opt->value; }());
-    if (mo && !has_support_data) {
+    if (mo && !has_support_data)
         sync_generate_support_for_object(mo, false);
-        clear_support_volumes();
-        m_parent.set_as_dirty();
-        return;
-    }
 
-    reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints, true);
+    // Also drop this gizmo's own stale mesh cache so that if the gizmo is re-opened before
+    // the reslice completes, it doesn't briefly flash the old pad/tree.
+    clear_support_volumes();
+    m_parent.set_as_dirty();
+
+    return (has_support_data && m_show_support_structure) ? slaposPad : slaposSupportPoints;
 }
 
 

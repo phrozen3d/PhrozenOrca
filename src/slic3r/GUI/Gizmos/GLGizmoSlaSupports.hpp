@@ -113,7 +113,17 @@ public:
     // SnapshotData::RECALCULATE_SLA_SUPPORTS (that flag reflects whether backend supports
     // existed right before the action being undone, not whether the restored state actually
     // needs a resync — e.g. it's unset on a first-ever Auto Apply on a fresh object).
-    void resync_after_undo_redo();
+    //
+    // Does NOT call reslice_until_step() itself — only performs the local cache/config sync
+    // and returns the SLAPrintObjectStep this domain needs recomputed. GLGizmosManager combines
+    // this with Hollow's/Drill's own requested step and issues exactly one reslice_until_step()
+    // call for the deepest of the three. See GLGizmosManager::update_after_undo_redo()'s comment
+    // for why: three independent reslice_until_step() calls each force-restart the same shared
+    // background process, and since this fork never defines SUPPORT_BACKGROUND_PROCESSING (so
+    // background_processing_enabled() is always false), every one of those calls also caps the
+    // recompute at its own target step — the last one queued silently wins and can cap the
+    // pipeline short of what an earlier-queued domain actually needed.
+    SLAPrintObjectStep resync_after_undo_redo();
 
     // Sync dialog before Slice: Yes=apply, No=discard, Cancel=abort. Returns true to continue slicing.
     bool resolve_unsaved_manual_edits_before_slice();

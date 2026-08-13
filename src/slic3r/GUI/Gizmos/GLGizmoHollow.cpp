@@ -92,7 +92,7 @@ void GLGizmoHollow::data_changed(bool is_serializing)
 }
 
 
-void GLGizmoHollow::resync_after_undo_redo()
+SLAPrintObjectStep GLGizmoHollow::resync_after_undo_redo()
 {
     // NOT slaposHollowing alone: the mesh actually used for display/print
     // (SLAPrintObject::get_mesh_to_print()/get_mesh_to_slice()) is only populated once
@@ -101,7 +101,9 @@ void GLGizmoHollow::resync_after_undo_redo()
     // branch still runs sla::hollow_mesh() when hollowed). Every other trigger point in this
     // file already requests slaposDrillHoles for exactly this reason (see the note at the top
     // of this file); this call must match or hollowing-only results never become visible.
-    reslice_until_step(slaposDrillHoles, true);
+    //
+    // Does not call reslice_until_step() itself anymore — see this method's header comment.
+    return slaposDrillHoles;
 }
 
 

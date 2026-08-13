@@ -91,9 +91,10 @@ void GLGizmoDrill::data_changed(bool is_serializing)
 }
 
 
-void GLGizmoDrill::resync_after_undo_redo()
+SLAPrintObjectStep GLGizmoDrill::resync_after_undo_redo()
 {
-    reslice_until_step(slaposDrillHoles, true);
+    // Does not call reslice_until_step() itself anymore — see this method's header comment.
+    return slaposDrillHoles;
 }
 
 
