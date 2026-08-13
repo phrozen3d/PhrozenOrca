@@ -32,6 +32,15 @@ public:
     void data_changed(bool is_serializing) override;
     bool gizmo_event(SLAGizmoEventType action, const Vec2d& mouse_position, bool shift_down, bool alt_down, bool control_down);
     void delete_selected_points();
+
+    // Called by GLGizmosManager::update_after_undo_redo() after a main-stack undo/redo
+    // restores this object's sla_drain_holes. See GLGizmoHollow::resync_after_undo_redo()'s
+    // comment: the drilled mesh is a backend-only derived cache (SLAPrintObject::
+    // m_hollowing_data), never part of Model, and gets wiped on essentially every undo/redo
+    // regardless of whether Drill-relevant data actually changed. m_working_holes already
+    // rebuilds via the existing data_changed(is_serializing=true) path; this only needs to
+    // force the backend to recompute.
+    void resync_after_undo_redo();
     bool is_selection_rectangle_dragging() const override {
         return m_selection_rectangle.is_dragging();
     }

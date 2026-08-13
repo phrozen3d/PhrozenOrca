@@ -1128,6 +1128,19 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
             // next paint cycle uses the freshly reloaded cache.
             m_parent.set_as_dirty();
         }
+    } else if (m_current == Hollow) {
+        // The drilled/hollowed mesh (SLAPrintObject::m_hollowing_data) is a backend-only
+        // derived cache, never part of Model — undo/redo doesn't (and structurally can't)
+        // restore it, and SLAPrint::apply()'s top-level model-identity check discards it on
+        // essentially every undo/redo regardless of whether Hollow-relevant data actually
+        // changed. Force a recompute; pending parameter refresh already happens via the
+        // existing on_load()/data_changed(is_serializing=true) path.
+        static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
+        m_parent.set_as_dirty();
+    } else if (m_current == Drill) {
+        // Same reasoning as Hollow, see resync_after_undo_redo()'s comment on GLGizmoDrill.
+        static_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->resync_after_undo_redo();
+        m_parent.set_as_dirty();
     }
 }
 

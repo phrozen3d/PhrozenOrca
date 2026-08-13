@@ -91,6 +91,12 @@ void GLGizmoDrill::data_changed(bool is_serializing)
 }
 
 
+void GLGizmoDrill::resync_after_undo_redo()
+{
+    reslice_until_step(slaposDrillHoles, true);
+}
+
+
 void GLGizmoDrill::on_render()
 {
     // Safety check: if selected print object doesn't exist on active bed, close gizmo.

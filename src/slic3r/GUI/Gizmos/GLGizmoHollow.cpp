@@ -92,6 +92,12 @@ void GLGizmoHollow::data_changed(bool is_serializing)
 }
 
 
+void GLGizmoHollow::resync_after_undo_redo()
+{
+    reslice_until_step(slaposHollowing, true);
+}
+
+
 
 void GLGizmoHollow::on_render()
 {
