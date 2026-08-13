@@ -2350,14 +2350,22 @@ void GLGizmoSlaSupports::reload_cache()
 
 void GLGizmoSlaSupports::resync_after_undo_redo()
 {
-    reload_cache();
-    if (!m_c->selection_info())
-        return;
-    const ModelObject *mo = m_c->selection_info()->model_object();
-    if (!mo)
-        return;
-    if (const SLAPrint *print = m_parent.sla_print())
-        print->invalidate_support_points_for_object(mo->id());
+    // reload_cache() and invalidate_support_points_for_object() are best-effort: they rely on
+    // m_c->selection_info(), which is only populated while this gizmo is the currently active
+    // one (see GLGizmosManager's CommonGizmosDataPool wiring). Decision K (design.md) calls
+    // this from GLGizmosManager::update_after_undo_redo() based on the restored model's data,
+    // regardless of which gizmo (if any) is currently active — so m_c->selection_info() may
+    // legitimately be null here. Skip the cache refresh / explicit invalidate in that case
+    // (harmless: reload_cache() re-runs on next real activation via data_changed()), but still
+    // fall through to reslice_until_step(), which has its own m_parent.get_selection() fallback
+    // and does not depend on m_c at all.
+    if (m_c->selection_info()) {
+        reload_cache();
+        if (const ModelObject *mo = m_c->selection_info()->model_object()) {
+            if (const SLAPrint *print = m_parent.sla_print())
+                print->invalidate_support_points_for_object(mo->id());
+        }
+    }
     reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints, true);
 }
 

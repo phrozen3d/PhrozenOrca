@@ -33,6 +33,7 @@
 #include "libslic3r/format.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PresetBundle.hpp"
+#include "libslic3r/PrintConfig.hpp"
 
 #include <wx/glcanvas.h>
 
@@ -1111,36 +1112,54 @@ void GLGizmosManager::update_after_undo_redo(const UndoRedo::Snapshot& snapshot)
 {
     update_data();
     m_serializing = false;
-    if (m_current == SlaSupports) {
-        GLGizmoSlaSupports* sla_gizmo = dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get());
-        // Guard against editing mode: in-session undo uses the gizmo stack and m_editing_cache
-        // is restored via serialization — do not overwrite it with normal_cache here.
-        if (!sla_gizmo->is_in_editing_mode()) {
-            // Reload display cache + force-resync the SLA backend (support points / pad) to
-            // the just-restored model state. Deliberately unconditional — see
-            // resync_after_undo_redo()'s comment for why the old RECALCULATE_SLA_SUPPORTS
-            // flag gate was unreliable (unset on a first-ever Auto Apply, leaving a stale
-            // pad/tree mesh rendered after undo).
-            sla_gizmo->resync_after_undo_redo();
-            // Plater::priv::update_after_undo_redo() calls this->update() BEFORE calling
-            // gizmos_manager.update_after_undo_redo(), so the canvas repaint triggered by
-            // update() uses the stale m_normal_cache. Mark the canvas dirty again so the
-            // next paint cycle uses the freshly reloaded cache.
-            m_parent.set_as_dirty();
+
+    // Decision K (openspec/changes/resin-mode-scoped-undo-redo/design.md): trigger each
+    // gizmo's resync based on whether the just-restored *data* needs it, not on whether that
+    // gizmo happens to be the currently active one (m_current). The backend caches these
+    // resyncs repair (SLAPrintObject::m_hollowing_data, the support pad/tree mesh) are
+    // discarded on essentially every undo/redo regardless of gizmo activation state (see
+    // Decision H) — gating on m_current missed e.g. redo landing on a snapshot captured after
+    // the user had already left the mode, which still needs the resync despite no gizmo being
+    // open in that restored state.
+    const Selection& selection = m_parent.get_selection();
+    const int object_idx = selection.get_object_idx();
+    Plater* plater = wxGetApp().plater();
+    if (object_idx >= 0 && !selection.is_wipe_tower() && plater
+        && object_idx < (int)plater->model().objects.size()) {
+        const ModelObject* mo = plater->model().objects[object_idx];
+        if (mo) {
+            // ModelConfig::option() (unlike DynamicPrintConfig::option<T>()) is not a
+            // template — go through .get() to reach the underlying DynamicPrintConfig first.
+            const auto *hollow_opt = mo->config.get().option<ConfigOptionBool>("hollowing_enable");
+            const bool  hollow_enabled = hollow_opt && hollow_opt->value;
+            const bool  has_drain_holes = !mo->sla_drain_holes.empty();
+            const auto *support_opt = mo->config.get().option<ConfigOptionBool>("generate_support");
+            const bool  has_support_data = (support_opt && support_opt->value) || !mo->sla_support_points.empty();
+
+            if (has_support_data) {
+                GLGizmoSlaSupports* sla_gizmo = dynamic_cast<GLGizmoSlaSupports*>(m_gizmos[SlaSupports].get());
+                // Guard against editing mode: in-session undo uses the gizmo stack and
+                // m_editing_cache is restored via serialization — do not overwrite it with
+                // normal_cache here. Only meaningful when Support is actually the active
+                // gizmo; is_in_editing_mode() is false otherwise.
+                if (!sla_gizmo->is_in_editing_mode()) {
+                    sla_gizmo->resync_after_undo_redo();
+                    // Plater::priv::update_after_undo_redo() calls this->update() BEFORE
+                    // calling gizmos_manager.update_after_undo_redo(), so the canvas repaint
+                    // triggered by update() uses the stale m_normal_cache. Mark the canvas
+                    // dirty again so the next paint cycle uses the freshly reloaded cache.
+                    m_parent.set_as_dirty();
+                }
+            }
+            if (hollow_enabled) {
+                static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
+                m_parent.set_as_dirty();
+            }
+            if (has_drain_holes) {
+                static_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->resync_after_undo_redo();
+                m_parent.set_as_dirty();
+            }
         }
-    } else if (m_current == Hollow) {
-        // The drilled/hollowed mesh (SLAPrintObject::m_hollowing_data) is a backend-only
-        // derived cache, never part of Model — undo/redo doesn't (and structurally can't)
-        // restore it, and SLAPrint::apply()'s top-level model-identity check discards it on
-        // essentially every undo/redo regardless of whether Hollow-relevant data actually
-        // changed. Force a recompute; pending parameter refresh already happens via the
-        // existing on_load()/data_changed(is_serializing=true) path.
-        static_cast<GLGizmoHollow*>(m_gizmos[Hollow].get())->resync_after_undo_redo();
-        m_parent.set_as_dirty();
-    } else if (m_current == Drill) {
-        // Same reasoning as Hollow, see resync_after_undo_redo()'s comment on GLGizmoDrill.
-        static_cast<GLGizmoDrill*>(m_gizmos[Drill].get())->resync_after_undo_redo();
-        m_parent.set_as_dirty();
     }
 }
 
