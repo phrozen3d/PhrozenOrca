@@ -9513,6 +9513,15 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
 
 void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot& snapshot, bool /* temp_snapshot_was_taken */)
 {
+    // Refresh BackgroundSlicingProcess::m_current_plate before anything below can trigger a
+    // background-process apply. Undo/redo restores its own PartPlateList snapshot, which can
+    // rebuild/replace PartPlate objects (observed concretely: delete the only object on a
+    // plate while a resin edit mode is open, then undo — the plate gets rebuilt and the raw
+    // m_current_plate pointer cached in BackgroundSlicingProcess goes dangling). Every other
+    // call site that touches the background process after a plate-affecting change already
+    // calls this first (see e.g. :9489 and the other ~10 call sites of
+    // update_slice_context_to_current_plate); this one was missing it.
+    this->partplate_list.update_slice_context_to_current_plate(this->background_process);
     get_current_canvas3D()->get_canvas_type() == GLCanvas3D::CanvasAssembleView ? assemble_view->get_canvas3d()->get_selection().clear() : this->view3D->get_canvas3d()->get_selection().clear();
     // Update volumes from the deserializd model, always stop / update the background processing (for both the SLA and FFF technologies).
     this->update((unsigned int)UpdateParams::FORCE_BACKGROUND_PROCESSING_UPDATE | (unsigned int)UpdateParams::POSTPONE_VALIDATION_ERROR_MESSAGE);
