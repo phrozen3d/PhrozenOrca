@@ -139,6 +139,18 @@ This was a scope gap in the fix's *design*, not a one-off miss: the underlying p
 
 **Fix applied**: `GLGizmosManager::update_after_undo_redo()` now decides whether to resync based on the restored, currently-selected `ModelObject`'s actual data (`hollowing_enable`, non-empty `sla_drain_holes`, `generate_support`/existing `sla_support_points`) instead of `m_current`. Also fixed `GLGizmoSlaSupports::resync_after_undo_redo()`, which previously early-returned entirely when `m_c->selection_info()` was unavailable (i.e. whenever Support isn't the active gizmo) — never reaching `reslice_until_step()` at all; now the `m_c`-dependent parts (cache reload, explicit support-points invalidate) are skipped gracefully but `reslice_until_step()` (which has its own `m_c`-independent fallback via `m_parent.get_selection()`) always still runs. See design.md Decision K for the full writeup including the option not taken (fixing `SLAPrint::apply()`'s `model.id()` root cause) and why.
 
+### 9d. Regression introduced by 9c's fix, found immediately on re-test, now fixed
+
+**Fixed. Awaiting re-test confirmation** (both `RelWithDebInfo` and `Release` configurations rebuilt).
+
+9c's fix made things *worse*, not better: after it, undo-once (Hollow Apply → leave → Drill add 3 → Apply → leave → undo) made the Hollow result disappear too — previously (pre-9c) that case worked correctly, if only by accident (see below). Redo was still broken as before.
+
+Root cause: `GLGizmoHollow::resync_after_undo_redo()` requested `reslice_until_step(slaposHollowing)`. But `SLAPrintObject::get_mesh_to_print()`/`get_mesh_to_slice()` — the mesh actually used for display/print — are gated on `is_step_done(slaposDrillHoles)`, **not** `slaposHollowing`, even when there are zero drain holes (`drill_holes()`'s `!needs_drilling` branch still builds the final carved/trimmed mesh whenever the object is hollowed). Every other trigger point already in `GLGizmoHollow.cpp` (the Apply button; see the file's own top-of-file comment "hollow_mesh() removed, use reslice_until_step(slaposDrillHoles)") already correctly requests `slaposDrillHoles` — `resync_after_undo_redo()` was the one place written to request the wrong, earlier step, and so never actually produced anything visible.
+
+Why undo-once looked fine *before* 9c's fix, purely by accident: the old `m_current`-gated code happened to land in Drill mode after that specific undo (since Drill was the panel most recently open), so it went through *Drill's* resync (`slaposDrillHoles`, correctly targeted) — not Hollow's. The bug in Hollow's own resync method was there all along, just never exercised by that particular repro until 9c's fix started calling it based on data instead of on which gizmo happened to be active.
+
+Fixed: `GLGizmoHollow::resync_after_undo_redo()` now requests `slaposDrillHoles`, matching every other trigger point in the file.
+
 - [x] 10.1 Confirmed by code review: non-mode undo/redo machinery (`Plater::priv::undo/redo/undo_redo_to`, `UndoRedo::Stack`, FDM gizmos, Mechanism A for FDM painting gizmos) not modified by the Decision G pivot.
 - [x] 10.2 Structural-mutation entry-point audit (Section 5) — superseded, not needed under single-stack. The one requirement it partially covered that still matters — a gizmo not crashing when its focused object vanishes — is fully covered by the retained Decision E.3 null-guard, verified per-gizmo in Section 9.7.
 - [x] 10.3 Accepted residuals carried forward from the abandoned design, still relevant:
