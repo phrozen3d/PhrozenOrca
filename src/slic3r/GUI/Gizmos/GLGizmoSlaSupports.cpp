@@ -2353,19 +2353,42 @@ void GLGizmoSlaSupports::resync_after_undo_redo()
     // reload_cache() and invalidate_support_points_for_object() are best-effort: they rely on
     // m_c->selection_info(), which is only populated while this gizmo is the currently active
     // one (see GLGizmosManager's CommonGizmosDataPool wiring). Decision K (design.md) calls
-    // this from GLGizmosManager::update_after_undo_redo() based on the restored model's data,
+    // this from GLGizmosManager::update_after_undo_redo() unconditionally on every undo/redo,
     // regardless of which gizmo (if any) is currently active — so m_c->selection_info() may
     // legitimately be null here. Skip the cache refresh / explicit invalidate in that case
-    // (harmless: reload_cache() re-runs on next real activation via data_changed()), but still
-    // fall through to reslice_until_step(), which has its own m_parent.get_selection() fallback
-    // and does not depend on m_c at all.
+    // (harmless: reload_cache() re-runs on next real activation via data_changed()).
+    ModelObject *mo = nullptr;
     if (m_c->selection_info()) {
         reload_cache();
-        if (const ModelObject *mo = m_c->selection_info()->model_object()) {
+        mo = m_c->selection_info()->model_object();
+        if (mo) {
             if (const SLAPrint *print = m_parent.sla_print())
                 print->invalidate_support_points_for_object(mo->id());
         }
+    } else {
+        // Same fallback reslice_until_step() itself uses when m_c isn't populated.
+        const Selection &selection = m_parent.get_selection();
+        const int object_idx = selection.get_object_idx();
+        if (object_idx >= 0 && !selection.is_wipe_tower())
+            mo = wxGetApp().plater()->model().objects[object_idx];
     }
+
+    // Decision K bugfix: only requesting a recompute when there IS support data misses the
+    // opposite, equally common case — undo/redo restoring a state with NO support data (e.g.
+    // undoing all the way back past the original Auto Apply). The backend gets torn down
+    // either way (Decision H); without this branch the newly-empty state was never told to
+    // discard the still-rendered pad/support-tree volumes from before the undo, leaving them
+    // stuck on screen despite the points themselves correctly disappearing. Mirrors the
+    // existing empty-branch in commit_manual_edits_keep_editing().
+    const bool has_support_data = mo && (!mo->sla_support_points.empty()
+        || [mo]() { const auto *opt = mo->config.get().option<ConfigOptionBool>("generate_support"); return opt && opt->value; }());
+    if (mo && !has_support_data) {
+        sync_generate_support_for_object(mo, false);
+        clear_support_volumes();
+        m_parent.set_as_dirty();
+        return;
+    }
+
     reslice_until_step(m_show_support_structure ? slaposPad : slaposSupportPoints, true);
 }
 
