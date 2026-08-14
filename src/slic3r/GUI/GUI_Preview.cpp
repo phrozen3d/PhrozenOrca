@@ -904,13 +904,14 @@ void Preview::load_print_as_sla()
     // Step 2.5: Extract layer z-coordinates for IMSlider.
     // Only collect from objects that have completed slaposSliceSupports.
     m_sla_layers_z.clear();
-    double initial_layer_height = print->material_config().initial_layer_height.value;
     for (const SLAPrintObject* obj : print->objects()) {
         if (obj->is_step_done(slaposSliceSupports) && !obj->get_slice_index().empty()) {
-            auto low_coord = obj->get_slice_index().front().print_level();
+            // World Z = print_level (coord) * SCALING_FACTOR + elevation.
+            // This matches the slice grid which uses object layer_height (not material
+            // initial_layer_height), avoiding a constant per-layer Z offset.
+            double elevation = obj->get_current_elevation();
             for (const auto& rec : obj->get_slice_index())
-                m_sla_layers_z.emplace_back(
-                    initial_layer_height + (rec.print_level() - low_coord) * SCALING_FACTOR);
+                m_sla_layers_z.emplace_back(rec.print_level() * SCALING_FACTOR + elevation);
         }
     }
     sort_remove_duplicates(m_sla_layers_z);
