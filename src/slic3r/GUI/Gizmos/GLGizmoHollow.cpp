@@ -70,6 +70,13 @@ void GLGizmoHollow::data_changed(bool is_serializing)
         return;
 
     const ModelObject* mo = m_c->selection_info()->model_object();
+    if (m_state == On && !mo) {
+        // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
+        // while this gizmo was open). Self-close rather than silently stalling with a dangling
+        // reference.
+        m_parent.get_gizmos_manager().reset_all_states();
+        return;
+    }
     if (m_state == On && mo) {
         // PhrozenOrca: required_step < 0 means no minimum step (no-step constructor was used).
         const int required_step = get_min_sla_print_object_step();
@@ -82,6 +89,21 @@ void GLGizmoHollow::data_changed(bool is_serializing)
         // Step 4.4 dependency: hide all model objects so this gizmo renders its own volumes.
         m_c->instances_hider()->set_hide_full_scene(true);
     }
+}
+
+
+SLAPrintObjectStep GLGizmoHollow::resync_after_undo_redo()
+{
+    // NOT slaposHollowing alone: the mesh actually used for display/print
+    // (SLAPrintObject::get_mesh_to_print()/get_mesh_to_slice()) is only populated once
+    // slaposDrillHoles is done, even when there are no drain holes at all — drill_holes()
+    // itself builds the final carved/trimmed mesh in that case too (its `!needs_drilling`
+    // branch still runs sla::hollow_mesh() when hollowed). Every other trigger point in this
+    // file already requests slaposDrillHoles for exactly this reason (see the note at the top
+    // of this file); this call must match or hollowing-only results never become visible.
+    //
+    // Does not call reslice_until_step() itself anymore — see this method's header comment.
+    return slaposDrillHoles;
 }
 
 
@@ -99,9 +121,14 @@ void GLGizmoHollow::on_render()
     if (!sel_info)
         return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
 
+    // resin-mode-structural-mutation-safety: bounds-check before indexing. An empty or
+    // out-of-range selection (e.g. right after the focused object was deleted) must not index
+    // objects[] with an invalid index (get_object_idx() returns -1 when nothing is selected).
+    const int obj_idx = selection.get_object_idx();
     // If current m_c->m_model_object does not match selection, ask GLCanvas3D to turn us off
     if (m_state == On
-     && (sel_info->model_object() != selection.get_model()->objects[selection.get_object_idx()]
+     && (obj_idx < 0 || !selection.get_model() || obj_idx >= (int)selection.get_model()->objects.size()
+      || sel_info->model_object() != selection.get_model()->objects[obj_idx]
       || sel_info->get_active_instance() != selection.get_instance_idx())) {
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
         return;
@@ -225,16 +252,22 @@ void GLGizmoHollow::on_render_input_window(float x, float y, float bottom_limit)
     if (!m_c->selection_info())
         return;
     ModelObject* mo = m_c->selection_info()->model_object();
-    if (!mo)
+    if (!mo) {
+        // resin-mode-structural-mutation-safety: focused ModelObject vanished; self-close.
+        m_parent.get_gizmos_manager().reset_all_states();
         return;
+    }
     // Stale detection: SelectionInfo may hold a dangling pointer after undo replaces
     // the model. Compare against the current selection before dereferencing mo->config.
     {
         const Selection& sel = m_parent.get_selection();
         const int obj_idx = sel.get_object_idx();
         if (obj_idx < 0 || !sel.get_model() || obj_idx >= (int)sel.get_model()->objects.size()
-            || mo != sel.get_model()->objects[obj_idx])
+            || mo != sel.get_model()->objects[obj_idx]) {
+            // resin-mode-structural-mutation-safety: stale/vanished object reference; self-close.
+            m_parent.get_gizmos_manager().reset_all_states();
             return;
+        }
     }
 
     // Clamp y so the panel stays on screen

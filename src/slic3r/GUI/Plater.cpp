@@ -2884,6 +2884,7 @@ struct Plater::priv
     Slic3r::UndoRedo::Stack& undo_redo_stack_main() { return m_undo_redo_stack_main; }
     void enter_gizmos_stack();
     bool leave_gizmos_stack();
+    bool is_gizmos_stack_active() const { return m_undo_redo_stack_active == &m_undo_redo_stack_gizmos; }
 
     void take_snapshot(const std::string& snapshot_name, UndoRedo::SnapshotType snapshot_type = UndoRedo::SnapshotType::Action);
     /*void take_snapshot(const wxString& snapshot_name, UndoRedo::SnapshotType snapshot_type = UndoRedo::SnapshotType::Action)
@@ -3131,6 +3132,10 @@ private:
     Slic3r::UndoRedo::Stack 	m_undo_redo_stack_main;
     Slic3r::UndoRedo::Stack 	m_undo_redo_stack_gizmos;
     Slic3r::UndoRedo::Stack    *m_undo_redo_stack_active = &m_undo_redo_stack_main;
+    // active_snapshot_time() of the gizmos stack right after enter_gizmos_stack() took its
+    // "Gizmos-Initial" baseline. leave_gizmos_stack() compares against this instead of
+    // has_undo_snapshot() — see the comment there for why.
+    size_t                      m_gizmos_stack_baseline_time = 0;
     int                         m_prevent_snapshots = 0;     /* Used for avoid of excess "snapshoting".
                                                               * Like for "delete selected" or "set numbers of copies"
                                                               * we should call tack_snapshot just ones
@@ -5477,6 +5482,9 @@ void Plater::priv::select_curr_plate_all()
 
 void Plater::priv::remove_curr_plate_all()
 {
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // before any snapshot/delete below, so the mutation's snapshot lands on the main stack.
+    view3D->get_canvas3d()->get_gizmos_manager().reset_all_states();
     SingleSnapshot ss(q);
     view3D->remove_curr_plate_all();
     this->sidebar->obj_list()->update_selections();
@@ -5502,6 +5510,11 @@ void Plater::priv::remove(size_t obj_idx)
 {
     if (view3D->is_layers_editing_enabled())
         view3D->enable_layers_editing(false);
+
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // before this structural mutation (callers of this low-level primitive are expected to take
+    // their own snapshot, but this gizmo-reset must still happen before the object is freed).
+    view3D->get_canvas3d()->get_gizmos_manager().reset_all_states();
 
     m_worker.cancel_all();
     model.delete_object(obj_idx);
@@ -5530,6 +5543,12 @@ bool Plater::priv::delete_object_from_model(size_t obj_idx, bool refresh_immedia
             return false;
     }
 
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // before this structural mutation's own snapshot is taken, so the delete snapshot lands on
+    // the main stack and no gizmo is left holding a soon-to-be-freed ModelObject pointer.
+    // Placed after the cancel-gate above so a cancelled delete does not needlessly close a mode.
+    view3D->get_canvas3d()->get_gizmos_manager().reset_all_states();
+
     std::string snapshot_label = "Delete Object";
     if (!obj->name.empty())
         snapshot_label += ": " + obj->name;
@@ -5554,6 +5573,10 @@ bool Plater::priv::delete_object_from_model(size_t obj_idx, bool refresh_immedia
 
 void Plater::priv::delete_all_objects_from_model()
 {
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // before this structural mutation's own snapshot is taken.
+    view3D->get_canvas3d()->get_gizmos_manager().reset_all_states();
+
     Plater::TakeSnapshot snapshot(q, "Delete All Objects");
 
     if (view3D->is_layers_editing_enabled())
@@ -5585,6 +5608,13 @@ void Plater::priv::delete_all_objects_from_model()
 
 void Plater::priv::reset(bool apply_presets_change)
 {
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // BEFORE the ProjectSeparator snapshot below. take_snapshot() records onto (and, for
+    // ProjectSeparator, clears) the currently ACTIVE stack — if a resin-mode sub-stack were
+    // still active here, "Reset Project" would wrongly land on / clear the sub-stack instead
+    // of main. Must run first, before any snapshot is taken.
+    view3D->get_canvas3d()->reset_all_gizmos();
+
     Plater::TakeSnapshot snapshot(q, "Reset Project", UndoRedo::SnapshotType::ProjectSeparator);
 
     clear_warnings();
@@ -5594,7 +5624,6 @@ void Plater::priv::reset(bool apply_presets_change)
 
     if (view3D->is_layers_editing_enabled())
         view3D->get_canvas3d()->force_main_toolbar_left_action(view3D->get_canvas3d()->get_main_toolbar_item_id("layersediting"));
-    view3D->get_canvas3d()->reset_all_gizmos();
 
     reset_gcode_toolpaths();
     //BBS: update gcode to current partplate's
@@ -6357,6 +6386,11 @@ static std::vector<std::pair<int, int>> reloadable_volumes(const Model &model, c
 
 void Plater::priv::reload_from_disk()
 {
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // before this structural mutation (reloaded volumes replace mesh/model data in place;
+    // unlike replace_with_stl() this path has no existing check_gizmos_closed_except() gate).
+    view3D->get_canvas3d()->get_gizmos_manager().reset_all_states();
+
 #if ENABLE_RELOAD_FROM_DISK_REWORK
     // collect selected reloadable ModelVolumes
     std::vector<std::pair<int, int>> selected_volumes = reloadable_volumes(model, get_selection());
@@ -9153,6 +9187,9 @@ void Plater::priv::enter_gizmos_stack()
         // Take the initial snapshot of the gizmos.
         // Not localized on purpose, the text will never be shown to the user.
         this->take_snapshot(std::string("Gizmos-Initial"));
+        // Remember where the baseline landed. leave_gizmos_stack() needs this — see the
+        // comment there.
+        m_gizmos_stack_baseline_time = m_undo_redo_stack_gizmos.active_snapshot_time();
     }
     if (wxGetApp().mainframe)
         wxGetApp().mainframe->sync_undo_redo_toolbar_state();
@@ -9164,7 +9201,17 @@ bool Plater::priv::leave_gizmos_stack()
     assert(m_undo_redo_stack_active == &m_undo_redo_stack_gizmos);
     if (m_undo_redo_stack_active == &m_undo_redo_stack_gizmos) {
         assert(! m_undo_redo_stack_active->empty());
-        changed = m_undo_redo_stack_gizmos.has_undo_snapshot();
+        // NOT has_undo_snapshot(). That scans every snapshot strictly before the active
+        // position for one with a "project modifying" SnapshotType (Action/GizmoAction/
+        // ProjectSeparator) — and the "Gizmos-Initial" baseline snapshot itself is taken with
+        // the default type Action (see enter_gizmos_stack() above), so it always falls inside
+        // that "before active" range and always counts as a match. That makes
+        // has_undo_snapshot() unconditionally true right after entering, before the caller has
+        // done anything with the sub-stack. Comparing active_snapshot_time() against the
+        // baseline captured at enter time is exactly "did anything real happen since baseline,
+        // and is it still not fully undone" — undoing back to the baseline restores
+        // active_snapshot_time() to that same value.
+        changed = (m_undo_redo_stack_gizmos.active_snapshot_time() != m_gizmos_stack_baseline_time);
         m_undo_redo_stack_active->clear();
         m_undo_redo_stack_active = &m_undo_redo_stack_main;
     }
@@ -9466,6 +9513,15 @@ void Plater::priv::undo_redo_to(std::vector<UndoRedo::Snapshot>::const_iterator 
 
 void Plater::priv::update_after_undo_redo(const UndoRedo::Snapshot& snapshot, bool /* temp_snapshot_was_taken */)
 {
+    // Refresh BackgroundSlicingProcess::m_current_plate before anything below can trigger a
+    // background-process apply. Undo/redo restores its own PartPlateList snapshot, which can
+    // rebuild/replace PartPlate objects (observed concretely: delete the only object on a
+    // plate while a resin edit mode is open, then undo — the plate gets rebuilt and the raw
+    // m_current_plate pointer cached in BackgroundSlicingProcess goes dangling). Every other
+    // call site that touches the background process after a plate-affecting change already
+    // calls this first (see e.g. :9489 and the other ~10 call sites of
+    // update_slice_context_to_current_plate); this one was missing it.
+    this->partplate_list.update_slice_context_to_current_plate(this->background_process);
     get_current_canvas3D()->get_canvas_type() == GLCanvas3D::CanvasAssembleView ? assemble_view->get_canvas3d()->get_selection().clear() : this->view3D->get_canvas3d()->get_selection().clear();
     // Update volumes from the deserializd model, always stop / update the background processing (for both the SLA and FFF technologies).
     this->update((unsigned int)UpdateParams::FORCE_BACKGROUND_PROCESSING_UPDATE | (unsigned int)UpdateParams::POSTPONE_VALIDATION_ERROR_MESSAGE);
@@ -12186,6 +12242,12 @@ void Plater::remove_selected()
     // BBS: check before deleting object
     if (!p->can_delete())
         return;
+
+    // resin-mode-structural-mutation-safety: force-collapse an active resin-mode sub-stack
+    // BEFORE this structural mutation's own snapshot is taken, so the delete snapshot lands on
+    // the main stack (not a stale sub-stack) and no gizmo is left holding a soon-to-be-freed
+    // ModelObject pointer.
+    canvas3D()->get_gizmos_manager().reset_all_states();
 
     Plater::TakeSnapshot snapshot(this, "Delete Selected Objects");
     get_ui_job_worker().cancel_all();
@@ -15609,6 +15671,7 @@ const UndoRedo::Stack& Plater::undo_redo_stack_main() const { return p->undo_red
 void Plater::clear_undo_redo_stack_main() { p->undo_redo_stack_main().clear(); }
 void Plater::enter_gizmos_stack() { p->enter_gizmos_stack(); }
 bool Plater::leave_gizmos_stack() { return p->leave_gizmos_stack(); } // BBS: return false if not changed
+bool Plater::is_gizmos_stack_active() const { return p->is_gizmos_stack_active(); }
 bool Plater::inside_snapshot_capture() { return p->inside_snapshot_capture(); }
 
 void Plater::toggle_render_statistic_dialog()

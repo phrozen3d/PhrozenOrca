@@ -10,6 +10,8 @@
 
 #include <GL/glew.h>
 
+#include <boost/log/trivial.hpp>
+
 #include <wx/msgdlg.h>
 #include <wx/settings.h>
 #include <wx/stattext.h>
@@ -446,6 +448,14 @@ void GLGizmoSlaSupports::data_changed(bool is_serializing)
 
     ModelObject* mo = m_c->selection_info()->model_object();
 
+    if (m_state == On && !mo) {
+        // resin-mode-structural-mutation-safety: the focused ModelObject vanished (e.g. deleted
+        // while this gizmo was open). Self-close rather than silently stalling with a dangling
+        // reference.
+        m_parent.get_gizmos_manager().reset_all_states();
+        return;
+    }
+
     if (m_state == On && mo && mo->id() != m_old_mo_id) {
         disable_editing_mode();
         reload_cache();
@@ -598,12 +608,20 @@ void GLGizmoSlaSupports::on_render()
         m_cone.mesh_raycaster = std::make_unique<MeshRaycaster>(std::make_shared<const TriangleMesh>(std::move(its)));
     }
 
+    if (!m_c->selection_info())
+        return;  // m_c not yet refreshed (e.g. intermediate render during undo/redo)
+
     ModelObject* mo = m_c->selection_info()->model_object();
     const Selection& selection = m_parent.get_selection();
 
+    // resin-mode-structural-mutation-safety: bounds-check before indexing. An empty or
+    // out-of-range selection (e.g. right after the focused object was deleted) must not index
+    // objects[] with an invalid index (get_object_idx() returns -1 when nothing is selected).
+    const int obj_idx = selection.get_object_idx();
     // If current m_c->m_model_object does not match selection, ask GLCanvas3D to turn us off
     if (m_state == On
-     && (mo != selection.get_model()->objects[selection.get_object_idx()]
+     && (!mo || obj_idx < 0 || !selection.get_model() || obj_idx >= (int)selection.get_model()->objects.size()
+      || mo != selection.get_model()->objects[obj_idx]
       || m_c->selection_info()->get_active_instance() != selection.get_instance_idx())) {
         m_parent.post_event(SimpleEvent(EVT_GLCANVAS_RESETGIZMOS));
         return;
@@ -2011,6 +2029,16 @@ void GLGizmoSlaSupports::on_set_state()
                 m_c->selection_info()->set_use_config_elevation(false);
             m_parent.post_event(SimpleEvent(EVT_GLCANVAS_FORCE_UPDATE));
             m_c->instances_hider()->set_hide_full_scene(false);
+            // Always leave with the actual generated support structure visible, regardless of
+            // which sub-view (Points / Structure) was last selected inside the gizmo.
+            // disable_editing_mode() only restores visibility per m_show_support_structure when
+            // leaving Manual editing (m_editing_mode was true) — a pure Auto-view session that
+            // last had "Points" selected never touches m_show_sla_supports at all, so a
+            // successfully-applied support structure could stay invisible in the normal 3D view
+            // after closing the panel with no way to tell it was actually generated. Force both
+            // flags here, unconditionally, on every real close.
+            m_show_support_structure = true;
+            show_sla_supports(true);
         }
     }
     m_old_state = m_state;
@@ -2180,7 +2208,10 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     for (const CacheEntry& ce : m_editing_cache)
         m_normal_cache.push_back(ce.support_point);
 
-    wxGetApp().plater()->leave_gizmos_stack();
+    // Single-stack undo/redo: record this as an ordinary main-stack checkpoint, same pattern
+    // as GLGizmoHollow's "Hollow" / GLGizmoDrill's "Apply drain holes" Apply-button snapshots.
+    // Every point add/move/delete and every in-mode Apply is its own individually-undoable
+    // main-stack step — nothing gets collapsed, in-mode or on leave.
     Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
 
     ModelObject* mo_apply = m_c->selection_info()->model_object();
@@ -2188,8 +2219,6 @@ void GLGizmoSlaSupports::commit_manual_edits_keep_editing(bool reslice_preview)
     mo_apply->sla_support_points.clear();
     mo_apply->sla_support_points = m_normal_cache;
     sync_generate_support_for_object(mo_apply, !m_normal_cache.empty());
-
-    wxGetApp().plater()->enter_gizmos_stack();
 
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
@@ -2260,7 +2289,7 @@ void GLGizmoSlaSupports::editing_mode_apply_changes()
 {
     // If there are no changes, don't touch the front-end. The data in the cache could have been
     // taken from the backend and copying them to ModelObject would needlessly invalidate them.
-    disable_editing_mode(); // this leaves the editing mode undo/redo stack and must be done before the snapshot is taken
+    disable_editing_mode();
 
     if (unsaved_changes()) {
         Plater::TakeSnapshot snapshot(wxGetApp().plater(), "Support points edit");
@@ -2316,6 +2345,92 @@ void GLGizmoSlaSupports::reload_cache()
     else
         for (const sla::SupportPoint& point : mo->sla_support_points)
             m_normal_cache.emplace_back(point);
+}
+
+
+SLAPrintObjectStep GLGizmoSlaSupports::resync_after_undo_redo()
+{
+    // reload_cache() and invalidate_support_points_for_object() are best-effort: they rely on
+    // m_c->selection_info(), which is only populated while this gizmo is the currently active
+    // one (see GLGizmosManager's CommonGizmosDataPool wiring). Decision K (design.md) calls
+    // this from GLGizmosManager::update_after_undo_redo() unconditionally on every undo/redo,
+    // regardless of which gizmo (if any) is currently active — so m_c->selection_info() may
+    // legitimately be null here. Skip the cache refresh / explicit invalidate in that case
+    // (harmless: reload_cache() re-runs on next real activation via data_changed()).
+    ModelObject *mo = nullptr;
+    if (m_c->selection_info()) {
+        reload_cache();
+        mo = m_c->selection_info()->model_object();
+        if (mo) {
+            if (const SLAPrint *print = m_parent.sla_print())
+                print->invalidate_support_points_for_object(mo->id());
+        }
+    } else {
+        // Same fallback reslice_until_step() itself uses when m_c isn't populated.
+        const Selection &selection = m_parent.get_selection();
+        const int object_idx = selection.get_object_idx();
+        if (object_idx >= 0 && !selection.is_wipe_tower())
+            mo = wxGetApp().plater()->model().objects[object_idx];
+    }
+
+    // Decision K bugfix: only requesting a recompute when there IS support data misses the
+    // opposite, equally common case — undo/redo restoring a state with NO support data (e.g.
+    // undoing all the way back past the original Auto Apply). The backend gets torn down
+    // either way (Decision H); without this branch the newly-empty state was never told to
+    // discard the still-rendered pad/support-tree volumes from before the undo, leaving them
+    // stuck on screen despite the points themselves correctly disappearing. Mirrors the
+    // existing empty-branch in commit_manual_edits_keep_editing().
+    //
+    // Decision K regression fix #2: the empty branch used to early-return after only calling
+    // sync_generate_support_for_object() + clear_support_volumes(). Neither of those actually
+    // reaches the backend:
+    //  - sync_generate_support_for_object() just mutates ModelObject::config in memory.
+    //  - clear_support_volumes() only touches GLGizmoSlaBase::m_volumes, this gizmo's OWN
+    //    private mesh cache used while its panel is rendering. Once the user has left the
+    //    mode (the exact "leave mode -> undo" repro), nothing reads m_volumes anymore — the
+    //    pad/support-tree actually still on screen are GLCanvas3D's own scene volumes, loaded
+    //    by _load_sla_shells() purely from SLAPrintObject::is_step_done(slaposSupportTree /
+    //    slaposPad), and the model's Z elevation (SLAPrintObject::get_current_elevation()) is
+    //    likewise driven by those same is_step_done() flags. Never calling reslice_until_step()
+    //    means SLAPrint::apply() is never invoked, so the backend's cached config keeps
+    //    thinking generate_support is still true and none of the stale steps get invalidated:
+    //    the pad visibly lingers *and* the model stays elevated as if supports still existed.
+    //    Worse, because the backend's cached config never actually got updated to false, the
+    //    next redo's apply() sees no diff from its own (stale) perspective and skips
+    //    recomputation too - which was also breaking "redo does not regrow the support tree".
+    // Regression fix #3 (found via temporary diagnostic logging, 2026-08-13): calling
+    // reslice_until_step() directly from here turned out to be the wrong shape of fix, even
+    // though it looked correct in isolation. GLGizmosManager::update_after_undo_redo() calls
+    // this method AND GLGizmoHollow's AND GLGizmoDrill's unconditionally on every undo/redo;
+    // each one used to independently call reslice_until_step() -> Plater::reslice_SLA_until_step()
+    // -> restart_background_process(FORCE_RESTART), which unconditionally stops whatever the
+    // shared background process is currently doing and starts a fresh one. All three calls are
+    // deferred via wxGetApp().CallAfter() and fire back-to-back in the same idle-event batch, so
+    // each one cancelled the previous one's still-running computation before it could finish.
+    // Worse: since this fork never defines SUPPORT_BACKGROUND_PROCESSING,
+    // Plater::priv::background_processing_enabled() is always false, so EVERY one of those three
+    // calls also set task.to_object_step = its own requested step, capping how far the pipeline
+    // was allowed to run. GLGizmosManager calls Support -> Hollow -> Drill in that order, and
+    // Hollow/Drill's target (slaposDrillHoles) sits earlier in the pipeline than Support's
+    // (slaposSupportPoints/slaposPad) -- so the LAST one queued (Drill's) won the race every
+    // time and permanently capped the recompute short of ever reaching supports/pad, regardless
+    // of what Support's own resync actually wanted. This is why undo/redo affecting supports
+    // kept failing even after the reslice_until_step() call was correctly reached.
+    // Fix: this method no longer calls reslice_until_step() itself. It only performs the local
+    // config/cache sync and returns the step it needs recomputed; GLGizmosManager combines this
+    // with Hollow's/Drill's own returned step and issues exactly one reslice_until_step() call
+    // for the deepest of the three, so there is only ever one restart per undo/redo.
+    const bool has_support_data = mo && (!mo->sla_support_points.empty()
+        || [mo]() { const auto *opt = mo->config.get().option<ConfigOptionBool>("generate_support"); return opt && opt->value; }());
+    if (mo && !has_support_data)
+        sync_generate_support_for_object(mo, false);
+
+    // Also drop this gizmo's own stale mesh cache so that if the gizmo is re-opened before
+    // the reslice completes, it doesn't briefly flash the old pad/tree.
+    clear_support_volumes();
+    m_parent.set_as_dirty();
+
+    return (has_support_data && m_show_support_structure) ? slaposPad : slaposSupportPoints;
 }
 
 
@@ -2419,7 +2534,6 @@ void GLGizmoSlaSupports::auto_generate()
 
 void GLGizmoSlaSupports::switch_to_editing_mode()
 {
-    wxGetApp().plater()->enter_gizmos_stack();
     m_editing_mode = true;
     m_editing_cache.clear();
     for (const sla::SupportPoint& sp : m_normal_cache)
@@ -2440,7 +2554,9 @@ void GLGizmoSlaSupports::disable_editing_mode()
         m_editing_mode = false;
         notify_process_tab_selection_changed();
         unregister_point_raycasters_for_picking();
-        wxGetApp().plater()->leave_gizmos_stack();
+        // Single-stack undo/redo: no sub-stack to leave. Every point add/move/delete and every
+        // "Support points edit" commit already landed directly on the main stack as its own
+        // step; there is nothing to collapse here.
         show_sla_supports(m_show_support_structure); // Step 4.2: restore support structure visibility
         m_parent.set_as_dirty();
     }

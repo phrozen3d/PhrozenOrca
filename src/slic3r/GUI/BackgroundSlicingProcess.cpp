@@ -720,9 +720,24 @@ Print::ApplyStatus BackgroundSlicingProcess::apply(const Model &model, const Dyn
 {
 	assert(m_print != nullptr);
 	assert(config.opt_enum<PrinterTechnology>("printer_technology") == m_print->technology());
+	// m_current_plate is a raw pointer, refreshed only via set_current_plate() /
+	// update_slice_context_to_current_plate(). Undo/redo restores its own PartPlateList
+	// snapshot without going through that refresh path (see Plater::priv::update_after_undo_redo()),
+	// so a stale/dangling m_current_plate can reach here — guard rather than crash (see the
+	// analogous null-check in start() above).
+	if (!m_current_plate)
+		return PrintBase::APPLY_STATUS_UNCHANGED;
 	// TODO: add partplate config
 	DynamicPrintConfig new_config = config;
-	new_config.apply(*m_current_plate->config());
+	// ignore_nonexistent=true: m_current_plate->config() is a general per-plate override
+	// DynamicPrintConfig that can carry option keys left over from a different printer
+	// technology (e.g. after an undo/redo restores an older PartPlateList snapshot without
+	// the plate's config being pruned to match the current technology). The default
+	// ignore_nonexistent=false throws UnknownOptionException for any key not defined by
+	// new_config's technology-specific option set, which was crashing the background
+	// slicing thread with an uncaught exception (observed via undo right after Hollow
+	// processing completes and the mode is left).
+	new_config.apply(*m_current_plate->config(), true);
 	Print::ApplyStatus invalidated = m_print->apply(model, new_config);
 
 	// Orca: prevent resetting under gcode viewer mode

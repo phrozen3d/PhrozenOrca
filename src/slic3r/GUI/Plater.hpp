@@ -484,6 +484,9 @@ public:
     void enter_gizmos_stack();
     // BBS: return false if not changed
     bool leave_gizmos_stack();
+    // True while the Gizmos sub-stack is the active undo/redo stack (i.e. between an
+    // enter_gizmos_stack() and its matching leave_gizmos_stack()).
+    bool is_gizmos_stack_active() const;
 
     void on_filaments_change(size_t extruders_count);
     // BBS

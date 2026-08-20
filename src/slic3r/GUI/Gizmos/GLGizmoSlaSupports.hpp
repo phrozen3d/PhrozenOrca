@@ -104,6 +104,27 @@ public:
     // after a main-stack undo/redo while this gizmo is active but not in editing mode.
     void reload_cache();
 
+    // Called by GLGizmosManager::update_after_undo_redo() (not in editing mode) after a
+    // main-stack undo/redo restores this object's config/points. Reloads the display cache
+    // and unconditionally re-syncs the SLA backend (support points / pad) to the just-restored
+    // state — e.g. undoing an Auto "Apply" reverts generate_support in the Model correctly,
+    // but the already-computed pad/tree mesh is backend-only state that undo/redo never
+    // touches, so without this it keeps rendering stale. Deliberately not gated behind
+    // SnapshotData::RECALCULATE_SLA_SUPPORTS (that flag reflects whether backend supports
+    // existed right before the action being undone, not whether the restored state actually
+    // needs a resync — e.g. it's unset on a first-ever Auto Apply on a fresh object).
+    //
+    // Does NOT call reslice_until_step() itself — only performs the local cache/config sync
+    // and returns the SLAPrintObjectStep this domain needs recomputed. GLGizmosManager combines
+    // this with Hollow's/Drill's own requested step and issues exactly one reslice_until_step()
+    // call for the deepest of the three. See GLGizmosManager::update_after_undo_redo()'s comment
+    // for why: three independent reslice_until_step() calls each force-restart the same shared
+    // background process, and since this fork never defines SUPPORT_BACKGROUND_PROCESSING (so
+    // background_processing_enabled() is always false), every one of those calls also caps the
+    // recompute at its own target step — the last one queued silently wins and can cap the
+    // pipeline short of what an earlier-queued domain actually needed.
+    SLAPrintObjectStep resync_after_undo_redo();
+
     // Sync dialog before Slice: Yes=apply, No=discard, Cancel=abort. Returns true to continue slicing.
     bool resolve_unsaved_manual_edits_before_slice();
     // Leave manual editing before app close: resolve uncommitted edits, then exit editing mode.
@@ -119,9 +140,10 @@ public:
     // Push Process → Support → Top field values into the SLA print preset (template for new points).
     static void flush_process_top_fields_to_config();
 
-    bool wants_enter_leave_snapshots() const override { return true; }
-    std::string get_gizmo_entering_text() const override { return "Entering SLA support points"; }
-    std::string get_gizmo_leaving_text() const override { return "Leaving SLA support points"; }
+    // Single-stack undo/redo: neither Mechanism A (wants_enter_leave_snapshots(), default false
+    // from GLGizmoBase) nor the mode-scoped sub-stack apply here. Every point add/move/delete
+    // and every Apply takes a plain Plater::TakeSnapshot directly on the main stack, same as
+    // GLGizmoHollow / GLGizmoDrill's Apply buttons.
 
 private:
     bool on_init() override;
