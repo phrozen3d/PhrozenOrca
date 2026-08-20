@@ -8902,15 +8902,15 @@ void GLCanvas3D::_render_sla_slices()
         if ((!bottom_obj_triangles.is_initialized() || !bottom_sup_triangles.is_initialized() ||
             !top_obj_triangles.is_initialized() || !top_sup_triangles.is_initialized()) &&
             !obj->get_slice_index().empty()) {
-            double layer_height         = print->default_object_config().layer_height.value;
-            double initial_layer_height = print->material_config().initial_layer_height.value;
-            bool   left_handed          = obj->is_left_handed();
+            double layer_height = print->default_object_config().layer_height.value;
+            double elevation    = obj->get_current_elevation();
+            bool   left_handed  = obj->is_left_handed();
 
-            coord_t key_zero = obj->get_slice_index().front().print_level();
+            // Inverse of: world_Z = print_level * SCALING_FACTOR + elevation
             // Slice at the center of the slab starting at clip_min_z will be rendered for the lower plane.
-            coord_t key_low  = coord_t((clip_min_z - initial_layer_height + layer_height) / SCALING_FACTOR) + key_zero;
+            coord_t key_low  = coord_t((clip_min_z - elevation + layer_height) / SCALING_FACTOR);
             // Slice at the center of the slab ending at clip_max_z will be rendered for the upper plane.
-            coord_t key_high = coord_t((clip_max_z - initial_layer_height) / SCALING_FACTOR) + key_zero;
+            coord_t key_high = coord_t((clip_max_z - elevation) / SCALING_FACTOR);
 
             const SliceRecord& slice_low  = obj->closest_slice_to_print_level(key_low, coord_t(SCALED_EPSILON));
             const SliceRecord& slice_high = obj->closest_slice_to_print_level(key_high, coord_t(SCALED_EPSILON));

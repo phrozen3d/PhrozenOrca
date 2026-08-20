@@ -123,7 +123,16 @@ float SelectionInfo::elevation_from_config() const
         return 0.f;
     const bool zero_elv = cfg.has("pad_enable") && cfg.has("pad_around_object")
         && cfg.opt_bool("pad_enable") && cfg.opt_bool("pad_around_object");
-    return zero_elv ? 0.f : static_cast<float>(cfg.opt_float("support_object_elevation"));
+    if (zero_elv) return 0.f;
+
+    float lift = static_cast<float>(cfg.opt_float("support_object_elevation"));
+    // When pad is enabled in normal (non-embed) mode the pad mesh bottom sits
+    // required_elevation() = wall_thickness below builder.ground_level.  The
+    // canvas path compensates via get_elevation() which adds wall_thickness;
+    // mirror that here so the gizmo shift matches and the pad renders at Z=0.
+    if (cfg.has("pad_enable") && cfg.opt_bool("pad_enable") && cfg.has("pad_wall_thickness"))
+        lift += static_cast<float>(cfg.opt_float("pad_wall_thickness"));
+    return lift;
 }
 
 void SelectionInfo::recompute_z_shift()

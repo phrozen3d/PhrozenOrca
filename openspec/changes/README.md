@@ -43,6 +43,9 @@ fix-sla-support-points-undo-snapshot         ← 無前置（範圍待其 task 1
 
 （無）
 
+已完成：
+- `fix-sla-preview-slice-z-alignment`（SLA Preview 粉紅截面與灰色 3D 模型 Z 高度錯位；2026-08-14 archive，8/8。根因：`m_sla_layers_z` 以 `material_config.initial_layer_height` 為 layer 0 的 Z 偏移，但切片格柵 `ilhd` 取自 `object_config.layer_height`，Phrozen Speed Plus - Black 與 Tough ABS-like+ 兩支材料 `initial_layer_height=0.1mm`、`layer_height=0.05mm`，造成固定 1 層（0.05 mm）偏移，在支撐頂端交界處視覺明顯。修正：`m_sla_layers_z` 改為 `rec.print_level() × SCALING_FACTOR + elevation`；`_render_sla_slices()` key_high/key_low 改為 `(clip_z ∓ elevation) / SCALING_FACTOR`，統一座標基準）
+
 ## 待決事項（阻擋對應 change 進入實作）
 
 | Change | 待決 | 決定什麼 |
