@@ -1,3 +1,10 @@
+// boost/regex.hpp must come before any libslic3r header: Model.hpp pulls in
+// Format/STEP.hpp -> OCCT's Standard_Macro.hxx, which defines NONLS (among
+// other NOxxx macros) so that <windows.h> skips <winnls.h>. boost's
+// w32_regex_traits.hpp then sees BASETYPES defined, assumes a complete
+// <windows.h>, and fails on LCTYPE / LCMapString* / GetStringTypeEx*.
+#include <boost/regex.hpp>
+
 #include <catch2/catch.hpp>
 
 #include "libslic3r/libslic3r.h"
@@ -6,7 +13,6 @@
 #include "test_data.hpp"
 
 #include <algorithm>
-#include <boost/regex.hpp>
 
 using namespace Slic3r;
 using namespace Slic3r::Test;

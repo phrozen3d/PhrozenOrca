@@ -646,10 +646,15 @@ target_link_libraries(libslic3r
 
 
 
+# utils.cpp (bbl_calc_md5) calls the OpenSSL MD5_* API on every platform,
+# so libslic3r must carry the OpenSSL::Crypto dependency itself. Without it
+# targets that link libslic3r but not libslic3r_gui (e.g. the test suites)
+# fail with unresolved MD5_Init/MD5_Update/MD5_Final.
+target_link_libraries(libslic3r PRIVATE OpenSSL::Crypto)
+
 if(NOT WIN32)
     # Link freetype for OCCT dependency (CAD operations need font rendering)
 target_link_libraries(libslic3r PRIVATE freetype)
-    target_link_libraries(libslic3r PRIVATE OpenSSL::Crypto)
     if (NOT APPLE)
         target_link_libraries(libslic3r PRIVATE fontconfig)
     endif()
@@ -666,7 +671,8 @@ if (TARGET OpenVDB::openvdb)
 endif()
 
 if(WIN32)
-    target_link_libraries(libslic3r PRIVATE Psapi.lib)
+    # bcrypt: boost::uuids::random_generator (AppConfig.cpp) resolves to BCryptGenRandom.
+    target_link_libraries(libslic3r PRIVATE Psapi.lib bcrypt.lib)
 endif()
 
 if(SLIC3R_PROFILE)
