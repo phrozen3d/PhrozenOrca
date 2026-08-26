@@ -56,6 +56,16 @@ GLGizmoSlaSupports::render_points()              GLGizmoSlaSupports.cpp:675
 
 **回歸基線**：`build-resin-dbginfo` 於未修改任何程式碼的狀態下，`libslic3r_tests` 共 90 個測試，**85 通過、5 個既有失敗**。後續每個 Phase 的驗證皆以此為比較基準——判準是「無新增失敗」，而非「全數通過」。
 
+既有失敗清單（皆與 SLA 無關，屬本變更範圍外的既有問題）：
+
+| # | 測試 | 狀態 | 標籤 |
+|---|---|---|---|
+| 6 | 2D convex hull of sinking object | Failed | `[3mf]` |
+| 12 | Generic config validation performs as expected. | Failed | `[Config]` |
+| 13 | Config accessor functions perform as expected. | SEGFAULT | `[Config]` |
+| 30 | Polygon convex/concave detection | Failed | `[Geometry]` |
+| 39 | Placeholder parser scripting | SEGFAULT | `[PlaceholderParser]` |
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -371,9 +381,17 @@ D1 只修改射線命中的**選擇**邏輯，未改動 `hit.distance() > allowe
 
 D1 的方向性優先會選中可能較遠的朝下面，因此**理論上會提高進入該分支的機率**。
 
-**推導**：切片網格自 `minZ = bb.min(Z) - elevation` 起算、步長 `layer_height`，故第一個涵蓋模型的層距離模型底面的高度 `a` 落在 `[0, layer_height)`，嚴格小於一個層高。而 `allowed_move` 在多層時為 `dLevel = layer_height + eps`、單層時為 `support_head_front_diameter`（典型 0.4 mm，通常更大）。兩者皆不小於 `layer_height`，故 `a < allowed_move`，該分支不可達。
+**推導（初版，邊界有誤，已於實測後修正——見下）**：切片網格自 `minZ = bb.min(Z) - elevation` 起算、步長 `layer_height`，故第一個涵蓋模型的層距離模型底面的高度 `a` 落在 `[0, layer_height)`，嚴格小於一個層高。而 `allowed_move` 在多層時為 `dLevel = layer_height + eps`、單層時為 `support_head_front_diameter`（典型 0.4 mm，通常更大）。兩者皆不小於 `layer_height`，故 `a < allowed_move`，該分支不可達。
+
+**推導（修正版）**：上式的區間端點錯了。`closest_slice_record()` 取的是**最接近**模型底面的層，可能落在底面**下方**；當網格剛好有一層落在底面 `z = 0` 上時，該層的切片是退化的（平面與底面共面，不產生可取樣的島），實際取樣落到下一層，其高度**正好等於一個層高**。因此 `a` 的正確範圍是閉區間 `[0, layer_height]`。
+
+結論仍然成立，但理由要換成更強的一條：`allowed_move` 在多層時為 `double(levels[1] - levels[0]) + FLT_EPSILON`。設 `levels[0] <= 0`（即網格首層在底面或其下），則取樣層 `= levels[0] + layer_height`，量得的距離 `a = levels[0] + layer_height`，而 `allowed_move = layer_height + FLT_EPSILON`；於 `levels[0] == 0` 的最壞情形有 `a = layer_height = allowed_move - FLT_EPSILON < allowed_move`。**等號永遠差一個 `FLT_EPSILON`，是結構上保證的，不是巧合**——因為 `allowed_move` 的定義本身就多加了那個 epsilon。若 `levels[0] > 0` 則 `a = levels[0] <= layer_height / 2`，餘裕更大。單層時 `allowed_move = support_head_front_diameter`（0.4 mm），餘裕遠大於此。
+
+**餘裕警語**：最壞情形的餘裕僅 `FLT_EPSILON ≈ 1.19e-7 mm`。任何未來把 `allowed_move` 的 `+ eps` 拿掉、或改用 `<` 取代 `<=` 比較的修改，都會讓薄板在特定相位掉進 `squared_distance` 回退分支。`SLAPrintSteps.cpp` 該處已加註解鎖定。
 
 **驗證方式**：以 0.2 mm 薄板，`layer_height` 取 0.05 / 0.10 / 0.15，`support_object_elevation` 自 5.00 至 5.15 逐 0.01 掃描，記錄每個相位下實際走入的分支與最終點位 z。判準：全部產生有效切片層的相位皆未進入 `squared_distance` 分支，且所有支撐點 z = 0.00（下表面）。
+
+**實測結果（2026-08-26，`libslic3r_tests "[ThinModel]"`）**：46 個有效相位全數通過 `hit.distance() <= allowed_move` 與 `z = 0.00`，回退分支不可達，**A1 的結論成立**。初版推導的嚴格不等式在 2 個相位（`layer_height = 0.10`、`elevation = 5.00` 與 `5.10`，`sample_z = 0.1000000`）不成立，據此改為上方的修正版推導；測試斷言同步由 `<` 改為 `<=`，並另加一條 `allowed_move > sample_z` 的嚴格斷言，鎖定真正承載結論的那個不等式。
 
 **若不成立**：需為 `squared_distance` 分支補上同樣的方向性約束（改用朝下面的投影，或在投影結果朝上時改取向下射線命中），並回到本文件補記決策。
 
@@ -384,6 +402,8 @@ D1 的方向性優先會選中可能較遠的朝下面，因此**理論上會提
 **驗證方式**：於 A1 的相位掃描中同時記錄 `allowed_move` 的實際值與 `hit.distance()`，確認 `hit.distance() <= allowed_move` 在所有相位成立。
 
 **若不成立**：改採 `max(layer_height, support_head_front_diameter)`，並記錄理由。
+
+**實測結果（2026-08-26）**：46 個有效相位全數滿足 `allowed_move >= layer_height` 與 `hit.distance() <= allowed_move`，**A2 成立**，維持 `support_head_front_diameter` 不變。
 
 ### A3｜鏡像與非等比縮放下的量測方向正確
 

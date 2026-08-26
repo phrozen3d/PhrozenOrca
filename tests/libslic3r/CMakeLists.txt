@@ -23,6 +23,7 @@ add_executable(${_TEST_NAME}_tests
     test_indexed_triangle_set.cpp
     test_sla_undo_redo_data.cpp
     sla_contact_spacing_tests.cpp
+    sla_thin_model_tests.cpp
     ../libnest2d/printer_parts.cpp
 	)
 

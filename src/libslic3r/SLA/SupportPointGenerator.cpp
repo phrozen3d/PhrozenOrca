@@ -1301,8 +1301,56 @@ SupportPoints move_on_mesh_surface(
             if (!up && !down)
                 return;
 
-            IndexedMesh::hit_result &hit =
+            // fix-sla-thin-model-support-points (#1): prefer the downward-facing
+            // face over the merely nearest one.
+            //
+            // A support point means "hold the model up from below", so the face
+            // it must land on is the one whose material sits above it -- a
+            // downward-facing face -- regardless of distance. Picking purely by
+            // distance breaks on very thin plates: when the sampling layer falls
+            // above the plate's mid-plane, the *top* surface is nearer, every
+            // point gets snapped to z = thickness, and the resulting (0,0,+1)
+            // normals are then discarded wholesale by the critical-angle filter
+            // in SLAPrint::Steps::support_points(). Result: 0 automatic support
+            // points, and the outcome flips purely on the slicing-grid phase.
+            //
+            // hit_result::normal() comes from IndexedMesh::normal_by_face_id(),
+            // i.e. it is the triangle's *geometric* face normal. It is NOT
+            // flipped to oppose the ray direction, so hitting the top surface
+            // from inside the material still reports (0,0,+1) and is correctly
+            // rejected here.
+            //
+            // Three tiers:
+            //   1. exactly one hit faces downward -> take it
+            //   2. both face downward            -> take the nearer one
+            //   3. neither faces downward        -> take the nearer one
+            // Tiers 2 and 3 are the pre-change rule, so ordinary geometry (where
+            // the downward hit is also the nearer one) is unchanged point for
+            // point. Tier 3 is a deliberate compatibility exit for vertical
+            // walls and degenerate faces.
+            //
+            // is_hit() must be checked before normal(): a miss leaves m_normal
+            // unset while is_valid() still holds.
+            //
+            // One knock-on effect of tier 1: when the downward-facing hit is the
+            // farther one AND exceeds allowed_move while the nearer hit does
+            // not, this now falls through to the squared_distance branch rather
+            // than projecting onto the nearer (wrong-facing) hit. That branch
+            // snaps to the geometrically closest surface point, so the outcome
+            // is comparable but not bit-identical to the old one. It can only
+            // arise for points more than allowed_move away from the mesh, and
+            // support points are generated on layer slices, i.e. already on the
+            // surface -- so the case is not expected in practice.
+            const bool up_faces_down   = up   && hit_up.normal().z()   < 0.;
+            const bool down_faces_down = down && hit_down.normal().z() < 0.;
+
+            IndexedMesh::hit_result &nearest =
                 (!down || hit_up.distance() < hit_down.distance()) ? hit_up : hit_down;
+
+            IndexedMesh::hit_result &hit =
+                (up_faces_down != down_faces_down)
+                    ? (up_faces_down ? hit_up : hit_down)   // tier 1
+                    : nearest;                              // tiers 2 and 3
             if (hit.distance() <= allowed_move) {
                 p[2] += static_cast<float>(hit.distance() * hit.direction()[2]);
                 return;

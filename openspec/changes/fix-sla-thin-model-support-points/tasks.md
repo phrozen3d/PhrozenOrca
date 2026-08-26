@@ -123,27 +123,45 @@
 
 - [x] 1.1 於 `src/libslic3r/SLA/SupportTreeBuildsteps.cpp` 的 `SupportTreeBuildsteps::connect_to_model_body()`（約 1035 行）將 `Vec3d taildir = endp - hitp;` 改為正規化後的單位向量，並加註來源與意圖註解（說明 `IndexedMesh::query_ray_hit()` 的單位向量前置條件在 Release 下不存在）
 - [x] 1.2 確認正規化後 `dist` / `w` 的計算語意不變（`dist` 仍以 `(hitp - endp).norm()` 取實際長度，不得誤用正規化後的向量）
-- [x] 1.3 【建置檢查點】請使用者建置 `libslic3r`，確認無編譯錯誤。**註：依使用者指示勾選；AI 未取得建置輸出回報，本項未經實測確認。**
-- [x] 1.4 【建置檢查點】請使用者建置 `libslic3r_tests` 並執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"`，與 0.5 的基線比對（90 測試 / 5 既有失敗），確認無新增失敗。**註：依使用者指示勾選；AI 未取得測試輸出回報，本項未經實測確認。**
+- [x] 1.3 【建置檢查點】請使用者建置 `libslic3r`，確認無編譯錯誤。**實測（2026-08-26）：建置成功，無編譯錯誤。**
+- [x] 1.4 【建置檢查點】請使用者建置 `libslic3r_tests` 並執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"`，與 0.5 的基線比對，確認無新增失敗。**實測（2026-08-26）：90 測試 / 5 失敗，失敗清單與 0.5 基線逐項相同（#6、#12、#13、#30、#39），零新增回歸。**
 - [x] 1.5 錨點幾何影響評估（原訂 GUI 目視比對，經 code review 改為靜態論證）：`taildir` 僅成為 `Anchor::dir`；`m_anchors` 的唯一消費端是 `SupportTreeBuilder.cpp:166` 的 `get_mesh(anch, steps)`，其 `head_mesh_local()` 以 `Quaternion::FromTwoVectors()` 建立旋轉，該函式內部即正規化輸入，故方向長度不影響輸出網格；唯一受長度影響的 `Anchor::junction_point()` 從未被讀取，且 `Head::Head()` 不對 `dir` 正規化（故此結論非來自建構子）。**結論：本 Phase 對支撐網格逐點無變化，回歸風險為零。**已同步修正 `design.md` 的 D6 與風險表——來源變更宣稱的「#6 改變既有 anchor 幾何」在本 fork 不成立
 - [x] 1.6 Review：命名沿用檔案既有 snake_case 慣例；註解已重寫，納入「今日為 no-op、至 Phase 3 才成為前置」此一關鍵事實；`dist` 與 `w` 仍以 `(hitp - endp).norm()` 計算，`taildir` 僅出現於 `add_anchor()` 呼叫處；`EPSILON` 退化保護維持既有行為、不引入 NaN。未觸碰任何防貫穿相關程式碼，可獨立 revert。已建立分支並提交獨立 commit
 
 ## 2. Phase 2：#1 支撐點朝下法線優先吸附
 
-- [ ] 2.1 於 `src/libslic3r/SLA/SupportPointGenerator.cpp` 的 `move_on_mesh_surface()`（約 1304-1305 行）將命中面選擇改為三層決策：朝下面優先 → 兩者皆朝下取較近者 → 兩者皆非朝下回退至現行「取較近者」
-- [ ] 2.2 朝下判定使用 `IndexedMesh::hit_result::normal()` 的 z 分量為負；加註「面法線不隨射線方向翻轉，故自內側向上命中上表面仍會被排除」的說明註解
-- [ ] 2.3 確認 `allowed_move` 的計算（`src/libslic3r/SLAPrintSteps.cpp` 約 934-937 行）**維持現狀不動**，並於該處加註釋說明為何不改為 `layer_height`（對應 spec「投影位移上限維持現行取值」）
-- [ ] 2.4 【建置檢查點】請使用者建置 `libslic3r`，確認無編譯錯誤
-- [ ] 2.5 新增測試檔案 `tests/libslic3r/sla_thin_model_tests.cpp`（Catch2 標籤 `[ThinModel]`），並加入 `tests/libslic3r/CMakeLists.txt` 的 `add_executable()` 來源清單；撰寫前先讀 `tests/CLAUDE.md`
-- [ ] 2.6 撰寫測試：0.2 mm 水平薄板，取樣層位於中面之上與之下兩種情形，斷言支撐點皆落在下表面 z=0.00（對應 spec「支撐點必須投影至朝下的承載面」前兩個 Scenario）
-- [ ] 2.7 撰寫測試：兩個方向皆非朝下面時回退既有行為，斷言結果與「取較近者」一致（對應 spec 第四個 Scenario）
-- [ ] 2.8 撰寫 A1 / A2 驗證測試：0.2 mm 薄板，`layer_height` 取 0.05 / 0.10 / 0.15，`support_object_elevation` 自 5.00 至 5.15 逐 0.01 掃描（迴圈內用 `DYNAMIC_SECTION`）；記錄每個相位的 `hit.distance()` 與 `allowed_move`，斷言 `hit.distance() <= allowed_move` 恆成立、且未進入 `squared_distance` 回退分支
-- [ ] 2.9 撰寫測試：同一掃描下，所有產生有效切片層的相位皆產出相同數量的支撐點，且所有點 z = 0.00（對應 spec「支撐點產出必須與切片網格相位無關」）
-- [ ] 2.10 撰寫測試：`m_model_height_levels.size() == 1` 的相位仍產出非零支撐點
-- [ ] 2.11 【建置檢查點】請使用者重跑「步驟 1」的 cmake 設定（因為改了 `tests/libslic3r/CMakeLists.txt`），再建置 `libslic3r_tests`
-- [ ] 2.12 【建置檢查點】請使用者執行 `libslic3r_tests.exe "[ThinModel]"`，確認全數通過；再執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"` 確認與 0.5 基線相比無新增失敗
-- [ ] 2.13 若 A1 或 A2 任一驗證失敗，**停止實作**並回報，回到 `design.md` 重新決議（不得就地為 `squared_distance` 分支加補丁）
-- [ ] 2.14 Review：統計常態模型回歸樣本中「兩者皆非朝下」回退分支的觸發次數，確認為可解釋的少數；提交獨立 commit
+- [x] 2.1 於 `src/libslic3r/SLA/SupportPointGenerator.cpp` 的 `move_on_mesh_surface()`（約 1304-1305 行）將命中面選擇改為三層決策：朝下面優先 → 兩者皆朝下取較近者 → 兩者皆非朝下回退至現行「取較近者」。實作為 `up_faces_down != down_faces_down` 時取朝下者（tier 1），否則取 `nearest`（tier 2/3 共用同一運算式，即修改前的原始規則）
+- [x] 2.2 朝下判定使用 `IndexedMesh::hit_result::normal()` 的 z 分量為負；加註「面法線不隨射線方向翻轉，故自內側向上命中上表面仍會被排除」的說明註解（依檔案既有慣例以英文撰寫）。另加註 `is_hit()` 必須先於 `normal()` 檢查——射線未命中時 `m_normal` 未設定但 `is_valid()` 仍為真，故以 `up &&` / `down &&` 短路保護
+- [x] 2.3 確認 `allowed_move` 的計算（`src/libslic3r/SLAPrintSteps.cpp`）**維持現狀不動**（僅加註釋，運算式一字未改），並說明為何不改為 `layer_height`：`move_on_mesh_surface()` 的方向性約束只作用於射線分支，`hit.distance() > allowed_move` 時會落入無方向性約束的 `squared_distance` 投影；`support_head_front_diameter`（典型 0.4 mm）較 `layer_height` 寬鬆，能讓該回退分支更不易被觸及
+- [x] 2.4 【建置檢查點】請使用者建置 `libslic3r`，確認無編譯錯誤。**實測（2026-08-26）：建置成功，0 個錯誤，產出 `libslic3r.lib`。**
+- [x] 2.5 新增測試檔案 `tests/libslic3r/sla_thin_model_tests.cpp`（Catch2 標籤 `[sla][ThinModel]`），並加入 `tests/libslic3r/CMakeLists.txt` 的 `add_executable()` 來源清單。已遵循 `tests/CLAUDE.md`：浮點比較一律 `WithinAbs`（無 `Approx`）、掃描迴圈用 `DYNAMIC_SECTION`、section 內無控制流（相位改為事前以 `enumerate_phases()` 列舉）
+- [x] 2.6 撰寫測試：0.2 mm 水平薄板，取樣層位於中面之上（z=0.125）與之下（z=0.075）兩種情形，斷言支撐點皆落在下表面 z=0.00；中面之上的案例另斷言結果**不是**上表面（雖然它距離較近）
+- [x] 2.7 撰寫測試：以 winding 反向的底面構造退化幾何，使上下兩射線的命中面法線 z 皆非負，斷言結果與「取較近者」一致。測試先以 `REQUIRE` 確立前提（兩個命中面法線皆 >= 0）而非假設之。另補一則 tier 1 測試：雙層板之間的點，朝下面的命中是**較遠**者，仍必須勝出——這正是舊的純距離規則會弄錯的情形
+- [x] 2.8 撰寫 A1 / A2 驗證測試：0.2 mm 薄板，`layer_height` 取 0.05 / 0.10 / 0.15，`support_object_elevation` 自 5.00 至 5.15 逐 0.01 掃描（`DYNAMIC_SECTION`）。以 `model_height_levels()` 忠實重現 `slice_model()` 的網格建構（含 `ilhs` 首層與 `closest_slice_record()` 的取近語意）。斷言 A1（取樣層高度 <= 一個層高 + `GRID_TOL`；**初版寫成嚴格小於，經實測證偽後修正**，見 2.13）、`allowed_move > sample_z`（真正承載 A1 結論的嚴格不等式）、A2（`allowed_move >= layer_height`）、`down_hit.distance() <= allowed_move`（即射線分支的判斷條件成立、不落入 `squared_distance`），以及投影確實落在 z=0.00
+- [x] 2.9 撰寫測試：同一掃描下，每個有效相位皆以 4 點輸入，斷言輸出點數不變且所有點 z = 0.00；另斷言每個層高至少貢獻一個有效相位，避免掃描空轉而假性通過。**範圍註記：本測試涵蓋投影階段，不涵蓋「端到端自動支撐點數量」——後者屬管線層級，由 Phase 5 的手動驗收承接（`tests/sla_print` 已失效，見 design.md）**
+- [x] 2.10 撰寫測試：`levels.size() == 1` 時 `allowed_move` 退回 `support_head_front_diameter`，斷言其值、輸出非零、落在 z=0.00，且與 `size() >= 2` 的界限下**結果完全相同**——此收斂性正是相位無關性的成因
+- [x] 2.11 【建置檢查點】請使用者重跑「步驟 1」的 cmake 設定（因為改了 `tests/libslic3r/CMakeLists.txt`），再建置 `libslic3r_tests`
+  - 使用者手動建置完成，編譯 0 錯誤
+- [x] 2.12 【建置檢查點】請使用者執行 `libslic3r_tests.exe "[ThinModel]"`，確認全數通過；再執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"` 確認與 0.5 基線相比無新增失敗
+  - **第一輪（2026-08-26）：7 個測試 6 通過 1 失敗，809 個斷言 2 個失敗。** 失敗者為 `ray branch stays reachable across every grid phase`。
+  - `ctest` 的其餘失敗（#6 / #12 / #13 / #30 / #39）與 0.5 基線完全一致，**零新增回歸**。
+  - 失敗定位：`layer_height = 0.10`、`elevation = 5.00` 與 `5.10` 兩個相位，`sample_z` 正好等於一個層高，A1 的**嚴格**不等式 `sample_z < layer_height` 不成立。
+  - **第二輪（2026-08-26，修正後）：`All tests passed (855 assertions in 7 test cases)`。全數通過。**
+  - 回歸判定：第一輪的 `ctest` 已確認既有失敗僅 #6 / #12 / #13 / #30 / #39 五項，與 0.5 基線一致；當時唯一的新增失敗 #95 於第二輪轉為通過。**零新增回歸。**（第二輪未再回報完整 `ctest`；由於 `libslic3r` 端的第二輪改動僅為註解，該推論成立。）
+- [x] 2.13 若 A1 或 A2 任一驗證失敗，**停止實作**並回報，回到 `design.md` 重新決議（不得就地為 `squared_distance` 分支加補丁）
+  - **已觸發**：A1 的嚴格不等式不成立，依本任務規定停止並回到 `design.md`。
+  - 根因為**推導的邊界寫錯，不是程式缺陷**：`closest_slice_record()` 可能取到模型底面下方的層；當網格恰有一層落在底面 z=0 上，該層切片退化（平面與底面共面、不產生島），取樣落到下一層，高度**正好等於一個層高**。故 `a` 的正確範圍是閉區間 `[0, layer_height]`。
+  - **A1 的結論仍然成立，且改以更強的理由支撐**：`allowed_move = (levels[1] - levels[0]) + FLT_EPSILON`，最壞情形仍比取樣高度多一個 `FLT_EPSILON`（實測餘裕 1.192e-07 mm），是**定義上結構性保證**的，不是巧合。46 個有效相位的 `hit.distance() <= allowed_move` 與 `z = 0.00` **全數通過**，`squared_distance` 回退分支不可達。
+  - **A2 全數通過**，維持 `support_head_front_diameter` 不變。
+  - 處置：`design.md` 的 A1 保留初版推導並加註「邊界有誤」，另補修正版推導、餘裕警語與實測結果；A2 補實測結果。**未對 `squared_distance` 分支加任何補丁**，符合本任務的禁令。
+  - 測試修正：`sample_z < layer_height` 改為 `sample_z <= layer_height + GRID_TOL`（`GRID_TOL = 1e-6`，即 `scaled()` 的座標量子；grid level 為 float，最壞情形的 `0.1f` 比 double 的 `0.1` 高約 9e-9），並**新增**一條 `allowed_move > sample_z` 的嚴格斷言，把真正承載結論的不等式鎖住。**斷言是收緊而非放寬。**
+- [x] 2.14 Review：統計常態模型回歸樣本中「兩者皆非朝下」回退分支的觸發次數，確認為可解釋的少數；提交獨立 commit
+  - **Review 已執行（2026-08-26）；2.12 重跑全數通過後建立 Phase 2 獨立 commit。**
+  - 「統計回退分支觸發次數」一項**改以結構性論證取代，不做計數**：tier 2 與 tier 3 逐字沿用修改前的運算式 `(!down || hit_up.distance() < hit_down.distance()) ? hit_up : hit_down`，故回退路徑的行為**依構造與修改前完全相同**，觸發次數多寡不影響「常態幾何逐點不變」的結論。計數需要對 libslic3r 加樁並跑回歸樣本，成本高於其證據價值。
+  - **正確性複查（已逐項對照原始碼確認）**：`up` / `down` 即 `hit_up.is_hit()` / `hit_down.is_hit()`；`up_faces_down` 的 `&&` 短路保證 `normal()` 只在命中時求值——這是必要的，`hit_result::m_normal` 為未初始化的 `Vec3d`，未命中時讀取即為未定義行為。tier 1 因 `up_faces_down` 蘊含 `up`，永不選中 miss。未命中時 `m_t = infinity()`，`nearest` 運算式對此已正確處理（與修改前同一式）。兩個三元分支型別相同且皆為 lvalue，參考繫結無懸空。
+  - **發現缺陷 1（已修正）**：`SLAPrintSteps.cpp` 的新註解沿用了 design.md 初版那句錯誤推導「sits strictly less than one layer above the model's underside」。已改寫為 `AT MOST one layer height`，並補上 epsilon 餘裕的鎖定警語（禁止移除 `+ eps`、禁止把 `<=` 改成 `<`）與實測相位數。
+  - **發現缺陷 2（已補註解，非程式問題）**：tier 1 的連帶效應——當朝下面較遠且超過 `allowed_move`、而較近的那個未超過時，現在會落入 `squared_distance` 分支，而非投影到較近（面向錯誤）的命中點。結果相近但非逐位元相同。此情形只在「點距離網格超過 `allowed_move`」時發生，而支撐點產生於切片層上、本就貼著表面，實務上不預期出現。已於 `SupportPointGenerator.cpp` 註明。
+  - **範疇檢查**：兩個 `.cpp` 的改動僅為註解（`SLAPrintSteps.cpp` 全檔無可執行碼變更），加上 `move_on_mesh_surface()` 的三層決策本身。無任何超出 Task 2.1–2.3 範疇的改動。`.gitignore` 為變更前既存的無關修改，不納入本 commit。
 
 ## 3. Phase 3：#5 切片端動態防貫穿夾限
 

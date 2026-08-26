@@ -930,6 +930,37 @@ void SLAPrint::Steps::support_points(SLAPrintObject &po)
             statuscb);
 
         // Phase 2: Project generated points from layer plane onto actual mesh surface.
+        //
+        // fix-sla-thin-model-support-points: allowed_move is deliberately left
+        // as-is. Upstream PrusaSlicer reads m_model_height_levels[1] out of
+        // bounds here and the corresponding fix uses layer_height as the
+        // single-layer fallback; this fork already guards the access and uses
+        // support_head_front_diameter instead. Do NOT "align" it with upstream.
+        //
+        // Reason: move_on_mesh_surface() only applies the downward-facing
+        // preference on its ray-hit branch. When hit.distance() exceeds
+        // allowed_move it falls through to a squared_distance projection that
+        // has no directional constraint at all and would snap thin-plate points
+        // straight back onto the top surface.
+        //
+        // The slicing grid starts at bb.min(Z) - get_elevation() and steps by
+        // layer_height, so the first usable level sits AT MOST one layer height
+        // above the model's underside. At most, not strictly less: when a grid
+        // level lands exactly on the underside that slice is degenerate and
+        // sampling falls to the next level, exactly one layer up. The
+        // multi-level bound below survives that worst case only because of the
+        // trailing float epsilon, which makes allowed_move exactly one
+        // FLT_EPSILON (~1.19e-7 mm) larger than the sampling height. DO NOT
+        // remove that epsilon, and do not turn the `<=` in
+        // move_on_mesh_surface() into `<`; either would drop thin plates into
+        // the unconstrained fallback at those phases. Measured across 46 grid
+        // phases (layer heights 0.05/0.10/0.15, elevation 5.00..5.15) in
+        // tests/libslic3r/sla_thin_model_tests.cpp.
+        //
+        // The single-level fallback keeps support_head_front_diameter
+        // (typically 0.4 mm), which is the more generous of the two candidate
+        // values and therefore keeps that branch even further out of reach than
+        // upstream's layer_height would.
         throw_if_canceled();
         const double allowed_move = (po.m_model_height_levels.size() > 1)
             ? double(po.m_model_height_levels[1] - po.m_model_height_levels[0])
