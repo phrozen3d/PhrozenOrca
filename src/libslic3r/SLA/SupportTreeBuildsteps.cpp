@@ -1032,7 +1032,32 @@ bool SupportTreeBuildsteps::connect_to_model_body(Head &head)
     long pillar_id = m_builder.add_pillar(head.id, hjp.z() - endp.z());
     Pillar &pill = m_builder.pillar(pillar_id);
 
-    Vec3d taildir = endp - hitp;
+    // fix-sla-thin-model-support-points (#6): taildir must be a unit vector.
+    // Upstream PrusaSlicer 2.9.6 normalizes it ("Slicing SLA supports
+    // analytically"); this fork branched off an older base and never picked
+    // that up.
+    //
+    // Emitted mesh is unchanged today: taildir only becomes Anchor::dir, and
+    // the sole consumer of m_anchors is get_mesh(Head), whose
+    // Quaternion::FromTwoVectors() normalizes internally. Anchor::junction_point()
+    // -- the one place magnitude would matter -- is never read.
+    //
+    // It is fixed anyway because it is a hard prerequisite for the penetration
+    // clamping this change adds later: that step feeds Anchor::dir to
+    // IndexedMesh::query_ray_hit(), whose assert(is_approx(dir.norm(), 1.))
+    // precondition is compiled out in Release. A non-unit direction there would
+    // silently return a ray parameter instead of a real distance.
+    //
+    // Degenerate case (endp coincides with hitp) keeps the existing near-zero
+    // vector rather than dividing by zero. That path is already broken upstream
+    // of here and is deliberately left as-is by this fix.
+    const Vec3d  taildir_raw = endp - hitp;
+    const double taildir_len = taildir_raw.norm();
+    Vec3d        taildir     = taildir_len > EPSILON ? Vec3d(taildir_raw / taildir_len)
+                                                     : taildir_raw;
+
+    // dist/w keep deriving the real length from the un-normalized endpoints;
+    // they must never be computed from `taildir` above.
     double dist = (hitp - endp).norm() + m_cfg.head_penetration_mm;
     double w = dist - 2 * head.r_pin_mm - head.r_back_mm;
 
