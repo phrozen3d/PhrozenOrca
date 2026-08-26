@@ -1,0 +1,11 @@
+{
+    "type": "filament",
+    "setting_id": "PRZE001_ARCO_B",
+    "name": "Phrozen ASA Easy @Phrozen Arco 0.4 nozzle",
+    "from": "system",
+    "instantiation": "true",
+    "inherits": "Phrozen ASA Easy @base",
+    "compatible_printers": [
+        "Phrozen Arco 0.4 nozzle"
+    ]
+}
