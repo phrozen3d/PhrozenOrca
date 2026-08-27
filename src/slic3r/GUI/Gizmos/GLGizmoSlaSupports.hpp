@@ -16,7 +16,10 @@
 
 #include <cstdint>
 #include <map>
+#include <memory>
+#include <optional>
 #include <tuple>
+#include <vector>
 
 
 namespace Slic3r {
@@ -80,6 +83,31 @@ private:
     };
 
     static HeadGeomKey head_geom_key(const sla::Head& head, bool preview);
+
+    // fix-sla-thin-model-support-points: preview anti-penetration clamp.
+    //
+    // Rebuilds m_thickness_raycaster if and only if HollowedMesh now hands back a
+    // different mesh, and drops the depth cache whenever the mesh, the object
+    // transform, or the point count no longer match what it was measured under.
+    // Cheap enough to call once per frame; it does no work in the steady state.
+    // Takes no point count on purpose: it derives the same one render_points()
+    // uses, so the two callers cannot disagree and thrash the cache every frame.
+    // The picking path indexes m_editing_cache, which is only ever populated
+    // while m_editing_mode is set (register_point_raycasters_for_picking()
+    // guards on it), so its indices line up with the same derivation.
+    void refresh_thickness_measurement();
+
+    // Material available to the head at `sp`, measured along the head axis on the
+    // hollowed mesh, in millimetres. Returns nullopt when there is nothing to
+    // measure against or the ray misses -- the preview then degrades optimistically
+    // (see the clamp call in render_points()). Results are memoised in
+    // m_thickness_cache under `idx`.
+    std::optional<double> point_available_depth(size_t idx,
+                                                const sla::SupportPoint &sp,
+                                                const Vec3f &raw_normal);
+
+    // Invalidate one point's cached depth, for when that point alone moves.
+    void invalidate_thickness_at(size_t idx);
 
 public:
     GLGizmoSlaSupports(GLCanvas3D& parent, const std::string& icon_filename, unsigned int sprite_id);
@@ -206,6 +234,56 @@ private:
         std::shared_ptr<SceneRaycasterItem> back_sphere;
     };
     std::vector<PointRaycasterSet> m_point_raycasters;
+
+    // --- fix-sla-thin-model-support-points: preview anti-penetration clamp ---
+    //
+    // The preview measures how much material sits under each support point and
+    // clamps the drawn head so it cannot come out of the far side. It measures
+    // on the SAME mesh the slicer does -- HollowedMesh, i.e.
+    // po->get_mesh_to_print() -- but computes the answer independently: there is
+    // no channel to read the slicer's result, because in the gizmo workflow the
+    // pipeline stops at slaposSupportPoints and slaposSupportTree never runs
+    // (see design.md, "切片管線在 GUI 工作流下會被硬性截斷").
+    //
+    // The AABB tree behind this raycaster is expensive, so it is rebuilt only
+    // when the mesh identity changes, never per frame.
+    std::unique_ptr<MeshRaycaster> m_thickness_raycaster;
+    // Identity of the mesh m_thickness_raycaster was built from.
+    //
+    // A POINTER ALONE IS NOT ENOUGH HERE. Raycaster::on_update() gets away with
+    // comparing bare addresses because it compares &mv->mesh() across different
+    // ModelVolumes, which really are distinct objects. HollowedMesh instead holds
+    // its mesh BY VALUE (TriangleMesh m_hollowed_mesh_cache), so
+    // get_hollowed_mesh() returns either nullptr or always that one same address
+    // -- on_update() replaces the CONTENT in place. Hollowing the object, moving
+    // a drain hole or re-slicing would leave a stale AABB tree behind.
+    //
+    // So the identity is the address plus a cheap content fingerprint. It is not
+    // a hash: two different meshes with identical counts whose vertex buffer
+    // happens to land on the same address would still compare equal. That is
+    // vanishingly unlikely and, being a preview, self-corrects on the next
+    // change; a real hash would mean walking every vertex on every frame.
+    struct ThicknessMeshId {
+        const TriangleMesh *mesh      = nullptr;  // never dereferenced, only compared
+        const void         *vbuf      = nullptr;  // its.vertices.data()
+        size_t              nvertices = 0;
+        size_t              nfacets   = 0;
+
+        bool operator==(const ThicknessMeshId &o) const {
+            return mesh == o.mesh && vbuf == o.vbuf &&
+                   nvertices == o.nvertices && nfacets == o.nfacets;
+        }
+        bool operator!=(const ThicknessMeshId &o) const { return !(*this == o); }
+    };
+    ThicknessMeshId m_thickness_mesh_id;
+    // Object transform the cached depths were measured under. A move, rotate or
+    // scale changes the measured lengths, so the cache has to go with it.
+    Transform3d m_thickness_trafo = Transform3d::Identity();
+    // One available-depth value per drawn point, parallel to m_editing_cache in
+    // editing mode and to m_normal_cache otherwise. NaN means "not measured
+    // yet"; a negative value means "measured and missed" (broken mesh), which is
+    // distinct from not having tried. Filled lazily during rendering.
+    std::vector<float> m_thickness_cache;
 
     // This map holds all translated description texts, so they can be easily referenced during layout calculations
     // etc. When language changes, GUI is recreated and this class constructed again, so the change takes effect.

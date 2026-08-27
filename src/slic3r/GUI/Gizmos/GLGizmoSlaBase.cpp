@@ -87,11 +87,20 @@ void GLGizmoSlaBase::reslice_until_step(SLAPrintObjectStep step, bool postpone_e
 
 CommonGizmosDataID GLGizmoSlaBase::on_get_requirements() const
 {
+    // fix-sla-thin-model-support-points: HollowedMesh is requested again.
+    //
+    // It had been dropped as dead weight, which meant HollowedMesh::on_update()
+    // never ran and get_hollowed_mesh() always returned nullptr. The support
+    // preview now measures the material available under each point, and it must
+    // measure the SAME mesh the slicer does -- po->get_mesh_to_print(), i.e.
+    // after hollowing and hole drilling -- or a hollowed object would preview a
+    // deep bite into a wall that is not there any more.
     return CommonGizmosDataID(
                 int(CommonGizmosDataID::SelectionInfo)
               | int(CommonGizmosDataID::InstancesHider)
               | int(CommonGizmosDataID::Raycaster)
               | int(CommonGizmosDataID::ObjectClipper)
+              | int(CommonGizmosDataID::HollowedMesh)
               | int(CommonGizmosDataID::SupportsClipper));
 }
 

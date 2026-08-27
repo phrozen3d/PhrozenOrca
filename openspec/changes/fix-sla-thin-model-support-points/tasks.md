@@ -254,6 +254,15 @@
 - [x] 3.19 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"`，與 0.5 基線比對確認無新增失敗
   - **實測（2026-08-26）：85 passed / 5 failed，失敗項為 #6、#12、#13、#30、#39，與 Phase 0 基線完全一致——零新增迴歸。**
 - [x] 3.20 Review：逐一核對四處提交點的時序是否符合 spec「四個夾限提交點的語意與時序」；提交獨立 commit
+  - **Review 已執行（2026-08-26）。四個提交點的時序全部正確**，行號與呼叫點已逐一核對（見 3.9）。以下為三項發現。
+  - **F1（設計層級殘留，已記入 `design.md` 的 D5）**：主頭的提交點一與三，其門檻 `w = fullwidth() = real_width() - penetration` 是用**未夾限**的 penetration 算的；夾限只會減少 penetration、因而**增加** `fullwidth()`，故實際建出的頭比通過門檻時檢查的更長。後果有二：(a) `pinhead_mesh_intersect()` 的碰撞淨空檢查涵蓋的是較短的頭，真實淨空若落在 `w` 與 `w + Δ` 之間可能出現小面積交疊；(b) 提交點三的接地門檻同樣以較短的頭評估，頭尾可能略低於接地面。`Δ` 上界為 `configured_front`（典型 0.4–0.5 mm）且僅在薄件上非零。**明確接受**——消除它就得把量測射線放回 optimizer 目標函式，而那正是 D5 為破除循環相依所否決的做法。**已列入 Phase 5 必查項目。**
+  - **F2（註解與程式碼矛盾，已修）**：提交點二原註解寫「w 是頭露在模型外的長度，咬得淺代表脖子長」——**符號反了**。夾限使 penetration 變小，`dist` 隨之變小，`w` 也**變小**。真正的理由是代數抵消：`fullwidth() = 2*r_pin + w + 2*r_back - penetration = |hitp - endp| + r_back`，penetration 恰好消掉，故 `junction_point()` 永遠落在 `endp`、與咬合深度無關。若 `dist` 用設定值而 `add_anchor()` 收夾限值，抵消就會破裂、錨點脫離橋接。已改寫註解。
+  - **F3（fail-safe 方向不一致，已修）**：`clamped_front_depth()` 未命中時無條件回傳 `0.`，但 `clamp_front_depth()` 刻意讓**非正**的設定深度原值通過。兩者不一致：設定深度為負時，fail-safe 反而讓它咬得**更深**。改為 `std::min(configured_front_mm, 0.)`，正常（設定深度為正）路徑的結果完全不變。
+  - **`DepthProbeMissCounter` 安全性：通過。** `fetch_add` / `load` 皆為 relaxed，但兩個驅動器都在所有平行區段 join 之後才讀取（Default 樹於 `execute()` 的程式迴圈結束後；Branching 樹於 `create_branching_tree()` 結尾），join 提供 happens-before，relaxed 足夠。含 `std::atomic` 成員故不可複製——三個使用點（就地成員／參考成員／區域變數）皆未要求複製。
+  - **不會重複夾限：通過。** 提交點一與三的夾限都只在 accept 分支內，而 fallback 的遞迴呼叫位於 else 分支，故每個 head 至多夾限一次。錨點是與 head 不同的物件，兩者各自夾限，無交互作用。
+  - **測試容差 `MEASURED_TOL`：分類正確。** 五處套用點確實都是經過單精度的值（兩處 float 回傳、三處射線量測）；其餘純算術斷言維持 `CLAMP_TOL = 1e-12`。
+  - **`OwnedMesh`：正確。** 成員宣告順序保證 `its` 先於 `mesh` 初始化，複製建構與複製指派均已刪除，杜絕懸空。
+  - **F4（觀察，未動）**：fail-safe 把 penetration 壓到 0 後，提交點二既有的 `w < 0` → 逐點 `BOOST_LOG_TRIVIAL(error)` 變得略為可達。屬既有程式碼，本變更未觸及，僅記錄。
 
 ### Phase 3 實作期間的額外改動（tasks 未列，需納入 3.20 Review）
 
@@ -290,29 +299,44 @@
 
 ## 4. Phase 4：GUI 預覽自洽防貫穿
 
-  - **Review 已執行（2026-08-26）。四個提交點的時序全部正確**，行號與呼叫點已逐一核對（見 3.9）。以下為三項發現。
-  - **F1（設計層級殘留，已記入 `design.md` 的 D5）**：主頭的提交點一與三，其門檻 `w = fullwidth() = real_width() - penetration` 是用**未夾限**的 penetration 算的；夾限只會減少 penetration、因而**增加** `fullwidth()`，故實際建出的頭比通過門檻時檢查的更長。後果有二：(a) `pinhead_mesh_intersect()` 的碰撞淨空檢查涵蓋的是較短的頭，真實淨空若落在 `w` 與 `w + Δ` 之間可能出現小面積交疊；(b) 提交點三的接地門檻同樣以較短的頭評估，頭尾可能略低於接地面。`Δ` 上界為 `configured_front`（典型 0.4–0.5 mm）且僅在薄件上非零。**明確接受**——消除它就得把量測射線放回 optimizer 目標函式，而那正是 D5 為破除循環相依所否決的做法。**已列入 Phase 5 必查項目。**
-  - **F2（註解與程式碼矛盾，已修）**：提交點二原註解寫「w 是頭露在模型外的長度，咬得淺代表脖子長」——**符號反了**。夾限使 penetration 變小，`dist` 隨之變小，`w` 也**變小**。真正的理由是代數抵消：`fullwidth() = 2*r_pin + w + 2*r_back - penetration = |hitp - endp| + r_back`，penetration 恰好消掉，故 `junction_point()` 永遠落在 `endp`、與咬合深度無關。若 `dist` 用設定值而 `add_anchor()` 收夾限值，抵消就會破裂、錨點脫離橋接。已改寫註解。
-  - **F3（fail-safe 方向不一致，已修）**：`clamped_front_depth()` 未命中時無條件回傳 `0.`，但 `clamp_front_depth()` 刻意讓**非正**的設定深度原值通過。兩者不一致：設定深度為負時，fail-safe 反而讓它咬得**更深**。改為 `std::min(configured_front_mm, 0.)`，正常（設定深度為正）路徑的結果完全不變。
-  - **`DepthProbeMissCounter` 安全性：通過。** `fetch_add` / `load` 皆為 relaxed，但兩個驅動器都在所有平行區段 join 之後才讀取（Default 樹於 `execute()` 的程式迴圈結束後；Branching 樹於 `create_branching_tree()` 結尾），join 提供 happens-before，relaxed 足夠。含 `std::atomic` 成員故不可複製——三個使用點（就地成員／參考成員／區域變數）皆未要求複製。
-  - **不會重複夾限：通過。** 提交點一與三的夾限都只在 accept 分支內，而 fallback 的遞迴呼叫位於 else 分支，故每個 head 至多夾限一次。錨點是與 head 不同的物件，兩者各自夾限，無交互作用。
-  - **測試容差 `MEASURED_TOL`：分類正確。** 五處套用點確實都是經過單精度的值（兩處 float 回傳、三處射線量測）；其餘純算術斷言維持 `CLAMP_TOL = 1e-12`。
-  - **`OwnedMesh`：正確。** 成員宣告順序保證 `its` 先於 `mesh` 初始化，複製建構與複製指派均已刪除，杜絕懸空。
-  - **F4（觀察，未動）**：fail-safe 把 penetration 壓到 0 後，提交點二既有的 `w < 0` → 逐點 `BOOST_LOG_TRIVIAL(error)` 變得略為可達。屬既有程式碼，本變更未觸及，僅記錄。
-- [ ] 4.1 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaBase.cpp` 的 `on_get_requirements()`（約 88 行）加回 `CommonGizmosDataID::HollowedMesh`，並更新 `GLGizmoSlaSupports.cpp:1798` 與 `GLGizmoHollow.cpp:14` 的過時註解
-- [ ] 4.2 【建置檢查點】請使用者建置 `libslic3r_gui`，並以中斷點或暫時日誌確認 `HollowedMesh::on_update()` 已會執行
-- [ ] 4.3 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp` 新增：厚度量測用的 `MeshRaycaster` 成員、上次使用的 `const TriangleMesh*` 指標、以及與繪製點集等長的厚度快取（`std::vector<float>`，哨兵 `NaN`）
-- [ ] 4.4 於 `GLGizmoSlaSupports.cpp` 實作厚度量測輔助函式：起點 `po->trafo() * sp.pos`、方向由 `trafo().linear().inverse().transpose() * n_raw` 正規化後取反向，呼叫 `m_thickness_raycaster->get_aabb_mesh().query_ray_hit()`，並共用 Phase 3 的 `clamp_front_depth()`
-- [ ] 4.5 實作 `MeshRaycaster` 的重建判準：僅在 `HollowedMesh` 的網格指標改變時重建（仿 `GLGizmosCommon.cpp:321` 的 `m_old_meshes` 做法），**不得每幀重建 AABB**
-- [ ] 4.6 實作厚度快取的惰性填充與失效：點集重載、量測網格改變、物件變換改變時整份清空；編輯模式下單點被拖動時僅失效該點；設定值改變**不**失效
-- [ ] 4.7 於 `preview_sla_head_for_point()`（約 284 行）套用夾限：取得該點的可用深度後計算 `front_clamped`，再經 `point_head_penetration_mesh_mm()` 換算寫入回傳的 `Head::penetration_mm`
-- [ ] 4.8 實作降級：`HollowedMesh` 不可用或射線無命中時，維持未夾限的設定深度（**與切片端 fail-safe 取 0 的政策刻意不同**），並加註理由註解
-- [ ] 4.9 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並以 F5 啟動，於 Points 檢視目視確認 0.2 mm 薄板的預覽支撐頭不再刺穿模型
+- [x] 4.1 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaBase.cpp` 的 `on_get_requirements()`（約 88 行）加回 `CommonGizmosDataID::HollowedMesh`，並更新 `GLGizmoSlaSupports.cpp:1798` 與 `GLGizmoHollow.cpp:14` 的過時註解
+  - `GLGizmoSlaBase::on_get_requirements()` 加回 `CommonGizmosDataID::HollowedMesh`，並說明理由（預覽必須量測與切片端**同一份**網格，即 `po->get_mesh_to_print()`，否則中空件會預覽出一個已經不存在的壁厚）。
+  - 兩處過時註解已更新：`GLGizmoSlaSupports.cpp` 的「HollowedMesh is intentionally excluded」與 `GLGizmoHollow.cpp` 的「HollowedMesh requirement removed (not needed after refactor)」。
+- [x] 4.2 【建置檢查點】請使用者建置 `libslic3r_gui`，並以中斷點或暫時日誌確認 `HollowedMesh::on_update()` 已會執行
+  - **未以中斷點或暫時日誌直接確認**，改以 Task 4.9 的實測結果反推：夾限只有在量測成功時才會生效，而量測需要 `HollowedMesh`。若 `on_update()` 沒執行，`get_hollowed_mesh()` 會回 `nullptr`、`point_available_depth()` 回 `nullopt`、預覽走樂觀降級保留設定深度（0.5 mm），0.2 mm 薄板必然刺穿。使用者實測**未刺穿**，故 `on_update()` 確實已執行。
+- [x] 4.3 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp` 新增：厚度量測用的 `MeshRaycaster` 成員、上次使用的 `const TriangleMesh*` 指標、以及與繪製點集等長的厚度快取（`std::vector<float>`，哨兵 `NaN`）
+  - 新增四個成員：`m_thickness_raycaster`（`unique_ptr<MeshRaycaster>`）、`m_thickness_mesh`（`const TriangleMesh*`，**僅比對位址、永不解參考**）、`m_thickness_trafo`（量測時的物件變換）、`m_thickness_cache`（`vector<float>`）。
+  - **哨兵有兩種**：`NaN` = 尚未量測；**負值** = 已量測但未命中（破面）。兩者必須分開，否則破面網格會每幀重打射線。
+  - 標頭補上 `<memory>` / `<optional>` / `<vector>`。
+- [x] 4.4 於 `GLGizmoSlaSupports.cpp` 實作厚度量測輔助函式：起點 `po->trafo() * sp.pos`、方向由 `trafo().linear().inverse().transpose() * n_raw` 正規化後取反向，呼叫 `m_thickness_raycaster->get_aabb_mesh().query_ray_hit()`，並共用 Phase 3 的 `clamp_front_depth()`
+  - `point_available_depth(idx, sp, raw_normal)`：起點 `po->trafo() * sp.pos`，方向 `-normalize(trafo().linear().inverse().transpose() * raw_normal)`，起點再沿該方向推進 `sla::HEAD_DEPTH_PROBE_EPS_MM`（**與切片端共用同一個常數**）。
+  - 法線用**逆轉置**而非 trafo 本身：非等比縮放下兩者不同，直接乘 trafo 會讓探測射線偏離它該垂直進入的表面。
+  - 傳入的是 **raw normal**（未經 `normal_xform` 縮放）——本函式自己負責換到 print-object 空間；`scaled_normal` 維持原用途，是頭**繪製**時的軸向。
+- [x] 4.5 實作 `MeshRaycaster` 的重建判準：僅在 `HollowedMesh` 的網格指標改變時重建（仿 `GLGizmosCommon.cpp:321` 的 `m_old_meshes` 做法），**不得每幀重建 AABB**
+  - 僅在 `m_c->hollowed_mesh()->get_hollowed_mesh()` 的**指標**改變時重建 `MeshRaycaster`，仿 `Raycaster::on_update()` 比對 `m_old_meshes` 的做法。`HollowedMesh` 自己持有快取，位址不同即代表網格不同。**AABB 樹不會每幀重建。**
+- [x] 4.6 實作厚度快取的惰性填充與失效：點集重載、量測網格改變、物件變換改變時整份清空；編輯模式下單點被拖動時僅失效該點；設定值改變**不**失效
+  - 整份清空的三個時機：網格身分改變、`po->trafo()` 改變（`isApprox` 比對）、點數改變。另於 `reload_cache()` 明確清空——點集被替換但點數碰巧相同時，只靠大小比對會漏掉。
+  - 單點失效：拖曳點時（`GLGizmoSlaSupports.cpp` 的 `m_editing_cache[m_hover_id].support_point.pos` 賦值處）呼叫 `invalidate_thickness_at()`，只失效該點。
+  - **設定值改變不失效**——penetration / 各半徑 / 接觸球都不影響點下方有多少材料。
+  - **`refresh_thickness_measurement()` 不收點數參數**，由函式自己以 `m_editing_mode ? m_editing_cache.size() : m_normal_cache.size()` 導出。原本兩個呼叫端各自傳值，雖然目前恰好一致（`register_point_raycasters_for_picking()` 只在編輯模式下填 `m_point_raycasters`），但那是靠三層間接條件撐住的；改為自行導出後，兩者**依構造**不可能不一致，也就不會每幀互相清空對方的快取。
+- [x] 4.7 於 `preview_sla_head_for_point()`（約 284 行）套用夾限：取得該點的可用深度後計算 `front_clamped`，再經 `point_head_penetration_mesh_mm()` 換算寫入回傳的 `Head::penetration_mm`
+  - `preview_sla_head_for_point()` 新增 `std::optional<double> local_thickness_mm` 參數（預設 `nullopt`），內部改走 `point_contact_front_depth_mm()` → `sla::clamp_front_depth()` → `sla::front_depth_to_mesh_penetration()`。
+  - **與切片端共用完全相同的兩個函式**，故兩端對「深度」的解讀不可能分歧；分歧的只有輸入——切片端沿 optimizer 選定的真實頭軸量，GUI 沿它實際繪製的表面法線量。各自自洽。
+  - 未夾限時的結果與原本的 `point_head_penetration_mesh_mm()` **代數等價**（差別僅在全程 double 而非經過 float），故常態路徑無行為改變。
+  - 兩個呼叫端（`render_points()` 與 `update_point_raycasters_for_picking_transform()`）都改為傳入量測值。碰撞體位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出，讀同一份快取即自動跟著夾限走（Task 4.14 的前置已在此滿足）。
+- [x] 4.8 實作降級：`HollowedMesh` 不可用或射線無命中時，維持未夾限的設定深度（**與切片端 fail-safe 取 0 的政策刻意不同**），並加註理由註解
+  - **降級方向刻意與切片端相反**：量不到時 GUI 保留**未夾限的設定深度**，切片端則取 0。
+  - 理由已寫入註解：切片端吐出的是真實幾何，不能刺穿模型；預覽不吐出任何東西。若使用者在切片跟上之前打開 gizmo，支撐頭就毫無理由地貼到表面上，那讀起來像是壞掉。預覽咬太深則會在量測到位的下一幀自動修正。
+  - 觸發降級的情形：`HollowedMesh` 尚未就緒、物件未切到 `slaposDrillHoles`、法線退化、射線未命中。
+- [x] 4.9 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並以 F5 啟動，於 Points 檢視目視確認 0.2 mm 薄板的預覽支撐頭不再刺穿模型
+  - **實測（2026-08-26）：`libslic3r_gui` 與 `PhrozenOrca` 建置成功；以薄板物件於 Points 檢視目視確認預覽支撐頭未刺穿模型。**
 - [ ] 4.10 於 `GLGizmoSlaSupports.hpp` 的 `HeadGeomKey`（約 72-80 行）移除 `penetration` 欄位，並同步更新 `operator<` 的 `std::tie` 比較串
 - [ ] 4.11 於 `GLGizmoSlaSupports.cpp` 的 `head_geom_key()`（約 656 行）移除 `key.penetration` 的填值
 - [ ] 4.12 於 `render_points()` 建構 canonical 網格時，改以 `penetration_mm = 0` 的 `Head` 呼叫 `sla::head_mesh_body()`（約 833 行）
 - [ ] 4.13 於 `render_points()` 的 `model_matrix`（約 851-853 行）尾端追加 `Geometry::translation_transform(head.penetration_mm * Vec3d::UnitZ())`，位置必須在擺放旋轉**之後**；確認 `view_normal_matrix` 的推導不需修改
-- [ ] 4.14 確認 `update_point_raycasters_for_picking_transform()` **不需**新增夾限邏輯——三個碰撞體位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出，僅需確保其取得的 `Head` 與 `render_points()` 讀同一份厚度快取
+- [x] 4.14 確認 `update_point_raycasters_for_picking_transform()` **不需**新增夾限邏輯——三個碰撞體位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出，僅需確保其取得的 `Head` 與 `render_points()` 讀同一份厚度快取
+  - **已滿足，無需新增夾限邏輯。** 三個碰撞體的位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出（如 `pin_center = scaled_pos + (r_pin - penetration) * head.dir`），故夾限會自動傳遞。
+  - 關鍵是「讀同一份快取」：`update_point_raycasters_for_picking_transform()` 改為呼叫 `point_available_depth()` 取值，而非自行重新量測——重新量測會在同一幀內得到可能不同的結果，使碰撞體與可見幾何錯開。
 - [ ] 4.15 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並啟動，以 500 點以上的模型確認：畫面正確、旋轉視角流暢、`m_head_model_cache` 項目數不隨點數成長（可暫時加日誌確認）
 - [ ] 4.16 【建置檢查點】請使用者於執行中的程式手動驗證 hover：夾限後的支撐頭，滑鼠移至可見頂端球會被標示，移至夾限前的舊位置不會被標示
 - [ ] 4.17 A3 驗證（鏡像 / 縮放）：對同一薄板模型分別套用 (a) X 軸鏡像、(b) 非等比縮放 (1.0, 1.0, 3.0)、(c) 兩者併用，目視確認預覽支撐頭皆未穿透，並比對 GUI 與切片端於垂直承載面上量得的可用深度是否相等
@@ -320,6 +344,56 @@
 - [ ] 4.19 驗證不污染持久化資料：於 Top 面板設定手動點 `head_penetration_mm = 0.4`、令其被夾限後，確認面板仍顯示 0.4；存檔重載後 3MF 中的值未變；進入 gizmo 繪製後專案未被標記為已變更、undo 堆疊未增加
 - [ ] 4.20 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），與 0.5 基線比對確認無新增失敗
 - [ ] 4.21 Review：核對 `sla-support-preview-penetration` 與 `sla-support-points-preview-performance` 兩份 spec 的每一條 Scenario；提交獨立 commit
+
+### Phase 4 Code Review（2026-08-26）
+
+**審查範圍說明**：Task 4.10–4.13（`HeadGeomKey` 移除 `penetration` 欄位、canonical 網格改以
+`penetration_mm = 0` 建構、`model_matrix` 追加平移）**尚未實作**，依指示停在 4.9 檢查點，
+故不在本次 diff 內、亦未審查。
+
+**F1（真實缺陷，已修）：AABB 樹的重建判準原本永遠不會觸發。**
+
+原實作以 `mesh != m_thickness_mesh` 判斷是否重建，仿自 `Raycaster::on_update()` 的 `m_old_meshes`。
+**該慣用法在此處是錯的。** `Raycaster` 比對的是 `&mv->mesh()`——跨不同 `ModelVolume`，位址確實不同。
+而 `HollowedMesh` 以**傳值**持有網格（`TriangleMesh m_hollowed_mesh_cache`，`GLGizmosCommon.hpp:296`），
+`get_hollowed_mesh()` 回傳的不是 `nullptr` 就是**永遠同一個位址**，
+`on_update()` 只是在該位址上換內容（`GLGizmosCommon.cpp:750`）。
+
+後果：中空參數變更、排水孔移動、重新切片之後，AABB 樹保持陳舊，預覽會依**過時幾何**夾限。
+只有 `m_has_hollowed_mesh` 切換造成的 `nullptr` ↔ 位址往返才會被偵測到——而那並非每次都發生。
+
+修法：身分改為「位址 + 內容指紋」（`its.vertices.data()`、頂點數、三角形數），封裝為 `ThicknessMeshId`。
+**明確承認這不是雜湊**：兩份頂點數與三角形數相同、且頂點緩衝區恰好落在同一位址的網格仍會被判為相同。
+機率極低，且身為預覽會在下次變更時自我修正；真正的雜湊代表每幀走訪全部頂點。
+
+**F2（記憶體生命週期：通過）**：`MeshRaycaster(const TriangleMesh&)` 會把網格**複製**進自己持有的
+`shared_ptr`（`MeshUtils.hpp:169-170`），故 raycaster 不依賴 `HollowedMesh` 的存活。
+`ThicknessMeshId::mesh` 與 `::vbuf` **永不解參考、僅比對**，已於註解中明文標示。
+
+**F3（Co-vector 法線轉換：通過）**：使用 `trafo.linear().inverse().transpose()`，
+即 `(M^-1)^T`，為法線（co-vector）的正確變換。純鏡像 `M = diag(1,1,-1)` 時 `(M^-1)^T = M`，
+與幾何直覺一致。**但鏡像仍會翻轉三角形纏繞方向**，`po->get_mesh_to_print()` 是否已處理該問題
+**未經驗證**——這正是假設 A3 的內容，由 Task 4.17 承接。
+
+**F4（AABB 不得每幀重建：通過）**：`refresh_thickness_measurement()` 每幀呼叫，
+但在穩態下只做四次純量比較，不做任何配置。
+
+**F5（快取一致性：通過）**：`refresh_thickness_measurement()` 不收點數參數、自行以
+`m_editing_mode ? m_editing_cache.size() : m_normal_cache.size()` 導出，
+使 render 路徑與 picking 路徑**依構造**不可能把快取調成不同長度而互相清空。
+
+**F6（哨兵設計：通過）**：`NaN` = 未量測、負值 = 已量測但未命中。兩者分開才不會讓破面網格每幀重打射線。
+合法量測值恆為 `distance + eps > 0`，故負值無歧義。
+
+**F7（觀察，未動）**：`MeshRaycaster` 重建會**複製整份網格**。僅在網格身分改變時發生，
+且與 `Raycaster::on_update()` 既有做法一致（`std::make_shared<const TriangleMesh>(*mesh)`），
+故不視為問題，僅記錄大型模型上的成本來源。
+
+### Phase 4 目前的未驗證項（4.1–4.8 實作完成，尚未編譯）
+
+- 4.1–4.9 已由使用者實測通過（建置成功、薄板目視未刺穿）。**但 Review 的 F1 修正（`ThicknessMeshId`）是在該次實測之後才加入的，尚未編譯。**
+- **A3（鏡像／非等比縮放）完全未驗證**，由 Task 4.17 承接。本階段只確保法線走的是逆轉置。
+- Task 4.2 的「確認 `HollowedMesh::on_update()` 真的會執行」尚未進行。
 
 ## 5. Phase 5：全域幾何回歸驗收與規格核對
 

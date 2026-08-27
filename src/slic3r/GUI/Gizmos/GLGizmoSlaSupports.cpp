@@ -3,6 +3,12 @@
 #include "slic3r/GUI/GLCanvas3D.hpp"
 #include "slic3r/GUI/Camera.hpp"
 #include "slic3r/GUI/Gizmos/GLGizmosCommon.hpp"
+
+// fix-sla-thin-model-support-points: clamp_front_depth() /
+// front_depth_to_mesh_penetration() live in SupportPoint.hpp (already reachable
+// via the gizmo header); HEAD_DEPTH_PROBE_EPS_MM lives here, and using the same
+// constant is what keeps the preview probe and the slicer probe identical.
+#include "libslic3r/SLA/SupportTreeUtils.hpp"
 #include "slic3r/GUI/MainFrame.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "slic3r/GUI/I18N.hpp"
@@ -35,6 +41,8 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
+#include <optional>
 
 struct SupportWeightPreset {
     float pillar_diameter;
@@ -281,8 +289,14 @@ static PreviewTopParams read_preview_top_params_live()
 // every field is resolved independently via the point_*() helpers (per-point value if
 // set, otherwise the live preset) — no notion of "editing mode" or "selection" here,
 // matching slicing exactly (fix-sla-support-preview-geometry-source-semantics D4/D2).
+//
+// fix-sla-thin-model-support-points: `local_thickness_mm` is the material
+// available along this head's axis, measured by the caller on the hollowed mesh.
+// Passing nullopt means "could not measure" and the preview then draws the
+// configured depth unclamped -- see the degradation note at the clamp below.
 static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const Vec3f &normal,
-                                            const PreviewTopParams &top)
+                                            const PreviewTopParams &top,
+                                            std::optional<double> local_thickness_mm = std::nullopt)
 {
     // head_front_radius has no SUPPORT_POINT_USE_PRESET sentinel — every point always
     // carries a concrete value (written at auto-generation, manual placement, or
@@ -296,8 +310,33 @@ static sla::Head preview_sla_head_for_point(const sla::SupportPoint &sp, const V
     if (sla::point_uses_contact_sphere(sp, top.contact_sphere))
         contact_r = double(sla::point_contact_sphere_radius_mm(sp, top.contact_sphere_r_mm));
 
-    const double mesh_pen = double(sla::point_head_penetration_mesh_mm(
-        sp, top.penetration_mm, pin_r, contact_r));
+    // fix-sla-thin-model-support-points: clamp the FRONT depth, then convert.
+    //
+    // Same two functions the slicer's four commit points use
+    // (sla::clamp_front_depth + sla::front_depth_to_mesh_penetration), so the
+    // preview and the sliced geometry cannot drift apart in how they interpret a
+    // depth. What differs is only the input: the slicer measures along the real
+    // head axis chosen by its optimizer, this measures along the surface normal
+    // the preview actually draws on. Each end stays self-consistent.
+    //
+    // DEGRADATION IS OPTIMISTIC HERE, and deliberately unlike the slicer.
+    // When the depth cannot be measured -- HollowedMesh not ready, the object
+    // not yet sliced to slaposDrillHoles, the ray missing -- the preview keeps
+    // the configured depth instead of collapsing to zero. The slicer's fail-safe
+    // goes the other way (front = 0) because it is emitting real geometry that
+    // must not pierce the model. A preview emits nothing; showing a head that
+    // suddenly sits on the surface for no visible reason, every time the user
+    // opens the gizmo before slicing has caught up, would read as a bug. An
+    // over-deep preview corrects itself as soon as the measurement lands.
+    const double configured_front =
+        double(sla::point_contact_front_depth_mm(sp, top.penetration_mm));
+
+    const double front = local_thickness_mm
+        ? sla::clamp_front_depth(configured_front, *local_thickness_mm, pin_r, contact_r)
+        : configured_front;
+
+    const double mesh_pen =
+        sla::front_depth_to_mesh_penetration(front, pin_r, contact_r);
 
     Vec3d dir = normal.cast<double>();
     if (dir.squaredNorm() < EPSILON)
@@ -672,6 +711,130 @@ GLGizmoSlaSupports::HeadGeomKey GLGizmoSlaSupports::head_geom_key(const sla::Hea
 // Step 4.2: render_points() rewritten to match PrusaSlicer.
 // Removed: bool picking parameter (PickingModel handles picking), drain hole rendering (GLGizmoHollow's job).
 // Added: raycaster active/clipped state management.
+// --- fix-sla-thin-model-support-points: preview depth measurement ----------
+
+void GLGizmoSlaSupports::invalidate_thickness_at(size_t idx)
+{
+    if (idx < m_thickness_cache.size())
+        m_thickness_cache[idx] = std::numeric_limits<float>::quiet_NaN();
+}
+
+void GLGizmoSlaSupports::refresh_thickness_measurement()
+{
+    // Same derivation render_points() uses for its loop bound. Deriving it
+    // here rather than taking it as an argument is what keeps the render path
+    // and the picking path from resizing the cache to different lengths on
+    // alternate calls within one frame.
+    const size_t point_count =
+        m_editing_mode ? m_editing_cache.size() : m_normal_cache.size();
+
+    const TriangleMesh *mesh = m_c->hollowed_mesh()
+                                   ? m_c->hollowed_mesh()->get_hollowed_mesh()
+                                   : nullptr;
+
+    const SLAPrintObject *po = m_c->selection_info()
+                                   ? m_c->selection_info()->print_object()
+                                   : nullptr;
+
+    const Transform3d trafo = po ? po->trafo() : Transform3d::Identity();
+
+    // Rebuild the AABB tree only when the mesh identity changes -- never per
+    // frame, which would put an AABB build in the render loop.
+    //
+    // Identity is the address PLUS a content fingerprint, because HollowedMesh
+    // stores its mesh by value: get_hollowed_mesh() hands back the same address
+    // every time and on_update() swaps the content underneath it. See
+    // ThicknessMeshId in the header.
+    ThicknessMeshId id;
+    if (mesh != nullptr) {
+        id.mesh      = mesh;
+        id.vbuf      = mesh->its.vertices.data();
+        id.nvertices = mesh->its.vertices.size();
+        id.nfacets   = mesh->its.indices.size();
+    }
+
+    if (id != m_thickness_mesh_id) {
+        // MeshRaycaster copies the mesh into a shared_ptr it owns, so the
+        // raycaster stays valid even if HollowedMesh replaces its cache while we
+        // still hold this one.
+        m_thickness_raycaster.reset(mesh ? new MeshRaycaster(*mesh) : nullptr);
+        m_thickness_mesh_id = id;
+        m_thickness_cache.clear();
+    }
+
+    // The measurement happens in print-object space, so any change to the object
+    // transform changes the lengths that come back.
+    if (!trafo.isApprox(m_thickness_trafo)) {
+        m_thickness_trafo = trafo;
+        m_thickness_cache.clear();
+    }
+
+    // Point set reloaded, or points added/removed: indices no longer line up.
+    // Note what is NOT here -- a change to a support parameter (penetration,
+    // radii, contact sphere) does not invalidate anything, because none of them
+    // affects how much material is under a point.
+    if (m_thickness_cache.size() != point_count)
+        m_thickness_cache.assign(point_count,
+                                 std::numeric_limits<float>::quiet_NaN());
+}
+
+std::optional<double> GLGizmoSlaSupports::point_available_depth(
+    size_t idx, const sla::SupportPoint &sp, const Vec3f &raw_normal)
+{
+    if (idx < m_thickness_cache.size()) {
+        const float cached = m_thickness_cache[idx];
+        if (!std::isnan(cached))
+            return cached < 0.f ? std::optional<double>{} : std::optional<double>{cached};
+    }
+
+    const SLAPrintObject *po = m_c->selection_info()
+                                   ? m_c->selection_info()->print_object()
+                                   : nullptr;
+
+    if (m_thickness_raycaster == nullptr || po == nullptr)
+        return std::nullopt;   // nothing measured; do NOT poison the cache
+
+    // The hollowed mesh lives in print-object space, so both the ray origin and
+    // its direction have to be taken there first.
+    const Transform3d &trafo = po->trafo();
+    const Vec3d origin = trafo * sp.pos.cast<double>();
+
+    // A normal transforms by the inverse transpose, not by the matrix itself --
+    // under non-uniform scale the two differ, and a plain trafo * n would tilt
+    // the probe off the surface it is supposed to enter perpendicular to.
+    Vec3d n = trafo.linear().inverse().transpose() * raw_normal.cast<double>();
+    if (n.squaredNorm() < EPSILON)
+        return std::nullopt;
+    n.normalize();
+
+    // preview_sla_head_for_point() builds the head with dir = +normal, and
+    // head_mesh_local() maps local -z onto dir, so the direction the pin drives
+    // INTO the model is -dir. Same convention as
+    // sla::measure_available_depth() on the slicer side.
+    const Vec3d dir_in = -n;
+
+    // Origin nudged +eps ALONG dir_in, i.e. into the material. Never -eps:
+    // query_ray_hit() applies no facing filter, so an origin outside the model
+    // would hit the entry face and report 2*eps as the thickness on every model.
+    const double eps = sla::HEAD_DEPTH_PROBE_EPS_MM;
+    const AABBMesh::hit_result hit =
+        m_thickness_raycaster->get_aabb_mesh().query_ray_hit(origin + eps * dir_in, dir_in);
+
+    if (!hit.is_hit()) {
+        // Measured and missed. Remember that, so a broken mesh is not re-probed
+        // every frame -- negative is the "measured, no material" sentinel, kept
+        // distinct from NaN's "not tried yet".
+        if (idx < m_thickness_cache.size())
+            m_thickness_cache[idx] = -1.f;
+        return std::nullopt;
+    }
+
+    const double depth = hit.distance() + eps;
+    if (idx < m_thickness_cache.size())
+        m_thickness_cache[idx] = float(depth);
+    return depth;
+}
+
 void GLGizmoSlaSupports::render_points(const Selection& selection)
 {
     // View-mode gate: when the user has switched to "Structure" view outside of
@@ -751,6 +914,12 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
     if (!m_editing_mode && m_normal_cache_normals.size() != m_normal_cache.size())
         m_normal_cache_normals.assign(m_normal_cache.size(), Vec3f::Zero());
 
+    // fix-sla-thin-model-support-points: once per frame, not once per point.
+    // Rebuilds the depth raycaster only if HollowedMesh changed identity and
+    // drops the depth cache only if the mesh, the object transform or the point
+    // count moved. In the steady state this does nothing at all.
+    refresh_thickness_measurement();
+
     ColorRGBA render_color;
     for (size_t i = 0; i < cache_size; ++i) {
         const sla::SupportPoint& support_point = m_editing_mode ? m_editing_cache[i].support_point : m_normal_cache[i];
@@ -814,7 +983,15 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // above) affects only render_color — it must not reach the geometry resolution below
         // (fix-sla-support-preview-geometry-source-semantics Q1: selecting a point must not
         // change its cone size).
-        const sla::Head head = preview_sla_head_for_point(support_point, scaled_normal, top_params);
+        // fix-sla-thin-model-support-points: measured on the RAW (un-scaled)
+        // normal, because point_available_depth() takes both the position and
+        // the normal into print-object space itself. scaled_normal stays what it
+        // was -- the axis the head is DRAWN on.
+        const std::optional<double> avail =
+            point_available_depth(i, support_point, raw_normal);
+
+        const sla::Head head =
+            preview_sla_head_for_point(support_point, scaled_normal, top_params, avail);
 
         GLModel *cone_model = nullptr;
         // Manual and auto points share the same pinhead mesh and shading (see
@@ -1119,6 +1296,10 @@ void GLGizmoSlaSupports::on_dragging(const UpdateData& data)
             if (! unproject_on_mesh(data.mouse_pos.cast<double>(), pos_and_normal))
                 return;
             m_editing_cache[m_hover_id].support_point.pos = pos_and_normal.first;
+            // fix-sla-thin-model-support-points: this one point now sits over
+            // different material. Only its own cached depth is stale -- every
+            // other point is untouched, so the cache is not dropped wholesale.
+            invalidate_thickness_at(size_t(m_hover_id));
             // Dragging promotes any auto-generated point to manual_add (user takes responsibility)
             m_editing_cache[m_hover_id].support_point.type = sla::SupportPointType::manual_add;
             freeze_process_top_into_point(m_editing_cache[m_hover_id].support_point);
@@ -1794,8 +1975,13 @@ std::string GLGizmoSlaSupports::on_get_name() const
 }
 
 // Step 4.2: on_get_requirements() removed — inherited from GLGizmoSlaBase.
-// The base class provides: SelectionInfo | InstancesHider | Raycaster | ObjectClipper | SupportsClipper.
-// HollowedMesh is intentionally excluded (not needed after the refactor).
+// The base class provides: SelectionInfo | InstancesHider | Raycaster |
+// ObjectClipper | HollowedMesh | SupportsClipper.
+//
+// HollowedMesh was excluded here for a long time and the exclusion was stale:
+// fix-sla-thin-model-support-points needs it back, because the preview's
+// anti-penetration clamp measures the available material on the hollowed and
+// drilled mesh -- the same one the slicer measures.
 
 
 
@@ -2340,6 +2526,10 @@ void GLGizmoSlaSupports::reload_cache()
         return;
     m_normal_cache.clear();
     m_normal_cache_normals.clear();
+    // fix-sla-thin-model-support-points: the depths were indexed against the
+    // point set being replaced right now. refresh_thickness_measurement() would
+    // catch this by size alone only when the count happens to differ.
+    m_thickness_cache.clear();
     if (mo->sla_points_status == sla::PointsStatus::AutoGenerated || mo->sla_points_status == sla::PointsStatus::Generating)
         get_data_from_backend();
     else
@@ -2658,6 +2848,11 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
     // Same rule as render_points(): read the Process tab live fields once, not per point.
     const PreviewTopParams top_params = read_preview_top_params_live();
 
+    // fix-sla-thin-model-support-points: this runs in the same frame as
+    // render_points(); calling refresh here too keeps the two in step whichever
+    // order they happen to run in, and costs nothing when nothing has changed.
+    refresh_thickness_measurement();
+
     for (size_t i = 0; i < m_editing_cache.size() && i < m_point_raycasters.size(); ++i) {
         const sla::SupportPoint& sp = m_editing_cache[i].support_point;
 
@@ -2673,7 +2868,17 @@ void GLGizmoSlaSupports::update_point_raycasters_for_picking_transform()
         const bool clipped = is_mesh_point_clipped(sp.pos.cast<double>());
 
         const Vec3f scaled_normal = (normal_xform * m_editing_cache[i].normal.cast<double>()).cast<float>();
-        const sla::Head head = preview_sla_head_for_point(sp, scaled_normal, top_params);
+
+        // fix-sla-thin-model-support-points: the pick volumes are derived from
+        // head.penetration_mm and head.fullwidth(), so they follow the clamp for
+        // free -- as long as this reads the SAME cached depth render_points()
+        // used. Reading it from m_thickness_cache (rather than re-measuring) is
+        // what guarantees the two agree within a frame.
+        const std::optional<double> avail =
+            point_available_depth(i, sp, m_editing_cache[i].normal);
+
+        const sla::Head head =
+            preview_sla_head_for_point(sp, scaled_normal, top_params, avail);
         const double pick_r = std::max(head.r_pin_mm, head.r_contact_mm > head.r_pin_mm ? head.r_contact_mm : 0.);
         const Vec3d scaled_pos = instance_scaling_matrix * sp.pos.cast<double>();
 

@@ -12,6 +12,9 @@
 // - hollow_mesh() removed (use reslice_until_step(slaposDrillHoles))
 // - on_get_requirements() removed (inherited from GLGizmoSlaBase)
 // - HollowedMesh requirement removed (not needed after refactor)
+//   NOTE (fix-sla-thin-model-support-points): no longer true. GLGizmoSlaBase
+//   requests HollowedMesh again -- the SLA support preview measures the
+//   available material on the hollowed/drilled mesh to clamp head penetration.
 // - PhrozenOrca: model_instance() replaced with model_object()+get_active_instance()
 // - PhrozenOrca: no set_use_shift() API → omitted
 // - PhrozenOrca: m_imgui->xxx() ImGui style preserved (not ImGuiPureWrap::)
