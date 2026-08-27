@@ -72,13 +72,29 @@ private:
     // pinhead_preview() with 45 steps, auto points pinhead() with 24 — the two
     // shapes are not interchangeable). Millimetre values are quantised to 1e-4 mm
     // so floats never act as a map key.
+    //
+    // fix-sla-thin-model-support-points: `penetration` is deliberately NOT a
+    // field here. Penetration is a RIGID TRANSLATION of the emitted mesh, not a
+    // change of shape: head_mesh_body() shifts every vertex by
+    // -(real_width() - penetration - r_back), real_width() does not depend on
+    // penetration, and the contact sphere's centre moves by the same amount. So
+    // the mesh for penetration P is the mesh for penetration 0 translated by
+    // +P along the head's local +Z, and the cached model can be built once at
+    // zero and placed by the model matrix.
+    //
+    // Keeping it as a key field would have been actively harmful now that the
+    // clamp gives every point its OWN penetration: with up to one distinct depth
+    // per support point, the cache would miss on nearly every point, blow past
+    // k_head_model_cache_limit, and be cleared and refilled within a single
+    // frame — an unbounded GLModel rebuild per point per frame, which is exactly
+    // what this cache exists to prevent.
     struct HeadGeomKey {
-        int64_t r_pin = 0, r_back = 0, width = 0, penetration = 0, r_contact = 0;
+        int64_t r_pin = 0, r_back = 0, width = 0, r_contact = 0;
         bool    preview = false;
 
         bool operator<(const HeadGeomKey& rhs) const {
-            return std::tie(r_pin, r_back, width, penetration, r_contact, preview) <
-                   std::tie(rhs.r_pin, rhs.r_back, rhs.width, rhs.penetration, rhs.r_contact, rhs.preview);
+            return std::tie(r_pin, r_back, width, r_contact, preview) <
+                   std::tie(rhs.r_pin, rhs.r_back, rhs.width, rhs.r_contact, rhs.preview);
         }
     };
 

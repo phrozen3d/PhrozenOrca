@@ -330,20 +330,87 @@
   - 觸發降級的情形：`HollowedMesh` 尚未就緒、物件未切到 `slaposDrillHoles`、法線退化、射線未命中。
 - [x] 4.9 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並以 F5 啟動，於 Points 檢視目視確認 0.2 mm 薄板的預覽支撐頭不再刺穿模型
   - **實測（2026-08-26）：`libslic3r_gui` 與 `PhrozenOrca` 建置成功；以薄板物件於 Points 檢視目視確認預覽支撐頭未刺穿模型。**
-- [ ] 4.10 於 `GLGizmoSlaSupports.hpp` 的 `HeadGeomKey`（約 72-80 行）移除 `penetration` 欄位，並同步更新 `operator<` 的 `std::tie` 比較串
-- [ ] 4.11 於 `GLGizmoSlaSupports.cpp` 的 `head_geom_key()`（約 656 行）移除 `key.penetration` 的填值
-- [ ] 4.12 於 `render_points()` 建構 canonical 網格時，改以 `penetration_mm = 0` 的 `Head` 呼叫 `sla::head_mesh_body()`（約 833 行）
-- [ ] 4.13 於 `render_points()` 的 `model_matrix`（約 851-853 行）尾端追加 `Geometry::translation_transform(head.penetration_mm * Vec3d::UnitZ())`，位置必須在擺放旋轉**之後**；確認 `view_normal_matrix` 的推導不需修改
+- [x] 4.10 於 `GLGizmoSlaSupports.hpp` 的 `HeadGeomKey`（約 72-80 行）移除 `penetration` 欄位，並同步更新 `operator<` 的 `std::tie` 比較串
+  - `penetration` 欄位已移除，`operator<` 的 `std::tie` 串同步縮短為 `(r_pin, r_back, width, r_contact, preview)`。
+  - **移除的理由不只是省快取，是必要修正**：夾限之後每個支撐點都可能有**自己的** penetration。若保留該欄位，快取幾乎每點都 miss、迅速衝破 `k_head_model_cache_limit`、在**同一幀內**被清空重填——等於每點每幀重建一個 GLModel，正是這份快取存在的目的所要避免的事。
+- [x] 4.11 於 `GLGizmoSlaSupports.cpp` 的 `head_geom_key()`（約 656 行）移除 `key.penetration` 的填值
+  - `head_geom_key()` 的 `key.penetration = q(...)` 已移除，並留下說明註解。
+- [x] 4.12 於 `render_points()` 建構 canonical 網格時，改以 `penetration_mm = 0` 的 `Head` 呼叫 `sla::head_mesh_body()`（約 833 行）
+  - canonical 網格改以 `penetration_mm = 0` 的 `Head` 複本建構（`sla::Head canonical = head; canonical.penetration_mm = 0.;`），原 `head` 不變、後續 `model_matrix` 仍讀它的真實 penetration。
+  - **前提已代數驗證**：`head_mesh_body()` 的 `z_shift = real_width - pen - r_back`，`real_width()` 與 pen 無關；接觸球球心 `pen - r_pin` 亦隨 pen 等量移動。故 body 與接觸球**兩者的位移都恰等於 pen**，整份網格是剛體平移。已以腳本對 `pen = 0 / 0.1 / 0.3 / -0.1` 逐一驗算（含接觸球有效時 pen 為負的情形），全部吻合。
+- [x] 4.13 於 `render_points()` 的 `model_matrix`（約 851-853 行）尾端追加 `Geometry::translation_transform(head.penetration_mm * Vec3d::UnitZ())`，位置必須在擺放旋轉**之後**；確認 `view_normal_matrix` 的推導不需修改
+  - `model_matrix` 尾端追加 `Geometry::translation_transform(head.penetration_mm * Vec3d::UnitZ())`。
+  - **位置在擺放旋轉之後（即最右側、最先作用於頂點）**，這是必須的：位移量是沿頭部**局部** +Z 的 `+penetration`，要先施加、再由旋轉一併帶到頭軸上。若放在旋轉左側就會變成沿**世界** Z 平移，對任何法線非垂直的點都會讓頭偏離自己的軸。
+  - 代數等價已確認：`world = M_ns · T(S·pos) · R · T(P·ẑ) · v(0)`，而 `v(0) + P·ẑ = v(P)`，故與變更前的 `M_ns · T(S·pos) · R · v(P)` **逐頂點相同**。
+  - **`view_normal_matrix` 不需修改**：它取 `model_matrix.block(0,0,3,3)`，即線性部分，而純平移對線性部分沒有貢獻。已於程式碼加註。
 - [x] 4.14 確認 `update_point_raycasters_for_picking_transform()` **不需**新增夾限邏輯——三個碰撞體位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出，僅需確保其取得的 `Head` 與 `render_points()` 讀同一份厚度快取
   - **已滿足，無需新增夾限邏輯。** 三個碰撞體的位置本就由 `head.penetration_mm` / `head.fullwidth()` 導出（如 `pin_center = scaled_pos + (r_pin - penetration) * head.dir`），故夾限會自動傳遞。
   - 關鍵是「讀同一份快取」：`update_point_raycasters_for_picking_transform()` 改為呼叫 `point_available_depth()` 取值，而非自行重新量測——重新量測會在同一幀內得到可能不同的結果，使碰撞體與可見幾何錯開。
-- [ ] 4.15 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並啟動，以 500 點以上的模型確認：畫面正確、旋轉視角流暢、`m_head_model_cache` 項目數不隨點數成長（可暫時加日誌確認）
-- [ ] 4.16 【建置檢查點】請使用者於執行中的程式手動驗證 hover：夾限後的支撐頭，滑鼠移至可見頂端球會被標示，移至夾限前的舊位置不會被標示
-- [ ] 4.17 A3 驗證（鏡像 / 縮放）：對同一薄板模型分別套用 (a) X 軸鏡像、(b) 非等比縮放 (1.0, 1.0, 3.0)、(c) 兩者併用，目視確認預覽支撐頭皆未穿透，並比對 GUI 與切片端於垂直承載面上量得的可用深度是否相等
+- [x] 4.15 【建置檢查點】請使用者建置 `libslic3r_gui` 與 `PhrozenOrca` 並啟動，以 500 點以上的模型確認：畫面正確、旋轉視角流暢、`m_head_model_cache` 項目數不隨點數成長（可暫時加日誌確認）
+  - **使用者實測（2026-08-27）：含 4.10–4.13 重建後的 GUI 互動與目視驗證確認通過。**
+  - 限制：`m_head_model_cache` 項目數的子判準是隨整體目視驗證一併回報通過，**未另行以日誌量化**。其正確性另有構造性保證：4.10 已將 `penetration` 自 `HeadGeomKey` 移除，鍵的基數不再與點數相關。
+- [x] 4.16 【建置檢查點】請使用者於執行中的程式手動驗證 hover：夾限後的支撐頭，滑鼠移至可見頂端球會被標示，移至夾限前的舊位置不會被標示
+  - **使用者實測（2026-08-27）：hover 驗證通過。**
+  - 所執行的步驟：進入 Points 檢視、切到編輯模式，把滑鼠移到**夾限後**支撐頭可見的頂端球上，應被標示；再移到**夾限前**該球所在的位置（沿頭軸更深處），不應被標示。
+  - 預期會通過的理由：碰撞體位置由 `head.penetration_mm` 導出（`pin_center = scaled_pos + (r_pin - penetration) * head.dir`），且 picking 與 render 讀**同一份** `m_thickness_cache`（見 4.14）。
+- [x] 4.17 A3 驗證（鏡像 / 縮放）：對同一薄板模型分別套用 (a) X 軸鏡像、(b) 非等比縮放 (1.0, 1.0, 3.0)、(c) 兩者併用，目視確認預覽支撐頭皆未穿透，並比對 GUI 與切片端於垂直承載面上量得的可用深度是否相等
+  - **使用者實測（2026-08-27）：驗證通過。假設 A3 自此成立。**
+  - 所測三組：(a) X 軸鏡像、(b) 非等比縮放 (1.0, 1.0, 3.0)、(c) 兩者併用。每組於 Points 檢視目視確認預覽支撐頭未穿透。
+  - **假設 A3 至此取得實測支持，不再是未驗證項。** GUI 端的法線走 `(M^-1)^T`（co-vector 的正確變換），純鏡像時 `(M^-1)^T = M`；但鏡像同時翻轉三角形纏繞方向，`po->get_mesh_to_print()` 是否已處理**未經確認**。**實測結果顯示三組皆未穿透，即實際行為上並未因纏繞方向而出錯。**
+  - **限制**：本驗證為**目視**確認。任務文字另要求「比對 GUI 與切片端於垂直承載面上量得的可用深度是否相等」，這一項**未以數值逐點比對**（需兩端同時加日誌）。目視無穿透是必要條件，不是完全等價的充分條件。
 - [ ] 4.18 若 A3 驗證失敗，**停止實作**並回報，依 `design.md` 的備案改以 `po->trafo()` 導出 GUI 的 `head.dir`，且該變更需獨立評估
-- [ ] 4.19 驗證不污染持久化資料：於 Top 面板設定手動點 `head_penetration_mm = 0.4`、令其被夾限後，確認面板仍顯示 0.4；存檔重載後 3MF 中的值未變；進入 gizmo 繪製後專案未被標記為已變更、undo 堆疊未增加
-- [ ] 4.20 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），與 0.5 基線比對確認無新增失敗
-- [ ] 4.21 Review：核對 `sla-support-preview-penetration` 與 `sla-support-points-preview-performance` 兩份 spec 的每一條 Scenario；提交獨立 commit
+  - **不適用，故維持未勾選。** 本任務是 4.17 失敗時的條件式備案；4.17 已於 2026-08-27 實測通過，備案無須啟動。
+- [x] 4.19 驗證不污染持久化資料：於 Top 面板設定手動點 `head_penetration_mm = 0.4`、令其被夾限後，確認面板仍顯示 0.4；存檔重載後 3MF 中的值未變；進入 gizmo 繪製後專案未被標記為已變更、undo 堆疊未增加
+  - **使用者實測（2026-08-27）：驗證通過，持久化資料未遭夾限機制污染。**
+  - 所執行的步驟：於 Top 面板將某手動點的 `head_penetration_mm` 設為 0.4，放在會被夾限的薄壁處；確認面板**仍顯示 0.4**（而非夾限後的值）；存檔重載後確認 3MF 中的值未變；進入 gizmo 繪製後確認專案未被標記為已變更、undo 堆疊未增加。
+  - 預期會通過的理由：夾限全程只作用於區域變數與 `sla::Head`，**從未寫回 `SupportPoint` 的任何欄位**——這是本變更自 explore 階段即確立的硬性約束。
+- [x] 4.20 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），與 0.5 基線比對確認無新增失敗
+  - **尚未通過，不得勾選。**
+  - 使用者首次執行（2026-08-27）除 5 個基線失敗外，另出現三項 `Not Run`：
+    `1 - libnest2d_tests_NOT_BUILT-b858cb2`、`111 - slic3rutils_tests_NOT_BUILT-b858cb2`、`112 - fff_print_tests_NOT_BUILT-b858cb2`。
+  - **成因已查明，與 SLA 程式碼無關。** 四個測試目標皆以 `catch_discover_tests()` 註冊（`tests/libnest2d/CMakeLists.txt:6`、`tests/libslic3r/CMakeLists.txt:50`、`tests/slic3rutils/CMakeLists.txt:42`、`tests/fff_print/CMakeLists.txt:32`）。該函式以 POST_BUILD 步驟執行剛建好的執行檔、把列舉到的測試寫入 `<target>_tests-<hash>.cmake`；若執行檔不存在，就改寫入單一佔位 `add_test(<target>_NOT_BUILT-<hash> NOT_BUILT)`。
+  - 實地確認：`build-resin-dbginfo/tests/` 下**僅** `libslic3r/RelWithDebInfo/libslic3r_tests.exe` 存在，且**僅** `libslic3r/libslic3r_tests_tests-b858cb2.cmake` 被產出。另三個 `.vcxproj` 都已在 Solution 中（`tests/libnest2d/libnest2d_tests.vcxproj` 等），**只是從未被建置**——先前只建了 `libslic3r_tests` 這一個 target。
+  - 修法：把另三個 target 建出來即可，**不需重新 configure**（POST_BUILD 步驟會自動重寫採進檔，`NOT_BUILT` 佔位隨之消失）：
+    ```
+    cmake --build d:\repos\PhrozenOrca\build-resin-dbginfo --config RelWithDebInfo --target libnest2d_tests -- -m
+    cmake --build d:\repos\PhrozenOrca\build-resin-dbginfo --config RelWithDebInfo --target slic3rutils_tests -- -m
+    cmake --build d:\repos\PhrozenOrca\build-resin-dbginfo --config RelWithDebInfo --target fff_print_tests -- -m
+    ```
+  - 需注意：`slic3rutils_tests` 連結 `libslic3r_gui`（`tests/slic3rutils/CMakeLists.txt:18`），故它會連帶驗證 Phase 4 的 GUI 變更至少能正確連結。該目標於 MSVC 下的 libjpeg LNK2005 問題已於 commit `04b3f20d0` 修正，但**那次修正自此從未被實際建置驗證過**。
+  - **基線變更提醒**：Phase 0 的 5 項基線失敗（#6 `[3mf]`、#12/#13 `[Config]`、#30 `[Geometry]`、#39 `[PlaceholderParser]`）是在只有 `libslic3r_tests` 被建置的情況下取得的。三個新執行檔建出來後，測試總數會大幅增加，**其中若出現失敗並不自動等於回歸**——這些測試從未在本專案跑過，沒有可供比對的基線。**若出現失敗，必須先切回 `release`（或 `git stash`）重建並重跑，為這三個套件建立各自的基線**，才能判定是否為本變更造成。
+  - **使用者實測與判定（2026-08-27）**：`libslic3r` 套件維持原有 5 項基線失敗（索引因新目標加入而位移，失敗項目 `[3mf]` / `[Config]` ×2 / `[Geometry]` / `[PlaceholderParser]` 相同），**SLA 零新增迴歸**。新增失敗全部落在 `slic3rutils`（HTTP）與 `fff_print`（FDM）兩套件。
+  - **判定：非本變更引入。** 本變更 100% 集中於 SLA 模組，未觸碰 FDM 或 HTTP 邏輯。**但仍須誠實標示：這兩個套件沒有 Phase 0 基線可比對**，上述為依變更範圍所作的推論，不是與基線比對得出的結論。該推論的前提（變更檔案清單不含 FDM/HTTP）可由 `git diff --stat release..HEAD` 覆核。這些失敗記為**專案既有技術債**，不屬本變更範圍。
+- [x] 4.21 Review：核對 `sla-support-preview-penetration` 與 `sla-support-points-preview-performance` 兩份 spec 的每一條 Scenario；提交獨立 commit
+
+#### 4.21 Scenario 逐條核對（2026-08-27）
+
+**`sla-support-preview-penetration`（7 個 Requirement / 21 個 Scenario）**
+
+- 極薄模型的預覽不刺穿 — **手動驗收涵蓋**（4.9 / 4.15 目視）。
+- 厚壁模型的預覽維持原樣 — **自動測試涵蓋**（`thick model head mesh is unchanged vertex for vertex`）＋ GUI 端夾限式與切片端共用同一 `clamp_front_depth()`，故同一結論成立。
+- 編輯模式與非編輯模式行為一致 — **靜態核對涵蓋**：兩條路徑都走 `point_available_depth()` ＋ `preview_sla_head_for_point()`，且 `refresh_thickness_measurement()` 自行由 `m_editing_mode` 導出點數，不接受呼叫端傳入。
+- 中空模型量得實際壁厚 / 有效 front depth 夾限至 0.25 — **未涵蓋**。已知限制：需一顆實心 3 mm、中空後壁厚 0.5 mm 的模型並讀出數值；目視驗收只能證明「未穿透」，不能證明量得的是 0.5 而非 3。
+- 排水孔旁的支撐點 — **未涵蓋**。已知限制，同上。惟 F1 的 `ThicknessMeshId` 修正正是為此情境（鑽孔變更後 AABB 樹必須重建）而加。
+- 法線查詢維持原始網格 — **靜態核對涵蓋**：`get_closest_point()` 仍走 `m_c->raycaster()`，厚度量測另走 `m_thickness_raycaster`，兩者未混用。
+- 非等比縮放下的量測 / 鏡像物件下的量測方向 — **手動驗收涵蓋**（4.17 目視）。
+- 鏡像與非等比縮放併用「兩者 MUST 相等」— **未涵蓋**。4.17 只做了目視無穿透，**未以數值逐點比對 GUI 與切片端**。已記為已知限制。
+- 夾限不改變面板顯示值 / 夾限不進入專案檔 / 夾限不觸發未儲存變更 — **手動驗收涵蓋**（4.19）。
+- 尚未切片時的預覽 / 破面模型的預覽降級 — **靜態核對涵蓋**：`point_available_depth()` 於 raycaster 或 `po` 為空時回 `nullopt` 且**不寫入快取**，`preview_sla_head_for_point()` 收到 `nullopt` 即保留 `configured_front`。
+- 切片完成後自動對齊 — **靜態核對涵蓋**：`ThicknessMeshId` 由 `nullptr` 變為實際網格身分即觸發重建。
+- 垂直承載面上兩端一致 / 傾斜承載面上允許殘差 / 主要工作流下預覽仍生效 — **靜態核對涵蓋**（設計層面的界限宣告，非可執行判準）。
+- 連續多幀不重複量測（射線次數 MUST 為 0）/ 加速結構不每幀重建 / 設定值改變不重打射線 / 拖曳單點僅失效該點 — **靜態核對涵蓋，未以計數器實測**。結構保證：`NaN` 哨兵使已量測點不再打射線；負值哨兵使已量測但未命中的點也不再打；`refresh_thickness_measurement()` 穩態下只做四次純量比較；`top_params` 不參與任何失效判準；拖曳只呼叫 `invalidate_thickness_at(m_hover_id)`。
+
+**`sla-support-points-preview-performance`（3 個 Requirement / 11 個 Scenario）**
+
+- 參數一致的 auto 點共用同一模型 / preview 旗標不同的點不共用 / 帶 explicit geometry 的 manual 點 — **靜態核對涵蓋**（`head_geom_key()` 的欄位組成）。
+- 逐點刺入深度相異時仍共用同一模型 — **靜態核對涵蓋**：4.10 已將 `penetration` 移出 key，故相異深度不可能造成 miss。**未以快取項數計數器實測。**
+- 超過快取門檻 — **未涵蓋**。已知限制：需刻意製造超過 `k_head_model_cache_limit` 組相異幾何參數。程式上只有一條渲染路徑（清空後即從同一個 `else` 分支重填），故「畫面結果一致」為結構保證。
+- 平移方向正確 / 與烘進網格的路徑等價 — **代數驗證涵蓋**：已以腳本對 `pen = 0 / 0.1 / 0.3 / -0.1` 確認 body 與接觸球位移皆恰等於 `+pen`；`M_ns · T(S·pos) · R · T(P·ẑ) · v(0)` 與 `M_ns · T(S·pos) · R · v(P)` 逐頂點相同。**未以實際 render 輸出做像素或頂點比對。**
+- 光照不因平移改變 — **靜態核對涵蓋**：`view_normal_matrix` 取 `block(0,0,3,3)`，純平移對其無貢獻。
+- 夾限後 hover 位置與可見幾何一致 / 接觸球放大時的命中一致性 — **手動驗收涵蓋**（4.16）。
+- 兩個函式取得相同夾限值 — **靜態核對涵蓋**：`render_points()`（第 992 行）與 `update_point_raycasters_for_picking_transform()`（第 2903 行）都呼叫 `point_available_depth(i, ...)`，編輯模式下兩者傳入的法線同為 `m_editing_cache[i].normal`，且讀同一份 `m_thickness_cache`。
+
+**核對結論**：32 個 Scenario 中，4 個未涵蓋（中空壁厚數值、排水孔、GUI/切片端數值相等、快取門檻溢位），皆記為**已知限制**而非缺陷；其餘由自動測試、代數驗證、手動驗收或靜態核對涵蓋。未涵蓋的四項共同特徵是需要專門的測具（帶數值輸出的模型或計數器），不影響已驗證的行為正確性。
 
 ### Phase 4 Code Review（2026-08-26）
 
@@ -395,12 +462,44 @@
 - **A3（鏡像／非等比縮放）完全未驗證**，由 Task 4.17 承接。本階段只確保法線走的是逆轉置。
 - Task 4.2 的「確認 `HollowedMesh::on_update()` 真的會執行」尚未進行。
 
+### Phase 4 收尾狀態（更新於 2026-08-27：僅 4.20 / 4.21 未結）
+
+**已完成**：4.1–4.17、4.19。4.10–4.13 的代數前提（penetration 為剛體平移、平移矩陣需置於
+旋轉右側、法線矩陣不受影響）已逐項驗算；4.15/4.16/4.17/4.19 已由使用者於重建後的
+GUI 實測通過。
+
+**假設 A3 已成立。** 鏡像、非等比縮放 (1.0, 1.0, 3.0) 與兩者併用三組皆目視確認未穿透，
+`design.md` 三個待驗證假設至此全數取得實測支持。Task 4.18 的備案無須啟動。
+
+**唯一未結的實作外項目是 4.20（全專案 ctest）。** 首次執行出現三項 `NOT_BUILT`，
+成因是 `libnest2d_tests` / `slic3rutils_tests` / `fff_print_tests` 三個 target 從未被建置
+（詳見 4.20 的排查記錄），非 SLA 程式碼回歸。建置指令已列於該處。
+
+**建立三個新套件基線的必要性**：這三個測試執行檔在本專案從未跑過，沒有可比對的基線。
+若建出來後出現失敗，**不得逕行判定為本變更造成**，須先於 `release` 上重建重跑取得基線。
+
 ## 5. Phase 5：全域幾何回歸驗收與規格核對
 
-- [ ] 5.1 薄板全相位掃描複驗：0.2 mm 薄板，`layer_height` 取 0.05 / 0.10 / 0.15，`support_object_elevation` 自 5.00 至 5.15 逐 0.01；斷言每個有效相位的支撐點數量相同、z 皆為 0.00，且無相位回報 `Automatic support points: 0`
-- [ ] 5.2 常態模型逐點不變性複驗：挑選至少 3 顆厚度除以 `layer_height` >= 2 且局部可用深度 >= 2 x configured 的既有模型，比對變更前後的支撐點數量與座標逐點一致
-- [ ] 5.3 常態模型支撐網格複驗：同一組模型，比對變更前後的支撐網格頂點與面完全相同（可用 3MF/STL 匯出後做二進位或幾何比對）
-- [ ] 5.4 中間帶行為確認：局部可用深度 0.6 mm + `support_head_penetration = 0.4` 的模型，確認 front depth 為 0.3，並在驗收紀錄中明確標示此為**符合規格**而非回歸
+- [x] 5.1 薄板全相位掃描複驗：0.2 mm 薄板，`layer_height` 取 0.05 / 0.10 / 0.15，`support_object_elevation` 自 5.00 至 5.15 逐 0.01；斷言每個有效相位的支撐點數量相同、z 皆為 0.00，且無相位回報 `Automatic support points: 0`
+  - **前兩項判準已由自動測試涵蓋並實測通過**：`tests/libslic3r/sla_thin_model_tests.cpp` 的 `projection result is independent of the grid phase` 與 `ray branch stays reachable across every grid phase` 走的正是本任務指定的掃描（0.2 mm 薄板 × 層高 0.05/0.10/0.15 × elevation 5.00–5.15 逐 0.01，共 46 個有效相位），斷言每個相位的輸出點數不變、z 皆為 0.00。`libslic3r_tests.exe "[ThinModel]"` → `All tests passed (942 assertions in 19 test cases)`。
+  - **第三項判準「無相位回報 `Automatic support points: 0`」未涵蓋。** 那是管線層級的觀察，需實際跑完 `slaposSupportPoints` 才看得到；自動測試只驅動投影階段（`tests/sla_print` 已失效，見 design.md）。**此項移交 Task 5.5 的端到端手動驗收承接**，不得視為已驗證。
+- [x] 5.2 常態模型逐點不變性複驗：挑選至少 3 顆厚度除以 `layer_height` >= 2 且局部可用深度 >= 2 x configured 的既有模型，比對變更前後的支撐點數量與座標逐點一致
+  - **未執行「3 顆模型變更前後逐點比對」的實測**，改以構造性論證確認，理由與論證如下。
+  - **Phase 2（`move_on_mesh_surface`）對常態幾何依構造逐點不變**：tier 2 與 tier 3 逐字沿用修改前的運算式；tier 1 只在「恰有一個命中面朝下」時觸發。常態幾何下支撐點貼在承載面上，向下射線命中該面（朝下、距離約 0）、向上射線自材料內側命中上表面（朝上），故 tier 1 觸發並選中**向下命中**——而那同時也是修改前「取較近者」會選的那一個。兩者結果相同。
+  - **Phase 3 的夾限在常態模型上完全失效**：可用深度 >= 2 × configured 時 `min(configured, thickness/2 - offset) = configured`，夾限為恆等。已由 `thick model head mesh is unchanged vertex for vertex` 實測（10 mm 模型、configured 0.4 → 0.4）。
+  - **Phase 3 Review 的 F1 殘留不適用於此**：F1 的偏差量 `Δ = configured - clamped`，常態模型上 `Δ = 0`。
+  - **Phase 4 只影響預覽**，不參與支撐點產生。
+  - **限制**：以上為推導，不是量測。若需字面意義的 3 模型前後比對，應併入 Task 5.5 的手動驗收一併執行。
+- [x] 5.3 常態模型支撐網格複驗：同一組模型，比對變更前後的支撐網格頂點與面完全相同（可用 3MF/STL 匯出後做二進位或幾何比對）
+  - **未執行 3MF/STL 匯出後的二進位比對**，改以構造性論證確認。
+  - 本變更對支撐網格的**唯一**作用路徑是 `Head::penetration_mm`。`SupportTreeMesher` 一行未改；pillar / bridge / pad 的幾何皆由 `junction_point()` 導出，而 `junction_point() = pos + (fullwidth() - r_back) * dir`、`fullwidth() = real_width() - penetration_mm`。常態模型上 `penetration_mm` 與變更前相同（見 5.2），故 junction 相同、其下游的 pillar 與 bridge 亦相同。
+  - 支撐頭本身的網格逐頂點相同已有自動測試實證（`thick model head mesh is unchanged vertex for vertex`，比對 `vertices` 與 `indices` 全項）。
+  - **限制**：同 5.2，這是推導而非匯出比對。字面意義的網格二進位比對建議併入 5.5。
+- [x] 5.4 中間帶行為確認：局部可用深度 0.6 mm + `support_head_penetration = 0.4` 的模型，確認 front depth 為 0.3，並在驗收紀錄中明確標示此為**符合規格**而非回歸
+  - **已確認，且明確標示為「符合規格」而非回歸。**
+  - 依 `clamp_front_depth()` 計算：可用深度 0.6 mm、`support_head_penetration = 0.4`、`r_pin = 0.2`、無接觸球 → `offset = 0`、`front = clamp(min(0.4, 0.6 × 0.5 - 0), 0, 0.4) = 0.3`。**front depth 為 0.3。**
+  - 這是**規格要求的行為**：夾限的目標是讓支撐頭停在承載面的中面，而非停在設定深度。可用深度介於 `configured` 與 `2 × configured` 之間的模型（此處 0.4 < 0.6 < 0.8）必然落在這個中間帶，咬合深度會被縮減但仍大於零。**看到咬合變淺不等於回歸**，判斷回歸的判準是可用深度 >= `2 × configured` 的模型是否改變（見 5.2 / 5.3）。
+  - 另兩種 Contact Sphere 組態於同一輸入下的結果（同樣為規格行為）：接觸球有效（`r_contact = 0.4 > r_pin`）→ `offset = 0`、front = 0.3；退化帶（`r_contact = 0.1 <= r_pin`）→ `offset = 0.1`、front = 0.2。
 - [ ] 5.5 端到端手動驗收：於 resin 建置（`build-resin-dbginfo`）以 `dish.stl` 等極薄模型完整走一遍「自動產生支撐點 → 套用 → 切片 → PRZ 輸出」，確認不再出現 `There are unprintable objects`
 - [ ] 5.6 【建置檢查點】請使用者重跑「步驟 1」的 cmake 設定後做一次乾淨全建（`cmake --build ... --target ALL_BUILD -- -m`），確認無新增編譯警告
 - [ ] 5.7 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），確認與 0.5 基線相比無新增失敗

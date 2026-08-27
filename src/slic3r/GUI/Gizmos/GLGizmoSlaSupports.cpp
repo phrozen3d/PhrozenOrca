@@ -702,7 +702,8 @@ GLGizmoSlaSupports::HeadGeomKey GLGizmoSlaSupports::head_geom_key(const sla::Hea
     key.r_pin       = q(head.r_pin_mm);
     key.r_back      = q(head.r_back_mm);
     key.width       = q(head.width_mm);
-    key.penetration = q(head.penetration_mm);
+    // fix-sla-thin-model-support-points: no penetration field — see HeadGeomKey.
+    // The cached mesh is built at penetration 0 and translated into place.
     key.r_contact   = q(head.r_contact_mm);
     key.preview     = preview;
     return key;
@@ -1007,7 +1008,15 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
             if (m_head_model_cache.size() >= k_head_model_cache_limit)
                 m_head_model_cache.clear();
 
-            const indexed_triangle_set top_its = sla::head_mesh_body(head, 24, /*preview=*/false);
+            // fix-sla-thin-model-support-points: build the CANONICAL body, at
+            // penetration 0. The per-point depth is applied by the model matrix
+            // below instead of being baked into the vertices, which is what lets
+            // points with different clamped depths share one cached GLModel.
+            sla::Head canonical = head;
+            canonical.penetration_mm = 0.;
+
+            const indexed_triangle_set top_its =
+                sla::head_mesh_body(canonical, 24, /*preview=*/false);
             if (top_its.vertices.empty())
                 continue;
 
@@ -1025,9 +1034,20 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         // rotated from its local -Z axis onto the scaled surface normal. Identical
         // per-vertex world positions as the old baked-in path:
         //   M_ns * (q * v_local + S * raw_pos)
+        //
+        // fix-sla-thin-model-support-points: the trailing translation carries the
+        // penetration the canonical mesh was built without.
+        //
+        // It is RIGHTMOST on purpose, i.e. applied to the vertex FIRST, before
+        // the placement rotation. The offset is +penetration along the head's
+        // LOCAL +Z; the rotation then carries it onto the head axis along with
+        // the rest of the body. Putting it left of the rotation would translate
+        // along world Z instead and tilt the head off its own axis for every
+        // point whose normal is not vertical.
         const Transform3d model_matrix = instance_matrix_no_scale *
             Geometry::translation_transform(instance_scaling_matrix * support_point.pos.cast<double>()) *
-            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir));
+            Transform3d(Eigen::Quaterniond::FromTwoVectors(-Vec3d::UnitZ(), head.dir)) *
+            Geometry::translation_transform(head.penetration_mm * Vec3d::UnitZ());
 
         // All points are lit (gouraud_light): manual points used to render flat-shaded,
         // a leftover from when they used a simplified, unlit preview mesh.
@@ -1036,6 +1056,11 @@ void GLGizmoSlaSupports::render_points(const Selection& selection)
         {
             // Must be derived from the model matrix actually used above — it now
             // carries the placement rotation, unlike instance_matrix_no_scale.
+            //
+            // fix-sla-thin-model-support-points: the penetration translation
+            // appended to model_matrix needs no change here. block(0,0,3,3)
+            // takes the linear part only, and a pure translation contributes
+            // nothing to it — the normal matrix is the same with or without it.
             const Matrix3d view_normal_matrix = view_matrix.matrix().block(0, 0, 3, 3) *
                 model_matrix.matrix().block(0, 0, 3, 3).inverse().transpose();
             active_shader->set_uniform("view_normal_matrix", view_normal_matrix);
