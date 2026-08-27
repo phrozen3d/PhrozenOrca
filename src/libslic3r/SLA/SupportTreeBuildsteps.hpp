@@ -237,6 +237,11 @@ class SupportTreeBuildsteps {
     // When bridging heads to pillars... TODO: find a cleaner solution
     ccr::BlockingMutex m_bridge_mutex;
 
+    // fix-sla-thin-model-support-points (#5): heads whose available material
+    // depth could not be measured, over this one generation. Reported as a
+    // single summary line at the end of execute().
+    DepthProbeMissCounter m_depth_probe_misses;
+
     inline IndexedMesh::hit_result ray_mesh_intersect(const Vec3d& s, 
                                                       const Vec3d& dir)
     {

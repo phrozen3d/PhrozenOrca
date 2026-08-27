@@ -1,6 +1,7 @@
 #include <libslic3r/SLA/SupportTreeBuildsteps.hpp>
 
 #include <libslic3r/SLA/SpatIndex.hpp>
+#include <libslic3r/SLA/SupportTreeUtils.hpp>
 #include <libslic3r/Optimize/NLoptOptimizer.hpp>
 #include <boost/log/trivial.hpp>
 
@@ -171,6 +172,12 @@ bool SupportTreeBuildsteps::execute(SupportTreeBuilder &   builder,
         progress();
         program[pc]();
     }
+
+    // fix-sla-thin-model-support-points (#5): exactly one summary line for the
+    // whole generation, and only if the depth probe actually failed somewhere.
+    // Per-point logging is deliberately avoided: a badly broken mesh would
+    // otherwise emit one line per support head.
+    log_depth_probe_misses(alg.m_depth_probe_misses, "default");
 
     return pc == ABORT;
 }
@@ -746,8 +753,35 @@ void SupportTreeBuildsteps::filter()
         if (t.distance() > w && hp(Z) + w * nn(Z) >= m_builder.ground_level) {
             Head &h = heads[fidx];
             h.id = fidx; h.dir = nn; h.width_mm = lmin; h.r_back_mm = back_r;
-            h.penetration_mm = penetration;
             h.r_contact_mm = point_contact_sphere_radius_mm(sp, m_cfg.contact_sphere_radius_mm);
+
+            // fix-sla-thin-model-support-points (#5): CLAMP COMMIT POINT 1 of 4
+            // (Default tree, main pinhead).
+            //
+            // Applied here, after the angle search above has settled on nn --
+            // never inside the optimizer's objective. The search keeps running
+            // on the configured depth, so its behaviour is bit-for-bit
+            // unchanged; and a measurement ray in the objective would be
+            // circular anyway (the clamp needs nn, nn comes from the optimizer,
+            // and the optimizer gates on w, which is derived from the
+            // penetration).
+            //
+            // The clamp acts on the FRONT depth, not on penetration_mm. With a
+            // contact sphere those two differ by (r_pin - r_contact), so
+            // clamping penetration_mm directly would be wrong by exactly that
+            // much -- see clamp_front_depth() in SupportPoint.hpp.
+            //
+            // Writing penetration_mm back updates fullwidth() and hence
+            // junction_point(), so the pillar this head later grows starts from
+            // the shifted junction and the two stay connected. Leaving it
+            // unclamped would open a gap of up to `configured` between them.
+            const double front_clamped = clamped_front_depth(
+                m_mesh, hp, nn,
+                double(point_contact_front_depth_mm(sp, m_cfg.head_penetration_mm)),
+                pin_r, contact_r, m_depth_probe_misses);
+
+            h.penetration_mm =
+                front_depth_to_mesh_penetration(front_clamped, pin_r, contact_r);
         } else if (back_r > m_cfg.head_fallback_radius_mm) {
             filterfn(fidx, i, m_cfg.head_fallback_radius_mm, point_slope);
         }
@@ -1056,9 +1090,48 @@ bool SupportTreeBuildsteps::connect_to_model_body(Head &head)
     Vec3d        taildir     = taildir_len > EPSILON ? Vec3d(taildir_raw / taildir_len)
                                                      : taildir_raw;
 
+    // fix-sla-thin-model-support-points (#5): CLAMP COMMIT POINT 2 of 4
+    // (Default tree, anchor).
+    //
+    // The bridge endpoint is already fixed by this line -- endp, hitp and the
+    // pillar above were all computed from the un-clamped geometry and are not
+    // touched here -- so clamping the anchor changes no topology at all, only
+    // how deep this one anchor head bites.
+    //
+    // Anchors are built with r_contact = 0 (Head's default), so the front depth
+    // and the mesh-space penetration coincide; the conversion below is written
+    // out anyway so this site cannot silently go wrong if that ever changes.
+    //
+    // A degenerate taildir (endp coincident with hitp, see the note above)
+    // is not a unit vector, which measure_available_depth() reports as a
+    // measurement failure -- so that path takes the fail-safe rather than
+    // feeding a bad direction into query_ray_hit().
+    const double anchor_front_clamped =
+        clamped_front_depth(m_mesh, hitp, taildir, m_cfg.head_penetration_mm,
+                            head.r_pin_mm, 0., m_depth_probe_misses);
+
+    const double anchor_penetration =
+        front_depth_to_mesh_penetration(anchor_front_clamped, head.r_pin_mm, 0.);
+
     // dist/w keep deriving the real length from the un-normalized endpoints;
     // they must never be computed from `taildir` above.
-    double dist = (hitp - endp).norm() + m_cfg.head_penetration_mm;
+    //
+    // The penetration term MUST be the same clamped value that goes to
+    // add_anchor(). Substituting w back gives
+    //
+    //     fullwidth() = 2*r_pin + w + 2*r_back - penetration
+    //                 = |hitp - endp| + r_back
+    //
+    // -- the penetration cancels exactly, which is why junction_point() lands
+    // on endp no matter how deep the head bites. Feed dist the configured depth
+    // while handing add_anchor() the clamped one and that cancellation breaks:
+    // the junction slides off endp by the difference and the anchor detaches
+    // from its bridge.
+    //
+    // Note the direction: clamping REDUCES penetration, so it reduces dist and
+    // therefore w. The head does not grow here; it is the cancellation, not the
+    // length, that has to be preserved.
+    double dist = (hitp - endp).norm() + anchor_penetration;
     double w = dist - 2 * head.r_pin_mm - head.r_back_mm;
 
     if (w < 0.) {
@@ -1067,7 +1140,7 @@ bool SupportTreeBuildsteps::connect_to_model_body(Head &head)
     }
 
     m_builder.add_anchor(head.r_back_mm, head.r_pin_mm, w,
-                         m_cfg.head_penetration_mm, taildir, hitp);
+                         anchor_penetration, taildir, hitp);
 
     m_pillar_index.guarded_insert(pill.endpoint(), pill.id);
 

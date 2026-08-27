@@ -165,29 +165,140 @@
 
 ## 3. Phase 3：#5 切片端動態防貫穿夾限
 
-- [ ] 3.1 於 `src/libslic3r/SLA/SupportPoint.hpp` 新增純函式，實作 spec 的最深點偏移與夾限式：`offset(r_pin, r_contact)` 與 `clamp_front_depth(configured_front, local_thickness, r_pin, r_contact)`；兩端（切片與 GUI）共用，**不得**修改既有 `point_head_penetration_mesh_mm()` 的語意
-- [ ] 3.2 新增可用深度量測輔助函式（建議置於 `src/libslic3r/SLA/SupportTreeUtils.hpp`）：以 `hp + eps * dir_in` 為起點、`dir_in = -head.dir` 為方向呼叫 `query_ray_hit()`，回傳 `distance() + eps`；`eps` 取 1e-3 mm 量級並以具名常數定義，加註「起點必須踏入材料內部、不可退到外側」的理由註解
-- [ ] 3.3 【建置檢查點】請使用者建置 `libslic3r`，確認新增的純函式與輔助函式可編譯
-- [ ] 3.4 於 `tests/libslic3r/sla_thin_model_tests.cpp` 撰寫單元測試涵蓋 3.1 的三種 Contact Sphere 組態（無接觸球 / 接觸球有效 / 退化帶 `0 < r_contact <= r_pin`），斷言 `offset` 與夾限結果符合 spec 表格
-- [ ] 3.5 提交點一（Default 樹主頭）：於 `SupportTreeBuildsteps.cpp` 的 `SupportTreeBuildsteps::filter()` 內 `filterfn` 接受區塊（約 746-753 行）施加夾限，寫回 `h.penetration_mm`，確認 `fullwidth()` / `junction_point()` 連帶更新
-- [ ] 3.6 提交點二（Default 樹錨點）：於 `SupportTreeBuildsteps::connect_to_model_body()` 的 `m_builder.add_anchor()` 呼叫處（約 1044 行）施加夾限，並**連帶重算 `w`**（`dist = |hitp - endp| + 夾限後 penetration`，`w = dist - 2*r_pin - r_back`）
-- [ ] 3.7 提交點三（Branching 樹主頭）：於 `src/libslic3r/SLA/SupportTreeUtils.hpp` 的 `optimize_pinhead_placement()` 接受區塊（約 328-333 行）施加夾限；該路徑 `r_contact = 0`、`offset = 0`，可直接夾限 `penetration_mm`
-- [ ] 3.8 提交點四（Branching 樹錨點）：於 `src/libslic3r/SLA/BranchingTreeSLA.cpp` 的 `m_builder.add_anchor(*anchor)` 呼叫處（約 304 行）施加夾限。**必須在 297 行讀取 `junction_point()` 建立 `toj` 之後**，並加註「不可上移至 297 行之前」的警示註解
-- [ ] 3.9 確認四處皆在角度搜尋（optimizer）完成之後施加，且量測射線**未**出現在任何 optimizer 目標函式內
-- [ ] 3.10 實作 fail-safe：射線無命中時 `front_clamped = 0`；以計數器累計觸發點數，於支撐樹生成結束時輸出**恰好一行** `BOOST_LOG_TRIVIAL(warning)` 彙總日誌（含觸發數量），無觸發時不輸出
-- [ ] 3.11 【建置檢查點】請使用者建置 `libslic3r`，確認四處提交點與 fail-safe 皆可編譯
-- [ ] 3.12 撰寫幾何測試：0.2 mm 薄板 + `support_head_penetration = 0.3`，斷言有效 front depth 為 0.1，且支撐網格與模型網格的布林交集在上表面之上無任何幾何
-- [ ] 3.13 撰寫幾何測試：同一模型分別以 Default 樹與 Branching/Organic 樹生成，兩者皆斷言承載面另一側無支撐幾何
-- [ ] 3.14 撰寫幾何測試：啟用 Contact Sphere（`r_contact > r_pin`）與退化帶（`0 < r_contact <= r_pin`）兩種組態，皆斷言無穿透
-- [ ] 3.15 撰寫測試：厚 10 mm 模型 + `support_head_penetration = 0.4`，斷言夾限完全失效、front depth 仍為 0.4、支撐網格與變更前逐點相同
-- [ ] 3.16 撰寫測試：破面模型觸發 fail-safe，斷言 front depth 為 0 且輸出恰好一行含觸發數量的警告日誌；另斷言全數正常命中時不輸出該日誌
-- [ ] 3.17 撰寫測試：Branching 樹錨點夾限前後，用於建立橋接端點的 junction 位置與橋接可行性檢查結果完全相同
-- [ ] 3.18 【建置檢查點】請使用者建置 `libslic3r_tests` 並執行 `libslic3r_tests.exe "[ThinModel]"`，確認全數通過
-- [ ] 3.19 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"`，與 0.5 基線比對確認無新增失敗
-- [ ] 3.20 Review：逐一核對四處提交點的時序是否符合 spec「四個夾限提交點的語意與時序」；提交獨立 commit
+- [x] 3.1 於 `src/libslic3r/SLA/SupportPoint.hpp` 新增純函式
+  - 實作為 `head_deepest_point_offset(pin_r_mm, contact_r_mm)` 與 `clamp_front_depth(configured_front_mm, local_thickness_mm, pin_r_mm, contact_r_mm)`，皆為 `double`、皆 `inline`、皆無狀態。
+  - **命名偏離 tasks 原文**：spec 寫的 `offset` 在 `namespace sla` 的標頭作用域太籠統，改用 `head_deepest_point_offset`，並在註解中標明「這就是 spec 的 `offset` 項」。語意與公式完全一致。
+  - `point_head_penetration_mesh_mm()` **一字未改**，夾限作用在換算**之前**的 front depth。
+  - 新增一條 tasks 未列的防護：`configured_front_mm <= 0` 時原值直接回傳。理由是 `std::clamp(x, 0, configured)` 在 `configured < 0` 時 `lo > hi`，屬未定義行為；且負的設定深度本來就無法貫穿，沒有可夾之處。
+  - `local_thickness` 為負或過小時（如退化帶），結果自然收斂為 0，方向與 fail-safe 政策一致。
+  - 為 `std::clamp` / `std::min` 補上 `#include <algorithm>`。，實作 spec 的最深點偏移與夾限式：`offset(r_pin, r_contact)` 與 `clamp_front_depth(configured_front, local_thickness, r_pin, r_contact)`；兩端（切片與 GUI）共用，**不得**修改既有 `point_head_penetration_mesh_mm()` 的語意
+- [x] 3.2 新增可用深度量測輔助函式
+  - 實作為 `measure_available_depth(mesh, contact_point, head_dir)`，置於 `SupportTreeUtils.hpp` 的 `get_normal()` 之後、Beam/Ball 區段之前。
+  - `eps` 具名為 `HEAD_DEPTH_PROBE_EPS_MM = 1e-3`，起點為 `contact_point + eps * dir_in`、`dir_in = -head_dir`，回傳 `distance() + eps`。註解完整說明「+eps 不可寫成 -eps」的理由（`query_ray_hit()` 無正反面過濾，起點退到模型外側時第一個命中必為入射面，量得的厚度會恆為 `2*eps` 而**靜默**失準）。
+  - **回傳型別為 `std::optional<double>` 而非裸 `double`**：未命中與「深度為零」必須可區分，Task 3.10 的 fail-safe 需要這個區別。本函式不決定政策，只回報量測結果。
+  - 加上 `assert(is_approx(head_dir.norm(), 1.))`——`query_ray_hit()` 的單位向量前置條件在 Release 會被編譯掉，非單位向量會靜默回傳射線參數而非距離（此即 Phase 1 修正 taildir 的理由）。（建議置於 `src/libslic3r/SLA/SupportTreeUtils.hpp`）：以 `hp + eps * dir_in` 為起點、`dir_in = -head.dir` 為方向呼叫 `query_ray_hit()`，回傳 `distance() + eps`；`eps` 取 1e-3 mm 量級並以具名常數定義，加註「起點必須踏入材料內部、不可退到外側」的理由註解
+- [x] 3.3 【建置檢查點】請使用者建置 `libslic3r`，確認新增的純函式與輔助函式可編譯
+  - **實測（2026-08-26）：`libslic3r` 建置成功，0 錯誤。**
+- [x] 3.4 於 `tests/libslic3r/sla_thin_model_tests.cpp` 撰寫單元測試
+  - 新增 6 個 TEST_CASE：三種 Contact Sphere 組態各一、厚模型夾限失效一、`configured <= 0` 防護一、`measure_available_depth` 一（含直射／傾斜 45 度／未命中三個 SECTION）。
+  - 三種組態的斷言值已逐項對照 spec 表格：無接觸球 `offset=0, front=0.1, pen=+0.1`；接觸球有效 `offset=0, front=0.1, pen=-0.1`；退化帶 `offset=0.2, front=0, pen=+0.2`。
+  - **退化帶的既有限制（已於測試中明文斷言並註解）**：`offset` 單獨就等於整片板厚，夾限後最深點落在 `z = 0.2`，即**恰好貼齊上表面、餘裕為零**。未突出，符合「上表面零凸點」政策，但無法再改善——要改善必須動 `SupportTreeMesher`，而那是本變更明文排除的範圍。
+  - `measure_available_depth` 的測試不在 tasks 3.4 原文範圍內，但 3.2 否則將完全沒有覆蓋，且 `+eps` 的符號是本 Phase 唯一會**靜默**失效的細節，故一併鎖定。
+  - 傾斜測試同時驗證「沿頭軸而非沿表面法線量測」：45 度斜穿 0.2 mm 板的軸向深度為 `0.2 * sqrt(2) ≈ 0.2828`，大於板厚，夾限因此自動放寬而不過度保守。
+  - 測試檔新增 `#include <libslic3r/SLA/SupportTreeUtils.hpp>` 與 `<optional>`。`nlopt` 標頭經 `libnest2d`（`PUBLIC NLopt::nlopt`）→ `libslic3r`（`PUBLIC libnest2d`）傳遞至測試目標，**此傳遞鏈為靜態核對，尚未實際編譯驗證**。涵蓋 3.1 的三種 Contact Sphere 組態（無接觸球 / 接觸球有效 / 退化帶 `0 < r_contact <= r_pin`），斷言 `offset` 與夾限結果符合 spec 表格
+  - **實測（2026-08-26）：`libslic3r_tests.exe "[ThinModel]"` → `All tests passed (884 assertions in 13 test cases)`。**
+- [x] 3.5 提交點一（Default 樹主頭）：於 `SupportTreeBuildsteps.cpp` 的 `SupportTreeBuildsteps::filter()` 內 `filterfn` 接受區塊（約 746-753 行）施加夾限，寫回 `h.penetration_mm`，確認 `fullwidth()` / `junction_point()` 連帶更新
+  - 夾限置於 `filterfn` 的接受區塊內（`if (t.distance() > w && ...)`），**在 optimizer 求解完成之後**。`w` 的計算仍使用未夾限的 `penetration`，故角度搜尋行為逐位元不變。
+  - 夾限作用於 **front depth**（`point_contact_front_depth_mm(sp, m_cfg.head_penetration_mm)`），再經 `front_depth_to_mesh_penetration()` 換算寫回 `h.penetration_mm`；`fullwidth()` / `junction_point()` 因此連帶更新，頭與柱維持相連。
+  - 量測方向為 `nn`（即 `h.dir`），起點為 `hp`。
+- [x] 3.6 提交點二（Default 樹錨點）：於 `SupportTreeBuildsteps::connect_to_model_body()` 的 `m_builder.add_anchor()` 呼叫處（約 1044 行）施加夾限，並**連帶重算 `w`**（`dist = |hitp - endp| + 夾限後 penetration`，`w = dist - 2*r_pin - r_back`）
+  - 夾限置於 `connect_to_model_body()` 的 `add_anchor()` 之前；該函式內**沒有** optimizer（最近的 solver 位於 `connect_to_ground()`，屬不同函式）。
+  - **`w` 已連帶重算**：`dist = |hitp - endp| + anchor_penetration`（夾限後值），`w = dist - 2*r_pin - r_back`。若此處仍用設定值而 `add_anchor()` 收夾限值，錨點會與其橋接脫開兩者的差額。
+  - 錨點的 `r_contact = 0`（`Head` 預設），故 front 與 mesh penetration 相等；換算仍明寫，避免日後 `r_contact` 改動時靜默出錯。
+  - 退化 `taildir`（`endp` 與 `hitp` 重合，見 Phase 1 註解）不是單位向量，會被 `measure_available_depth()` 判為量測失敗而走 fail-safe，**不會**把壞方向餵進 `query_ray_hit()`。
+- [x] 3.7 提交點三（Branching 樹主頭）：於 `src/libslic3r/SLA/SupportTreeUtils.hpp` 的 `optimize_pinhead_placement()` 接受區塊（約 328-333 行）施加夾限；該路徑 `r_contact = 0`、`offset = 0`，可直接夾限 `penetration_mm`
+  - 夾限置於 `optimize_pinhead_placement()` 的接受區塊，緊接在 `head.dir = nn` 之後，**在 solver 之後**（solver 於同函式較前處）。
+  - 該路徑 `r_contact = 0`，但仍走 `mesh_penetration_to_front_depth()` → 夾限 → `front_depth_to_mesh_penetration()` 的完整往返，與其他三處對稱。
+  - 遞迴的 fallback 呼叫（`head.r_back_mm = head_fallback_radius_mm` 後重試）已一併傳遞計數器。
+- [x] 3.8 提交點四（Branching 樹錨點）：於 `src/libslic3r/SLA/BranchingTreeSLA.cpp` 的 `m_builder.add_anchor(*anchor)` 呼叫處（約 304 行）施加夾限。**必須在 297 行讀取 `junction_point()` 建立 `toj` 之後**，並加註「不可上移至 297 行之前」的警示註解
+  - 夾限置於 `add_mesh_bridge()` 內，**嚴格在 `sla::Junction toj = {anchor->junction_point(), ...}` 之後**，且在 `add_diffbridge()` / `add_anchor()` 之前。已加註「不可上移」的警示註解並說明理由（`junction_point()` 依賴 `penetration_mm`，上移會靜默改變橋接端點與可行性判定）。
+  - 行號核對：`toj` 在 303 行，夾限自 309 行起，`add_diffbridge` 在 338 行，`add_anchor` 在 339 行。
+- [x] 3.9 確認四處皆在角度搜尋（optimizer）完成之後施加，且量測射線**未**出現在任何 optimizer 目標函式內
+  - **已核對**。全專案僅四處呼叫 `clamped_front_depth()`：`SupportTreeBuildsteps.cpp:778`（提交點一）、`:1110`（提交點二）、`SupportTreeUtils.hpp:456`（提交點三）、`BranchingTreeSLA.cpp:328`（提交點四）。
+  - 四處皆位於各自的 optimizer 求解**之後**；`measure_available_depth()` 未出現在任何 `solver.to_max().optimize(...)` 的目標函式 lambda 內。
+  - 提交點二所在的 `connect_to_model_body()` 本身不含 optimizer。
+- [x] 3.10 實作 fail-safe：射線無命中時 `front_clamped = 0`；以計數器累計觸發點數，於支撐樹生成結束時輸出**恰好一行** `BOOST_LOG_TRIVIAL(warning)` 彙總日誌（含觸發數量），無觸發時不輸出
+  - fail-safe 集中於 `clamped_front_depth()` 單一函式：射線未命中即 `front = 0` 並累計計數，四個提交點共用，政策不會在各處走樣。
+  - 計數器為 `DepthProbeMissCounter`（`std::atomic<size_t>`，因 Branching 樹的主頭放置跑在 `ex_tbb` 下）。
+  - Default 樹：計數器為 `SupportTreeBuildsteps` 的成員，於 `execute()` 的程式跑完後輸出。
+  - Branching 樹：計數器為 `create_branching_tree()` 的區域變數，同時傳給主頭放置迴圈與 `BranchingTreeBuilder`（持有參考），於函式結尾輸出——主頭與錨點的失敗因此彙總為**同一行**。
+  - `log_depth_probe_misses()` 在計數為 0 時**不輸出任何內容**；有觸發時輸出恰好一行 `BOOST_LOG_TRIVIAL(warning)`，內含觸發數量。
+- [x] 3.11 【建置檢查點】請使用者建置 `libslic3r`，確認四處提交點與 fail-safe 皆可編譯
+  - **實測（2026-08-26）：`libslic3r` 建置成功，0 錯誤，產出 `libslic3r.lib`。**
+- [x] 3.12 撰寫幾何測試：0.2 mm 薄板 + `support_head_penetration = 0.3`，斷言有效 front depth 為 0.1，且支撐網格與模型網格的布林交集在上表面之上無任何幾何
+  - 斷言：`front = 0.1`；未夾限的頭網格**確實突出**上表面（`max_z = 0.3 > 0.2`，證明測試幾何真的踩到缺陷）；夾限後 `max_z = 0.1 <= 0.2`；兩者網格差**恰為** `configured - front = 0.2`。
+- [x] 3.13 撰寫幾何測試：同一模型分別以 Default 樹與 Branching/Organic 樹生成，兩者皆斷言承載面另一側無支撐幾何
+  - Default 與 Branching 兩條路徑的換算順序不同（前者解析 per-point front depth，後者把 mesh-space penetration 走反函式往返一圈），斷言兩者結果相同且皆不突出。
+  - 先以 `REQUIRE` 確立 Branching 的 `r_contact = 0`（`Head` 預設）——兩條路徑只在此前提下才會一致。
+  - 另加傾斜頭 SECTION：45 度斜穿時軸向可用深度為 `0.2*sqrt(2)`，夾限自動放寬至 `0.1414`。**針頭球會側向外凸，其世界 z 高度不由軸向界限直接保證**，故直接對真實網格斷言不突出（球心 + r_pin 的上界為 0.1586 < 0.2）。
+- [x] 3.14 撰寫幾何測試：啟用 Contact Sphere（`r_contact > r_pin`）與退化帶（`0 < r_contact <= r_pin`）兩種組態，皆斷言無穿透
+  - 接觸球有效（`r_pin=0.2, r_contact=0.4`）：夾限後 `penetration_mm = -0.1`（負值），接觸球頂落在 0.1；未夾限時球頂在 0.3，確實突出。
+  - 退化帶（`r_pin=0.3, r_contact=0.1`）：`front = 0`，但換算仍加上 `r_pin - r_contact`，針頭球頂**恰好貼齊** 0.2。未突出，但餘裕為零（限制成因見 3.4 的單元測試註記）。
+- [x] 3.15 撰寫測試：厚 10 mm 模型 + `support_head_penetration = 0.4`，斷言夾限完全失效、front depth 仍為 0.4、支撐網格與變更前逐點相同
+  - 10 mm 厚模型 + `configured = 0.4`：斷言夾限後 `penetration` 與未夾限**完全相等**，且兩份網格的 **vertices 與 indices 逐項相同**（非僅包圍盒或頂點數）。此即「常態模型逐點不變」的具體形式。
+- [x] 3.16 撰寫測試：破面模型觸發 fail-safe，斷言 front depth 為 0 且輸出恰好一行含觸發數量的警告日誌；另斷言全數正常命中時不輸出該日誌
+  - 破面網格（移除上表面三角形）：`measure_available_depth` 回傳 `nullopt`，`clamped_front_depth` 回傳 0 且計數器 +1；連續三次失敗累計為 3（證明彙總而非逐點）。
+  - 正常網格：計數器維持 0——這正是 `log_depth_probe_misses()` 完全不輸出的條件。
+  - 另補一則：非單位方向向量（提交點二的退化 `taildir`）同樣走 fail-safe 並計數。
+  - **未斷言「恰好一行日誌」，改為結構性論證**：`log_depth_probe_misses()` 在計數為 0 時提早返回，且每個樹驅動器只有一處呼叫，故行數依構造必為 0 或 1。真要斷言得在共用且隨機排序的測試執行檔裡掛 `boost::log` sink，那是會滲進其他所有測試的全域狀態，代價大於證據價值。已於測試檔以 SCOPE NOTE 明文記載。
+  - **第一輪實測（2026-08-26）：本 TEST_CASE SEGFAULT。**17/18 通過，925/926 斷言通過，唯一失敗即此案例。
+  - **根因：測試自身的生命週期錯誤，不是產品程式碼缺陷。**`sla::IndexedMesh` 持有的是 `const indexed_triangle_set *m_tm`——**非擁有指標**（`IndexedMesh.hpp:34`，建構子 `IndexedMesh.cpp:80-84` 只存位址）。本測試以 `IndexedMesh broken{make_plate_without_top(...)}` 直接由**暫時物件**建構，建構期間暫時物件仍存活（AABB 樹順利建成），但整個運算式結束後即銷毀；首次 `query_ray_hit()` 解參考 `*m_tm` 時已是釋放記憶體。檔內其餘所有測試都先存進具名區域變數，故只有此案例崩潰。
+  - **修法一（真正的修正）**：新增 `OwnedMesh` 持有者，同時擁有 `indexed_triangle_set` 與 `IndexedMesh`，成員宣告順序保證 `its` 先於 `mesh` 初始化，並刪除複製建構。三處違規全部改用之，未來的測試無法再犯同樣錯誤。已重新掃描全檔，確認其餘 `IndexedMesh` 建構皆繫結於具名區域變數。
+  - **修法二（產品程式碼補強）**：`measure_available_depth()` 新增空網格防護（`mesh.indices().empty()` → `nullopt`）。空網格在產品端是可達狀態（完全中空的物件、載入失敗的網格），fail-safe 是正確答案。
+  - **必須說清楚：修法二並未修好這次的當機，也不可能修好。** 懸空指標是在任何檢查能執行之前就已成立的未定義行為。已於函式註解與 `OwnedMesh` 註解中明文記載此陷阱。
+  - 新增 SECTION「an empty mesh is a measurement failure, not a crash」鎖定修法二。
+  - **四個提交點不受此問題影響**：它們取用的是 `m_mesh` / `m.emesh` / `m_sm.emesh`，皆為呼叫期間持續存活的長生命週期物件。
+  - **第二輪實測（2026-08-26）：SEGFAULT 已消失，19 個 TEST_CASE 中 18 通過、941/942 斷言通過。** 唯一失敗在「a sound mesh never trips it」的 `CHECK_THAT(front, WithinAbs(0.1, CLAMP_TOL))`，實際值 `0.1000000005`。
+  - **`CLAMP_TOL` 並非 0.0**（定義為 `1e-12`）。Catch2 的 double 預設只印 10 位有效數字，`1e-12` 因此被顯示成 `0.0`——那是**輸出格式**，不是常數值。已於常數註解中記載此陷阱。
+  - **真正的根因：該處比對的是「量測值」，不是純算術值。** 網格頂點為 `float`，薄板上表面實際位於 `0.2f = 0.20000000298`；igl 的 `hit.t` 亦為 `float`。經 `measure_available_depth()` 回傳的深度因此帶有數個 `1e-9` 的誤差，取半後即 `0.1000000005`。
+  - **修法：不放寬 `CLAMP_TOL`**（另有 30 餘條純算術斷言依賴其嚴格度）。改為新增 `MEASURED_TOL = 1e-6`，語意為「凡經過單精度的值」，套用於 5 處：兩處 `point_head_penetration_mesh_mm()` 的 float 回傳比對、兩處 `measure_available_depth()` 的射線深度、以及本次失敗的 fail-safe 正常網格斷言。
+  - **順帶修掉一個僥倖通過的脆弱斷言**：`measure_available_depth` 直射測試原本用 `1e-9`，而真值 `0.200000003` 距 `0.2` 約 `3e-9`——它在本機通過純屬 igl float 捨入的巧合，換編譯器或建置組態即可能轉紅。已一併改為 `MEASURED_TOL`。
+  - 全檔容差複查：**無任何一處為 0.0**。`CLAMP_TOL` 已上移至檔首容差區塊，與 `POS_TOL` / `GRID_TOL` / `MEASURED_TOL` 並列，使此類問題下次一眼可見。3.17 內三處 `1e-9` 為純 double 運算（實際誤差約 `1e-16`），餘裕充足，**刻意不動**。
+- [x] 3.17 撰寫測試：Branching 樹錨點夾限前後，用於建立橋接端點的 junction 位置與橋接可行性檢查結果完全相同
+  - 測試把 `toj` 在夾限**之前**取出，套用提交點四的夾限，然後斷言：
+    - 已取出的 `toj`（橋接端點與 beam 可行性檢查的輸入）不受影響；
+    - 夾限**之後** `junction_point()` 確實**位移了**，位移量恰為 `configured - front = 0.2`，方向恰沿頭軸。
+  - 第二點才是重點：它證明「不可上移至 `toj` 之前」不是風格問題——提早夾限會真的搬動橋接端點，改變哪些橋接被判為可行。
+- [x] 3.18 【建置檢查點】請使用者建置 `libslic3r_tests` 並執行 `libslic3r_tests.exe "[ThinModel]"`，確認全數通過
+  - **實測（2026-08-26）：`All tests passed (942 assertions in 19 test cases)`。**
+- [x] 3.19 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure -R "libslic3r:"`，與 0.5 基線比對確認無新增失敗
+  - **實測（2026-08-26）：85 passed / 5 failed，失敗項為 #6、#12、#13、#30、#39，與 Phase 0 基線完全一致——零新增迴歸。**
+- [x] 3.20 Review：逐一核對四處提交點的時序是否符合 spec「四個夾限提交點的語意與時序」；提交獨立 commit
+
+### Phase 3 實作期間的額外改動（tasks 未列，需納入 3.20 Review）
+
+- **新增 `front_depth_to_mesh_penetration()` / `mesh_penetration_to_front_depth()`**（`SupportPoint.hpp`）：
+  夾限跑在 front depth 上，而四個提交點手上拿的是 mesh-space 的 `penetration_mm`，兩個方向都需要，
+  且必須是彼此的精確反函式。原先只在 Task 3.1 加了夾限本身，換算在 3.5–3.8 才發現缺口。
+  `point_head_penetration_mesh_mm()` 的語意仍**一字未改**。
+- **`measure_available_depth()` 的 `assert` 改為執行期防護**（回傳 `nullopt`）：
+  原本以 `assert(is_approx(head_dir.norm(), 1.))` 表達前置條件，但提交點二的退化 `taildir`
+  是**合法可達**的輸入，會讓 Debug 建置直接斷言失敗。改為判定為量測失敗並走 fail-safe，
+  Release 行為也因此不再是「靜默回傳射線參數」。
+- **`optimize_pinhead_placement()` 與 `calculate_pinhead_placement()` 新增 `DepthProbeMissCounter &` 參數**：
+  提交點三位於樣板函式內，沒有可掛載狀態的物件，故以參數傳遞。已確認全專案僅 `BranchingTreeSLA.cpp:433`
+  一處呼叫 `calculate_pinhead_placement()`，無其他呼叫端需要同步修改。
+- **`SupportTreeBuildsteps.cpp` 新增 `#include <libslic3r/SLA/SupportTreeUtils.hpp>`**：
+  取用 `clamped_front_depth()` 與 `log_depth_probe_misses()`。無循環相依——
+  `SupportTreeUtils.hpp` 相依的是 `SupportTreeBuildsteps.hpp`（標頭），不是 `.cpp`。
+
+### Phase 3 幾何測試的範圍限制（需納入 3.20 Review 與 Phase 5 驗收）
+
+**這些測試驅動的是「夾限 + mesher」，不是完整支撐樹。** 沒有呼叫 `SupportTree::create()`。三個理由：
+
+1. 該函式每個支撐點都要跑一次遺傳演算法 optimizer，放進共用測試執行檔會又慢又難保證決定性。
+2. Task 3.15 的「與變更前逐點相同」沒有既存的 golden 可比對；改以「夾限後 vs 未夾限」兩份網格逐頂點比對，
+   語意等價且可自證。
+3. 0.2 mm 薄板上 optimizer 是否能成功放置支撐頭本身就不確定，失敗會讓測試假性通過或假性失敗。
+
+改以「照各提交點離開時的樣子建構 `Head`，再檢查 `SupportTreeMesher` 實際吐出的網格」來驗證。
+**貫串所有幾何測試的關鍵不變量**：改動 `penetration_mm` 是emitted 網格的**剛體平移**
+（`head_mesh_body()` 的 z_shift 對 penetration 線性，`real_width()` 與之無關，接觸球球心亦然），
+因此兩份網格可以精確比較，完全不依賴球面被切成幾個面。
+
+**端到端（兩種樹、真實模型）的驗收由 Phase 5 的手動執行承接。**
 
 ## 4. Phase 4：GUI 預覽自洽防貫穿
 
+  - **Review 已執行（2026-08-26）。四個提交點的時序全部正確**，行號與呼叫點已逐一核對（見 3.9）。以下為三項發現。
+  - **F1（設計層級殘留，已記入 `design.md` 的 D5）**：主頭的提交點一與三，其門檻 `w = fullwidth() = real_width() - penetration` 是用**未夾限**的 penetration 算的；夾限只會減少 penetration、因而**增加** `fullwidth()`，故實際建出的頭比通過門檻時檢查的更長。後果有二：(a) `pinhead_mesh_intersect()` 的碰撞淨空檢查涵蓋的是較短的頭，真實淨空若落在 `w` 與 `w + Δ` 之間可能出現小面積交疊；(b) 提交點三的接地門檻同樣以較短的頭評估，頭尾可能略低於接地面。`Δ` 上界為 `configured_front`（典型 0.4–0.5 mm）且僅在薄件上非零。**明確接受**——消除它就得把量測射線放回 optimizer 目標函式，而那正是 D5 為破除循環相依所否決的做法。**已列入 Phase 5 必查項目。**
+  - **F2（註解與程式碼矛盾，已修）**：提交點二原註解寫「w 是頭露在模型外的長度，咬得淺代表脖子長」——**符號反了**。夾限使 penetration 變小，`dist` 隨之變小，`w` 也**變小**。真正的理由是代數抵消：`fullwidth() = 2*r_pin + w + 2*r_back - penetration = |hitp - endp| + r_back`，penetration 恰好消掉，故 `junction_point()` 永遠落在 `endp`、與咬合深度無關。若 `dist` 用設定值而 `add_anchor()` 收夾限值，抵消就會破裂、錨點脫離橋接。已改寫註解。
+  - **F3（fail-safe 方向不一致，已修）**：`clamped_front_depth()` 未命中時無條件回傳 `0.`，但 `clamp_front_depth()` 刻意讓**非正**的設定深度原值通過。兩者不一致：設定深度為負時，fail-safe 反而讓它咬得**更深**。改為 `std::min(configured_front_mm, 0.)`，正常（設定深度為正）路徑的結果完全不變。
+  - **`DepthProbeMissCounter` 安全性：通過。** `fetch_add` / `load` 皆為 relaxed，但兩個驅動器都在所有平行區段 join 之後才讀取（Default 樹於 `execute()` 的程式迴圈結束後；Branching 樹於 `create_branching_tree()` 結尾），join 提供 happens-before，relaxed 足夠。含 `std::atomic` 成員故不可複製——三個使用點（就地成員／參考成員／區域變數）皆未要求複製。
+  - **不會重複夾限：通過。** 提交點一與三的夾限都只在 accept 分支內，而 fallback 的遞迴呼叫位於 else 分支，故每個 head 至多夾限一次。錨點是與 head 不同的物件，兩者各自夾限，無交互作用。
+  - **測試容差 `MEASURED_TOL`：分類正確。** 五處套用點確實都是經過單精度的值（兩處 float 回傳、三處射線量測）；其餘純算術斷言維持 `CLAMP_TOL = 1e-12`。
+  - **`OwnedMesh`：正確。** 成員宣告順序保證 `its` 先於 `mesh` 初始化，複製建構與複製指派均已刪除，杜絕懸空。
+  - **F4（觀察，未動）**：fail-safe 把 penetration 壓到 0 後，提交點二既有的 `w < 0` → 逐點 `BOOST_LOG_TRIVIAL(error)` 變得略為可達。屬既有程式碼，本變更未觸及，僅記錄。
 - [ ] 4.1 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaBase.cpp` 的 `on_get_requirements()`（約 88 行）加回 `CommonGizmosDataID::HollowedMesh`，並更新 `GLGizmoSlaSupports.cpp:1798` 與 `GLGizmoHollow.cpp:14` 的過時註解
 - [ ] 4.2 【建置檢查點】請使用者建置 `libslic3r_gui`，並以中斷點或暫時日誌確認 `HollowedMesh::on_update()` 已會執行
 - [ ] 4.3 於 `src/slic3r/GUI/Gizmos/GLGizmoSlaSupports.hpp` 新增：厚度量測用的 `MeshRaycaster` 成員、上次使用的 `const TriangleMesh*` 指標、以及與繪製點集等長的厚度快取（`std::vector<float>`，哨兵 `NaN`）

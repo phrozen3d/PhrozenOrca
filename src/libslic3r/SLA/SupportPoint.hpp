@@ -1,6 +1,10 @@
 #ifndef SLA_SUPPORTPOINT_HPP
 #define SLA_SUPPORTPOINT_HPP
 
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
+
 #include <libslic3r/Point.hpp>
 
 namespace Slic3r { namespace sla {
@@ -142,6 +146,120 @@ inline float point_head_penetration_mesh_mm(const SupportPoint &sp, double prese
         return front;
     return front + float(pin_r_mm) - float(contact_r_mm);
 }
+
+// --- fix-sla-thin-model-support-points (#5): dynamic anti-penetration clamp ---
+//
+// Two pure functions, shared verbatim by the slicer (SupportTreeBuildsteps,
+// BranchingTreeSLA) and by the GUI preview, so the two ends can never disagree
+// about how deep a head is allowed to go. No mesh, no config, no state: the
+// caller measures the local thickness and passes it in.
+//
+// NOTE: these do NOT touch point_head_penetration_mesh_mm() above. Its mapping
+// from front depth to mesh-space Head::penetration_mm is unchanged; the clamp
+// runs on the front depth *before* that conversion.
+
+// Distance between a head's front depth and the deepest point of the pinhead
+// geometry that will actually be emitted. This is the spec's `offset` term.
+//
+// Derived from pinhead() (SupportTreeMesher.cpp) and head_mesh_body()
+// (SupportTreeMesher.hpp): after head_mesh_body()'s z-shift the pin ball's top
+// sits exactly at Head::penetration_mm, and the contact sphere's top sits at
+// penetration_mm - r_pin + r_contact. Substituting the mesh-space mapping
+// penetration_mm = front + r_pin - r_contact puts the contact sphere top
+// exactly on `front`.
+//
+//   no contact sphere (r_contact <= EPSILON)
+//       penetration_mm == front, deepest geometry is the pin ball top == front
+//   contact sphere live (r_contact > r_pin)
+//       deepest geometry is the contact sphere top == front
+//   degenerate band (0 < r_contact <= r_pin)
+//       head_mesh_body() appends a contact sphere only when r_contact > r_pin,
+//       so no sphere is emitted -- yet point_head_penetration_mesh_mm()
+//       converts regardless. The pin ball top, and therefore the deepest point,
+//       lands at front + (r_pin - r_contact).
+//
+// That degenerate band is a PRE-EXISTING inconsistency between
+// point_head_penetration_mesh_mm() and head_mesh_body(). This change
+// deliberately does not fix it -- this offset term exists so the clamp stays
+// correct in spite of it.
+inline double head_deepest_point_offset(double pin_r_mm, double contact_r_mm)
+{
+    return (contact_r_mm > EPSILON && contact_r_mm <= pin_r_mm)
+               ? pin_r_mm - contact_r_mm
+               : 0.;
+}
+
+// Clamp a head's front depth so the emitted geometry stays inside the material.
+//
+//   front_clamped = clamp(min(configured_front, local_thickness/2 - offset),
+//                         0, configured_front)
+//
+// Half the local thickness is the target: the head stops at the mid-plane
+// rather than at the far surface, which is what keeps the tip clear of the
+// load-bearing face's other side under the "no bumps on the top surface"
+// policy. local_thickness is measured along the head axis by the caller (see
+// measure_available_depth() in SupportTreeUtils.hpp).
+//
+// A non-positive configured depth is returned untouched: it cannot penetrate
+// anything, so there is nothing to clamp, and passing it through also keeps
+// std::clamp's lo <= hi precondition intact (clamping into [0, negative] is
+// undefined behaviour).
+//
+// A negative or zero local_thickness -- a mesh so thin the offset alone
+// overruns it, as in the degenerate band -- naturally falls out as 0, i.e. the
+// head just touches the surface without entering. That is the intended
+// fail-safe direction.
+inline double clamp_front_depth(double configured_front_mm,
+                                double local_thickness_mm,
+                                double pin_r_mm,
+                                double contact_r_mm)
+{
+    if (configured_front_mm <= 0.)
+        return configured_front_mm;
+
+    const double usable = local_thickness_mm * 0.5 -
+                          head_deepest_point_offset(pin_r_mm, contact_r_mm);
+
+    return std::clamp(std::min(configured_front_mm, usable), 0., configured_front_mm);
+}
+
+// Front depth <-> Head::penetration_mm, the two directions of the mapping that
+// point_head_penetration_mesh_mm() applies. Split out because the clamp runs on
+// the front depth while the commit points hold a mesh-space penetration; both
+// directions are needed and they must stay exact inverses of each other.
+inline double front_depth_to_mesh_penetration(double front_mm,
+                                              double pin_r_mm,
+                                              double contact_r_mm)
+{
+    return contact_r_mm <= EPSILON ? front_mm
+                                   : front_mm + pin_r_mm - contact_r_mm;
+}
+
+inline double mesh_penetration_to_front_depth(double penetration_mm,
+                                              double pin_r_mm,
+                                              double contact_r_mm)
+{
+    return contact_r_mm <= EPSILON ? penetration_mm
+                                   : penetration_mm - pin_r_mm + contact_r_mm;
+}
+
+// Counts how many support heads could not have their available depth measured
+// during one support tree generation.
+//
+// On a closed manifold mesh the probe ray always hits, so a miss means the mesh
+// is broken. Those heads fall back to zero penetration (the "no bumps on the
+// top surface" policy) and the driver reports the total in a single summary log
+// line -- never one line per point, which on a badly broken mesh would be tens
+// of thousands of lines.
+//
+// Atomic because the Branching tree runs pinhead placement under ex_tbb.
+struct DepthProbeMissCounter
+{
+    std::atomic<size_t> misses{0};
+
+    void   note()        { misses.fetch_add(1, std::memory_order_relaxed); }
+    size_t count() const { return misses.load(std::memory_order_relaxed); }
+};
 
 inline float point_head_width_mm(const SupportPoint &sp, double preset_mm)
 {

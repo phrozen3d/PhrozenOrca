@@ -75,6 +75,123 @@ inline Vec3d get_normal(const IndexedMesh &mesh, const Vec3d &pos)
     return mesh.normal_by_face_id(face_id);
 }
 
+// --- fix-sla-thin-model-support-points (#5): available depth along head axis ---
+
+// How far the probe ray's origin is pushed into the material before casting.
+// 1e-3 mm is far below the thinnest printable wall (~0.05 mm) yet far above
+// double's representation error at these magnitudes.
+static constexpr double HEAD_DEPTH_PROBE_EPS_MM = 1e-3;
+
+// Material depth available to a support head, measured along the head's own
+// axis starting at its contact point on the model surface.
+//
+// Direction: head_mesh_local() (SupportTreeMesher.hpp) builds its quaternion as
+// FromTwoVectors({0,0,-1}, h.dir), so local -z maps to h.dir and therefore
+// local +z -- the direction the pin drives INTO the model -- maps to -h.dir.
+// Measuring along the head axis rather than along the surface normal is
+// deliberate: penetration is defined on that axis, so axial distance is the
+// depth that actually matters. A tilted head crossing a thin plate obliquely
+// legitimately has more axial room than the plate is thick, and the clamp
+// loosens accordingly instead of being needlessly conservative.
+//
+// The origin offset MUST be +eps along dir_in. Never -eps, and never zero.
+// query_ray_hit() applies no facing filter -- it returns the first triangle on
+// the path whichever way that triangle points. An origin nudged back OUTSIDE
+// the model would make that first triangle the entry face itself, so the
+// measured "thickness" would come back as 2*eps on every model in existence and
+// the clamp would silently collapse everywhere instead of failing loudly. With
+// the origin inside the material, the first hit is the exit face. This is the
+// same idiom beam_mesh_hit() already uses: query_ray_hit(ps + sd * n, n).
+//
+// Returns nullopt when the ray misses. On a closed manifold mesh a ray cast
+// outward from just inside the surface always hits something, so a miss means
+// the mesh is broken, non-manifold or self-intersecting. Deciding what to do
+// about that is the caller's job (the fail-safe drives the clamp to 0 and
+// counts the occurrence); this function stays policy-free.
+inline std::optional<double> measure_available_depth(const IndexedMesh &mesh,
+                                                     const Vec3d       &contact_point,
+                                                     const Vec3d       &head_dir)
+{
+    // An empty mesh has no geometry to walk. Reachable in production -- a
+    // fully hollowed object, or a mesh that failed to load -- and the fail-safe
+    // is the right answer for it.
+    //
+    // This does NOT protect against an IndexedMesh whose source triangle set has
+    // already been destroyed: IndexedMesh holds a NON-OWNING pointer to it
+    // (`const indexed_triangle_set *m_tm`), so that situation is undefined
+    // behaviour long before any check here could run. Callers must keep the
+    // source indexed_triangle_set alive for at least as long as the IndexedMesh.
+    if (mesh.indices().empty())
+        return std::nullopt;
+
+    // query_ray_hit() only asserts a unit direction, and that assert is compiled
+    // out in Release -- a non-unit direction would then silently yield a ray
+    // parameter instead of a distance. Report it as a measurement failure
+    // instead, so the caller's fail-safe handles it. The degenerate anchor
+    // direction in connect_to_model_body() reaches here exactly this way.
+    if (!is_approx(head_dir.norm(), 1.))
+        return std::nullopt;
+
+    const Vec3d dir_in = -head_dir;
+    const Hit   hit    = mesh.query_ray_hit(
+        contact_point + HEAD_DEPTH_PROBE_EPS_MM * dir_in, dir_in);
+
+    if (!hit.is_hit())
+        return std::nullopt;
+
+    // The eps the origin was advanced by is part of the material depth.
+    return hit.distance() + HEAD_DEPTH_PROBE_EPS_MM;
+}
+
+// Measure, clamp, and apply the fail-safe in one place. Every one of the four
+// clamp commit points goes through here so the miss policy cannot drift apart
+// between them.
+//
+// Fail-safe: a miss drives the front depth to 0 rather than leaving the
+// configured value in place. Leaving it would keep penetrating on exactly the
+// broken meshes that cannot be measured, which contradicts the "no bumps on the
+// top surface" policy this change commits to.
+//
+// std::min with the configured depth keeps the fail-safe from ever going the
+// wrong way: clamp_front_depth() deliberately passes a non-positive configured
+// depth through untouched (it cannot penetrate anything), and returning a flat
+// 0 on a miss would make such a head bite DEEPER than it was asked to. For the
+// normal case of a positive configured depth this is exactly 0.
+inline double clamped_front_depth(const IndexedMesh     &mesh,
+                                  const Vec3d           &contact_point,
+                                  const Vec3d           &head_dir,
+                                  double                 configured_front_mm,
+                                  double                 pin_r_mm,
+                                  double                 contact_r_mm,
+                                  DepthProbeMissCounter &misses)
+{
+    const std::optional<double> depth =
+        measure_available_depth(mesh, contact_point, head_dir);
+
+    if (!depth) {
+        misses.note();
+        return std::min(configured_front_mm, 0.);
+    }
+
+    return clamp_front_depth(configured_front_mm, *depth, pin_r_mm, contact_r_mm);
+}
+
+// Exactly one summary line per support tree generation, and only when something
+// actually failed. Silence is the normal case and must stay silent.
+inline void log_depth_probe_misses(const DepthProbeMissCounter &misses,
+                                   const char                  *tree_kind)
+{
+    const size_t n = misses.count();
+    if (n == 0)
+        return;
+
+    BOOST_LOG_TRIVIAL(warning)
+        << "SLA supports (" << tree_kind << " tree): could not measure the "
+        << "available material depth for " << n << " support head(s). The mesh "
+        << "is most likely non-manifold or self-intersecting. Those heads were "
+        << "placed with zero penetration and may detach while printing.";
+}
+
 /* ************************************************************************** */
 /* Beam / Ball structs + beam_mesh_hit (ported from PrusaSlicer)              */
 /* ************************************************************************** */
@@ -262,7 +379,8 @@ std::vector<size_t> non_duplicate_suppt_indices(const PtIndex       &index,
 template<class Ex>
 bool optimize_pinhead_placement(Ex                     policy,
                                 const SupportableMesh &m,
-                                Head                  &head)
+                                Head                  &head,
+                                DepthProbeMissCounter &misses)
 {
     Vec3d n = get_normal(m.emesh, head.pos);
     assert(std::abs(n.norm() - 1.0) < EPSILON);
@@ -330,10 +448,40 @@ bool optimize_pinhead_placement(Ex                     policy,
         head.dir       = nn;
         head.width_mm  = lmin;
         head.r_back_mm = back_r;
+
+        // fix-sla-thin-model-support-points (#5): CLAMP COMMIT POINT 3 of 4
+        // (Branching / Organic tree, main pinhead).
+        //
+        // Placed here, after the angle search has settled, never inside the
+        // optimizer's objective above: the search must keep running on the
+        // configured depth so its behaviour is bit-for-bit unchanged, and
+        // putting a measurement ray in the objective would also create a
+        // circular dependency (the clamp needs nn, nn comes from the optimizer,
+        // and the optimizer gates on w, which depends on the penetration).
+        //
+        // head.dir is assigned immediately above, so measuring along it is
+        // measuring along the axis this head will actually be built on.
+        //
+        // fullwidth() and therefore junction_point() both read penetration_mm,
+        // so writing it back here keeps the head attached to whatever the
+        // branching stage later hangs off its junction. Nothing downstream has
+        // read the junction yet at this point.
+        {
+            const double front = mesh_penetration_to_front_depth(
+                head.penetration_mm, head.r_pin_mm, head.r_contact_mm);
+
+            const double front_clamped =
+                clamped_front_depth(m.emesh, head.pos, head.dir, front,
+                                    head.r_pin_mm, head.r_contact_mm, misses);
+
+            head.penetration_mm = front_depth_to_mesh_penetration(
+                front_clamped, head.r_pin_mm, head.r_contact_mm);
+        }
+
         ret = true;
     } else if (back_r > m.cfg.head_fallback_radius_mm) {
         head.r_back_mm = m.cfg.head_fallback_radius_mm;
-        ret = optimize_pinhead_placement(policy, m, head);
+        ret = optimize_pinhead_placement(policy, m, head, misses);
     }
 
     return ret;
@@ -342,7 +490,8 @@ bool optimize_pinhead_placement(Ex                     policy,
 template<class Ex>
 std::optional<Head> calculate_pinhead_placement(Ex                     policy,
                                                 const SupportableMesh &sm,
-                                                size_t                 suppt_idx)
+                                                size_t                 suppt_idx,
+                                                DepthProbeMissCounter &misses)
 {
     if (suppt_idx >= sm.pts.size())
         return {};
@@ -357,7 +506,7 @@ std::optional<Head> calculate_pinhead_placement(Ex                     policy,
         sp.pos.cast<double>()
     };
 
-    if (optimize_pinhead_placement(policy, sm, head)) {
+    if (optimize_pinhead_placement(policy, sm, head, misses)) {
         head.id = long(suppt_idx);
         return head;
     }

@@ -194,6 +194,17 @@ local_thickness = query_ray_hit(hp + eps * dir_in, dir_in).distance() + eps
 
 **MUST NOT 將量測射線放入 optimizer 的目標函式內。**
 
+**D5 的殘留代價（Phase 3 Code Review 發現，2026-08-26）**：「先搜尋、後夾限」有一項本文件先前未記載的後果。主頭的兩個提交點（一與三）都以 `w = fullwidth() = real_width() - penetration` 作為門檻，而該 `w` 是用**未夾限**的 penetration 算的。夾限只會**減少** penetration，因此**增加** `fullwidth()`——實際建出的頭比通過門檻時檢查的那個更長。兩個具體後果：
+
+1. `pinhead_mesh_intersect()` / `pinhead_mesh_hit()` 的碰撞淨空檢查涵蓋的是較短的頭。若真實淨空恰落在 `w` 與 `w + Δ` 之間（`Δ = configured_front - clamped_front`），夾限後的頭可能與模型發生小面積交疊。
+2. 提交點三的接地門檻 `hp.z() + w * nn.z() >= ground_level(m)` 同樣以較短的頭評估，夾限後頭的尾端可能略低於接地面。
+
+`Δ` 的上界即 `configured_front`（典型 0.4–0.5 mm），且只在薄件上才非零。**明確接受此代價**：要消除它就得把量測射線放回 optimizer 的目標函式，而那正是本決策為了破除循環相依（夾限依賴 `nn`、`nn` 由 optimizer 決定、optimizer 又以 `w` 為門檻）而否決的做法。
+
+**Phase 5 驗收必須實際查看**：支撐頭與模型是否出現非預期的小面積接觸，以及最低層支撐頭是否穿出接地面。
+
+**錨點的兩個提交點（二與四）不受此影響。** 提交點二的 `dist = |hitp - endp| + penetration` 與 `w = dist - 2*r_pin - r_back` 代回後得 `fullwidth() = |hitp - endp| + r_back`，penetration **恰好抵消**，故 `junction_point()` 永遠落在 `endp`，與咬合深度無關。提交點四則在 `toj` 讀取之後才夾限，橋接端點已固定。
+
 四個提交點分為兩類：
 
 ```

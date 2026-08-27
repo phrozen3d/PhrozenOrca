@@ -62,6 +62,10 @@ class BranchingTreeBuilder: public branchingtree::Builder {
 
     std::vector<size_t>  m_unroutable_pinheads;
 
+    // fix-sla-thin-model-support-points (#5): shared with create_branching_tree
+    // so main-head and anchor probe failures land in the same summary line.
+    DepthProbeMissCounter &m_depth_probe_misses;
+
     void build_subtree(size_t root)
     {
         traverse(m_cloud, root, [this](const branchingtree::Node &node) {
@@ -150,8 +154,10 @@ class BranchingTreeBuilder: public branchingtree::Builder {
 public:
     BranchingTreeBuilder(SupportTreeBuilder          &builder,
                      const SupportableMesh       &sm,
-                     const branchingtree::PointCloud &cloud)
+                     const branchingtree::PointCloud &cloud,
+                     DepthProbeMissCounter       &depth_probe_misses)
         : m_builder{builder}, m_sm{sm}, m_cloud{cloud}
+        , m_depth_probe_misses{depth_probe_misses}
     {}
 
     bool add_bridge(const branchingtree::Node &from,
@@ -300,6 +306,35 @@ bool BranchingTreeBuilder::add_mesh_bridge(const branchingtree::Node &from,
                                  Beam{{fromj.pos, fromj.r}, {toj.pos, toj.r}}, 0.);
 
         if (hit.distance() > distance(fromj.pos, toj.pos)) {
+            // fix-sla-thin-model-support-points (#5): CLAMP COMMIT POINT 4 of 4
+            // (Branching / Organic tree, anchor).
+            //
+            // TIMING IS A HARD REQUIREMENT: this MUST stay below the `toj` line
+            // above. junction_point() is fullwidth() away from pos, fullwidth()
+            // is real_width() - penetration_mm, so clamping the penetration
+            // MOVES the junction. toj -- the bridge endpoint, and the input to
+            // both the beam feasibility check and add_diffbridge() -- is read
+            // from junction_point() up there. Clamping before that line would
+            // silently relocate the bridge endpoint and change which bridges
+            // are judged feasible. Do NOT move this block upward.
+            //
+            // Here, with toj and the feasibility decision already fixed, the
+            // clamp only changes how deep this anchor bites. Topology is
+            // untouched.
+            //
+            // Anchors carry r_contact = 0 (Head's default), so front depth and
+            // mesh-space penetration coincide; the conversion is spelled out
+            // anyway so this cannot silently go wrong if that changes.
+            const double anchor_front = clamped_front_depth(
+                m_sm.emesh, anchor->pos, anchor->dir,
+                mesh_penetration_to_front_depth(anchor->penetration_mm,
+                                                anchor->r_pin_mm,
+                                                anchor->r_contact_mm),
+                anchor->r_pin_mm, anchor->r_contact_mm, m_depth_probe_misses);
+
+            anchor->penetration_mm = front_depth_to_mesh_penetration(
+                anchor_front, anchor->r_pin_mm, anchor->r_contact_mm);
+
             m_builder.add_diffbridge(fromj.pos, toj.pos, fromj.r, toj.r);
             m_builder.add_anchor(*anchor);
 
@@ -385,11 +420,18 @@ void create_branching_tree(SupportTreeBuilder &builder, const SupportableMesh &s
     std::vector<std::optional<Head>> heads(nondup_idx.size());
     auto leafs = reserve_vector<branchingtree::Node>(nondup_idx.size());
 
+    // fix-sla-thin-model-support-points (#5): one counter for this whole
+    // generation, shared by the main-head clamp below and the anchor clamp in
+    // BranchingTreeBuilder, so both report through a single summary line.
+    // Atomic: the loop below runs under ex_tbb.
+    DepthProbeMissCounter depth_probe_misses;
+
     execution::for_each(
         ex_tbb, size_t(0), nondup_idx.size(),
-        [&sm, &heads, &nondup_idx, &builder](size_t i) {
+        [&sm, &heads, &nondup_idx, &builder, &depth_probe_misses](size_t i) {
             if (!builder.ctl().stopcondition())
-                heads[i] = calculate_pinhead_placement(ex_seq, sm, nondup_idx[i]);
+                heads[i] = calculate_pinhead_placement(ex_seq, sm, nondup_idx[i],
+                                                       depth_probe_misses);
         },
         execution::max_concurrency(ex_tbb)
     );
@@ -428,7 +470,7 @@ void create_branching_tree(SupportTreeBuilder &builder, const SupportableMesh &s
     branchingtree::PointCloud nodes{std::move(meshpts), std::move(bedpts),
                                     std::move(leafs), props};
 
-    BranchingTreeBuilder vbuilder{builder, sm, nodes};
+    BranchingTreeBuilder vbuilder{builder, sm, nodes, depth_probe_misses};
 
     execution::for_each(ex_tbb,
                         size_t(0),
@@ -445,6 +487,9 @@ void create_branching_tree(SupportTreeBuilder &builder, const SupportableMesh &s
     for (size_t id : vbuilder.unroutable_pinheads())
         builder.head(id).invalidate();
 
+    // fix-sla-thin-model-support-points (#5): exactly one summary line for the
+    // whole generation, and only if the depth probe actually failed somewhere.
+    log_depth_probe_misses(depth_probe_misses, "branching");
 }
 
 }} // namespace Slic3r::sla
