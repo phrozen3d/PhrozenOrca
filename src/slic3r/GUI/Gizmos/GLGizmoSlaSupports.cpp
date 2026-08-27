@@ -714,6 +714,23 @@ GLGizmoSlaSupports::HeadGeomKey GLGizmoSlaSupports::head_geom_key(const sla::Hea
 // Added: raycaster active/clipped state management.
 // --- fix-sla-thin-model-support-points: preview depth measurement ----------
 
+// --- fix-sla-thin-model-support-points (GUI): preview-side depth measurement ---
+//
+// The preview draws its own pinheads and therefore has to clamp them itself;
+// it cannot read the slicer's result. This fork does not define
+// SUPPORT_BACKGROUND_PROCESSING, so the gizmo's main workflow truncates the
+// pipeline at slaposSupportPoints and slaposSupportTree -- where the slicer
+// clamps -- never runs. See design.md D7.
+//
+// UPSTREAM: PrusaSlicer 2.9.6's render_points() bakes the configured
+// penetration straight into the mesh with no measurement, matching its
+// unclamped slicer. The three pieces below (this cache, the raycaster it
+// guards, and point_available_depth()) are fork-local additions with no
+// upstream counterpart. The re-enabling of HollowedMesh in
+// GLGizmoSlaBase::on_get_requirements() belongs to the same unit.
+//
+// The measurement is deliberately NOT written back to SupportPoint: that field
+// is user setting, undo/redo state and 3MF payload all at once.
 void GLGizmoSlaSupports::invalidate_thickness_at(size_t idx)
 {
     if (idx < m_thickness_cache.size())

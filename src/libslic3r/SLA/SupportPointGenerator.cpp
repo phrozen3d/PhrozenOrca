@@ -1304,6 +1304,12 @@ SupportPoints move_on_mesh_surface(
             // fix-sla-thin-model-support-points (#1): prefer the downward-facing
             // face over the merely nearest one.
             //
+            // UPSTREAM: this defect is present in PrusaSlicer 2.9.6 as well --
+            // the nearest-hit rule below (kept verbatim as tiers 2 and 3) is
+            // upstream's, not a fork divergence. This fix is fork-local. On a
+            // future rebase, check whether upstream has since introduced a
+            // directional rule of its own before re-applying this hunk.
+            //
             // A support point means "hold the model up from below", so the face
             // it must land on is the one whose material sits above it -- a
             // downward-facing face -- regardless of distance. Picking purely by

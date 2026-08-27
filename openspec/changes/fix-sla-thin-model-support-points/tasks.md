@@ -502,8 +502,73 @@ GUI 實測通過。
   - 另兩種 Contact Sphere 組態於同一輸入下的結果（同樣為規格行為）：接觸球有效（`r_contact = 0.4 > r_pin`）→ `offset = 0`、front = 0.3；退化帶（`r_contact = 0.1 <= r_pin`）→ `offset = 0.1`、front = 0.2。
 - [ ] 5.5 端到端手動驗收：於 resin 建置（`build-resin-dbginfo`）以 `dish.stl` 等極薄模型完整走一遍「自動產生支撐點 → 套用 → 切片 → PRZ 輸出」，確認不再出現 `There are unprintable objects`
 - [ ] 5.6 【建置檢查點】請使用者重跑「步驟 1」的 cmake 設定後做一次乾淨全建（`cmake --build ... --target ALL_BUILD -- -m`），確認無新增編譯警告
-- [ ] 5.7 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），確認與 0.5 基線相比無新增失敗
-- [ ] 5.8 規格核對：逐條走過四份 spec 的所有 Requirement 與 Scenario，標記「已由自動測試涵蓋」或「已由手動驗收涵蓋」，未涵蓋者需補測試或補記為已知限制
-- [ ] 5.9 更新 `design.md` 的「驗證假設」一節：將 A1 / A2 / A3 由「待驗證」改為實測結果，並附上實際數據
-- [ ] 5.10 於四個修改點的程式碼加註來源與意圖註解（標明對應本變更與 upstream PrusaSlicer 2.9.6 的關係），供未來 rebase 時逐項核對
-- [ ] 5.11 Review：確認 Phase 1 至 Phase 4 的 commit 彼此可獨立 revert，回退路徑與 `design.md` 的 Migration Plan 一致
+- [x] 5.7 【建置檢查點】請使用者執行 `ctest -C RelWithDebInfo --output-on-failure`（全專案），確認與 0.5 基線相比無新增失敗
+  - **使用者實測（2026-08-27）**：全專案 ctest 完成。`libslic3r` 套件維持原有 5 項基線失敗（`[3mf]` / `[Config]` ×2 / `[Geometry]` / `[PlaceholderParser]`，索引因新目標加入而位移），**SLA 零新增迴歸**。
+  - 新增失敗全部落在 `slic3rutils`（HTTP）與 `fff_print`（FDM）。詳細判定與其限制記於 Task 4.20，此處不重複；**該判定是依變更範圍所作的推論，不是與基線比對得出的結論**（這兩個套件沒有 Phase 0 基線）。
+
+- [x] 5.8 規格核對：逐條走過四份 spec 的所有 Requirement 與 Scenario，標記「已由自動測試涵蓋」或「已由手動驗收涵蓋」，未涵蓋者需補測試或補記為已知限制
+
+#### 5.8 四份 spec 逐條核對（2026-08-27）
+
+`sla-support-preview-penetration`（21 個 Scenario）與 `sla-support-points-preview-performance`（11 個 Scenario）已於 **Task 4.21** 逐條核對，結論不在此重複。以下補齊另兩份。
+
+**`sla-support-point-placement`（4 個 Requirement / 12 個 Scenario）**
+
+- 取樣層落在薄板中面之上 / 之下 / 兩個方向皆為朝下面時取較近者 / 兩個方向皆非朝下面時回退既有行為 — **自動測試涵蓋**，四條各有專屬 TEST_CASE，測試檔中以 `// Spec:` 註解逐條標明對應關係（`sla_thin_model_tests.cpp:260 / 284 / 305 / 346`）。
+- elevation 全相位掃描結果一致 / 多種層高下皆產出支撐點 — **自動測試涵蓋**（`projection result is independent of the grid phase`，46 個有效相位）。
+- 模型僅橫跨單一切片層 / 層級數量不足時使用支撐頭直徑 — **自動測試涵蓋**（`single slice level converges with the multi-level case`）。
+- 層級數量充足時的計算 / 射線分支必須在薄板全相位下可達 — **自動測試涵蓋**（`ray branch stays reachable across every grid phase`，同時採集 A1 / A2 數據）。
+- 常態厚度模型逐點一致 — **未以實測涵蓋**。Task 5.2 以構造性論證確認（tier 2 / tier 3 逐字沿用修改前的運算式；常態幾何下 tier 1 選中的正是舊規則會選的那一個）。記為**已知限制**：字面意義的「3 顆模型變更前後逐點比對」未執行，移交 Task 5.5 手動驗收。
+- 回退分支被頻繁觸發時視為設計失效 — **自動測試涵蓋**（A1 實測：46 個相位全數未進入 `squared_distance` 回退分支）。
+
+**`sla-support-head-penetration`（7 個 Requirement / 17 個 Scenario）**
+
+- 刺入深度大於可用深度 / 未啟用接觸球時換算為恆等 — **自動測試涵蓋**（`clamp with no contact sphere`）。
+- 刺入深度小於可用深度一半 / 厚壁模型逐點一致 — **自動測試涵蓋**（`clamp is inert on a thick model`、`thick model head mesh is unchanged vertex for vertex`，後者比對 `vertices` 與 `indices` 全項）。
+- 啟用接觸球時的夾限 / 退化帶的夾限 — **自動測試涵蓋**（`clamp with a live contact sphere`、`clamp inside the degenerate contact-sphere band`）。
+- 傾斜支撐頭的軸向量測 / 射線自側緣出射 — **自動測試涵蓋**（`available depth is measured along the head axis` 的三個 SECTION：`straight up through a 0.2 mm plate`、`tilted head sees more axial room than the plate is thick`、`a ray that leaves the model reports no hit`）。
+- 方向向量必須正規化 — **靜態核對涵蓋**：`measure_available_depth()` 以 `if (!is_approx(head_dir.norm(), 1.)) return std::nullopt;` 於**執行期**檢查，非 assert，故 Release 組建同樣生效。
+- 錨點方向向量正規化 — **Phase 1 涵蓋**（#6 `taildir.normalize()`），並已驗證輸出網格逐點不變。
+- 量測所用網格包含前置加工結果 — **靜態核對涵蓋**：切片端量測用的 `m_mesh` 即 `SupportTreeBuildsteps` 持有的、已完成 `slaposDrillHoles` 的網格，未另取原始網格。
+- 破損網格觸發 fail-safe — **自動測試涵蓋**（`fail-safe drives the depth to zero and is counted`）。
+- 兩種樹皆套用夾限 / Branching 樹錨點夾限不改變橋接端點 — **自動測試涵蓋**（`default and branching heads agree and neither protrudes`、`branching anchor clamp leaves the bridge endpoint intact`）。
+- 支撐幾何與模型的布林交集驗證 — **部分涵蓋**。`clamped head does not break through a 0.2 mm plate` 與 `no protrusion in either contact-sphere configuration` 以**頂點座標**驗證未穿透，**未執行真正的布林交集運算**。已知限制：頂點檢查對凸的支撐頭幾何是充分的，但不等同 spec 字面要求的布林驗證。
+- Fail-safe 必須可診斷 / 無點觸發時不產生雜訊 — **靜態核對涵蓋，未以日誌斷言實測**。`log_depth_probe_misses()` 在計數為 0 時提前返回，且每個驅動器（default / branching）只有一個呼叫點。**刻意未安裝 `boost::log` sink 來斷言「恰好一行警告」**——那是共用測試二進位中的全域狀態，而測試執行順序是隨機的。
+- 搜尋行為不受夾限影響 / 每個支撐頭僅量測一次 — **靜態核對涵蓋**：夾限位於 optimizer 接受分支之後（`SupportTreeUtils.hpp:452`，提交點 3），量測未進入目標函式，故每個頭只量測一次。
+- 主頭夾限後與 pillar 維持相連 / Default 樹錨點寬度與夾限後的深度一致 / 錨點網格與橋接端重疊而非脫開 — **代數驗證涵蓋**：`fullwidth() = real_width() - penetration`，而 `dist` 同時加上 `penetration`，兩者恰好抵消，使 `junction_point()` 被釘在 `endp`，與夾限深度無關。推導已寫入 `SupportTreeBuildsteps.cpp` 提交點 2 的註解。
+- 中間帶可用深度被夾限為預期行為 — **已確認**（Task 5.4：可用深度 0.6、configured 0.4 → front 0.3，標示為符合規格而非回歸）。
+
+**四份 spec 總計 62 個 Scenario 的核對結論**：未涵蓋或部分涵蓋者共 6 項，全數記為**已知限制**，無任何一項屬實作缺陷：
+1. 中空模型量得實際壁厚的**數值**（4.21）
+2. 排水孔旁支撐點的量測（4.21）
+3. GUI 與切片端可用深度**數值相等**（4.21 / A3）
+4. 快取項數超過門檻的溢位行為（4.21）
+5. 常態模型變更前後**逐點比對**的實測（5.2，移交 5.5）
+6. 支撐幾何與模型的**布林交集**驗證（本項，現以頂點座標替代）
+
+共同特徵是都需要專門測具（帶已知數值的模型、計數器、或布林運算管線），不影響已驗證行為的正確性。
+
+- [x] 5.9 更新 `design.md` 的「驗證假設」一節：將 A1 / A2 / A3 由「待驗證」改為實測結果，並附上實際數據
+  - `design.md`「驗證假設」章節前言已由「尚未以實測確認」改為「三項皆已完成驗證」，並註明 A1 / A2 於 2026-08-26 由自動測試驗證、A3 於 2026-08-27 由 GUI 手動驗收驗證。
+  - A1 / A2 的實測結果早於 Phase 2 / Phase 3 即已寫入，本次未動。
+  - **A3 新增實測結果**：三組變換（X 軸鏡像、非等比縮放 (1.0, 1.0, 3.0)、兩者併用）皆目視確認預覽支撐頭未穿透，A3 成立，備案無須啟動。同時明文記下該驗證的限制——「GUI 與切片端量得的厚度數值相等」未以逐點數值比對，目視無穿透是必要條件而非充分條件。
+
+- [x] 5.10 於四個修改點的程式碼加註來源與意圖註解（標明對應本變更與 upstream PrusaSlicer 2.9.6 的關係），供未來 rebase 時逐項核對
+  - 四個修改點皆已帶有 `fix-sla-thin-model-support-points` 標記與意圖說明；本次補上的是**與 upstream PrusaSlicer 2.9.6 的關係**，供未來 rebase 逐項核對：
+  - **#6 taildir**（`SupportTreeBuildsteps.cpp:1069`）：上游**已正規化**（"Slicing SLA supports analytically"），本 fork 自較舊基準分支出來、未取得該修正。此註解在 Phase 1 即已寫入，本次未動。
+  - **#1 方向性吸附**（`SupportPointGenerator.cpp`）：**新增**——缺陷同樣存在於上游 2.9.6，被保留為 tier 2 / tier 3 的「取最近命中」規則正是上游的規則、不是 fork 的分歧。本修正為 fork 專屬；rebase 時須先確認上游是否已自行引入方向性規則。
+  - **#5 切片端夾限**（`SupportPoint.hpp`）：**新增**——上游 2.9.6 **完全沒有任何夾限**，`support_head_penetration` 依設定照單全收，正是本變更要處理的缺陷。此區塊、四個提交點與 `SupportTreeUtils.hpp` 的量測輔助函式**整組一起搬移**；若上游已長出自己的夾限，優先採用上游版本並移除本實作。
+  - **GUI 預覽**（`GLGizmoSlaSupports.cpp`）：**新增**——上游的 `render_points()` 直接把設定深度烘進網格、不作任何量測，與其未夾限的切片端一致。厚度快取、其守護的 raycaster、`point_available_depth()`，以及 `GLGizmoSlaBase::on_get_requirements()` 中重新啟用的 `HollowedMesh` 屬同一組。並註明本 fork 未定義 `SUPPORT_BACKGROUND_PROCESSING`（design.md D7），這是預覽端必須自行量測、無法讀取切片端結果的根因。
+
+- [x] 5.11 Review：確認 Phase 1 至 Phase 4 的 commit 彼此可獨立 revert，回退路徑與 `design.md` 的 Migration Plan 一致
+  - **以 `git merge-tree` 對每個 commit 做非破壞性的 revert 模擬**（base = 該 commit，ours = HEAD，theirs = 該 commit 的父節點），未實際改動工作區。
+  - 五個 commit（Phase 4 為**兩個**：`7fc68839e` + `1cfaf103b`）：`258c6f8b7`（#6）、`acda10a95`（#1）、`b3105e15f`（#5）、`7fc68839e`（GUI）、`1cfaf103b`（GUI 快取重構）。
+  - **結果與 `design.md` 的 Migration Plan 一致**：
+    - `acda10a95`（#1）：**原始碼零衝突**，可單獨 revert。
+    - `b3105e15f`（#5）、`7fc68839e`（GUI）：衝突**僅在 `tasks.md`**（文件），原始碼零衝突。
+    - `1cfaf103b`：位於分支頂端，零衝突。
+    - `258c6f8b7`（#6）：**於 `SupportTreeBuildsteps.cpp` 產生真實衝突**（`connect_to_model_body()` 的 `taildir` / `dist` 區塊，被 #5 的提交點 2 覆寫）。
+  - **該衝突是預期的，不是缺陷。** `design.md` 的 Migration Plan 明文寫「除 #5 依賴 #6、GUI 依賴 #5 外彼此可分離」。#6 是 #5 的前置條件（射線需單位向量），單獨回退 #6 而保留 #5 本就不是有效的回退路徑。
+  - **有效的回退路徑**（依相依序，由後往前）：GUI → `git revert 1cfaf103b 7fc68839e`；#5 → 再 revert `b3105e15f`；#6 → 再 revert `258c6f8b7`；#1 → 任何時候皆可單獨 revert。
+  - **與 Migration Plan 的一處落差（已記錄）**：原文寫「四項修改採獨立提交」，實際為**五個** commit——Phase 4 因 4.10–4.13 的快取重構在建置驗證之後才實作而拆成兩筆。回退 GUI 時必須**兩筆一起** revert，順序為先 `1cfaf103b` 後 `7fc68839e`。
+

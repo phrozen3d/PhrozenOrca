@@ -149,6 +149,15 @@ inline float point_head_penetration_mesh_mm(const SupportPoint &sp, double prese
 
 // --- fix-sla-thin-model-support-points (#5): dynamic anti-penetration clamp ---
 //
+// UPSTREAM: PrusaSlicer 2.9.6 has no clamp of any kind -- support_head_penetration
+// is applied as configured regardless of how thin the wall under the point is,
+// which is precisely the defect this addresses. Everything below is fork-local
+// and has no upstream counterpart to merge with. On a future rebase this whole
+// block, its four commit points (SupportTreeBuildsteps.cpp x2,
+// SupportTreeUtils.hpp, BranchingTreeSLA.cpp) and the measurement helpers in
+// SupportTreeUtils.hpp move across as a unit; check first whether upstream has
+// grown a clamp of its own, in which case prefer theirs and drop this.
+//
 // Two pure functions, shared verbatim by the slicer (SupportTreeBuildsteps,
 // BranchingTreeSLA) and by the GUI preview, so the two ends can never disagree
 // about how deep a head is allowed to go. No mesh, no config, no state: the

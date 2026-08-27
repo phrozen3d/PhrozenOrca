@@ -40,3 +40,6 @@ resources/profiles/user/default
 _temp/
 deps_src/build/
 .gemini/*
+
+# ctest working directory (Testing/Temporary, TAG)
+Testing/
