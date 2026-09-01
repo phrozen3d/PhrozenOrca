@@ -2986,12 +2986,14 @@ void MainFrame::init_menubar_as_editor()
             },
             "menu_remove", nullptr, [this](){return can_clone(); }, this);
         editMenu->AppendSeparator();
-        append_menu_item(editMenu, wxID_ANY, _L("Duplicate Current Plate"),
+        m_duplicate_plate_menu_item_pos = editMenu->GetMenuItemCount();
+        m_duplicate_plate_menu_item = append_menu_item(editMenu, wxID_ANY, _L("Duplicate Current Plate"),
             _L("Duplicate the current plate"),[this](wxCommandEvent&) {
                 m_plater->duplicate_plate();
             },
             "menu_remove", nullptr, [this](){return true;}, this);
-        editMenu->AppendSeparator();
+        m_duplicate_plate_menu_item_attached = true;
+        m_duplicate_plate_menu_item_separator = editMenu->AppendSeparator();
 #else
         // BBS undo
         append_menu_item(editMenu, wxID_ANY, _L("Undo") + sep + ctrl_t + "Z",
@@ -3089,12 +3091,14 @@ void MainFrame::init_menubar_as_editor()
             },
             "", nullptr, [this](){return can_clone(); }, this);
         editMenu->AppendSeparator();
-        append_menu_item(editMenu, wxID_ANY, _L("Duplicate Current Plate"),
+        m_duplicate_plate_menu_item_pos = editMenu->GetMenuItemCount();
+        m_duplicate_plate_menu_item = append_menu_item(editMenu, wxID_ANY, _L("Duplicate Current Plate"),
             _L("Duplicate the current plate"),[this, handle_key_event](wxCommandEvent&) {
                 m_plater->duplicate_plate();
             },
             "", nullptr, [this](){return true;}, this);
-        editMenu->AppendSeparator();
+        m_duplicate_plate_menu_item_attached = true;
+        m_duplicate_plate_menu_item_separator = editMenu->AppendSeparator();
 
 #endif
 
@@ -3135,6 +3139,17 @@ void MainFrame::init_menubar_as_editor()
         //    [this](wxCommandEvent& evt) {
         //        wxGetApp().app_config->set_bool("show_printable_box", evt.GetInt() == 1);
         //    }, nullptr, [this]() {return can_select(); }, [this]() { return wxGetApp().app_config->get("show_printable_box").compare("true") == 0; }, this);
+
+        m_edit_menu = editMenu;
+        // Re-check "Duplicate Current Plate" visibility whenever any menu is (re)opened, since
+        // editMenu is only built once and printer technology can change at runtime. The topbar's
+        // dropdown only fires wxEVT_MENU_OPEN for the outer popup menu (not for editMenu itself
+        // when it is expanded as a hover submenu), so this intentionally does not filter on
+        // evt.GetMenu() -- the update itself is a cheap, idempotent no-op when nothing changed.
+        this->Bind(wxEVT_MENU_OPEN, [this](wxMenuEvent& evt) {
+            update_duplicate_plate_menu_item_visibility();
+            evt.Skip();
+        });
     }
 
     // BBS
@@ -3800,6 +3815,27 @@ void MainFrame::update_menubar()
         return;
 
     const bool is_fff = plater()->printer_technology() == ptFFF;
+}
+
+void MainFrame::update_duplicate_plate_menu_item_visibility()
+{
+    if (m_edit_menu == nullptr || m_duplicate_plate_menu_item == nullptr || m_duplicate_plate_menu_item_separator == nullptr)
+        return;
+
+    const bool should_show = wxGetApp().get_ui_printer_technology() == ptFFF;
+    if (should_show && !m_duplicate_plate_menu_item_attached) {
+        // Insert the item first so the separator lands right after it (Insert() shifts
+        // whatever was already at that position, e.g. "Select all", further down).
+        m_edit_menu->Insert(m_duplicate_plate_menu_item_pos, m_duplicate_plate_menu_item);
+        m_edit_menu->Insert(m_duplicate_plate_menu_item_pos + 1, m_duplicate_plate_menu_item_separator);
+        m_duplicate_plate_menu_item_attached = true;
+    } else if (!should_show && m_duplicate_plate_menu_item_attached) {
+        // Remove both the item and its trailing separator, so hiding it doesn't leave two
+        // adjacent separators with nothing between them.
+        m_edit_menu->Remove(m_duplicate_plate_menu_item_separator);
+        m_edit_menu->Remove(m_duplicate_plate_menu_item);
+        m_duplicate_plate_menu_item_attached = false;
+    }
 }
 
 void MainFrame::reslice_now()

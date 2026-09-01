@@ -111,6 +111,15 @@ class MainFrame : public DPIFrame
     wxMenuItem* m_menu_item_reslice_now { nullptr };
     wxSizer*    m_main_sizer{ nullptr };
 
+    // "Duplicate Current Plate" Edit menu item: hidden in SLA/Resin mode, shown in FDM mode.
+    // The separator immediately after it is hidden/shown together with it, so hiding the item
+    // doesn't leave two adjacent separators with nothing between them.
+    wxMenu*     m_edit_menu{ nullptr };
+    wxMenuItem* m_duplicate_plate_menu_item{ nullptr };
+    wxMenuItem* m_duplicate_plate_menu_item_separator{ nullptr };
+    int         m_duplicate_plate_menu_item_pos{ wxNOT_FOUND };
+    bool        m_duplicate_plate_menu_item_attached{ true };
+
     size_t      m_last_selected_tab;
 
     std::string     get_base_name(const wxString &full_name, const char *extension = nullptr) const;
@@ -285,6 +294,8 @@ public:
     void        init_menubar_as_editor();
     void        init_menubar_as_gcodeviewer();
     void        update_menubar();
+    // Re-evaluates whether "Duplicate Current Plate" should be shown, based on current printer technology.
+    void        update_duplicate_plate_menu_item_visibility();
     // Open item in menu by menu and item name (in actual language)
     void        open_menubar_item(const wxString& menu_name,const wxString& item_name);
 #ifdef _WIN32
