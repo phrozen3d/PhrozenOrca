@@ -120,6 +120,16 @@ class MainFrame : public DPIFrame
     int         m_duplicate_plate_menu_item_pos{ wxNOT_FOUND };
     bool        m_duplicate_plate_menu_item_attached{ true };
 
+    // File > Export submenu items that only make sense for FDM sliced output: hidden in
+    // SLA/Resin mode, shown in FDM mode. The three items are appended back-to-back with no
+    // separator between them, so they're tracked and toggled together as one block.
+    wxMenu*     m_export_menu{ nullptr };
+    wxMenuItem* m_export_sliced_file_menu_item{ nullptr };
+    wxMenuItem* m_export_all_sliced_file_menu_item{ nullptr };
+    wxMenuItem* m_export_gcode_menu_item{ nullptr };
+    int         m_export_sla_hidden_items_pos{ wxNOT_FOUND };
+    bool        m_export_sla_hidden_items_attached{ true };
+
     size_t      m_last_selected_tab;
 
     std::string     get_base_name(const wxString &full_name, const char *extension = nullptr) const;
@@ -296,6 +306,9 @@ public:
     void        update_menubar();
     // Re-evaluates whether "Duplicate Current Plate" should be shown, based on current printer technology.
     void        update_duplicate_plate_menu_item_visibility();
+    // Re-evaluates whether the FDM-only File > Export submenu items (sliced file / all sliced
+    // file / G-code) should be shown, based on current printer technology.
+    void        update_export_menu_sla_gated_items_visibility();
     // Open item in menu by menu and item name (in actual language)
     void        open_menubar_item(const wxString& menu_name,const wxString& item_name);
 #ifdef _WIN32

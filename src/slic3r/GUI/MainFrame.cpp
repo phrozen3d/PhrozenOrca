@@ -855,7 +855,7 @@ DPIFrame(NULL, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, BORDERLESS_FRAME_
             evt.Skip();
             return;
         }
-        else if (evt.CmdDown() && evt.GetKeyCode() == 'G') { if (can_export_gcode()) { wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_SLICED_FILE)); } evt.Skip(); return; }
+        else if (evt.CmdDown() && evt.GetKeyCode() == 'G') { if (wxGetApp().get_ui_printer_technology() == ptFFF && can_export_gcode()) { wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_SLICED_FILE)); } evt.Skip(); return; }
         if (evt.CmdDown() && evt.GetKeyCode() == 'J') { m_printhost_queue_dlg->Show(); return; }    
         if (evt.CmdDown() && evt.GetKeyCode() == 'N') { m_plater->new_project(); return;}
         if (evt.CmdDown() && evt.GetKeyCode() == 'O') { m_plater->load_project(); return;}
@@ -2156,7 +2156,7 @@ wxBoxSizer* MainFrame::create_side_tools()
             }
             else {
                 //Phrozen Orca Buttons
-                if ( bIsPhrozenVender &&  wxGetApp().IsPhrozenDeveloperMode() )
+                if ( bIsPhrozenVender &&  wxGetApp().IsPhrozenDeveloperMode() && bIsFDMMode )
                 {
                     // upload and print
                     SideButton* send_gcode_btn = new SideButton(p, _L("Print"), "");
@@ -2183,11 +2183,15 @@ wxBoxSizer* MainFrame::create_side_tools()
                 SideButton* send_to_printer_btn = new SideButton(p, _L("Send"), "");
                 send_to_printer_btn->SetCornerRadius(0);
 
-                SideButton* export_sliced_file_btn = new SideButton(p, _L("Export plate sliced file"), "");
-                export_sliced_file_btn->SetCornerRadius(0);
+                SideButton* export_sliced_file_btn = nullptr;
+                SideButton* export_all_sliced_file_btn = nullptr;
+                if (bIsFDMMode) {
+                    export_sliced_file_btn = new SideButton(p, _L("Export plate sliced file"), "");
+                    export_sliced_file_btn->SetCornerRadius(0);
 
-                SideButton* export_all_sliced_file_btn = new SideButton(p, _L("Export all sliced file"), "");
-                export_all_sliced_file_btn->SetCornerRadius(0);
+                    export_all_sliced_file_btn = new SideButton(p, _L("Export all sliced file"), "");
+                    export_all_sliced_file_btn->SetCornerRadius(0);
+                }
 
                 if (print_plate_btn) {
                     print_plate_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
@@ -2231,23 +2235,27 @@ wxBoxSizer* MainFrame::create_side_tools()
                     p->Dismiss();
                     });
 
-                export_sliced_file_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                    m_print_btn->SetLabel(_L("Export plate sliced file"));
-                    m_print_select = eExportSlicedFile;
-                    m_print_enable = get_enable_print_status();
-                    m_print_btn->Enable(m_print_enable);
-                    this->Layout();
-                    p->Dismiss();
-                    });
+                if (export_sliced_file_btn) {
+                    export_sliced_file_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Export plate sliced file"));
+                        m_print_select = eExportSlicedFile;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                        });
+                }
 
-                export_all_sliced_file_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
-                    m_print_btn->SetLabel(_L("Export all sliced file"));
-                    m_print_select = eExportAllSlicedFile;
-                    m_print_enable = get_enable_print_status();
-                    m_print_btn->Enable(m_print_enable);
-                    this->Layout();
-                    p->Dismiss();
-                    });
+                if (export_all_sliced_file_btn) {
+                    export_all_sliced_file_btn->Bind(wxEVT_BUTTON, [this, p](wxCommandEvent&) {
+                        m_print_btn->SetLabel(_L("Export all sliced file"));
+                        m_print_select = eExportAllSlicedFile;
+                        m_print_enable = get_enable_print_status();
+                        m_print_btn->Enable(m_print_enable);
+                        this->Layout();
+                        p->Dismiss();
+                        });
+                }
 
                 bool support_send = true;
                 bool support_print_all = true;
@@ -2294,8 +2302,10 @@ wxBoxSizer* MainFrame::create_side_tools()
                     });
                     p->append_button(print_multi_machine_btn);
                 }
-                p->append_button(export_sliced_file_btn);
-                p->append_button(export_all_sliced_file_btn);
+                if (export_sliced_file_btn)
+                    p->append_button(export_sliced_file_btn);
+                if (export_all_sliced_file_btn)
+                    p->append_button(export_all_sliced_file_btn);
 
                 if ( bIsFDMMode ) {
                     SideButton* export_gcode_btn = new SideButton(p, _L("Export G-code file"), "");
@@ -2905,23 +2915,26 @@ void MainFrame::init_menubar_as_editor()
             [this](wxCommandEvent&) { if (m_plater) m_plater->export_core_3mf(); }, "menu_export_sliced_file", nullptr,
             [this](){return can_export_model(); }, this);
         // BBS export .gcode.3mf
-        append_menu_item(export_menu, wxID_ANY, _L("Export plate sliced file") + dots + "\t" + ctrl + "G", _L("Export current sliced file"),
+        m_export_sla_hidden_items_pos = export_menu->GetMenuItemCount();
+        m_export_sliced_file_menu_item = append_menu_item(export_menu, wxID_ANY, _L("Export plate sliced file") + dots + "\t" + ctrl + "G", _L("Export current sliced file"),
             [this](wxCommandEvent&) { if (m_plater) wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_SLICED_FILE)); }, "menu_export_sliced_file", nullptr,
             [this](){return can_export_gcode(); }, this);
 
-        append_menu_item(export_menu, wxID_ANY, _L("Export all plate sliced file") + dots/* + "\t" + ctrl + "G"*/, _L("Export all plate sliced file"),
+        m_export_all_sliced_file_menu_item = append_menu_item(export_menu, wxID_ANY, _L("Export all plate sliced file") + dots/* + "\t" + ctrl + "G"*/, _L("Export all plate sliced file"),
             [this](wxCommandEvent&) { if (m_plater) wxPostEvent(m_plater, SimpleEvent(EVT_GLTOOLBAR_EXPORT_ALL_SLICED_FILE)); }, "menu_export_sliced_file", nullptr,
             [this]() {return can_export_all_gcode(); }, this);
 
-        append_menu_item(export_menu, wxID_ANY, _L("Export G-code") + dots/* + "\t" + ctrl + "G"*/, _L("Export current plate as G-code"),
+        m_export_gcode_menu_item = append_menu_item(export_menu, wxID_ANY, _L("Export G-code") + dots/* + "\t" + ctrl + "G"*/, _L("Export current plate as G-code"),
             [this](wxCommandEvent&) { if (m_plater) m_plater->export_gcode(false); }, "menu_export_gcode", nullptr,
             [this]() {return can_export_gcode(); }, this);
+        m_export_sla_hidden_items_attached = true;
         append_menu_item(
             export_menu, wxID_ANY, _L("Export Preset Bundle") + dots /* + "\t" + ctrl + "E"*/, _L("Export current configuration to files"),
             [this](wxCommandEvent &) { export_config(); },
             "menu_export_config", nullptr,
             []() { return true; }, this);
 
+        m_export_menu = export_menu;
         append_submenu(fileMenu, export_menu, wxID_ANY, _L("Export"), "");
 
         fileMenu->AppendSeparator();
@@ -3148,6 +3161,7 @@ void MainFrame::init_menubar_as_editor()
         // evt.GetMenu() -- the update itself is a cheap, idempotent no-op when nothing changed.
         this->Bind(wxEVT_MENU_OPEN, [this](wxMenuEvent& evt) {
             update_duplicate_plate_menu_item_visibility();
+            update_export_menu_sla_gated_items_visibility();
             evt.Skip();
         });
     }
@@ -3835,6 +3849,30 @@ void MainFrame::update_duplicate_plate_menu_item_visibility()
         m_edit_menu->Remove(m_duplicate_plate_menu_item_separator);
         m_edit_menu->Remove(m_duplicate_plate_menu_item);
         m_duplicate_plate_menu_item_attached = false;
+    }
+}
+
+void MainFrame::update_export_menu_sla_gated_items_visibility()
+{
+    if (m_export_menu == nullptr || m_export_sliced_file_menu_item == nullptr ||
+        m_export_all_sliced_file_menu_item == nullptr || m_export_gcode_menu_item == nullptr ||
+        m_export_sla_hidden_items_pos == wxNOT_FOUND)
+        return;
+
+    const bool should_show = wxGetApp().get_ui_printer_technology() == ptFFF;
+    if (should_show && !m_export_sla_hidden_items_attached) {
+        // Insert from front to back so each item lands at its original position and pushes
+        // whatever follows (e.g. "Export Preset Bundle") further down, restoring the original order.
+        m_export_menu->Insert(m_export_sla_hidden_items_pos, m_export_sliced_file_menu_item);
+        m_export_menu->Insert(m_export_sla_hidden_items_pos + 1, m_export_all_sliced_file_menu_item);
+        m_export_menu->Insert(m_export_sla_hidden_items_pos + 2, m_export_gcode_menu_item);
+        m_export_sla_hidden_items_attached = true;
+    } else if (!should_show && m_export_sla_hidden_items_attached) {
+        // Remove from back to front so the not-yet-removed items keep their recorded position.
+        m_export_menu->Remove(m_export_gcode_menu_item);
+        m_export_menu->Remove(m_export_all_sliced_file_menu_item);
+        m_export_menu->Remove(m_export_sliced_file_menu_item);
+        m_export_sla_hidden_items_attached = false;
     }
 }
 
