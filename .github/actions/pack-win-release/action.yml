@@ -19,10 +19,33 @@ runs:
         $buildRoot = Resolve-Path (Join-Path $buildDir '..')
         echo "build_root=$buildRoot" | Out-File -Append -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
+    # Pin NSIS: the windows-2022 image ships NSIS 3.10 and an unpinned `choco install nsis`
+    # silently keeps it. V1.2.2 was packed with 3.10 and got flagged by Kaspersky
+    # (Trojan.Win32.DllHijack); V1.2.0 was packed with 3.11 and was not.
+    # --force overwrites the preinstalled copy.
     - name: Install NSIS
       shell: pwsh
       run: |
-        choco install nsis
+        choco install nsis --version=3.11.0 -y --force --no-progress
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Verify NSIS version
+      shell: pwsh
+      run: |
+        $expected = 'v3.11'
+        $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+        $makensis = if ($cmd) { $cmd.Source } else { 'C:\Program Files (x86)\NSIS\makensis.exe' }
+        if (-not (Test-Path $makensis)) {
+            Write-Error "makensis not found at $makensis"
+            exit 1
+        }
+        $actual = (& $makensis /VERSION).Trim()
+        Write-Host "makensis: $makensis"
+        Write-Host "NSIS version: $actual"
+        if ($actual -ne $expected) {
+            Write-Error "NSIS version mismatch: expected $expected, got $actual"
+            exit 1
+        }
 
     - name: Create installer (NSIS)
       shell: pwsh
