@@ -206,9 +206,33 @@ jobs:
       # 打包步驟刻意內聯，不使用共用的 pack-win-release composite action:
       # 那是主線的共用檔案，且 artifact 名稱寫死 PhrozenOrca_Windows_*。
       # 見 design.md 決策 7。
+      # 固定 NSIS 版本：windows-2022 映像檔預裝 NSIS 3.10，未指定版本的
+      # choco install nsis 會直接沿用。主線 V1.2.2 以 3.10 打包後被卡巴斯基報
+      # Trojan.Win32.DllHijack（V1.2.0 以 3.11 打包則沒有）。--force 會覆蓋預裝版本。
+      # 與主線 pack-win-release/action.yml 的同名步驟保持一致。
       - name: Install NSIS
         shell: pwsh
-        run: choco install nsis
+        run: |
+          choco install nsis --version=3.11.0 -y --force --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify NSIS version
+        shell: pwsh
+        run: |
+          $expected = 'v3.11'
+          $cmd = Get-Command makensis -ErrorAction SilentlyContinue
+          $makensis = if ($cmd) { $cmd.Source } else { 'C:\Program Files (x86)\NSIS\makensis.exe' }
+          if (-not (Test-Path $makensis)) {
+              Write-Error "makensis not found at $makensis"
+              exit 1
+          }
+          $actual = (& $makensis /VERSION).Trim()
+          Write-Host "makensis: $makensis"
+          Write-Host "NSIS version: $actual"
+          if ($actual -ne $expected) {
+              Write-Error "NSIS version mismatch: expected $expected, got $actual"
+              exit 1
+          }
 
       - name: Create installer (NSIS)
         shell: pwsh
