@@ -102,10 +102,14 @@ jobs:
       - name: Free disk space
         if: startsWith(inputs.os, 'macos')
         run: |
-          df -hI /dev/disk3s1s1
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
+          df -h /
+          # Keep the runner's active (default) Xcode and remove the others to free disk space
+          ACTIVE_XCODE="$(cd "$(xcode-select -p)/../.." && pwd -P)"
+          echo "Active Xcode: ${ACTIVE_XCODE}"
+          xcodebuild -version
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -path "${ACTIVE_XCODE}" -exec rm -rf {} +
           sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
-          df -hI /dev/disk3s1s1
+          df -h /
 
       - name: Build slicer mac
         if: startsWith(inputs.os, 'macos')

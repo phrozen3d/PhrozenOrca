@@ -103,7 +103,7 @@ jobs:
 
       # Upload Artifacts
       # - name: Upload Mac ${{ inputs.arch }} artifacts
-      #   if: inputs.os == 'macos-14'
+      #   if: inputs.os == 'macos-15'
       #   uses: actions/upload-artifact@v4
       #   with:
       #     name: PhrozenOrca_dep_mac_${{ env.date }}

@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-          - os: macos-14
+          - os: macos-15
             arch: arm64
     uses: ./.github/workflows/build_check_cache.yml
     with:
