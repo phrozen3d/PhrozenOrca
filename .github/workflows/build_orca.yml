@@ -135,7 +135,7 @@ jobs:
           security unlock-keychain -p $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P $MAC_CERTIFICATE_PASSWORD -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MAC_CERTIFICATE_PASSWORD $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
           codesign --deep --force --verbose --options runtime --timestamp --entitlements ${{ github.workspace }}/scripts/disable_validation.entitlements --sign "$CERTIFICATE_ID" ${{ github.workspace }}/build/universal/PhrozenOrca/PhrozenOrca.app
           ln -s /Applications ${{ github.workspace }}/build/universal/PhrozenOrca/Applications
           hdiutil create -volname "PhrozenOrca" -srcfolder ${{ github.workspace }}/build/universal/PhrozenOrca -ov -format UDZO PhrozenOrca_Mac_universal_${{ env.ver }}.dmg
