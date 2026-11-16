@@ -71,19 +71,19 @@
         "1"
     ],
     "eng_plate_temp": [
-        "105"
+        "100"
     ],
     "eng_plate_temp_initial_layer": [
         "105"
     ],
     "fan_cooling_layer_time": [
-        "8"
+        "15"
     ],
     "fan_max_speed": [
-        "50"
+        "20"
     ],
     "fan_min_speed": [
-        "50"
+        "0"
     ],
     "filament_cooling_final_speed": [
         "3.4"
@@ -125,7 +125,7 @@
         "nil"
     ],
     "filament_max_volumetric_speed": [
-        "12"
+        "14"
     ],
     "filament_minimal_purge_on_wipe_tower": [
         "15"
@@ -146,7 +146,7 @@
         "120 100 6.6 6.8 7.2 7.6 7.9 8.2 8.7 9.4 9.9 10.0| 0.05 6.6 0.45 6.8 0.95 7.8 1.45 8.3 1.95 9.7 2.45 10 2.95 7.6 3.45 7.6 3.95 7.6 4.45 7.6 4.95 7.6"
     ],
     "filament_retract_before_wipe": [
-        "nil"
+        "50%"
     ],
     "filament_retract_lift_above": [
         "nil"
@@ -161,7 +161,7 @@
         "nil"
     ],
     "filament_retract_when_changing_layer": [
-        "nil"
+        "1"
     ],
     "filament_retraction_distances_when_cut": [
         "nil"
@@ -173,13 +173,13 @@
         "nil"
     ],
     "filament_retraction_speed": [
-        "nil"
+        "45"
     ],
     "filament_shrink": [
-        "100%"
+        "99%"
     ],
     "filament_shrinkage_compensation_z": [
-        "100%"
+        "99%"
     ],
     "filament_soluble": [
         "0"
@@ -203,13 +203,13 @@
         "100"
     ],
     "filament_wipe": [
-        "nil"
+        "1"
     ],
     "filament_wipe_distance": [
-        "nil"
+        "2"
     ],
     "filament_z_hop": [
-        "nil"
+        "0.4"
     ],
     "filament_z_hop_types": [
         "nil"
@@ -218,7 +218,7 @@
         "0"
     ],
     "hot_plate_temp": [
-        "105"
+        "100"
     ],
     "hot_plate_temp_initial_layer": [
         "105"
@@ -245,7 +245,7 @@
         "250"
     ],
     "overhang_fan_speed": [
-        "80"
+        "50"
     ],
     "overhang_fan_threshold": [
         "25%"
@@ -257,7 +257,7 @@
         "0.02"
     ],
     "reduce_fan_stop_start_freq": [
-        "1"
+        "0"
     ],
     "required_nozzle_HRC": [
         "3"
@@ -266,7 +266,7 @@
         "1"
     ],
     "slow_down_layer_time": [
-        "12"
+        "8"
     ],
     "slow_down_min_speed": [
         "10"
@@ -281,7 +281,7 @@
         "-1"
     ],
     "temperature_vitrification": [
-        "110"
+        "90"
     ],
     "textured_cool_plate_temp": [
         "40"
