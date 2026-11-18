@@ -60,7 +60,7 @@ jobs:
 
       # 用 git blob SHA（git rev-parse HEAD:<path>）而不是對簽出後的檔案內容算
       # sha256：blob SHA 取自 git 物件庫，不受這個 job 之後接續的 windows-2022／
-      # macos-14 checkout 時 CRLF/LF 轉換影響，三種 runner 算出來的值保證一致。
+      # macos-15 checkout 時 CRLF/LF 轉換影響，三種 runner 算出來的值保證一致。
       # 詳見 .github/education-ci-parity.lock 開頭的說明。
       - name: Compare against recorded parity lock
         shell: bash
@@ -280,7 +280,7 @@ jobs:
   build_macos:
     name: Build Education (macOS)
     needs: parity_check
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       date:
       ver:
@@ -317,7 +317,7 @@ jobs:
       - name: Compute deps cache key
         id: deps_key
         shell: bash
-        run: echo "value=macos-14-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=macos-15-cache-phrozenorca_deps-education-build-${{ hashFiles('deps/**') }}" >> "$GITHUB_OUTPUT"
 
       # 路徑是 deps/build-resin —— build_resin_release_macos.sh 實際使用的目錄
       # （主線的 build_release_macos.sh 用 deps/build），與 Windows 的
@@ -342,12 +342,17 @@ jobs:
           brew list
           mkdir -p ${{ github.workspace }}/deps/build-resin
 
+      # 與主線 build_orca.yml 同步：保留 runner 目前使用中（預設）的 Xcode，
+      # 刪除其他版本釋放空間；不再寫死 Xcode_15.4（macos-15 映像檔沒有這個版本）。
       - name: Free disk space
         run: |
-          df -hI /dev/disk3s1s1
-          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -name "Xcode_15.4.app" -exec rm -rf {} +
+          df -h /
+          ACTIVE_XCODE="$(cd "$(xcode-select -p)/../.." && pwd -P)"
+          echo "Active Xcode: ${ACTIVE_XCODE}"
+          xcodebuild -version
+          sudo find /Applications -maxdepth 1 -type d -name "Xcode_*.app" ! -path "${ACTIVE_XCODE}" -exec rm -rf {} +
           sudo rm -rf ~/Library/Developer/CoreSimulator/Caches/*
-          df -hI /dev/disk3s1s1
+          df -h /
 
       # 建置後的 find 清理是必要的：deps/build-resin/<arch> 底下會留下數十 GB 的
       # 中間產物，只有 PhrozenOrca_dep 需要進快取。
@@ -356,13 +361,15 @@ jobs:
         if: steps.cache_deps.outputs.cache-hit != 'true'
         working-directory: ${{ github.workspace }}
         run: |
-          brew uninstall --ignore-dependencies zstd
+          # 與主線 build_deps.yml 同步：只 unlink 不 uninstall。Homebrew 的 git/curl
+          # 連結 /opt/homebrew/opt/zstd，uninstall 會讓 macos-15 上的 git clone 失敗。
+          brew unlink zstd
           ./build_resin_release_macos.sh -dx -a universal -t 10.15 -1
           for arch in arm64 x86_64; do
               (cd "${{ github.workspace }}/deps/build-resin/${arch}" && \
               find . -mindepth 1 -maxdepth 1 ! -name 'PhrozenOrca_dep' -exec rm -rf {} +)
           done
-          brew install zstd
+          brew link zstd
 
       # 壞掉的 deps 一旦進了快取，之後每次都會「命中」並以更難診斷的方式失敗，
       # 而 macOS runner 是 10 倍計費 —— 這裡多花十秒驗證非常划算。
@@ -409,7 +416,7 @@ jobs:
           security unlock-keychain -p $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P $MAC_CERTIFICATE_PASSWORD -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security list-keychain -d user -s $KEYCHAIN_PATH
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $MAC_CERTIFICATE_PASSWORD $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD $KEYCHAIN_PATH
 
       - name: Sign app and create DMG
         env:

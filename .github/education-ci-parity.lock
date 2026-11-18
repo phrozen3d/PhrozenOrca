@@ -34,10 +34,10 @@
 #
 # 格式：每行 <相對路徑><TAB><git blob SHA>；以 # 開頭的是註解，會被忽略。
 
-LAST_REVIEWED_MAINLINE_COMMIT=dd9e7860b4f9700d440134ade73e0b6351670b37
+LAST_REVIEWED_MAINLINE_COMMIT=dc18509b1c68435019f7db9f604f2ca8ff3de28b
 
-.github/workflows/build_orca.yml	d33a64725ba9f2b713be6b868a0b04d0b6ec8a3e
-.github/workflows/build_deps.yml	5f047c8f7b7248936f1876365052146bd3f2aa4c
+.github/workflows/build_orca.yml	865ce599d2edc85381461d80809fca79942c3147
+.github/workflows/build_deps.yml	ca5388c38f076d9d4d7f92fdcb6c8f0948b05f69
 .github/workflows/build_check_cache.yml	70c3551362ac7bf41a829363bf998ff6b5edc78f
 build_release_vs2022.bat	8fcbefdb212889dff32a2c44091c66e9cc32e479
 build_release_macos.sh	085b5b83d66a2a79397c0f832ea7812a65dcebb2
