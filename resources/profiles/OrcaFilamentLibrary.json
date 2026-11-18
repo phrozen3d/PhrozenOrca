@@ -1187,6 +1187,22 @@
         {
             "name": "Phrozen Support For PLA @Phrozen Arco 0.6 nozzle",
             "sub_path": "filament/Phrozen/Phrozen Support For PLA @Phrozen Arco 0.6 nozzle.json"
+        },
+        {
+            "name": "Phrozen ASA Easy @base",
+            "sub_path": "filament/Phrozen/Phrozen ASA Easy @base.json"
+        },
+        {
+            "name": "Phrozen ASA Easy @Phrozen Arco 0.4 nozzle",
+            "sub_path": "filament/Phrozen/Phrozen ASA Easy @Phrozen Arco 0.4 nozzle.json"
+        },
+        {
+            "name": "Phrozen PP Basic @base",
+            "sub_path": "filament/Phrozen/Phrozen PP Basic @base.json"
+        },
+        {
+            "name": "Phrozen PP Basic @Phrozen Arco 0.4 nozzle",
+            "sub_path": "filament/Phrozen/Phrozen PP Basic @Phrozen Arco 0.4 nozzle.json"
         }
 
     ]

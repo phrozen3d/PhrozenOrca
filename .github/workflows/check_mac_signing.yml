@@ -1,0 +1,60 @@
+name: Check Mac signing secrets
+
+# 只驗證 Mac 簽章 / 公證用的 secrets，不 build，約 1~2 分鐘
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/check_mac_signing.yml'
+
+jobs:
+  check:
+    runs-on: macos-15
+    steps:
+      - name: Check secrets
+        env:
+          MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          CERTIFICATE_ID: ${{ secrets.MAC_CERTIFICATE_NAME }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          echo "== 1. secrets 是否有值"
+          for v in MAC_CERTIFICATE_P12 MAC_CERTIFICATE_PASSWORD KEYCHAIN_PASSWORD CERTIFICATE_ID APPLE_ID TEAM_ID APPLE_APP_PASSWORD; do
+            if [ -z "${!v}" ]; then echo "❌ $v 是空的"; exit 1; fi
+            echo "✅ $v (長度 $(printf %s "${!v}" | wc -c | tr -d ' '))"
+          done
+
+          echo "== 2. MAC_CERTIFICATE_P12 能否 base64 解碼成 .p12"
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          echo -n "$MAC_CERTIFICATE_P12" | base64 --decode --output $CERTIFICATE_PATH
+          ls -l $CERTIFICATE_PATH
+
+          echo "== 3. 匯入 keychain（驗證 MAC_CERTIFICATE_PASSWORD）"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P "$MAC_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH > /dev/null
+
+          echo "== 4. keychain 裡的簽章身分（應為 5C3489CE... Developer ID Application: PHROZEN TECH CO.,LTD. (NK27WA9U4U)）"
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+
+          echo "== 5. 用 MAC_CERTIFICATE_NAME 試簽一個小檔案"
+          cp /usr/bin/true $RUNNER_TEMP/sign_test
+          codesign --force --verbose --options runtime --timestamp --sign "$CERTIFICATE_ID" $RUNNER_TEMP/sign_test
+          codesign -dvv $RUNNER_TEMP/sign_test 2>&1 | grep -E "Authority|TeamIdentifier"
+
+          echo "== 6. 公證帳號（APPLE_ID / TEAM_ID / APPLE_APP_PASSWORD）"
+          xcrun notarytool history --apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$APPLE_APP_PASSWORD" > $RUNNER_TEMP/history.txt
+          head -8 $RUNNER_TEMP/history.txt
+
+          echo "🎉 全部通過"
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
